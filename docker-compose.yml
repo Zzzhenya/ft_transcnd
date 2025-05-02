@@ -1,0 +1,27 @@
+version: '3'
+
+services:
+  backend:
+    build: ./backend
+    container_name: transcendence_backend
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+      - ./backend/db:/app/db
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - JWT_SECRET=test_12
+    command: npm run start
+
+  frontend:
+    build: ./frontend
+    container_name: transcendence_frontend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
