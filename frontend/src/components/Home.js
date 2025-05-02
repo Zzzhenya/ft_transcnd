@@ -13,7 +13,7 @@ function Home() {
 
   return (
     <div className="home-container">
-      <h1>Willkommen bei ft_transcendence, {user.username || 'Benutzer'}!</h1>
+      <h1>Hey {user.username || 'Benutzer'} <br></br> Willkommen bei ft_transcendence, !</h1>
       <div className="dashboard">
         <div className="card">
           <h2>Dein Profil</h2>
