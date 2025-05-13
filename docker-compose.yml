@@ -1,27 +1,51 @@
-version: '3'
-
+version: '3.8'
 services:
+  # Neue PostgreSQL Datenbank
+  postgres:
+    image: postgres:15-alpine
+    container_name: transcendence_db
+    restart: always
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: transcendence
+      POSTGRES_PASSWORD: secretpassword
+      POSTGRES_DB: transcendence_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+  
+  # Backend anpassen
   backend:
     build: ./backend
     container_name: transcendence_backend
-    volumes:
-      - ./backend:/app
-      - /app/node_modules
-      - ./backend/db:/app/db
+    restart: always
     ports:
-      - "3000:3000"
+      - "5000:5000"
     environment:
-      - NODE_ENV=development
-      - JWT_SECRET=test_12
-    command: npm run start
-
+      DB_TYPE: postgres
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: transcendence
+      DB_PASSWORD: secretpassword
+      DB_NAME: transcendence_db
+    depends_on:
+      - postgres
+  
   frontend:
     build: ./frontend
     container_name: transcendence_frontend
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
     ports:
-      - "8080:80"
+      - "3000:80"
+  
+  # Adminer funktioniert jetzt problemlos!
+  adminer:
+    image: adminer:latest
+    container_name: transcendence_adminer
+    restart: always
+    ports:
+      - "8080:8080"
     depends_on:
-      - backend
+      - postgres
+
+volumes:
+  postgres_data:

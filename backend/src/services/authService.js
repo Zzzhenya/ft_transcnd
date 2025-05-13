@@ -1,57 +1,132 @@
-// src/services/authService.js
+// services/authService.js
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'secret';
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
 class AuthService {
-  // Benutzer validieren (für Login)
-  static async validateUser(username, password) {
-    const user = await User.findByUsername(username);
-    
-    if (!user) {
-      return null;
-    }
-    
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-    
-    if (!isPasswordValid) {
-      return null;
-    }
-    
-    // Passwort aus der Rückgabe entfernen
-    const { password: _, ...userWithoutPassword } = user;
-    return userWithoutPassword;
-  }
-
-  // JWT-Token erstellen
-  static generateToken(user) {
-    const payload = {
-      userId: user.id,
-      username: user.username
-    };
-    
-    return jwt.sign(payload, JWT_SECRET, { expiresIn: '1d' });
-  }
-
-  // Benutzer registrieren
-  static async registerUser(userData) {
+  static async register(username, email, password) {
     try {
-      // Überprüfen, ob der Benutzer bereits existiert
-      const existingUser = await User.findByUsername(userData.username);
-      
-      if (existingUser) {
-        throw new Error('Benutzername wird bereits verwendet');
+      // Prüfe ob Benutzer bereits existiert
+      const existingEmail = await User.findByEmail(email);
+      if (existingEmail) {
+        throw new Error('Email bereits registriert');
       }
-      
-      // Neuen Benutzer erstellen
-      const newUser = await User.create(userData);
-      
-      // Passwort aus der Rückgabe entfernen
-      const { password: _, ...userWithoutPassword } = newUser;
-      return userWithoutPassword;
+
+      const existingUsername = await User.findByUsername(username);
+      if (existingUsername) {
+        throw new Error('Benutzername bereits vergeben');
+      }
+
+      // Passwort hashen
+      const hashedPassword = await bcrypt.hash(password, 10);
+
+      // Benutzer erstellen
+      const newUser = await User.create({
+        username,
+        email,
+        password: hashedPassword
+      });
+
+      // JWT Token erstellen
+      const token = jwt.sign(
+        { userId: newUser.id, username: newUser.username },
+        JWT_SECRET,
+        { expiresIn: '24h' }
+      );
+
+      return {
+        user: {
+          id: newUser.id,
+          username: newUser.username,
+          email: newUser.email
+        },
+        token
+      };
     } catch (error) {
+      console.error('Error in register:', error);
+      throw error;
+    }
+  }
+
+  static async login(email, password) {
+    try {
+      // Benutzer finden
+      const user = await User.findByEmail(email);
+      if (!user) {
+        throw new Error('Ungültige Anmeldedaten');
+      }
+
+      // Passwort prüfen
+      const isValidPassword = await bcrypt.compare(password, user.password);
+      if (!isValidPassword) {
+        throw new Error('Ungültige Anmeldedaten');
+      }
+
+      // JWT Token erstellen
+      const token = jwt.sign(
+        { userId: user.id, username: user.username },
+        JWT_SECRET,
+        { expiresIn: '24h' }
+      );
+
+      return {
+        user: {
+          id: user.id,
+          username: user.username,
+          email: user.email
+        },
+        token
+      };
+    } catch (error) {
+      console.error('Error in login:', error);
+      throw error;
+    }
+  }
+
+  static async verifyToken(token) {
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET);
+      const user = await User.findById(decoded.userId);
+      
+      if (!user) {
+        throw new Error('Benutzer nicht gefunden');
+      }
+
+      return {
+        id: user.id,
+        username: user.username,
+        email: user.email
+      };
+    } catch (error) {
+      console.error('Error in verifyToken:', error);
+      throw error;
+    }
+  }
+
+  static async updatePassword(userId, oldPassword, newPassword) {
+    try {
+      const user = await User.findById(userId);
+      if (!user) {
+        throw new Error('Benutzer nicht gefunden');
+      }
+
+      // Altes Passwort prüfen
+      const isValidPassword = await bcrypt.compare(oldPassword, user.password);
+      if (!isValidPassword) {
+        throw new Error('Altes Passwort ist falsch');
+      }
+
+      // Neues Passwort hashen
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+      // Passwort aktualisieren
+      await User.update(userId, { password: hashedPassword });
+
+      return { message: 'Passwort erfolgreich geändert' };
+    } catch (error) {
+      console.error('Error in updatePassword:', error);
       throw error;
     }
   }

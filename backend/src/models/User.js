@@ -1,80 +1,116 @@
-// src/models/User.js
-const { db } = require('../utils/database');
-const bcrypt = require('bcrypt');
+// models/User.js
+const { query } = require('../utils/database');
 
 class User {
-  // Finde einen Benutzer anhand seines Benutzernamens
-  static findByUsername(username) {
-    return new Promise((resolve, reject) => {
-      db.get('SELECT * FROM users WHERE username = ?', [username], (err, row) => {
-        if (err) {
-          reject(err);
-        } else {
-          resolve(row);
-        }
-      });
-    });
+  constructor(data) {
+    this.id = data.id;
+    this.username = data.username;
+    this.email = data.email;
+    this.password = data.password;
+    this.is_two_factor_auth_enabled = data.is_two_factor_auth_enabled;
+    this.two_factor_auth_secret = data.two_factor_auth_secret;
+    this.forty_two_id = data.forty_two_id;
+    this.avatar = data.avatar;
+    this.created_at = data.created_at;
+    this.updated_at = data.updated_at;
   }
 
-  // Finde einen Benutzer anhand seiner ID
-  static findById(id) {
-    return new Promise((resolve, reject) => {
-      db.get('SELECT * FROM users WHERE id = ?', [id], (err, row) => {
-        if (err) {
-          reject(err);
-        } else {
-          resolve(row);
-        }
-      });
-    });
-  }
-
-  // Erstelle einen neuen Benutzer
   static async create(userData) {
     const { username, email, password } = userData;
     
-    // Passwort hashen
-    const hashedPassword = await bcrypt.hash(password, 10);
-    
-    return new Promise((resolve, reject) => {
-      db.run(
-        'INSERT INTO users (username, email, password) VALUES (?, ?, ?)',
-        [username, email, hashedPassword],
-        function(err) {
-          if (err) {
-            reject(err);
-          } else {
-            // ID des neu erstellten Benutzers abrufen
-            db.get('SELECT * FROM users WHERE id = ?', [this.lastID], (err, row) => {
-              if (err) {
-                reject(err);
-              } else {
-                resolve(row);
-              }
-            });
-          }
-        }
+    try {
+      const result = await query(
+        `INSERT INTO users (username, email, password) 
+         VALUES ($1, $2, $3) 
+         RETURNING *`,
+        [username, email, password]
       );
-    });
+      
+      return new User(result.rows[0]);
+    } catch (error) {
+      console.error('Error creating user:', error);
+      throw error;
+    }
   }
 
-  // Aktualisiere einen Benutzer
-  static update(id, userData) {
-    const { username, email, avatar } = userData;
-    
-    return new Promise((resolve, reject) => {
-      db.run(
-        'UPDATE users SET username = ?, email = ?, avatar = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-        [username, email, avatar, id],
-        function(err) {
-          if (err) {
-            reject(err);
-          } else {
-            resolve({ id, changes: this.changes });
-          }
-        }
+  static async findById(id) {
+    try {
+      const result = await query(
+        'SELECT * FROM users WHERE id = $1',
+        [id]
       );
-    });
+      
+      return result.rows[0] ? new User(result.rows[0]) : null;
+    } catch (error) {
+      console.error('Error finding user by id:', error);
+      throw error;
+    }
+  }
+
+  static async findByEmail(email) {
+    try {
+      const result = await query(
+        'SELECT * FROM users WHERE email = $1',
+        [email]
+      );
+      
+      return result.rows[0] ? new User(result.rows[0]) : null;
+    } catch (error) {
+      console.error('Error finding user by email:', error);
+      throw error;
+    }
+  }
+
+  static async findByUsername(username) {
+    try {
+      const result = await query(
+        'SELECT * FROM users WHERE username = $1',
+        [username]
+      );
+      
+      return result.rows[0] ? new User(result.rows[0]) : null;
+    } catch (error) {
+      console.error('Error finding user by username:', error);
+      throw error;
+    }
+  }
+
+  static async update(id, updateData) {
+    const fields = Object.keys(updateData);
+    const values = Object.values(updateData);
+    
+    const setClause = fields.map((field, index) => 
+      `${field} = $${index + 2}`
+    ).join(', ');
+    
+    try {
+      const result = await query(
+        `UPDATE users 
+         SET ${setClause}
+         WHERE id = $1
+         RETURNING *`,
+        [id, ...values]
+      );
+      
+      return result.rows[0] ? new User(result.rows[0]) : null;
+    } catch (error) {
+      console.error('Error updating user:', error);
+      throw error;
+    }
+  }
+
+  static async delete(id) {
+    try {
+      const result = await query(
+        'DELETE FROM users WHERE id = $1 RETURNING *',
+        [id]
+      );
+      
+      return result.rows[0] ? new User(result.rows[0]) : null;
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      throw error;
+    }
   }
 }
 
