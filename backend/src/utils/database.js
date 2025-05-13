@@ -7,7 +7,7 @@ const pool = new Pool({
   port: process.env.DB_PORT || 5432,
   user: process.env.DB_USER || 'transcendence',
   password: process.env.DB_PASSWORD || 'secretpassword',
-  database: process.env.DB_NAME || 'transcendence_db'
+  database: process.env.DB_NAME || 'transcendence'
 });
 
 // Initialisiere Datenbank mit Benutzertabelle

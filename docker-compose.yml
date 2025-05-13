@@ -1,46 +1,53 @@
 version: '3.8'
 services:
-  # Neue PostgreSQL Datenbank
   postgres:
     image: postgres:15-alpine
     container_name: transcendence_db
     restart: always
-    ports:
-      - "5432:5432"
     environment:
       POSTGRES_USER: transcendence
       POSTGRES_PASSWORD: secretpassword
       POSTGRES_DB: transcendence_db
+    ports:
+      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-  
-  # Backend anpassen
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U transcendence"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   backend:
     build: ./backend
     container_name: transcendence_backend
     restart: always
     ports:
-      - "5000:5000"
+      - "5000:5000"  # Wichtig: 5000:5000, nicht 3000!
     environment:
-      DB_TYPE: postgres
+      PORT: 5000
       DB_HOST: postgres
       DB_PORT: 5432
       DB_USER: transcendence
       DB_PASSWORD: secretpassword
-      DB_NAME: transcendence_db
+      DB_NAME: transcendence
     depends_on:
-      - postgres
-  
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+
   frontend:
     build: ./frontend
     container_name: transcendence_frontend
     ports:
       - "3000:80"
-  
-  # Adminer funktioniert jetzt problemlos!
+    depends_on:
+      - backend
+
   adminer:
-    image: adminer:latest
-    container_name: transcendence_adminer
+    image: adminer
     restart: always
     ports:
       - "8080:8080"
