@@ -46,9 +46,9 @@ const register = async (req, res) => {
       return res.status(400).json({ message: 'Benutzername, E-Mail und Passwort sind erforderlich' });
     }
     
-    // Benutzer registrieren
-    const user = await AuthService.registerUser({ username, email, password });
-    
+    // FIX: Verwende AuthService.register statt registerUser
+    const result = await AuthService.register(username, email, password);
+
     res.status(201).json({
       message: 'Benutzer erfolgreich registriert',
       user: {
