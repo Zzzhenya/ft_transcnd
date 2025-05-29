@@ -29,25 +29,49 @@ class AuthService {
         password: hashedPassword
       });
 
-      // JWT Token erstellen
-      const token = jwt.sign(
-        { userId: newUser.id, username: newUser.username },
-        JWT_SECRET,
-        { expiresIn: '24h' }
-      );
-
-      return {
-        user: {
-          id: newUser.id,
-          username: newUser.username,
-          email: newUser.email
-        },
-        token
-      };
+      // JWT Token erstellen (für authController compatibility)
+      return newUser;
     } catch (error) {
       console.error('Error in register:', error);
       throw error;
     }
+  }
+
+  // NEW: validateUser function für authController
+  static async validateUser(username, password) {
+    try {
+      // Benutzer finden (erst nach username, dann email)
+      let user = await User.findByUsername(username);
+      
+      // Falls nicht mit username gefunden, versuche email
+      if (!user) {
+        user = await User.findByEmail(username);
+      }
+      
+      if (!user) {
+        return null; // User nicht gefunden
+      }
+
+      // Passwort prüfen
+      const isValidPassword = await bcrypt.compare(password, user.password);
+      if (!isValidPassword) {
+        return null; // Falsches Passwort
+      }
+
+      return user; // Erfolgreiche Validierung
+    } catch (error) {
+      console.error('Error in validateUser:', error);
+      return null;
+    }
+  }
+
+  // generateToken function für authController
+  static generateToken(user) {
+    return jwt.sign(
+      { userId: user.id, username: user.username },
+      JWT_SECRET,
+      { expiresIn: '24h' }
+    );
   }
 
   static async login(email, password) {
