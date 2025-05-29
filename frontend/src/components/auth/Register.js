@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import axios from 'axios';
+import { register } from '../../services/authService';
 import { useNavigate } from 'react-router-dom';
 
 function Register() {
@@ -8,6 +8,7 @@ function Register() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
@@ -18,11 +19,26 @@ function Register() {
       return;
     }
     
+    setLoading(true);
+    setError('');
+    
     try {
-      await axios.post('/auth/register', { username, email, password });
-      navigate('/login');
+      const result = await register(username, email, password);
+      console.log('Registration successful:', result);
+      
+      // Optional: Auto-login nach Registration
+      if (result.access_token) {
+        localStorage.setItem('token', result.access_token);
+        localStorage.setItem('user', JSON.stringify(result.user));
+        navigate('/');
+      } else {
+        navigate('/login');
+      }
     } catch (err) {
-      setError('Registrierung fehlgeschlagen. Möglicherweise wird der Benutzername bereits verwendet.');
+      console.error('Registration error:', err);
+      setError(err.message || 'Registrierung fehlgeschlagen. Möglicherweise wird der Benutzername bereits verwendet.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -38,6 +54,7 @@ function Register() {
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             required
+            disabled={loading}
           />
         </div>
         <div className="form-group">
@@ -47,6 +64,7 @@ function Register() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
+            disabled={loading}
           />
         </div>
         <div className="form-group">
@@ -56,6 +74,7 @@ function Register() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
+            disabled={loading}
           />
         </div>
         <div className="form-group">
@@ -65,9 +84,12 @@ function Register() {
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
             required
+            disabled={loading}
           />
         </div>
-        <button type="submit">Registrieren</button>
+        <button type="submit" disabled={loading}>
+          {loading ? 'Wird registriert...' : 'Registrieren'}
+        </button>
       </form>
       <div className="login-link">
         Bereits ein Konto? <a href="/login">Anmelden</a>

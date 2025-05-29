@@ -1,6 +1,5 @@
 // src/controllers/authController.js
 const AuthService = require('../services/authService');
-const User = require('../models/User');
 
 // Benutzer Login
 const login = async (req, res) => {
@@ -12,26 +11,19 @@ const login = async (req, res) => {
       return res.status(400).json({ message: 'Benutzername und Passwort sind erforderlich' });
     }
     
-    // Benutzer validieren
-    const user = await AuthService.validateUser(username, password);
-    
-    if (!user) {
-      return res.status(401).json({ message: 'Ungültige Anmeldedaten' });
-    }
-    
-    // Token generieren
-    const token = AuthService.generateToken(user);
+    // WICHTIG: AuthService.login verwendet email, nicht username!
+    // Entweder AuthService anpassen oder hier email verwenden
+    const result = await AuthService.login(username, password); // Annahme: username=email
     
     res.status(200).json({
-      access_token: token,
-      user: {
-        id: user.id,
-        username: user.username,
-        email: user.email,
-        avatar: user.avatar
-      }
+      access_token: result.token,
+      user: result.user
     });
   } catch (error) {
+    console.error('Login Error:', error);
+    if (error.message === 'Ungültige Anmeldedaten') {
+      return res.status(401).json({ message: error.message });
+    }
     res.status(500).json({ message: 'Serverfehler', error: error.message });
   }
 };
@@ -46,20 +38,17 @@ const register = async (req, res) => {
       return res.status(400).json({ message: 'Benutzername, E-Mail und Passwort sind erforderlich' });
     }
     
-    // FIX: Verwende AuthService.register statt registerUser
+    // AuthService.register verwenden
     const result = await AuthService.register(username, email, password);
 
     res.status(201).json({
       message: 'Benutzer erfolgreich registriert',
-      user: {
-        id: user.id,
-        username: user.username,
-        email: user.email,
-        avatar: user.avatar
-      }
+      access_token: result.token,
+      user: result.user
     });
   } catch (error) {
-    if (error.message === 'Benutzername wird bereits verwendet') {
+    console.error('Register Error:', error);
+    if (error.message.includes('bereits')) {
       return res.status(409).json({ message: error.message });
     }
     res.status(500).json({ message: 'Serverfehler', error: error.message });
