@@ -1,159 +1,96 @@
-// services/authService.js
+// src/controllers/authController.js
+const AuthService = require('../services/authService');
+const User = require('../models/User');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const User = require('../models/User');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
-class AuthService {
-  static async register(username, email, password) {
-    try {
-      // Prüfe ob Benutzer bereits existiert
-      const existingEmail = await User.findByEmail(email);
-      if (existingEmail) {
-        throw new Error('Email bereits registriert');
-      }
-
-      const existingUsername = await User.findByUsername(username);
-      if (existingUsername) {
-        throw new Error('Benutzername bereits vergeben');
-      }
-
-      // Passwort hashen
-      const hashedPassword = await bcrypt.hash(password, 10);
-
-      // Benutzer erstellen
-      const newUser = await User.create({
-        username,
-        email,
-        password: hashedPassword
-      });
-
-      // JWT Token erstellen (für authController compatibility)
-      return newUser;
-    } catch (error) {
-      console.error('Error in register:', error);
-      throw error;
+// Benutzer Login
+const login = async (req, res) => {
+  try {
+    const { username, password } = req.body;
+    
+    // Überprüfe, ob alle erforderlichen Felder vorhanden sind
+    if (!username || !password) {
+      return res.status(400).json({ message: 'Benutzername und Passwort sind erforderlich' });
     }
-  }
-
-  // NEW: validateUser function für authController
-  static async validateUser(username, password) {
-    try {
-      // Benutzer finden (erst nach username, dann email)
-      let user = await User.findByUsername(username);
-      
-      // Falls nicht mit username gefunden, versuche email
-      if (!user) {
-        user = await User.findByEmail(username);
-      }
-      
-      if (!user) {
-        return null; // User nicht gefunden
-      }
-
-      // Passwort prüfen
-      const isValidPassword = await bcrypt.compare(password, user.password);
-      if (!isValidPassword) {
-        return null; // Falsches Passwort
-      }
-
-      return user; // Erfolgreiche Validierung
-    } catch (error) {
-      console.error('Error in validateUser:', error);
-      return null;
+    
+    // Benutzer finden (erst nach username, dann email falls username nicht funktioniert)
+    let user = await User.findByUsername(username);
+    if (!user) {
+      user = await User.findByEmail(username);
     }
-  }
-
-  // generateToken function für authController
-  static generateToken(user) {
-    return jwt.sign(
+    
+    if (!user) {
+      return res.status(401).json({ message: 'Ungültige Anmeldedaten' });
+    }
+    
+    // Passwort prüfen
+    const isValidPassword = await bcrypt.compare(password, user.password);
+    if (!isValidPassword) {
+      return res.status(401).json({ message: 'Ungültige Anmeldedaten' });
+    }
+    
+    // Token generieren
+    const token = jwt.sign(
       { userId: user.id, username: user.username },
       JWT_SECRET,
       { expiresIn: '24h' }
     );
-  }
-
-  static async login(email, password) {
-    try {
-      // Benutzer finden
-      const user = await User.findByEmail(email);
-      if (!user) {
-        throw new Error('Ungültige Anmeldedaten');
-      }
-
-      // Passwort prüfen
-      const isValidPassword = await bcrypt.compare(password, user.password);
-      if (!isValidPassword) {
-        throw new Error('Ungültige Anmeldedaten');
-      }
-
-      // JWT Token erstellen
-      const token = jwt.sign(
-        { userId: user.id, username: user.username },
-        JWT_SECRET,
-        { expiresIn: '24h' }
-      );
-
-      return {
-        user: {
-          id: user.id,
-          username: user.username,
-          email: user.email
-        },
-        token
-      };
-    } catch (error) {
-      console.error('Error in login:', error);
-      throw error;
-    }
-  }
-
-  static async verifyToken(token) {
-    try {
-      const decoded = jwt.verify(token, JWT_SECRET);
-      const user = await User.findById(decoded.userId);
-      
-      if (!user) {
-        throw new Error('Benutzer nicht gefunden');
-      }
-
-      return {
+    
+    res.status(200).json({
+      access_token: token,
+      user: {
         id: user.id,
         username: user.username,
-        email: user.email
-      };
-    } catch (error) {
-      console.error('Error in verifyToken:', error);
-      throw error;
-    }
-  }
-
-  static async updatePassword(userId, oldPassword, newPassword) {
-    try {
-      const user = await User.findById(userId);
-      if (!user) {
-        throw new Error('Benutzer nicht gefunden');
+        email: user.email,
+        avatar: user.avatar
       }
-
-      // Altes Passwort prüfen
-      const isValidPassword = await bcrypt.compare(oldPassword, user.password);
-      if (!isValidPassword) {
-        throw new Error('Altes Passwort ist falsch');
-      }
-
-      // Neues Passwort hashen
-      const hashedPassword = await bcrypt.hash(newPassword, 10);
-
-      // Passwort aktualisieren
-      await User.update(userId, { password: hashedPassword });
-
-      return { message: 'Passwort erfolgreich geändert' };
-    } catch (error) {
-      console.error('Error in updatePassword:', error);
-      throw error;
-    }
+    });
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(500).json({ message: 'Serverfehler', error: error.message });
   }
-}
+};
 
-module.exports = AuthService;
+// Benutzer Registrierung
+const register = async (req, res) => {
+  try {
+    const { username, email, password } = req.body;
+    
+    // Überprüfe, ob alle erforderlichen Felder vorhanden sind
+    if (!username || !email || !password) {
+      return res.status(400).json({ message: 'Benutzername, E-Mail und Passwort sind erforderlich' });
+    }
+    
+    const result = await AuthService.register(username, email, password);
+
+    res.status(201).json({
+      message: 'Benutzer erfolgreich registriert',
+      access_token: result.token,
+      user: result.user
+    });
+  } catch (error) {
+    if (error.message === 'Benutzername bereits vergeben' || error.message === 'Email bereits registriert') {
+      return res.status(409).json({ message: error.message });
+    }
+    res.status(500).json({ message: 'Serverfehler', error: error.message });
+  }
+};
+
+// Benutzer Profil abrufen
+const getProfile = async (req, res) => {
+  try {
+    const { password: _, ...userWithoutPassword } = req.userDetails;
+    res.status(200).json(userWithoutPassword);
+  } catch (error) {
+    res.status(500).json({ message: 'Serverfehler', error: error.message });
+  }
+};
+
+module.exports = {
+  login,
+  register,
+  getProfile
+};
