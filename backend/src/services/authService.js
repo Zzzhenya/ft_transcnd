@@ -50,7 +50,7 @@ class AuthService {
     }
   }
 
-  // NEUE FUNKTION: validateUser für AuthController
+  // FEHLENDE FUNKTION HINZUGEFÜGT: validateUser
   static async validateUser(username, password) {
     try {
       console.log('validateUser called with:', { username, password: '***' });
@@ -84,7 +84,7 @@ class AuthService {
     }
   }
 
-  // NEUE FUNKTION: generateToken für AuthController
+  // FEHLENDE FUNKTION HINZUGEFÜGT: generateToken
   static generateToken(user) {
     return jwt.sign(
       { userId: user.id, username: user.username },
