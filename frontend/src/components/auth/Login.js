@@ -1,22 +1,49 @@
 import React, { useState } from 'react';
-import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+
+const API_URL = 'http://localhost:5000/api';
 
 function Login() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setLoading(true);
+    setError('');
+
     try {
-      const response = await axios.post('/auth/login', { username, password });
-      localStorage.setItem('token', response.data.access_token);
-      localStorage.setItem('user', JSON.stringify(response.data.user));
+      const response = await fetch(`${API_URL}/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ username, password })
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Login fehlgeschlagen');
+      }
+
+      // Token und User Daten speichern
+      localStorage.setItem('token', data.access_token);
+      localStorage.setItem('user', JSON.stringify(data.user));
+      
+      console.log('Login successful:', data);
+      
+      // Zur Hauptseite weiterleiten
       navigate('/');
+      
     } catch (err) {
-      setError('Anmeldung fehlgeschlagen. Bitte überprüfe deine Anmeldedaten.');
+      console.error('Login error:', err);
+      setError(err.message || 'Login fehlgeschlagen. Bitte überprüfe deine Anmeldedaten.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -32,6 +59,7 @@ function Login() {
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             required
+            disabled={loading}
           />
         </div>
         <div className="form-group">
@@ -41,9 +69,12 @@ function Login() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
+            disabled={loading}
           />
         </div>
-        <button type="submit">Anmelden</button>
+        <button type="submit" disabled={loading}>
+          {loading ? 'Wird angemeldet...' : 'Anmelden'}
+        </button>
       </form>
       <div className="register-link">
         Noch kein Konto? <a href="/register">Registrieren</a>
