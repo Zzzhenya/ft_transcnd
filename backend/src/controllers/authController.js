@@ -1,29 +1,63 @@
 // src/controllers/authController.js
 const AuthService = require('../services/authService');
+const User = require('../models/User');
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
+
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
 // Benutzer Login
 const login = async (req, res) => {
   try {
     const { username, password } = req.body;
     
+    console.log('Login attempt:', { username, password: '***' });
+    
     // Überprüfe, ob alle erforderlichen Felder vorhanden sind
     if (!username || !password) {
       return res.status(400).json({ message: 'Benutzername und Passwort sind erforderlich' });
     }
     
-    // WICHTIG: AuthService.login verwendet email, nicht username!
-    // Entweder AuthService anpassen oder hier email verwenden
-    const result = await AuthService.login(username, password); // Annahme: username=email
+    // Benutzer finden (erst nach username, dann email falls username nicht funktioniert)
+    let user = await User.findByUsername(username);
+    if (!user) {
+      user = await User.findByEmail(username);
+    }
+    
+    console.log('User found:', user ? user.username : 'null');
+    
+    if (!user) {
+      return res.status(401).json({ message: 'Ungültige Anmeldedaten' });
+    }
+    
+    // Passwort prüfen
+    const isValidPassword = await bcrypt.compare(password, user.password);
+    console.log('Password valid:', isValidPassword);
+    
+    if (!isValidPassword) {
+      return res.status(401).json({ message: 'Ungültige Anmeldedaten' });
+    }
+    
+    // Token generieren
+    const token = jwt.sign(
+      { userId: user.id, username: user.username },
+      JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+    
+    console.log('Login successful for user:', user.username);
     
     res.status(200).json({
-      access_token: result.token,
-      user: result.user
+      access_token: token,
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        avatar: user.avatar
+      }
     });
   } catch (error) {
-    console.error('Login Error:', error);
-    if (error.message === 'Ungültige Anmeldedaten') {
-      return res.status(401).json({ message: error.message });
-    }
+    console.error('Login error:', error);
     res.status(500).json({ message: 'Serverfehler', error: error.message });
   }
 };
@@ -38,7 +72,6 @@ const register = async (req, res) => {
       return res.status(400).json({ message: 'Benutzername, E-Mail und Passwort sind erforderlich' });
     }
     
-    // AuthService.register verwenden
     const result = await AuthService.register(username, email, password);
 
     res.status(201).json({
@@ -47,10 +80,10 @@ const register = async (req, res) => {
       user: result.user
     });
   } catch (error) {
-    console.error('Register Error:', error);
-    if (error.message.includes('bereits')) {
+    if (error.message === 'Benutzername bereits vergeben' || error.message === 'Email bereits registriert') {
       return res.status(409).json({ message: error.message });
     }
+    console.error('Registration error:', error);
     res.status(500).json({ message: 'Serverfehler', error: error.message });
   }
 };
