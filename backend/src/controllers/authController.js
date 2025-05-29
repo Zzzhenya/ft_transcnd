@@ -1,10 +1,6 @@
 // src/controllers/authController.js
 const AuthService = require('../services/authService');
 const User = require('../models/User');
-const bcrypt = require('bcrypt');
-const jwt = require('jsonwebtoken');
-
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
 // Benutzer Login
 const login = async (req, res) => {
@@ -18,32 +14,15 @@ const login = async (req, res) => {
       return res.status(400).json({ message: 'Benutzername und Passwort sind erforderlich' });
     }
     
-    // Benutzer finden (erst nach username, dann email falls username nicht funktioniert)
-    let user = await User.findByUsername(username);
-    if (!user) {
-      user = await User.findByEmail(username);
-    }
-    
-    console.log('User found:', user ? user.username : 'null');
+    // Benutzer validieren
+    const user = await AuthService.validateUser(username, password);
     
     if (!user) {
-      return res.status(401).json({ message: 'Ungültige Anmeldedaten' });
-    }
-    
-    // Passwort prüfen
-    const isValidPassword = await bcrypt.compare(password, user.password);
-    console.log('Password valid:', isValidPassword);
-    
-    if (!isValidPassword) {
       return res.status(401).json({ message: 'Ungültige Anmeldedaten' });
     }
     
     // Token generieren
-    const token = jwt.sign(
-      { userId: user.id, username: user.username },
-      JWT_SECRET,
-      { expiresIn: '24h' }
-    );
+    const token = AuthService.generateToken(user);
     
     console.log('Login successful for user:', user.username);
     
