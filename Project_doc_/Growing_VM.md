@@ -9,6 +9,12 @@ Bei Docker-Entwicklung in VirtualBox VMs wächst die VM-Datei kontinuierlich, au
 # Schreibe Datei mit NULL und lösche dies 
 dd if=/dev/zero of=/var/tmp/bigemptyfile bs=4096k ; rm /var/tmp/bigemptyfile
 ```
+- look in a sep window 
+```bash
+ps aux | grep dd
+watch -n 2 'kill -USR1 '<PID>'
+```
+
 - Auserhalb der VM
 ```plaintext
 VBoxManage modifymedium disk "/path/to/your/vm.vdi" --compact
