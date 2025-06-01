@@ -1,11 +1,29 @@
 services:
+  # Nginx Reverse Proxy mit TLS
+  nginx:
+    image: nginx:alpine
+    container_name: transcendence_proxy
+    restart: always
+    ports:
+      - "80:80"    # HTTP → HTTPS redirect
+      - "443:443"  # HTTPS
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - ./nginx/html:/usr/share/nginx/html:ro
+    depends_on:
+      - backend
+      - frontend
+    networks:
+      - transcendence_network
+
   # PostgreSQL Datenbank
   postgres:
     image: postgres:15-alpine
     container_name: transcendence_db
     restart: always
-    ports:
-      - "5432:5432"
+    expose:
+      - "5432"  # Nur intern erreichbar
     environment:
       POSTGRES_USER: transcendence
       POSTGRES_PASSWORD: secretpassword
@@ -17,14 +35,16 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - transcendence_network
   
   # Backend
   backend:
     build: ./backend
     container_name: transcendence_backend
     restart: always
-    ports:
-      - "5000:5000"
+    expose:
+      - "5000"  # Nur intern über Nginx erreichbar
     environment:
       DB_TYPE: postgres
       DB_HOST: postgres
@@ -33,28 +53,46 @@ services:
       DB_PASSWORD: secretpassword
       DB_NAME: transcendence_db
       JWT_SECRET: your-super-secret-jwt-key-change-this-in-production-12345
+      NODE_ENV: production
+      CORS_ORIGIN: https://ft_transcendence
     depends_on:
       postgres:
         condition: service_healthy
+    networks:
+      - transcendence_network
   
   # Frontend
   frontend:
     build: ./frontend
     container_name: transcendence_frontend
-    ports:
-      - "3000:80"
+    restart: always
+    expose:
+      - "80"   # Nur intern über Nginx erreichbar
+    environment:
+      REACT_APP_API_URL: https://ft_transcendence/api
+      REACT_APP_WS_URL: wss://ft_transcendence/ws
     depends_on:
       - backend
+    networks:
+      - transcendence_network
   
-  # Adminer (korrigiert)
+  # Adminer - nur über HTTPS erreichbar
   adminer:
     image: adminer:latest
     container_name: transcendence_adminer
     restart: always
-    ports:
-      - "8080:8080"
+    expose:
+      - "8080"  # Nur intern über Nginx erreichbar
     depends_on:
       - postgres
+    networks:
+      - transcendence_network
+
+# Internes Docker-Netzwerk für Sicherheit
+networks:
+  transcendence_network:
+    driver: bridge
+    internal: false
 
 volumes:
   postgres_data:
