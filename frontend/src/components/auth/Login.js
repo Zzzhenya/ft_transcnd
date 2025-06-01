@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-const API_URL = 'http://localhost:5000/api';
+// FIXED: Use relative URL instead of localhost
+const API_URL = '/api';
 
 function Login() {
   const [username, setUsername] = useState('');
@@ -27,7 +28,7 @@ function Login() {
       const data = await response.json();
       
       if (!response.ok) {
-        throw new Error(data.error || 'Login fehlgeschlagen');
+        throw new Error(data.message || 'Login fehlgeschlagen');
       }
 
       // Token und User Daten speichern
