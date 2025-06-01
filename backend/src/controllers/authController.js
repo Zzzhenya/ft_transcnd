@@ -7,8 +7,6 @@ const login = async (req, res) => {
   try {
     const { username, password } = req.body;
     
-    console.log('Login attempt:', { username, password: '***' });
-    
     // Überprüfe, ob alle erforderlichen Felder vorhanden sind
     if (!username || !password) {
       return res.status(400).json({ message: 'Benutzername und Passwort sind erforderlich' });
@@ -24,8 +22,6 @@ const login = async (req, res) => {
     // Token generieren
     const token = AuthService.generateToken(user);
     
-    console.log('Login successful for user:', user.username);
-    
     res.status(200).json({
       access_token: token,
       user: {
@@ -36,7 +32,6 @@ const login = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Login error:', error);
     res.status(500).json({ message: 'Serverfehler', error: error.message });
   }
 };
@@ -51,18 +46,24 @@ const register = async (req, res) => {
       return res.status(400).json({ message: 'Benutzername, E-Mail und Passwort sind erforderlich' });
     }
     
-    const result = await AuthService.register(username, email, password);
+    // FIXED: Verwende AuthService.register und speichere result
+    const user = await AuthService.register(username, email, password);
 
     res.status(201).json({
       message: 'Benutzer erfolgreich registriert',
-      access_token: result.token,
-      user: result.user
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        avatar: user.avatar
+      }
     });
   } catch (error) {
-    if (error.message === 'Benutzername bereits vergeben' || error.message === 'Email bereits registriert') {
+    console.error('Registration error:', error);
+    if (error.message === 'Benutzername wird bereits verwendet' || 
+        error.message === 'E-Mail wird bereits verwendet') {
       return res.status(409).json({ message: error.message });
     }
-    console.error('Registration error:', error);
     res.status(500).json({ message: 'Serverfehler', error: error.message });
   }
 };
