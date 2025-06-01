@@ -1,4 +1,5 @@
-const API_URL = 'http://localhost:5000/api';
+// Use the same origin (https://ft_transcendence) for API calls
+const API_URL = '/api';
 
 export const register = async (username, email, password) => {
   try {
@@ -23,14 +24,14 @@ export const register = async (username, email, password) => {
   }
 };
 
-export const login = async (username, password) => {
+export const login = async (email, password) => {
   try {
     const response = await fetch(`${API_URL}/auth/login`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ username, password })
+      body: JSON.stringify({ email, password })
     });
     
     const data = await response.json();
@@ -44,22 +45,4 @@ export const login = async (username, password) => {
     console.error('Login error:', error);
     throw error;
   }
-};
-
-export const logout = () => {
-  localStorage.removeItem('token');
-  localStorage.removeItem('user');
-};
-
-export const getCurrentUser = () => {
-  const user = localStorage.getItem('user');
-  return user ? JSON.parse(user) : null;
-};
-
-export const getToken = () => {
-  return localStorage.getItem('token');
-};
-
-export const isAuthenticated = () => {
-  return !!getToken();
 };

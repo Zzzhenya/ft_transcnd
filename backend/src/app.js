@@ -12,9 +12,25 @@ const authRoutes = require('./routes/authRoutes');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// CORS Configuration for HTTPS
+const corsOptions = {
+  origin: [
+    'https://ft_transcendence',
+    'http://ft_transcendence',
+    'https://localhost',
+    'http://localhost:3000'
+  ],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
+};
+
 // Middleware
-app.use(helmet());
-app.use(cors());
+app.use(helmet({
+  contentSecurityPolicy: false, // Disable for development
+  crossOriginEmbedderPolicy: false
+}));
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan('dev'));
@@ -31,6 +47,11 @@ app.use('/api/auth', authRoutes);
 
 // Health check
 app.get('/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// API Health check
+app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
@@ -61,6 +82,7 @@ async function startServer() {
     app.listen(PORT, () => {
       console.log(`Server läuft auf Port ${PORT}`);
       console.log(`Umgebung: ${process.env.NODE_ENV || 'development'}`);
+      console.log('CORS konfiguriert für:', corsOptions.origin);
     });
   } catch (error) {
     console.error('Fehler beim Starten des Servers:', error);
