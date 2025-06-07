@@ -1,82 +1,101 @@
+// src/app.js
 const express = require('express');
 const cors = require('cors');
-const path = require('path');
-const fs = require('fs');
+const helmet = require('helmet');
+const morgan = require('morgan');
+const rateLimit = require('express-rate-limit');
+require('dotenv').config();
 
-// Import routes
-const authRoutes = require('./routes/authRoutes');
-const userRoutes = require('./routes/userRoutes');
+// Temporarily disable database
+// const { initDatabase } = require('./utils/database');
+// const authRoutes = require('./routes/authRoutes');
 
 const app = express();
-
-// Middleware
-app.use(cors({
-  origin: process.env.FRONTEND_URL || 'https://localhost:3000',
-  credentials: true
-}));
-
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-
-// Create uploads directory if it doesn't exist
-const uploadsDir = path.join(__dirname, '..', 'uploads', 'avatars');
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
-  console.log('📁 Created uploads directory');
-}
-
-// Serve static files (uploads)
-app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
-
-// Health check route
-app.get('/health', (req, res) => {
-  res.json({ 
-    status: 'OK', 
-    timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development'
-  });
-});
-
-// API Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/users', userRoutes);
-
-// 404 handler for API routes
-app.use('/api/*', (req, res) => {
-  res.status(404).json({ 
-    message: 'API endpoint not found',
-    path: req.originalUrl,
-    method: req.method
-  });
-});
-
-// Global error handler
-app.use((err, req, res, next) => {
-  console.error('Global error handler:', err);
-
-  // Multer errors
-  if (err.code === 'LIMIT_FILE_SIZE') {
-    return res.status(400).json({ message: 'File too large' });
-  }
-
-  if (err.code === 'LIMIT_UNEXPECTED_FILE') {
-    return res.status(400).json({ message: 'Unexpected file field' });
-  }
-
-  // Default error response
-  res.status(err.status || 500).json({
-    message: err.message || 'Internal server error',
-    ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
-  });
-});
-
 const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`📝 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🌐 CORS origin: ${process.env.FRONTEND_URL || 'https://localhost:3000'}`);
-  console.log(`📁 Uploads directory: ${uploadsDir}`);
+// Middleware
+app.use(helmet());
+app.use(cors({
+  origin: ['https://ft_transcendence', 'http://localhost:3000'],
+  credentials: true
+}));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(morgan('dev'));
+
+// Rate limiting
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 Minuten
+  max: 100 // Limit pro IP
+});
+app.use('/api/', limiter);
+
+// Temporary test routes
+app.post('/api/auth/register', (req, res) => {
+  console.log('Register attempt:', req.body);
+  res.json({ message: 'Registration endpoint working', user: { username: req.body.username, email: req.body.email } });
 });
 
-module.exports = app;
+app.post('/api/auth/login', (req, res) => {
+  console.log('Login attempt:', req.body);
+  res.json({ 
+    message: 'Login endpoint working', 
+    access_token: 'dummy_token',
+    user: { username: req.body.username, email: 'test@example.com' }
+  });
+});
+
+// Routes (temporarily commented out)
+// app.use('/api/auth', authRoutes);
+
+// Health check
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(err.status || 500).json({
+    error: {
+      message: err.message || 'Internal Server Error',
+      status: err.status || 500
+    }
+  });
+});
+
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({ error: 'Route not found' });
+});
+
+// Server starten
+async function startServer() {
+  try {
+    // Temporarily skip database initialization
+    console.log('Database initialization skipped for testing');
+    
+    // Server starten
+    app.listen(PORT, () => {
+      console.log(`Server läuft auf Port ${PORT}`);
+      console.log(`Umgebung: ${process.env.NODE_ENV || 'development'}`);
+    });
+  } catch (error) {
+    console.error('Fehler beim Starten des Servers:', error);
+    process.exit(1);
+  }
+}
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('SIGTERM empfangen, fahre Server herunter...');
+  process.exit(0);
+});
+
+process.on('SIGINT', () => {
+  console.log('SIGINT empfangen, fahre Server herunter...');
+  process.exit(0);
+});
+
+// Server starten
+startServer();
