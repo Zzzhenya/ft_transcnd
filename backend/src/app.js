@@ -10,10 +10,14 @@ const { initDatabase } = require('./utils/database');
 const authRoutes = require('./routes/authRoutes');
 
 const app = express();
-app.set("trust proxy", true);
+
+// WICHTIG: Trust Proxy richtig konfigurieren BEVOR rate limiting
+// Nur dem ersten Proxy vertrauen (nginx)
+app.set('trust proxy', 1);
+
 const PORT = process.env.PORT || 5000;
 
-// CORS Configuration for HTTPS
+// CORS konfigurieren
 const corsOptions = {
   origin: [
     'https://ft_transcendence',
@@ -21,25 +25,30 @@ const corsOptions = {
     'https://localhost',
     'http://localhost:3000'
   ],
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true
+  credentials: true,
+  optionsSuccessStatus: 200
 };
 
 // Middleware
-app.use(helmet({
-  contentSecurityPolicy: false, // Disable for development
-  crossOriginEmbedderPolicy: false
-}));
+app.use(helmet());
 app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan('dev'));
 
-// Rate limiting
+// Rate limiting mit korrekter Proxy-Konfiguration
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 Minuten
-  max: 100 // Limit pro IP
+  max: 100, // Limit pro IP
+  message: 'Too many requests from this IP, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+  // Sichere IP-Extraktion für Proxy-Setup
+  skip: (req) => {
+    // Entwicklungsmodus: Rate limiting für localhost überspringen
+    return process.env.NODE_ENV === 'development' && 
+           (req.ip === '127.0.0.1' || req.ip === '::1');
+  }
 });
 app.use('/api/', limiter);
 
@@ -48,11 +57,6 @@ app.use('/api/auth', authRoutes);
 
 // Health check
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
-});
-
-// API Health check
-app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
@@ -82,7 +86,7 @@ async function startServer() {
     // Server starten
     app.listen(PORT, () => {
       console.log(`Server läuft auf Port ${PORT}`);
-      console.log(`Umgebung: ${process.env.NODE_ENV || 'development'}`);
+      console.log(`Umgebung: ${process.env.NODE_ENV || 'production'}`);
       console.log('CORS konfiguriert für:', corsOptions.origin);
     });
   } catch (error) {
