@@ -13,7 +13,9 @@ EXPOSE 3000
 # Set to development and start dev server
 ENV NODE_ENV=development
 ENV CHOKIDAR_USEPOLLING=true
-ENV WDS_SOCKET_HOST=localhost
-ENV WDS_SOCKET_PORT=3000
+ENV HOST=0.0.0.0
+ENV WDS_SOCKET_HOST=ft_transcendence
+ENV WDS_SOCKET_PORT=443
+ENV WDS_SOCKET_PATH=/ws
 
 CMD ["npm", "start"]
