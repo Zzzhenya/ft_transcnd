@@ -26,6 +26,65 @@ const query = async (text, params) => {
   }
 };
 
+// Function to properly parse SQL statements, handling dollar-quoted strings
+const parseSQL = (sql) => {
+  const statements = [];
+  let current = '';
+  let inDollarQuote = false;
+  let dollarTag = '';
+  let i = 0;
+
+  while (i < sql.length) {
+    const char = sql[i];
+    const remaining = sql.slice(i);
+
+    if (!inDollarQuote) {
+      // Check for start of dollar-quoted string
+      if (char === '$') {
+        const dollarMatch = remaining.match(/^\$([^$]*)\$/);
+        if (dollarMatch) {
+          inDollarQuote = true;
+          dollarTag = dollarMatch[0];
+          current += dollarTag;
+          i += dollarTag.length;
+          continue;
+        }
+      }
+      
+      // Check for statement end
+      if (char === ';') {
+        const statement = current.trim();
+        if (statement) {
+          statements.push(statement);
+        }
+        current = '';
+        i++;
+        continue;
+      }
+    } else {
+      // We're inside a dollar-quoted string, look for the closing tag
+      if (remaining.startsWith(dollarTag)) {
+        inDollarQuote = false;
+        current += dollarTag;
+        i += dollarTag.length;
+        dollarTag = '';
+        continue;
+      }
+    }
+
+    current += char;
+    i++;
+  }
+
+  // Add the last statement if it doesn't end with semicolon
+  const lastStatement = current.trim();
+  if (lastStatement) {
+    statements.push(lastStatement);
+  }
+
+  return statements.filter(stmt => stmt.length > 0 && !stmt.match(/^\s*--/));
+};
+
 const runMigrations = async () => {
   try {
     console.log('🔄 Running database migrations...');
@@ -59,66 +118,62 @@ const runMigrations = async () => {
       )
     `);
 
-    // List of migrations to run in order
-    const migrationFiles = [
-      '001_create_users_table.sql',
-      '002_add_user_profile_features.sql'
-    ];
+    // Get all migration files
+    const migrationsDir = path.join(__dirname, '..', 'migrations');
+    const migrationFiles = fs.readdirSync(migrationsDir)
+      .filter(file => file.endsWith('.sql'))
+      .sort();
 
     for (const migrationFile of migrationFiles) {
-      const migrationPath = path.join(__dirname, '..', 'migrations', migrationFile);
+      const migrationPath = path.join(migrationsDir, migrationFile);
       
-      if (fs.existsSync(migrationPath)) {
-        const existing = await query(
-          'SELECT * FROM migrations WHERE filename = $1',
+      const existing = await query(
+        'SELECT * FROM migrations WHERE filename = $1',
+        [migrationFile]
+      );
+
+      if (existing.rows.length === 0) {
+        console.log(`📄 Executing migration: ${migrationFile}`);
+        const migrationSQL = fs.readFileSync(migrationPath, 'utf8');
+        
+        // Parse SQL statements properly
+        const statements = parseSQL(migrationSQL);
+
+        for (const statement of statements) {
+          try {
+            console.log(`Executing statement: ${statement.substring(0, 100)}...`);
+            await query(statement);
+          } catch (error) {
+            console.log(`Error in statement: ${statement.substring(0, 100)}...`);
+            // Only ignore specific "already exists" errors
+            if (error.message.includes('already exists') || 
+                error.message.includes('duplicate key value') ||
+                (error.message.includes('relation') && error.message.includes('already exists'))) {
+              console.log(`⚠️  Skipping: ${error.message}`);
+              continue;
+            }
+            throw error;
+          }
+        }
+
+        // Mark migration as executed
+        await query(
+          'INSERT INTO migrations (filename) VALUES ($1)',
           [migrationFile]
         );
 
-        if (existing.rows.length === 0) {
-          console.log(`📄 Executing migration: ${migrationFile}`);
-          const migrationSQL = fs.readFileSync(migrationPath, 'utf8');
-          
-          // Split and execute statements (PostgreSQL doesn't support multiple statements in one query)
-          const statements = migrationSQL
-            .split(';')
-            .map(stmt => stmt.trim())
-            .filter(stmt => stmt.length > 0);
-
-          for (const statement of statements) {
-            try {
-              await query(statement);
-            } catch (error) {
-              // Ignore "already exists" errors
-              if (!error.message.includes('already exists') && 
-                  !error.message.includes('duplicate key') &&
-                  !error.message.includes('relation') &&
-                  !error.message.includes('does not exist')) {
-                console.error(`Error in statement: ${statement.substring(0, 100)}...`);
-                throw error;
-              }
-            }
-          }
-
-          // Mark migration as executed
-          await query(
-            'INSERT INTO migrations (filename) VALUES ($1)',
-            [migrationFile]
-          );
-
-          console.log(`✅ Migration ${migrationFile} completed successfully`);
-        } else {
-          console.log(`⏭️  Migration ${migrationFile} already executed`);
-        }
+        console.log(`✅ Migration ${migrationFile} completed successfully`);
       } else {
-        console.log(`⚠️  Migration file ${migrationFile} not found`);
+        console.log(`⏭️  Migration ${migrationFile} already executed`);
       }
     }
 
     console.log('✅ All migrations completed');
-    process.exit(0);
+    await pool.end();
     
   } catch (error) {
     console.error('❌ Migration failed:', error);
+    await pool.end();
     process.exit(1);
   }
 };
