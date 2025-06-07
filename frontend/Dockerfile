@@ -1,4 +1,4 @@
-FROM node:18
+FROM node:18 as build
 
 WORKDIR /app
 
@@ -8,14 +8,17 @@ RUN npm install
 
 COPY . .
 
-EXPOSE 3000
-
-# Set to development and start dev server
+# Force development build with detailed error messages
+ENV GENERATE_SOURCEMAP=true
 ENV NODE_ENV=development
-ENV CHOKIDAR_USEPOLLING=true
-ENV HOST=0.0.0.0
-ENV WDS_SOCKET_HOST=ft_transcendence
-ENV WDS_SOCKET_PORT=443
-ENV WDS_SOCKET_PATH=/ws
+ENV REACT_APP_ENV=development
+RUN npm run build
 
-CMD ["npm", "start"]
+FROM nginx:alpine
+
+COPY --from=build /app/build /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+EXPOSE 80
+
+CMD ["nginx", "-g", "daemon off;"]

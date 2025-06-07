@@ -1,9 +1,6 @@
-// Vereinfachte Migration ohne SQL-Parsing
-const fs = require('fs');
-const path = require('path');
-require('dotenv').config();
-
+// scripts/migrate.js
 const { Pool } = require('pg');
+require('dotenv').config();
 
 const pool = new Pool({
   user: process.env.DB_USER,
@@ -15,21 +12,24 @@ const pool = new Pool({
 
 const runMigrations = async () => {
   try {
-    console.log('🔄 Running database migrations...');
+    console.log('🔄 Running simple migration...');
     
-    // Einfach nur ein CREATE TABLE ohne komplexe Parsing
-    const basicSQL = `
+    const client = await pool.connect();
+    
+    // Simple users table
+    await client.query(`
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
         username VARCHAR(50) NOT NULL UNIQUE,
         email VARCHAR(255) NOT NULL UNIQUE,
         password VARCHAR(255) NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
-    `;
+    `);
     
-    await pool.query(basicSQL);
-    console.log('✅ Basic migration completed');
+    console.log('✅ Migration completed successfully');
+    client.release();
     await pool.end();
     
   } catch (error) {
