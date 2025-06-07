@@ -1,4 +1,4 @@
-FROM node:18 as build
+FROM node:18
 
 WORKDIR /app
 
@@ -8,15 +8,12 @@ RUN npm install
 
 COPY . .
 
-# Build in development mode to get better error messages
+EXPOSE 3000
+
+# Set to development and start dev server
 ENV NODE_ENV=development
-RUN npm run build
+ENV CHOKIDAR_USEPOLLING=true
+ENV WDS_SOCKET_HOST=localhost
+ENV WDS_SOCKET_PORT=3000
 
-FROM nginx:alpine
-
-COPY --from=build /app/build /usr/share/nginx/html
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-
-EXPOSE 80
-
-CMD ["nginx", "-g", "daemon off;"]
+CMD ["npm", "start"]
