@@ -1,110 +1,80 @@
-// src/app.js
 const express = require('express');
 const cors = require('cors');
-const helmet = require('helmet');
-const morgan = require('morgan');
-const rateLimit = require('express-rate-limit');
-require('dotenv').config();
+const path = require('path');
+const fs = require('fs');
 
-const { initDatabase } = require('./utils/database');
+// Import routes
 const authRoutes = require('./routes/authRoutes');
+const userRoutes = require('./routes/userRoutes');
 
 const app = express();
 
-// WICHTIG: Trust Proxy richtig konfigurieren BEVOR rate limiting
-// Nur dem ersten Proxy vertrauen (nginx)
-app.set('trust proxy', 1);
-
-const PORT = process.env.PORT || 5000;
-
-// CORS konfigurieren
-const corsOptions = {
-  origin: [
-    'https://ft_transcendence',
-    'http://ft_transcendence',
-    'https://localhost',
-    'http://localhost:3000'
-  ],
-  credentials: true,
-  optionsSuccessStatus: 200
-};
-
 // Middleware
-app.use(helmet());
-app.use(cors(corsOptions));
+app.use(cors({
+  origin: process.env.FRONTEND_URL || 'https://localhost:3000',
+  credentials: true
+}));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(morgan('dev'));
 
-// Rate limiting mit korrekter Proxy-Konfiguration
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 Minuten
-  max: 100, // Limit pro IP
-  message: 'Too many requests from this IP, please try again later.',
-  standardHeaders: true,
-  legacyHeaders: false,
-  // Sichere IP-Extraktion für Proxy-Setup
-  skip: (req) => {
-    // Entwicklungsmodus: Rate limiting für localhost überspringen
-    return process.env.NODE_ENV === 'development' && 
-           (req.ip === '127.0.0.1' || req.ip === '::1');
-  }
-});
-app.use('/api/', limiter);
+// Create uploads directory if it doesn't exist
+const uploadsDir = path.join(__dirname, '..', 'uploads', 'avatars');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
 
-// Routes
-app.use('/api/auth', authRoutes);
+// Serve static files (uploads)
+app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 
-// Health check
+// Health check route
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
-});
-
-// Error handling middleware
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(err.status || 500).json({
-    error: {
-      message: err.message || 'Internal Server Error',
-      status: err.status || 500
-    }
+  res.json({ 
+    status: 'OK', 
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development'
   });
 });
 
-// 404 handler
-app.use((req, res) => {
-  res.status(404).json({ error: 'Route not found' });
+// API Routes
+app.use('/api/auth', authRoutes);
+app.use('/api/users', userRoutes);
+
+// 404 handler for API routes
+app.use('/api/*', (req, res) => {
+  res.status(404).json({ 
+    message: 'API endpoint not found',
+    path: req.originalUrl,
+    method: req.method
+  });
 });
 
-// Server starten
-async function startServer() {
-  try {
-    // Datenbank initialisieren
-    await initDatabase();
-    console.log('Datenbank erfolgreich initialisiert');
-    
-    // Server starten
-    app.listen(PORT, () => {
-      console.log(`Server läuft auf Port ${PORT}`);
-      console.log(`Umgebung: ${process.env.NODE_ENV || 'production'}`);
-      console.log('CORS konfiguriert für:', corsOptions.origin);
-    });
-  } catch (error) {
-    console.error('Fehler beim Starten des Servers:', error);
-    process.exit(1);
+// Global error handler
+app.use((err, req, res, next) => {
+  console.error('Global error handler:', err);
+
+  // Multer errors
+  if (err.code === 'LIMIT_FILE_SIZE') {
+    return res.status(400).json({ message: 'File too large' });
   }
-}
 
-// Graceful shutdown
-process.on('SIGTERM', () => {
-  console.log('SIGTERM empfangen, fahre Server herunter...');
-  process.exit(0);
+  if (err.code === 'LIMIT_UNEXPECTED_FILE') {
+    return res.status(400).json({ message: 'Unexpected file field' });
+  }
+
+  // Default error response
+  res.status(err.status || 500).json({
+    message: err.message || 'Internal server error',
+    ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
+  });
 });
 
-process.on('SIGINT', () => {
-  console.log('SIGINT empfangen, fahre Server herunter...');
-  process.exit(0);
+const PORT = process.env.PORT || 5000;
+
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`📝 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`🌐 CORS origin: ${process.env.FRONTEND_URL || 'https://localhost:3000'}`);
 });
 
-// Server starten
-startServer();
+module.exports = app;
