@@ -8,6 +8,8 @@ RUN npm install
 
 COPY . .
 
+# Build in development mode to get better error messages
+ENV NODE_ENV=development
 RUN npm run build
 
 FROM nginx:alpine
