@@ -23,7 +23,7 @@ function Register() {
     setError('');
     
     try {
-      const result = await register(username, email, password);
+      const result = await AuthService.register(username, email, password);
       console.log('Registration successful:', result);
       
       // Optional: Auto-login nach Registration
