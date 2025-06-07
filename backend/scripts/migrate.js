@@ -59,52 +59,59 @@ const runMigrations = async () => {
       )
     `);
 
-    // Run migration if not already executed
-    const migrationFile = '002_add_user_profile_features.sql';
-    const migrationPath = path.join(__dirname, '..', 'migrations', migrationFile);
-    
-    if (fs.existsSync(migrationPath)) {
-      const existing = await query(
-        'SELECT * FROM migrations WHERE filename = $1',
-        [migrationFile]
-      );
+    // List of migrations to run in order
+    const migrationFiles = [
+      '001_create_users_table.sql',
+      '002_add_user_profile_features.sql'
+    ];
 
-      if (existing.rows.length === 0) {
-        console.log(`📄 Executing migration: ${migrationFile}`);
-        const migrationSQL = fs.readFileSync(migrationPath, 'utf8');
-        
-        // Split and execute statements (PostgreSQL doesn't support multiple statements in one query)
-        const statements = migrationSQL
-          .split(';')
-          .map(stmt => stmt.trim())
-          .filter(stmt => stmt.length > 0);
-
-        for (const statement of statements) {
-          try {
-            await query(statement);
-          } catch (error) {
-            // Ignore "already exists" errors
-            if (!error.message.includes('already exists') && 
-                !error.message.includes('duplicate key') &&
-                !error.message.includes('relation') &&
-                !error.message.includes('does not exist')) {
-              throw error;
-            }
-          }
-        }
-
-        // Mark migration as executed
-        await query(
-          'INSERT INTO migrations (filename) VALUES ($1)',
+    for (const migrationFile of migrationFiles) {
+      const migrationPath = path.join(__dirname, '..', 'migrations', migrationFile);
+      
+      if (fs.existsSync(migrationPath)) {
+        const existing = await query(
+          'SELECT * FROM migrations WHERE filename = $1',
           [migrationFile]
         );
 
-        console.log(`✅ Migration ${migrationFile} completed successfully`);
+        if (existing.rows.length === 0) {
+          console.log(`📄 Executing migration: ${migrationFile}`);
+          const migrationSQL = fs.readFileSync(migrationPath, 'utf8');
+          
+          // Split and execute statements (PostgreSQL doesn't support multiple statements in one query)
+          const statements = migrationSQL
+            .split(';')
+            .map(stmt => stmt.trim())
+            .filter(stmt => stmt.length > 0);
+
+          for (const statement of statements) {
+            try {
+              await query(statement);
+            } catch (error) {
+              // Ignore "already exists" errors
+              if (!error.message.includes('already exists') && 
+                  !error.message.includes('duplicate key') &&
+                  !error.message.includes('relation') &&
+                  !error.message.includes('does not exist')) {
+                console.error(`Error in statement: ${statement.substring(0, 100)}...`);
+                throw error;
+              }
+            }
+          }
+
+          // Mark migration as executed
+          await query(
+            'INSERT INTO migrations (filename) VALUES ($1)',
+            [migrationFile]
+          );
+
+          console.log(`✅ Migration ${migrationFile} completed successfully`);
+        } else {
+          console.log(`⏭️  Migration ${migrationFile} already executed`);
+        }
       } else {
-        console.log(`⏭️  Migration ${migrationFile} already executed`);
+        console.log(`⚠️  Migration file ${migrationFile} not found`);
       }
-    } else {
-      console.log(`⚠️  Migration file ${migrationFile} not found`);
     }
 
     console.log('✅ All migrations completed');
