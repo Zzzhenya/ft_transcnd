@@ -3,6 +3,7 @@ Verstehen des ganzen Projectes!
 - Ist das Projekt mit den Anforderungen des Subjectes bislang wirklich kompatibel
 - Dokumentation like docsis -> Graphich
 - Clean the Code!!!! 
+- Make vereinfachen -- `make` sollte -> `make setup` und `make up` starten 
 
 ## Step 1 Microservices 
 - Kleines einfaches schnells Singel-game (z.B. Es werden dereinach Button auf einen Screen gezeigt die 3 mal geklickt werden mussen und dann kommt eine Zeit) - nichts Komplexes sehre einfach 
@@ -15,6 +16,7 @@ Verstehen des ganzen Projectes!
 Nächste Schritte Authentification:
 - E-Mail Verifizierung
 - Option für Vergessenes Password
+- Nutzer muss sich Löschen können?
 - Option für MFA nach Registierung
 - Maybe find Out Google-Sign in
 - Nutzer muss sich Löschen können?
