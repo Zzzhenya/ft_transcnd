@@ -22,6 +22,7 @@ app.use(express.urlencoded({ extended: true }));
 const uploadsDir = path.join(__dirname, '..', 'uploads', 'avatars');
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
+  console.log('📁 Created uploads directory');
 }
 
 // Serve static files (uploads)
@@ -75,6 +76,7 @@ app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📝 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🌐 CORS origin: ${process.env.FRONTEND_URL || 'https://localhost:3000'}`);
+  console.log(`📁 Uploads directory: ${uploadsDir}`);
 });
 
 module.exports = app;
