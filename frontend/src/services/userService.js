@@ -1,5 +1,5 @@
 // services/userService.js
-import axios from './axiosConfig';
+import axios from '../utils/axiosConfig';
 
 class UserService {
   // Get current user profile
