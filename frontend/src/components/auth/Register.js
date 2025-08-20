@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import AuthService from '../../services/authService';
 import { useNavigate } from 'react-router-dom';
+import { register } from '../services/authService';  // authService verwenden
 
 function Register() {
   const [username, setUsername] = useState('');
@@ -21,19 +21,21 @@ function Register() {
     
     setLoading(true);
     setError('');
-    
+
     try {
-      const result = await AuthService.register(username, email, password);
-      console.log('Registration successful:', result);
+      const data = await register(username, email, password);  // authService verwenden
       
-      // Optional: Auto-login nach Registration
-      if (result.access_token) {
-        localStorage.setItem('token', result.access_token);
-        localStorage.setItem('user', JSON.stringify(result.user));
-        navigate('/');
+      console.log('Registration successful:', data);
+      
+      // Automatisch anmelden nach Registrierung
+      if (data.access_token) {
+        localStorage.setItem('token', data.access_token);
+        localStorage.setItem('user', JSON.stringify(data.user));
+        navigate('/'); // Zur Hauptseite
       } else {
-        navigate('/login');
+        navigate('/login'); // Zur Login-Seite
       }
+      
     } catch (err) {
       console.error('Registration error:', err);
       setError(err.message || 'Registrierung fehlgeschlagen. Möglicherweise wird der Benutzername bereits verwendet.');
