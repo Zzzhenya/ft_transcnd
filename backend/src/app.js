@@ -6,6 +6,10 @@ const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 
+// Import routes
+const authRoutes = require('./routes/authRoutes');
+const userRoutes = require('./routes/userRoutes');
+const { initializeDatabase } = require('./utils/database');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -27,23 +31,9 @@ const limiter = rateLimit({
 });
 app.use('/api/', limiter);
 
-// Temporary test routes
-app.post('/api/auth/register', (req, res) => {
-  console.log('Register attempt:', req.body);
-  res.json({ message: 'Registration endpoint working', user: { username: req.body.username, email: req.body.email } });
-});
-
-app.post('/api/auth/login', (req, res) => {
-  console.log('Login attempt:', req.body);
-  res.json({ 
-    message: 'Login endpoint working', 
-    access_token: 'dummy_token',
-    user: { username: req.body.username, email: 'test@example.com' }
-  });
-});
-
-// Routes (temporarily commented out)
-// app.use('/api/auth', authRoutes);
+// Routes - ECHTE ROUTES AKTIVIEREN!
+app.use('/api/auth', authRoutes);
+app.use('/api/users', userRoutes);
 
 // Health check
 app.get('/health', (req, res) => {
@@ -69,16 +59,18 @@ app.use((req, res) => {
 // Server starten
 async function startServer() {
   try {
-    // Temporarily skip database initialization
-    console.log('Database initialization skipped for testing');
+    // Database initialization
+    await initializeDatabase();
+    console.log('✅ Database initialized successfully');
     
     // Server starten
     app.listen(PORT, () => {
-      console.log(`Server läuft auf Port ${PORT}`);
-      console.log(`Umgebung: ${process.env.NODE_ENV || 'development'}`);
+      console.log(`🚀 Server läuft auf Port ${PORT}`);
+      console.log(`🌍 Umgebung: ${process.env.NODE_ENV || 'development'}`);
+      console.log(`🔗 API: http://localhost:${PORT}/api`);
     });
   } catch (error) {
-    console.error('Fehler beim Starten des Servers:', error);
+    console.error('❌ Fehler beim Starten des Servers:', error);
     process.exit(1);
   }
 }
