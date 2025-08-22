@@ -12,6 +12,8 @@ services:
       POSTGRES_DB: transcendence_db
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      # WICHTIG: Bestehende Migrations automatisch ausführen
+      # - ./backend/migrations:/docker-entrypoint-initdb.d
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U transcendence"]
       interval: 30s
@@ -33,6 +35,7 @@ services:
       DB_PASSWORD: secretpassword
       DB_NAME: transcendence_db
       NODE_ENV: development
+      JWT_SECRET: your-super-secret-jwt-key-change-in-production
     depends_on:
       postgres:
         condition: service_healthy
