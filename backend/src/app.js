@@ -1,8 +1,9 @@
-// backend/src/app.js - Mit automatischer Tabellenerstellung
+// backend/src/app.js - Mit bcrypt Passwort-Hashing
 const express = require('express');
 const { Pool } = require('pg');
+const bcrypt = require('bcrypt');
 
-console.log('Starting Transcendence Backend...');
+console.log('Starting Transcendence Backend with secure password hashing...');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -60,17 +61,21 @@ async function initializeTables() {
       CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)
     `);
 
-    // Insert default users (only if they don't exist)
+    // Hash default passwords
+    const adminHashedPassword = await bcrypt.hash('admin123', 10);
+    const user1HashedPassword = await bcrypt.hash('password', 10);
+
+    // Insert default users with hashed passwords (only if they don't exist)
     await pool.query(`
       INSERT INTO users (username, email, password) VALUES 
-      ('admin', 'admin@test.com', 'admin123'),
-      ('user1', 'user1@test.com', 'password')
+      ('admin', 'admin@test.com', $1),
+      ('user1', 'user1@test.com', $2)
       ON CONFLICT (username) DO NOTHING
-    `);
+    `, [adminHashedPassword, user1HashedPassword]);
 
     // Check how many users exist
     const userCount = await pool.query('SELECT COUNT(*) FROM users');
-    console.log(`Users table initialized. Total users: ${userCount.rows[0].count}`);
+    console.log(`Users table initialized with bcrypt hashing. Total users: ${userCount.rows[0].count}`);
 
     return true;
   } catch (error) {
@@ -101,16 +106,23 @@ app.use((req, res, next) => {
   next();
 });
 
-// Auth routes with DATABASE integration
+// Auth routes with SECURE password handling
 app.post('/api/auth/register', async (req, res) => {
   try {
-    console.log('Register request:', req.body);
+    console.log('Register request for user:', req.body.username);
     
     const { username, email, password } = req.body;
     
     if (!username || !email || !password) {
       return res.status(400).json({ 
         message: 'Alle Felder sind erforderlich' 
+      });
+    }
+
+    // Validate password length
+    if (password.length < 3) {
+      return res.status(400).json({ 
+        message: 'Passwort muss mindestens 3 Zeichen lang sein' 
       });
     }
 
@@ -126,15 +138,19 @@ app.post('/api/auth/register', async (req, res) => {
       });
     }
 
-    // Create user (password not hashed for simplicity - in production use bcrypt!)
+    // Hash password with bcrypt
+    const saltRounds = 10;
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+    // Create user with hashed password
     const result = await pool.query(
       'INSERT INTO users (username, email, password) VALUES ($1, $2, $3) RETURNING id, username, email, created_at',
-      [username, email, password]
+      [username, email, hashedPassword]
     );
 
     const newUser = result.rows[0];
     
-    console.log(`User registered: ${username} (ID: ${newUser.id})`);
+    console.log(`User registered securely: ${username} (ID: ${newUser.id})`);
     
     res.status(201).json({
       message: 'Benutzer erfolgreich registriert',
@@ -154,7 +170,7 @@ app.post('/api/auth/register', async (req, res) => {
 
 app.post('/api/auth/login', async (req, res) => {
   try {
-    console.log('Login request:', req.body);
+    console.log('Login request for user:', req.body.username);
     
     const { username, password } = req.body;
     
@@ -178,14 +194,16 @@ app.post('/api/auth/login', async (req, res) => {
 
     const user = result.rows[0];
 
-    // Simple password check (in production use bcrypt!)
-    if (user.password !== password) {
+    // Compare password with bcrypt
+    const passwordMatch = await bcrypt.compare(password, user.password);
+    
+    if (!passwordMatch) {
       return res.status(401).json({ 
         message: 'Ungültige Anmeldedaten' 
       });
     }
 
-    console.log(`User logged in: ${user.username} (ID: ${user.id})`);
+    console.log(`User logged in securely: ${user.username} (ID: ${user.id})`);
 
     res.json({
       access_token: `token_${user.id}_${Date.now()}`,
@@ -202,13 +220,14 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
-// Debug endpoints
+// Debug endpoints (NEVER show passwords)
 app.get('/api/debug/users', async (req, res) => {
   try {
     const result = await pool.query('SELECT id, username, email, created_at FROM users ORDER BY id');
     res.json({ 
       users: result.rows,
-      total: result.rows.length 
+      total: result.rows.length,
+      note: 'Passwords are securely hashed and not displayed'
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -231,6 +250,15 @@ app.get('/api/debug/tables', async (req, res) => {
   }
 });
 
+// Security info endpoint
+app.get('/api/security-info', (req, res) => {
+  res.json({
+    password_hashing: 'bcrypt with 10 salt rounds',
+    password_storage: 'Passwords are never stored in plain text',
+    last_updated: new Date().toISOString()
+  });
+});
+
 // Health checks
 app.get('/health', async (req, res) => {
   try {
@@ -239,7 +267,8 @@ app.get('/health', async (req, res) => {
       status: 'ok', 
       timestamp: new Date().toISOString(),
       database: 'connected',
-      users_count: parseInt(dbResult.rows[0].count)
+      users_count: parseInt(dbResult.rows[0].count),
+      security: 'bcrypt password hashing enabled'
     });
   } catch (error) {
     res.status(500).json({ 
@@ -254,7 +283,7 @@ app.get('/api/health', async (req, res) => {
   try {
     const dbResult = await pool.query('SELECT COUNT(*) FROM users');
     res.json({ 
-      status: 'Backend API running with PostgreSQL',
+      status: 'Backend API running with PostgreSQL and bcrypt',
       timestamp: new Date().toISOString(),
       users_count: parseInt(dbResult.rows[0].count)
     });
@@ -269,14 +298,16 @@ app.get('/api/health', async (req, res) => {
 // Root
 app.get('/', (req, res) => {
   res.json({ 
-    message: 'Transcendence Backend with PostgreSQL',
+    message: 'Transcendence Backend with PostgreSQL and bcrypt security',
     status: 'running',
+    security: 'Passwords are hashed with bcrypt',
     endpoints: [
       'POST /api/auth/register',
       'POST /api/auth/login',
       'GET /api/health',
       'GET /api/debug/users',
-      'GET /api/debug/tables'
+      'GET /api/debug/tables',
+      'GET /api/security-info'
     ]
   });
 });
@@ -302,7 +333,7 @@ async function startServer() {
       process.exit(1);
     }
 
-    // Initialize tables
+    // Initialize tables with secure password hashing
     const tablesInitialized = await initializeTables();
     if (!tablesInitialized) {
       console.error('Failed to initialize database tables');
@@ -314,7 +345,8 @@ async function startServer() {
       console.log(`API available at: http://0.0.0.0:${PORT}/api`);
       console.log(`Health check: http://0.0.0.0:${PORT}/health`);
       console.log('Database: PostgreSQL connected with auto-initialized tables');
-      console.log('Backend ready with persistent storage!');
+      console.log('Security: bcrypt password hashing enabled');
+      console.log('Backend ready with secure persistent storage!');
     });
 
     // Graceful shutdown
