@@ -1,14 +1,13 @@
-// src/app.js - Mit Migrations-Support und echter Datenbank
+// backend/src/app.js - Mit automatischer Tabellenerstellung
 const express = require('express');
 const { Pool } = require('pg');
-const bcrypt = require('bcrypt');
-const jwt = require('jsonwebtoken');
-require('dotenv').config();
+
+console.log('Starting Transcendence Backend...');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Database connection
+// PostgreSQL Connection
 const pool = new Pool({
   host: process.env.DB_HOST || 'postgres',
   port: process.env.DB_PORT || 5432,
@@ -17,116 +16,105 @@ const pool = new Pool({
   database: process.env.DB_NAME || 'transcendence_db',
 });
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-super-secret-jwt-key';
-
-// Test database connection and check migrations
-async function checkDatabase() {
+// Test database connection
+async function testDatabase() {
   try {
     const client = await pool.connect();
-    
-    // Test connection
-    await client.query('SELECT NOW()');
-    console.log('✅ Database connection successful');
-    
-    // Check if tables exist
-    const tablesResult = await client.query(`
-      SELECT table_name 
-      FROM information_schema.tables 
-      WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
-      ORDER BY table_name;
-    `);
-    
-    console.log(`📊 Found ${tablesResult.rows.length} tables:`);
-    tablesResult.rows.forEach(table => {
-      console.log(`  - ${table.table_name}`);
-    });
-    
-    // Check admin user
-    const adminResult = await client.query('SELECT username FROM users WHERE username = $1', ['admin']);
-    if (adminResult.rows.length > 0) {
-      console.log('👤 Admin user exists (username: admin, password: admin123)');
-    } else {
-      console.log('⚠️  No admin user found');
-    }
-    
+    const result = await client.query('SELECT NOW()');
     client.release();
+    console.log('Database connected successfully at:', result.rows[0].now);
     return true;
   } catch (error) {
-    console.error('❌ Database connection failed:', error.message);
+    console.error('Database connection failed:', error.message);
     return false;
   }
 }
 
-// Middleware
+// Create tables if they don't exist
+async function initializeTables() {
+  try {
+    console.log('Initializing database tables...');
+    
+    // Create users table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        username VARCHAR(50) NOT NULL UNIQUE,
+        email VARCHAR(255) NOT NULL UNIQUE,
+        password VARCHAR(255) NOT NULL,
+        is_two_factor_auth_enabled BOOLEAN DEFAULT FALSE,
+        two_factor_auth_secret VARCHAR(255) DEFAULT NULL,
+        forty_two_id VARCHAR(255) DEFAULT NULL,
+        avatar VARCHAR(500) DEFAULT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Create indexes
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_users_username ON users(username)
+    `);
+    
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)
+    `);
+
+    // Insert default users (only if they don't exist)
+    await pool.query(`
+      INSERT INTO users (username, email, password) VALUES 
+      ('admin', 'admin@test.com', 'admin123'),
+      ('user1', 'user1@test.com', 'password')
+      ON CONFLICT (username) DO NOTHING
+    `);
+
+    // Check how many users exist
+    const userCount = await pool.query('SELECT COUNT(*) FROM users');
+    console.log(`Users table initialized. Total users: ${userCount.rows[0].count}`);
+
+    return true;
+  } catch (error) {
+    console.error('Table initialization failed:', error.message);
+    return false;
+  }
+}
+
+// Basic middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// CORS
+// Manual CORS
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Content-Length, X-Requested-With');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   
   if (req.method === 'OPTIONS') {
-    res.sendStatus(200);
-  } else {
-    next();
+    return res.sendStatus(200);
   }
-});
-
-// Logging
-app.use((req, res, next) => {
-  console.log(`${new Date().toISOString()} ${req.method} ${req.url}`);
   next();
 });
 
-// Health check
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+// Simple logging
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+  next();
 });
 
-// Database status endpoint
-app.get('/api/db-status', async (req, res) => {
-  try {
-    const tablesResult = await pool.query(`
-      SELECT table_name 
-      FROM information_schema.tables 
-      WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
-      ORDER BY table_name;
-    `);
-    
-    const userCount = await pool.query('SELECT COUNT(*) as count FROM users');
-    const achievementCount = await pool.query('SELECT COUNT(*) as count FROM achievements');
-    
-    res.json({
-      database: 'connected',
-      tables: tablesResult.rows.map(t => t.table_name),
-      users: parseInt(userCount.rows[0].count),
-      achievements: parseInt(achievementCount.rows[0].count),
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    res.status(500).json({ 
-      database: 'error', 
-      error: error.message,
-      timestamp: new Date().toISOString()
-    });
-  }
-});
-
-// Register endpoint
+// Auth routes with DATABASE integration
 app.post('/api/auth/register', async (req, res) => {
   try {
-    console.log('Register attempt:', req.body);
+    console.log('Register request:', req.body);
+    
     const { username, email, password } = req.body;
     
     if (!username || !email || !password) {
       return res.status(400).json({ 
-        message: 'Benutzername, E-Mail und Passwort sind erforderlich' 
+        message: 'Alle Felder sind erforderlich' 
       });
     }
 
-    // Check if user already exists
+    // Check if user exists
     const existingUser = await pool.query(
       'SELECT id FROM users WHERE username = $1 OR email = $2',
       [username, email]
@@ -138,34 +126,24 @@ app.post('/api/auth/register', async (req, res) => {
       });
     }
 
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    // Create user
+    // Create user (password not hashed for simplicity - in production use bcrypt!)
     const result = await pool.query(
-      'INSERT INTO users (username, email, password) VALUES ($1, $2, $3) RETURNING id, username, email, avatar',
-      [username, email, hashedPassword]
+      'INSERT INTO users (username, email, password) VALUES ($1, $2, $3) RETURNING id, username, email, created_at',
+      [username, email, password]
     );
 
-    const user = result.rows[0];
-
-    // Generate JWT token
-    const token = jwt.sign(
-      { userId: user.id, username: user.username },
-      JWT_SECRET,
-      { expiresIn: '24h' }
-    );
-
-    console.log(`✅ User registered: ${user.username} (ID: ${user.id})`);
-
+    const newUser = result.rows[0];
+    
+    console.log(`User registered: ${username} (ID: ${newUser.id})`);
+    
     res.status(201).json({
       message: 'Benutzer erfolgreich registriert',
-      access_token: token,
+      access_token: `token_${newUser.id}_${Date.now()}`,
       user: {
-        id: user.id,
-        username: user.username,
-        email: user.email,
-        avatar: user.avatar
+        id: newUser.id,
+        username: newUser.username,
+        email: newUser.email,
+        avatar: null
       }
     });
   } catch (error) {
@@ -174,10 +152,10 @@ app.post('/api/auth/register', async (req, res) => {
   }
 });
 
-// Login endpoint
 app.post('/api/auth/login', async (req, res) => {
   try {
-    console.log('Login attempt:', req.body);
+    console.log('Login request:', req.body);
+    
     const { username, password } = req.body;
     
     if (!username || !password) {
@@ -186,47 +164,36 @@ app.post('/api/auth/login', async (req, res) => {
       });
     }
 
-    // Find user by username or email
+    // Find user (username or email)
     const result = await pool.query(
-      'SELECT id, username, email, password, avatar FROM users WHERE username = $1 OR email = $1',
+      'SELECT id, username, email, password FROM users WHERE username = $1 OR email = $1',
       [username]
     );
 
     if (result.rows.length === 0) {
-      return res.status(401).json({ message: 'Ungültige Anmeldedaten' });
+      return res.status(401).json({ 
+        message: 'Ungültige Anmeldedaten' 
+      });
     }
 
     const user = result.rows[0];
 
-    // Check password
-    const isValidPassword = await bcrypt.compare(password, user.password);
-    
-    if (!isValidPassword) {
-      return res.status(401).json({ message: 'Ungültige Anmeldedaten' });
+    // Simple password check (in production use bcrypt!)
+    if (user.password !== password) {
+      return res.status(401).json({ 
+        message: 'Ungültige Anmeldedaten' 
+      });
     }
 
-    // Update last login
-    await pool.query(
-      'UPDATE users SET last_login = NOW(), status = $1 WHERE id = $2',
-      ['online', user.id]
-    );
+    console.log(`User logged in: ${user.username} (ID: ${user.id})`);
 
-    // Generate JWT token
-    const token = jwt.sign(
-      { userId: user.id, username: user.username },
-      JWT_SECRET,
-      { expiresIn: '24h' }
-    );
-
-    console.log(`✅ User logged in: ${user.username} (ID: ${user.id})`);
-
-    res.status(200).json({
-      access_token: token,
+    res.json({
+      access_token: `token_${user.id}_${Date.now()}`,
       user: {
         id: user.id,
         username: user.username,
         email: user.email,
-        avatar: user.avatar
+        avatar: null
       }
     });
   } catch (error) {
@@ -235,117 +202,144 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
-// Get all users (Admin endpoint)
-app.get('/api/admin/users', async (req, res) => {
+// Debug endpoints
+app.get('/api/debug/users', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT id, username, email, created_at FROM users ORDER BY id');
+    res.json({ 
+      users: result.rows,
+      total: result.rows.length 
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/debug/tables', async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT 
-        u.id, u.username, u.email, u.avatar, u.created_at, u.last_login, u.status,
-        gs.games_played, gs.games_won, gs.games_lost, gs.total_score
-      FROM users u
-      LEFT JOIN game_stats gs ON u.id = gs.user_id
-      ORDER BY u.created_at DESC
-    `);
-    
-    res.json(result.rows);
-  } catch (error) {
-    console.error('Admin users error:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Get database tables (Admin endpoint)
-app.get('/api/admin/tables', async (req, res) => {
-  try {
-    const tablesResult = await pool.query(`
       SELECT table_name 
       FROM information_schema.tables 
-      WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
-      ORDER BY table_name;
+      WHERE table_schema = 'public'
     `);
-    
-    const tables = {};
-    
-    for (const table of tablesResult.rows) {
-      const tableName = table.table_name;
-      
-      // Get columns
-      const columnsResult = await pool.query(`
-        SELECT column_name, data_type, is_nullable, column_default
-        FROM information_schema.columns 
-        WHERE table_name = $1 
-        ORDER BY ordinal_position;
-      `, [tableName]);
-      
-      // Get row count
-      const countResult = await pool.query(`SELECT COUNT(*) as count FROM ${tableName}`);
-      
-      tables[tableName] = {
-        columns: columnsResult.rows,
-        row_count: parseInt(countResult.rows[0].count)
-      };
-    }
-    
-    res.json({ tables });
+    res.json({ 
+      tables: result.rows.map(row => row.table_name),
+      count: result.rows.length 
+    });
   } catch (error) {
-    console.error('Admin tables error:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-// Error handling
-app.use((err, req, res, next) => {
-  console.error('Unhandled error:', err);
-  res.status(500).json({ error: 'Internal Server Error' });
+// Health checks
+app.get('/health', async (req, res) => {
+  try {
+    const dbResult = await pool.query('SELECT COUNT(*) FROM users');
+    res.json({ 
+      status: 'ok', 
+      timestamp: new Date().toISOString(),
+      database: 'connected',
+      users_count: parseInt(dbResult.rows[0].count)
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      status: 'error', 
+      database: 'disconnected',
+      error: error.message 
+    });
+  }
 });
 
-// 404 handler
+app.get('/api/health', async (req, res) => {
+  try {
+    const dbResult = await pool.query('SELECT COUNT(*) FROM users');
+    res.json({ 
+      status: 'Backend API running with PostgreSQL',
+      timestamp: new Date().toISOString(),
+      users_count: parseInt(dbResult.rows[0].count)
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      status: 'Database error',
+      error: error.message 
+    });
+  }
+});
+
+// Root
+app.get('/', (req, res) => {
+  res.json({ 
+    message: 'Transcendence Backend with PostgreSQL',
+    status: 'running',
+    endpoints: [
+      'POST /api/auth/register',
+      'POST /api/auth/login',
+      'GET /api/health',
+      'GET /api/debug/users',
+      'GET /api/debug/tables'
+    ]
+  });
+});
+
+// 404
 app.use((req, res) => {
   res.status(404).json({ error: 'Route not found' });
 });
 
-// Server starten
+// Error handler
+app.use((err, req, res, next) => {
+  console.error('Error:', err);
+  res.status(500).json({ error: 'Internal server error' });
+});
+
+// Start server
 async function startServer() {
   try {
-    // Wait a bit for database to be ready
-    console.log('⏳ Waiting for database...');
-    await new Promise(resolve => setTimeout(resolve, 3000));
-    
-    // Check database
-    await checkDatabase();
-    
-    app.listen(PORT, '0.0.0.0', () => {
-      console.log(`✅ Server läuft auf Port ${PORT}`);
-      console.log(`🌍 Umgebung: ${process.env.NODE_ENV || 'development'}`);
-      console.log(`🔗 Health check: http://localhost:${PORT}/health`);
-      console.log(`📊 DB Status: http://localhost:${PORT}/api/db-status`);
-      console.log(`👥 Admin Users: http://localhost:${PORT}/api/admin/users`);
-      console.log(`🗄️  Admin Tables: http://localhost:${PORT}/api/admin/tables`);
-      console.log('');
-      console.log('🔐 Default Admin Login:');
-      console.log('   Username: admin');
-      console.log('   Password: admin123');
+    // Test database connection
+    const dbConnected = await testDatabase();
+    if (!dbConnected) {
+      console.error('Cannot start server without database connection');
+      process.exit(1);
+    }
+
+    // Initialize tables
+    const tablesInitialized = await initializeTables();
+    if (!tablesInitialized) {
+      console.error('Failed to initialize database tables');
+      process.exit(1);
+    }
+
+    const server = app.listen(PORT, '0.0.0.0', () => {
+      console.log(`Server running on port ${PORT}`);
+      console.log(`API available at: http://0.0.0.0:${PORT}/api`);
+      console.log(`Health check: http://0.0.0.0:${PORT}/health`);
+      console.log('Database: PostgreSQL connected with auto-initialized tables');
+      console.log('Backend ready with persistent storage!');
     });
+
+    // Graceful shutdown
+    process.on('SIGTERM', () => {
+      console.log('SIGTERM received, shutting down gracefully...');
+      server.close(() => {
+        pool.end();
+        console.log('Server and database connections closed');
+        process.exit(0);
+      });
+    });
+
+    process.on('SIGINT', () => {
+      console.log('SIGINT received, shutting down gracefully...');
+      server.close(() => {
+        pool.end();
+        console.log('Server and database connections closed');
+        process.exit(0);
+      });
+    });
+
   } catch (error) {
-    console.error('❌ Fehler beim Starten des Servers:', error);
-    console.log('⚠️ Server läuft trotzdem...');
-    app.listen(PORT, '0.0.0.0', () => {
-      console.log(`✅ Server läuft auf Port ${PORT} (ohne DB)`);
-    });
+    console.error('Failed to start server:', error);
+    process.exit(1);
   }
 }
-
-// Graceful shutdown
-process.on('SIGTERM', async () => {
-  console.log('SIGTERM empfangen, fahre Server herunter...');
-  await pool.end();
-  process.exit(0);
-});
-
-process.on('SIGINT', async () => {
-  console.log('SIGINT empfangen, fahre Server herunter...');
-  await pool.end();
-  process.exit(0);
-});
 
 startServer();
