@@ -1,4 +1,4 @@
-// routes/userRoutes.js
+// routes/userRoutes.js - Erweiterte Version
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
@@ -43,8 +43,8 @@ router.get('/profile', UserController.getProfile);
 router.put('/profile', UserController.updateProfile);
 router.delete('/profile', UserController.deleteAccount);
 
-// Password routes
-router.put('/password', UserController.changePassword);
+// Password change route - NEU!
+router.put('/change-password', UserController.changePassword);
 
 // Avatar routes
 router.post('/avatar', upload.single('avatar'), UserController.uploadAvatar);
