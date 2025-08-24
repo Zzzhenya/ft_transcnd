@@ -8,7 +8,7 @@ import Home from './components/Home';
 import Login from './components/auth/Login';
 import Register from './components/auth/Register';
 import Profile from './components/profile/Profile';
-import ProfileSettings from './components/profile/ProfileSettings';
+import ProfileSettings from './components/profile/ProfileSettings'; // WICHTIG: ProfileSettings importieren
 import GameLobby from './components/game/GameLobby';
 import PongGame from './components/game/PongGame';
 import Leaderboard from './components/game/Leaderboard';
@@ -33,6 +33,7 @@ const AppRoutes = () => {
         }
       />
       
+      {/* WICHTIGE NEUE ROUTE FÜR SETTINGS: */}
       <Route
         path="/profile/settings"
         element={

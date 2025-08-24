@@ -27,7 +27,7 @@ export const userService = {
   // Upload user avatar
   uploadAvatar: async (formData) => {
     try {
-      const response = await axiosInstance.post('/api/users/upload-avatar', formData, {
+      const response = await axiosInstance.post('/api/users/avatar', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
@@ -61,7 +61,7 @@ export const userService = {
     }
   },
 
-  // Change password
+  // WICHTIG: Change password - für ProfileSettings
   changePassword: async (passwordData) => {
     try {
       const response = await axiosInstance.put('/api/users/change-password', passwordData);
@@ -72,7 +72,7 @@ export const userService = {
     }
   },
 
-  // Delete user account
+  // WICHTIG: Delete user account - für ProfileSettings
   deleteAccount: async (deleteData) => {
     try {
       const response = await axiosInstance.delete('/api/users/account', {
