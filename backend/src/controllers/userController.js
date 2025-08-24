@@ -1,5 +1,6 @@
 // controllers/userController.js
 const User = require('../models/User');
+const bcrypt = require('bcrypt');
 const path = require('path');
 const fs = require('fs').promises;
 
@@ -73,6 +74,47 @@ class UserController {
       res.json(userProfile);
     } catch (error) {
       console.error('Error updating profile:', error);
+      res.status(500).json({ message: 'Server error' });
+    }
+  }
+
+  // Change user password - NEUE FUNKTION
+  static async changePassword(req, res) {
+    try {
+      const { currentPassword, newPassword } = req.body;
+      const userId = req.user.id;
+
+      // Validate input
+      if (!currentPassword || !newPassword) {
+        return res.status(400).json({ message: 'Current password and new password are required' });
+      }
+
+      if (newPassword.length < 6) {
+        return res.status(400).json({ message: 'New password must be at least 6 characters long' });
+      }
+
+      // Get current user with password
+      const user = await User.findById(userId);
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      // Verify current password
+      const isValidPassword = await bcrypt.compare(currentPassword, user.password);
+      if (!isValidPassword) {
+        return res.status(400).json({ message: 'Current password is incorrect' });
+      }
+
+      // Hash new password
+      const saltRounds = 12;
+      const hashedNewPassword = await bcrypt.hash(newPassword, saltRounds);
+
+      // Update password in database
+      await User.update(userId, { password: hashedNewPassword });
+
+      res.json({ message: 'Password changed successfully' });
+    } catch (error) {
+      console.error('Error changing password:', error);
       res.status(500).json({ message: 'Server error' });
     }
   }
@@ -153,7 +195,7 @@ class UserController {
     }
   }
 
-  // Delete user account
+  // Delete user account - ERWEITERTE VERSION
   static async deleteAccount(req, res) {
     try {
       const userId = req.user.id;
@@ -169,13 +211,23 @@ class UserController {
         return res.status(404).json({ message: 'User not found' });
       }
 
-      // TODO: Add password verification
-      // const isValidPassword = await bcrypt.compare(password, user.password);
-      // if (!isValidPassword) {
-      //   return res.status(400).json({ message: 'Invalid password' });
-      // }
+      // Verify password
+      const isValidPassword = await bcrypt.compare(password, user.password);
+      if (!isValidPassword) {
+        return res.status(400).json({ message: 'Invalid password' });
+      }
 
-      // Delete user
+      // Delete user avatar file if exists
+      if (user.avatar && user.avatar.startsWith('/uploads/avatars/')) {
+        try {
+          const avatarPath = path.join(process.cwd(), 'public', user.avatar);
+          await fs.unlink(avatarPath);
+        } catch (fileError) {
+          console.log('Avatar file not found or already deleted:', fileError.message);
+        }
+      }
+
+      // Delete user from database
       await User.delete(userId);
 
       res.json({ message: 'Account deleted successfully' });
@@ -184,6 +236,54 @@ class UserController {
       res.status(500).json({ message: 'Server error' });
     }
   }
+
+  // Search users - NEUE FUNKTION
+  static async searchUsers(req, res) {
+    try {
+      const { q } = req.query;
+      
+      if (!q || q.trim().length < 2) {
+        return res.status(400).json({ message: 'Search query must be at least 2 characters long' });
+      }
+
+      // TODO: Implement user search when needed
+      // For now, return empty array
+      const users = [];
+
+      res.json(users);
+    } catch (error) {
+      console.error('Error searching users:', error);
+      res.status(500).json({ message: 'Server error' });
+    }
+  }
+
+  // Get user by ID - NEUE FUNKTION
+  static async getUserById(req, res) {
+    try {
+      const { id } = req.params;
+      const user = await User.findById(id);
+      
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      // Return public user information only
+      const publicUser = {
+        id: user.id,
+        username: user.username,
+        avatar: user.avatar,
+        created_at: user.created_at
+      };
+
+      res.json(publicUser);
+    } catch (error) {
+      console.error('Error getting user by ID:', error);
+      res.status(500).json({ message: 'Server error' });
+    }
+  }
 }
 
 module.exports = UserController;
+
+
+

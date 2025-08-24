@@ -1,239 +1,176 @@
-// components/profile/Profile.js
+// frontend/src/components/profile/Profile.js
 import React, { useState, useEffect } from 'react';
-import UserService from '../../services/userService';
-import EditProfile from './EditProfile';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
+import { userService } from '../../services/userService';
 import UserStats from './UserStats';
 import MatchHistory from './MatchHistory';
+import EditProfile from './EditProfile';
 import '../../styles/components/Profile.css';
 
 const Profile = () => {
-  const [user, setUser] = useState(null);
-  const [stats, setStats] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
+  const { user, updateUser } = useAuth();
+  const [activeTab, setActiveTab] = useState('profile');
+  const [isLoading, setIsLoading] = useState(true);
+  const [userStats, setUserStats] = useState(null);
+  const [matchHistory, setMatchHistory] = useState(null);
   const [error, setError] = useState('');
-  const [activeTab, setActiveTab] = useState('overview');
-  const [showEditModal, setShowEditModal] = useState(false);
 
   useEffect(() => {
-    loadUserData();
+    fetchUserData();
   }, []);
 
-  const loadUserData = async () => {
+  const fetchUserData = async () => {
     try {
-      setLoading(true);
-      const [profileData, statsData] = await Promise.all([
-        UserService.getProfile(),
-        UserService.getUserStats()
+      setIsLoading(true);
+      const [statsData, historyData] = await Promise.all([
+        userService.getUserStats(),
+        userService.getMatchHistory(1, 10)
       ]);
       
-      setUser(profileData);
-      setStats(statsData);
-      setError('');
-    } catch (err) {
-      setError('Failed to load profile data');
-      console.error('Error loading user data:', err);
+      setUserStats(statsData);
+      setMatchHistory(historyData);
+    } catch (error) {
+      console.error('Error fetching user data:', error);
+      setError('Fehler beim Laden der Profildaten');
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
-  const handleAvatarUpload = async (event) => {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-      setError('Please select an image file');
-      return;
-    }
-
-    // Validate file size (5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      setError('File size must be less than 5MB');
-      return;
-    }
-
-    try {
-      const response = await UserService.uploadAvatar(file);
-      setUser(prev => ({ ...prev, avatar: response.avatar }));
-      setError('');
-    } catch (err) {
-      setError('Failed to upload avatar');
-      console.error('Error uploading avatar:', err);
-    }
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
   };
 
-  const handleProfileUpdate = async (updatedData) => {
-    try {
-      const updatedUser = await UserService.updateProfile(updatedData);
-      setUser(updatedUser);
-      setShowEditModal(false);
-      setError('');
-    } catch (err) {
-      setError('Failed to update profile');
-      console.error('Error updating profile:', err);
-    }
+  const handleProfileUpdate = (updatedUser) => {
+    updateUser(updatedUser);
   };
 
-  if (loading) {
+  const handleSettingsClick = () => {
+    navigate('/profile/settings');
+  };
+
+  if (isLoading) {
     return (
-      <div className="profile-container">
-        <div className="loading-spinner">Loading profile...</div>
+      <div className="profile-loading">
+        <div className="loading-spinner"></div>
+        <p>Profil wird geladen...</p>
       </div>
     );
   }
 
-  if (error && !user) {
+  if (error) {
     return (
-      <div className="profile-container">
-        <div className="error-message">{error}</div>
-        <button onClick={loadUserData} className="retry-button">
-          Try Again
+      <div className="profile-error">
+        <p>{error}</p>
+        <button onClick={fetchUserData} className="retry-button">
+          Erneut versuchen
         </button>
       </div>
     );
   }
 
   return (
-    <div className="profile-container">
-      <div className="profile-header">
-        <div className="profile-avatar-section">
-          <div className="avatar-container">
+    <div className="profile">
+      <div className="profile-container">
+        {/* Profile Header */}
+        <div className="profile-header">
+          <div className="profile-avatar">
             <img 
               src={user?.avatar || '/default-avatar.png'} 
-              alt="Profile Avatar"
-              className="profile-avatar"
+              alt={`${user?.username}'s Avatar`}
+              onError={(e) => {
+                e.target.src = '/default-avatar.png';
+              }}
             />
-            <label htmlFor="avatar-upload" className="avatar-upload-button">
-              <i className="fas fa-camera"></i>
-              <input
-                id="avatar-upload"
-                type="file"
-                accept="image/*"
-                onChange={handleAvatarUpload}
-                style={{ display: 'none' }}
-              />
-            </label>
+          </div>
+          <div className="profile-info">
+            <h1>{user?.username}</h1>
+            <p className="profile-email">{user?.email}</p>
+            <p className="profile-joined">
+              Mitglied seit: {user?.created_at ? new Date(user.created_at).toLocaleDateString('de-DE') : 'Unbekannt'}
+            </p>
+          </div>
+          <div className="profile-actions">
+            <button 
+              onClick={handleSettingsClick}
+              className="settings-button"
+              title="Profil Einstellungen"
+            >
+              <i className="settings-icon">⚙️</i>
+              Settings
+            </button>
           </div>
         </div>
-        
-        <div className="profile-info">
-          <h1 className="profile-username">{user?.username}</h1>
-          <p className="profile-email">{user?.email}</p>
-          <p className="profile-member-since">
-            Member since {new Date(user?.created_at).toLocaleDateString()}
-          </p>
+
+        {/* Quick Stats Overview */}
+        {userStats && (
+          <div className="profile-quick-stats">
+            <div className="quick-stat">
+              <span className="stat-value">{userStats.gamesPlayed}</span>
+              <span className="stat-label">Spiele</span>
+            </div>
+            <div className="quick-stat">
+              <span className="stat-value">{userStats.gamesWon}</span>
+              <span className="stat-label">Siege</span>
+            </div>
+            <div className="quick-stat">
+              <span className="stat-value">{userStats.winRate}%</span>
+              <span className="stat-label">Siegesquote</span>
+            </div>
+            <div className="quick-stat">
+              <span className="stat-value">{userStats.currentStreak}</span>
+              <span className="stat-label">Aktuelle Serie</span>
+            </div>
+          </div>
+        )}
+
+        {/* Navigation Tabs */}
+        <div className="profile-tabs">
           <button 
-            onClick={() => setShowEditModal(true)}
-            className="edit-profile-button"
+            className={`tab-button ${activeTab === 'profile' ? 'active' : ''}`}
+            onClick={() => handleTabChange('profile')}
           >
-            <i className="fas fa-edit"></i> Edit Profile
+            Profil bearbeiten
+          </button>
+          <button 
+            className={`tab-button ${activeTab === 'stats' ? 'active' : ''}`}
+            onClick={() => handleTabChange('stats')}
+          >
+            Statistiken
+          </button>
+          <button 
+            className={`tab-button ${activeTab === 'history' ? 'active' : ''}`}
+            onClick={() => handleTabChange('history')}
+          >
+            Spielverlauf
           </button>
         </div>
-      </div>
 
-      {error && (
-        <div className="error-banner">
-          {error}
-          <button onClick={() => setError('')} className="close-error">×</button>
+        {/* Tab Content */}
+        <div className="profile-content">
+          {activeTab === 'profile' && (
+            <EditProfile 
+              user={user}
+              onProfileUpdate={handleProfileUpdate}
+            />
+          )}
+          
+          {activeTab === 'stats' && userStats && (
+            <UserStats stats={userStats} />
+          )}
+          
+          {activeTab === 'history' && matchHistory && (
+            <MatchHistory 
+              matches={matchHistory.matches}
+              totalCount={matchHistory.totalCount}
+              currentPage={matchHistory.currentPage}
+              totalPages={matchHistory.totalPages}
+            />
+          )}
         </div>
-      )}
-
-      <div className="profile-tabs">
-        <button 
-          className={`tab-button ${activeTab === 'overview' ? 'active' : ''}`}
-          onClick={() => setActiveTab('overview')}
-        >
-          Overview
-        </button>
-        <button 
-          className={`tab-button ${activeTab === 'stats' ? 'active' : ''}`}
-          onClick={() => setActiveTab('stats')}
-        >
-          Statistics
-        </button>
-        <button 
-          className={`tab-button ${activeTab === 'history' ? 'active' : ''}`}
-          onClick={() => setActiveTab('history')}
-        >
-          Match History
-        </button>
-        <button 
-          className={`tab-button ${activeTab === 'settings' ? 'active' : ''}`}
-          onClick={() => setActiveTab('settings')}
-        >
-          Settings
-        </button>
       </div>
-
-      <div className="profile-content">
-        {activeTab === 'overview' && (
-          <div className="overview-tab">
-            <div className="quick-stats">
-              <div className="stat-card">
-                <h3>Games Played</h3>
-                <span className="stat-value">{stats?.gamesPlayed || 0}</span>
-              </div>
-              <div className="stat-card">
-                <h3>Win Rate</h3>
-                <span className="stat-value">{stats?.winRate || 0}%</span>
-              </div>
-              <div className="stat-card">
-                <h3>Current Streak</h3>
-                <span className="stat-value">{stats?.currentStreak || 0}</span>
-              </div>
-              <div className="stat-card">
-                <h3>Best Streak</h3>
-                <span className="stat-value">{stats?.bestStreak || 0}</span>
-              </div>
-            </div>
-            
-            <div className="recent-activity">
-              <h3>Recent Activity</h3>
-              <p>No recent games played.</p>
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'stats' && <UserStats stats={stats} />}
-
-        {activeTab === 'history' && <MatchHistory />}
-
-        {activeTab === 'settings' && (
-          <div className="settings-tab">
-            <div className="settings-section">
-              <h3>Account Settings</h3>
-              <button 
-                onClick={() => setShowEditModal(true)}
-                className="settings-button"
-              >
-                Edit Profile Information
-              </button>
-              <button className="settings-button">
-                Change Password
-              </button>
-              <button className="settings-button">
-                Two-Factor Authentication
-              </button>
-            </div>
-            
-            <div className="settings-section danger-zone">
-              <h3>Danger Zone</h3>
-              <button className="delete-account-button">
-                Delete Account
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {showEditModal && (
-        <EditProfile
-          user={user}
-          onClose={() => setShowEditModal(false)}
-          onUpdate={handleProfileUpdate}
-        />
-      )}
     </div>
   );
 };
