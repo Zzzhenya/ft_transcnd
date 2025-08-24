@@ -1,6 +1,6 @@
-// controllers/userController.js
+// controllers/userController.js - KOMPLETTE VERSION MIT ALLEN FUNKTIONEN
 const User = require('../models/User');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcrypt'); // !! WICHTIG: bcrypt hinzufügen
 const path = require('path');
 const fs = require('fs').promises;
 
@@ -78,7 +78,7 @@ class UserController {
     }
   }
 
-  // Change user password - NEUE FUNKTION
+  // NEUE FUNKTION: Change user password
   static async changePassword(req, res) {
     try {
       const { currentPassword, newPassword } = req.body;
@@ -195,7 +195,7 @@ class UserController {
     }
   }
 
-  // Delete user account - ERWEITERTE VERSION
+  // ERWEITERTE FUNKTION: Delete user account mit bcrypt
   static async deleteAccount(req, res) {
     try {
       const userId = req.user.id;
@@ -211,7 +211,7 @@ class UserController {
         return res.status(404).json({ message: 'User not found' });
       }
 
-      // Verify password
+      // Verify password mit bcrypt
       const isValidPassword = await bcrypt.compare(password, user.password);
       if (!isValidPassword) {
         return res.status(400).json({ message: 'Invalid password' });
@@ -237,7 +237,7 @@ class UserController {
     }
   }
 
-  // Search users - NEUE FUNKTION
+  // NEUE FUNKTION: Search users
   static async searchUsers(req, res) {
     try {
       const { q } = req.query;
@@ -257,7 +257,7 @@ class UserController {
     }
   }
 
-  // Get user by ID - NEUE FUNKTION
+  // NEUE FUNKTION: Get user by ID
   static async getUserById(req, res) {
     try {
       const { id } = req.params;

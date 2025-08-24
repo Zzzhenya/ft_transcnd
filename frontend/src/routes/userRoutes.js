@@ -1,33 +1,37 @@
-// backend/src/routes/userRoutes.js
+// routes/userRoutes.js - ERWEITERTE VERSION MIT ALLEN ROUTES
 const express = require('express');
-const router = express.Router();
-const UserController = require('../controllers/userController');
-const authMiddleware = require('../middlewares/authMiddleware');
 const multer = require('multer');
 const path = require('path');
+const UserController = require('../controllers/userController');
+const authMiddleware = require('../middlewares/authMiddleware');
+
+const router = express.Router();
 
 // Configure multer for avatar uploads
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
+  destination: function (req, file, cb) {
     cb(null, 'uploads/avatars/');
   },
-  filename: (req, file, cb) => {
+  filename: function (req, file, cb) {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+    cb(null, 'avatar-' + uniqueSuffix + path.extname(file.originalname));
   }
 });
 
-const upload = multer({
+const fileFilter = (req, file, cb) => {
+  // Check if file is an image
+  if (file.mimetype.startsWith('image/')) {
+    cb(null, true);
+  } else {
+    cb(new Error('Only image files are allowed!'), false);
+  }
+};
+
+const upload = multer({ 
   storage: storage,
+  fileFilter: fileFilter,
   limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB limit
-  },
-  fileFilter: (req, file, cb) => {
-    if (file.mimetype.startsWith('image/')) {
-      cb(null, true);
-    } else {
-      cb(new Error('Only image files are allowed!'), false);
-    }
+    fileSize: 5 * 1024 * 1024 // 5MB limit
   }
 });
 
@@ -37,15 +41,17 @@ router.use(authMiddleware);
 // Profile routes
 router.get('/profile', UserController.getProfile);
 router.put('/profile', UserController.updateProfile);
-router.post('/upload-avatar', upload.single('avatar'), UserController.uploadAvatar);
+
+// WICHTIGE NEUE ROUTES FÜR SETTINGS:
+router.put('/change-password', UserController.changePassword); // Passwort ändern
+router.delete('/account', UserController.deleteAccount);       // Account löschen
+
+// Avatar routes
+router.post('/avatar', upload.single('avatar'), UserController.uploadAvatar);
 
 // Stats and history routes
 router.get('/stats', UserController.getUserStats);
 router.get('/match-history', UserController.getMatchHistory);
-
-// Settings routes
-router.put('/change-password', UserController.changePassword);
-router.delete('/account', UserController.deleteAccount);
 
 // User search and lookup routes
 router.get('/search', UserController.searchUsers);
