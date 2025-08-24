@@ -1,36 +1,33 @@
-// services/userService.js
-import axios from '../utils/axiosConfig';
+// frontend/src/services/userService.js
+import axiosInstance from '../utils/axiosConfig';
 
-class UserService {
-  // Get current user profile
-  static async getProfile() {
+export const userService = {
+  // Get user profile
+  getProfile: async () => {
     try {
-      const response = await axios.get('/api/users/profile');
+      const response = await axiosInstance.get('/api/users/profile');
       return response.data;
     } catch (error) {
-      console.error('Error fetching profile:', error);
+      console.error('Error fetching user profile:', error);
       throw error;
     }
-  }
+  },
 
   // Update user profile
-  static async updateProfile(profileData) {
+  updateProfile: async (profileData) => {
     try {
-      const response = await axios.put('/api/users/profile', profileData);
+      const response = await axiosInstance.put('/api/users/profile', profileData);
       return response.data;
     } catch (error) {
-      console.error('Error updating profile:', error);
+      console.error('Error updating user profile:', error);
       throw error;
     }
-  }
+  },
 
-  // Upload avatar
-  static async uploadAvatar(file) {
+  // Upload user avatar
+  uploadAvatar: async (formData) => {
     try {
-      const formData = new FormData();
-      formData.append('avatar', file);
-
-      const response = await axios.post('/api/users/avatar', formData, {
+      const response = await axiosInstance.post('/api/users/upload-avatar', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
@@ -40,56 +37,73 @@ class UserService {
       console.error('Error uploading avatar:', error);
       throw error;
     }
-  }
+  },
 
   // Get user statistics
-  static async getUserStats() {
+  getUserStats: async () => {
     try {
-      const response = await axios.get('/api/users/stats');
+      const response = await axiosInstance.get('/api/users/stats');
       return response.data;
     } catch (error) {
       console.error('Error fetching user stats:', error);
       throw error;
     }
-  }
+  },
 
   // Get match history
-  static async getMatchHistory(page = 1, limit = 10) {
+  getMatchHistory: async (page = 1, limit = 10) => {
     try {
-      const response = await axios.get(`/api/users/match-history?page=${page}&limit=${limit}`);
+      const response = await axiosInstance.get(`/api/users/match-history?page=${page}&limit=${limit}`);
       return response.data;
     } catch (error) {
       console.error('Error fetching match history:', error);
       throw error;
     }
-  }
+  },
+
+  // Change password
+  changePassword: async (passwordData) => {
+    try {
+      const response = await axiosInstance.put('/api/users/change-password', passwordData);
+      return response.data;
+    } catch (error) {
+      console.error('Error changing password:', error);
+      throw error;
+    }
+  },
 
   // Delete user account
-  static async deleteAccount(password) {
+  deleteAccount: async (deleteData) => {
     try {
-      const response = await axios.delete('/api/users/profile', {
-        data: { password }
+      const response = await axiosInstance.delete('/api/users/account', {
+        data: deleteData
       });
       return response.data;
     } catch (error) {
       console.error('Error deleting account:', error);
       throw error;
     }
-  }
+  },
 
-  // Change password
-  static async changePassword(currentPassword, newPassword) {
+  // Get user by ID (for admin purposes)
+  getUserById: async (userId) => {
     try {
-      const response = await axios.put('/api/users/change-password', {
-        currentPassword,
-        newPassword
-      });
+      const response = await axiosInstance.get(`/api/users/${userId}`);
       return response.data;
     } catch (error) {
-      console.error('Error changing password:', error);
+      console.error('Error fetching user by ID:', error);
+      throw error;
+    }
+  },
+
+  // Search users
+  searchUsers: async (searchTerm) => {
+    try {
+      const response = await axiosInstance.get(`/api/users/search?q=${encodeURIComponent(searchTerm)}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error searching users:', error);
       throw error;
     }
   }
-}
-
-export default UserService;
+};
