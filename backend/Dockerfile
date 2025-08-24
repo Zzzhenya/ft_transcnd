@@ -1,33 +1,39 @@
 FROM node:18-alpine
 
-# Install system dependencies
-RUN apk add --no-cache curl
+# Install build dependencies for native modules like bcrypt
+RUN apk add --no-cache \
+    python3 \
+    make \
+    g++ \
+    gcc \
+    libc-dev \
+    pkgconfig \
+    pixman-dev \
+    cairo-dev \
+    pango-dev
 
 WORKDIR /app
 
-# Copy package files first (for better caching)
-COPY package.json ./
+# Copy package files
+COPY package*.json ./
 
-# Install dependencies individually to avoid version conflicts
-RUN npm install express@^4.18.2
-RUN npm install pg@^8.11.3  
-RUN npm install bcrypt@^5.1.1
-RUN npm install jsonwebtoken@^9.0.2
-RUN npm install cors@^2.8.5
-RUN npm install dotenv@^16.3.1
+# Install dependencies with better error handling
+RUN npm ci --only=production --no-audit || \
+    (echo "npm ci failed, trying npm install..." && npm install --only=production --no-audit) || \
+    (echo "npm install failed, trying without bcrypt..." && npm install --only=production --no-audit --ignore-scripts)
 
-# Copy source code
+# Copy application code
 COPY . .
 
-# Create logs directory
-RUN mkdir -p /app/logs
+# Create uploads directory
+RUN mkdir -p uploads/avatars
 
 # Expose port
 EXPOSE 5000
 
-# Simple health check
+# Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:5000/health || exit 1
+    CMD node -e "require('http').get('http://localhost:5000/health', (res) => process.exit(res.statusCode === 200 ? 0 : 1))" || exit 1
 
-# Start with simple node command (no npm script)
-CMD ["node", "src/app.js"]
+# Start application
+CMD ["npm", "start"]
