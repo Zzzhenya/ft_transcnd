@@ -1,5 +1,6 @@
-// controllers/userController.js - mit bcryptjs statt bcrypt
+// controllers/userController.js
 const User = require('../models/User');
+const bcrypt = require('bcrypt');
 const path = require('path');
 const fs = require('fs').promises;
 
@@ -18,7 +19,6 @@ class UserController {
         username: user.username,
         email: user.email,
         avatar: user.avatar,
-        bio: user.bio,
         created_at: user.created_at,
         updated_at: user.updated_at,
         is_two_factor_auth_enabled: user.is_two_factor_auth_enabled
@@ -34,26 +34,12 @@ class UserController {
   // Update user profile
   static async updateProfile(req, res) {
     try {
-      const { username, email, bio } = req.body;
+      const { username, email } = req.body;
       const userId = req.user.id;
 
       // Validate input
       if (!username || !email) {
         return res.status(400).json({ message: 'Username and email are required' });
-      }
-
-      // Validate email format
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(email)) {
-        return res.status(400).json({ message: 'Invalid email format' });
-      }
-
-      // Validate username
-      const usernameRegex = /^[a-zA-Z0-9_-]+$/;
-      if (!usernameRegex.test(username) || username.length < 3 || username.length > 30) {
-        return res.status(400).json({ 
-          message: 'Username must be 3-30 characters and contain only letters, numbers, underscore, or hyphen' 
-        });
       }
 
       // Check if username or email already exists (excluding current user)
@@ -68,12 +54,7 @@ class UserController {
       }
 
       // Update user
-      const updateData = { username, email };
-      if (bio !== undefined) {
-        updateData.bio = bio;
-      }
-
-      const updatedUser = await User.update(userId, updateData);
+      const updatedUser = await User.update(userId, { username, email });
       
       if (!updatedUser) {
         return res.status(404).json({ message: 'User not found' });
@@ -85,7 +66,6 @@ class UserController {
         username: updatedUser.username,
         email: updatedUser.email,
         avatar: updatedUser.avatar,
-        bio: updatedUser.bio,
         created_at: updatedUser.created_at,
         updated_at: updatedUser.updated_at,
         is_two_factor_auth_enabled: updatedUser.is_two_factor_auth_enabled
@@ -139,48 +119,83 @@ class UserController {
     }
   }
 
-  // Change password
-  static async changePassword(req, res) {
+  // Upload avatar
+  static async uploadAvatar(req, res) {
     try {
-      const { currentPassword, newPassword } = req.body;
+      if (!req.file) {
+        return res.status(400).json({ message: 'No file uploaded' });
+      }
+
       const userId = req.user.id;
+      const avatarPath = `/uploads/avatars/${req.file.filename}`;
 
-      // Validate input
-      if (!currentPassword || !newPassword) {
-        return res.status(400).json({ message: 'Current password and new password are required' });
-      }
-
-      if (newPassword.length < 6) {
-        return res.status(400).json({ message: 'New password must be at least 6 characters long' });
-      }
-
-      // Get user with password
-      const user = await User.findById(userId);
-      if (!user) {
+      // Update user avatar in database
+      const updatedUser = await User.update(userId, { avatar: avatarPath });
+      
+      if (!updatedUser) {
         return res.status(404).json({ message: 'User not found' });
       }
 
-      // Verify current password
-      const isValidPassword = await bcrypt.compare(currentPassword, user.password);
-      if (!isValidPassword) {
-        return res.status(400).json({ message: 'Current password is incorrect' });
-      }
-
-      // Hash new password
-      const saltRounds = 12;
-      const hashedNewPassword = await bcrypt.hash(newPassword, saltRounds);
-
-      // Update password
-      await User.update(userId, { password: hashedNewPassword });
-
-      res.json({ message: 'Password changed successfully' });
+      res.json({ 
+        message: 'Avatar uploaded successfully',
+        avatar: avatarPath 
+      });
     } catch (error) {
-      console.error('Error changing password:', error);
+      console.error('Error uploading avatar:', error);
       res.status(500).json({ message: 'Server error' });
     }
   }
 
-  // Delete user account
+  // Get user stats (games, wins, losses, etc.)
+  static async getUserStats(req, res) {
+    try {
+      const userId = req.user.id;
+      
+      // TODO: Implement when game tables are created
+      // For now, return mock data
+      const stats = {
+        gamesPlayed: 0,
+        gamesWon: 0,
+        gamesLost: 0,
+        winRate: 0,
+        currentStreak: 0,
+        bestStreak: 0,
+        totalScore: 0,
+        averageScore: 0
+      };
+
+      res.json(stats);
+    } catch (error) {
+      console.error('Error getting user stats:', error);
+      res.status(500).json({ message: 'Server error' });
+    }
+  }
+
+  // Get user match history
+  static async getMatchHistory(req, res) {
+    try {
+      const userId = req.user.id;
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 10;
+      const offset = (page - 1) * limit;
+
+      // TODO: Implement when game tables are created
+      // For now, return empty array
+      const matchHistory = {
+        matches: [],
+        totalCount: 0,
+        currentPage: page,
+        totalPages: 0
+      };
+
+      res.json(matchHistory);
+    } catch (error) {
+      console.error('Error getting match history:', error);
+      res.status(500).json({ message: 'Server error' });
+    }
+  }
+
+  // Delete user account - ERWEITERTE VERSION
   static async deleteAccount(req, res) {
     try {
       const userId = req.user.id;
@@ -202,17 +217,17 @@ class UserController {
         return res.status(400).json({ message: 'Invalid password' });
       }
 
-      // Delete user avatar file if it exists
-      if (user.avatar && user.avatar !== '/uploads/avatars/default.png') {
+      // Delete user avatar file if exists
+      if (user.avatar && user.avatar.startsWith('/uploads/avatars/')) {
         try {
-          const avatarPath = path.join(__dirname, '../../', user.avatar);
+          const avatarPath = path.join(process.cwd(), 'public', user.avatar);
           await fs.unlink(avatarPath);
-        } catch (err) {
-          console.log('Could not delete avatar:', err.message);
+        } catch (fileError) {
+          console.log('Avatar file not found or already deleted:', fileError.message);
         }
       }
 
-      // Delete user
+      // Delete user from database
       await User.delete(userId);
 
       res.json({ message: 'Account deleted successfully' });
@@ -222,125 +237,50 @@ class UserController {
     }
   }
 
-  // Upload avatar (falls multer installiert ist)
-  static async uploadAvatar(req, res) {
+  // Search users - NEUE FUNKTION
+  static async searchUsers(req, res) {
     try {
-      if (!req.file) {
-        return res.status(400).json({ message: 'No file uploaded' });
-      }
-
-      const userId = req.user.id;
-      const avatarPath = `/uploads/avatars/${req.file.filename}`;
-
-      // Get current user to check for existing avatar
-      const currentUser = await User.findById(userId);
+      const { q } = req.query;
       
-      // Delete old avatar file if it exists and is not the default
-      if (currentUser.avatar && currentUser.avatar !== '/uploads/avatars/default.png') {
-        try {
-          const oldAvatarPath = path.join(__dirname, '../../', currentUser.avatar);
-          await fs.unlink(oldAvatarPath);
-        } catch (err) {
-          console.log('Could not delete old avatar:', err.message);
-        }
+      if (!q || q.trim().length < 2) {
+        return res.status(400).json({ message: 'Search query must be at least 2 characters long' });
       }
 
-      // Update user avatar in database
-      const updatedUser = await User.update(userId, { avatar: avatarPath });
-      
-      if (!updatedUser) {
-        return res.status(404).json({ message: 'User not found' });
-      }
+      // TODO: Implement user search when needed
+      // For now, return empty array
+      const users = [];
 
-      res.json({ 
-        message: 'Avatar uploaded successfully',
-        avatar: avatarPath 
-      });
+      res.json(users);
     } catch (error) {
-      console.error('Error uploading avatar:', error);
+      console.error('Error searching users:', error);
       res.status(500).json({ message: 'Server error' });
     }
   }
 
-  // Get user stats (mock data für jetzt)
-  static async getUserStats(req, res) {
+  // Get user by ID - NEUE FUNKTION
+  static async getUserById(req, res) {
     try {
-      const userId = req.user.id;
+      const { id } = req.params;
+      const user = await User.findById(id);
       
-      const stats = {
-        gamesPlayed: 0,
-        gamesWon: 0,
-        gamesLost: 0,
-        winRate: 0,
-        currentStreak: 0,
-        bestStreak: 0,
-        totalScore: 0,
-        averageScore: 0
-      };
-
-      res.json(stats);
-    } catch (error) {
-      console.error('Error getting user stats:', error);
-      res.status(500).json({ message: 'Server error' });
-    }
-  }
-
-  // Get user match history (mock data für jetzt)
-  static async getMatchHistory(req, res) {
-    try {
-      const userId = req.user.id;
-      const page = parseInt(req.query.page) || 1;
-      const limit = parseInt(req.query.limit) || 10;
-      const offset = (page - 1) * limit;
-
-      const matchHistory = {
-        matches: [],
-        totalCount: 0,
-        currentPage: page,
-        totalPages: 0
-      };
-
-      res.json(matchHistory);
-    } catch (error) {
-      console.error('Error getting match history:', error);
-      res.status(500).json({ message: 'Server error' });
-    }
-  }
-
-  // Delete user account
-  static async deleteAccount(req, res) {
-    try {
-      const userId = req.user.id;
-      const { password } = req.body;
-
-      if (!password) {
-        return res.status(400).json({ message: 'Password is required to delete account' });
-      }
-
-      // Verify password before deletion
-      const user = await User.findById(userId);
       if (!user) {
         return res.status(404).json({ message: 'User not found' });
       }
 
-      // TODO: Add password verification
-      // const isValidPassword = await bcrypt.compare(password, user.password);
-      // if (!isValidPassword) {
-      //   return res.status(400).json({ message: 'Invalid password' });
-      // }
+      // Return public user information only
+      const publicUser = {
+        id: user.id,
+        username: user.username,
+        avatar: user.avatar,
+        created_at: user.created_at
+      };
 
-      // Delete user
-      await User.delete(userId);
-
-      res.json({ message: 'Account deleted successfully' });
+      res.json(publicUser);
     } catch (error) {
-      console.error('Error deleting account:', error);
+      console.error('Error getting user by ID:', error);
       res.status(500).json({ message: 'Server error' });
     }
   }
 }
 
 module.exports = UserController;
-
-
-
