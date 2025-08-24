@@ -7,6 +7,7 @@ class User {
     this.username = data.username;
     this.email = data.email;
     this.password = data.password;
+    this.bio = data.bio;
     this.is_two_factor_auth_enabled = data.is_two_factor_auth_enabled;
     this.two_factor_auth_secret = data.two_factor_auth_secret;
     this.forty_two_id = data.forty_two_id;
@@ -101,6 +102,14 @@ class User {
 
   static async delete(id) {
     try {
+      // First, get the user data before deletion (for logging purposes)
+      const userToDelete = await User.findById(id);
+      
+      if (!userToDelete) {
+        throw new Error('User not found');
+      }
+
+      // Delete user from database
       const result = await query(
         'DELETE FROM users WHERE id = $1 RETURNING *',
         [id]
@@ -109,6 +118,50 @@ class User {
       return result.rows[0] ? new User(result.rows[0]) : null;
     } catch (error) {
       console.error('Error deleting user:', error);
+      throw error;
+    }
+  }
+
+  // Get user count (useful for admin purposes)
+  static async getUserCount() {
+    try {
+      const result = await query('SELECT COUNT(*) as count FROM users');
+      return parseInt(result.rows[0].count);
+    } catch (error) {
+      console.error('Error getting user count:', error);
+      throw error;
+    }
+  }
+
+  // Get all users (admin only - should be protected by admin middleware)
+  static async getAllUsers(limit = 50, offset = 0) {
+    try {
+      const result = await query(
+        `SELECT id, username, email, avatar, bio, created_at, updated_at, is_two_factor_auth_enabled 
+         FROM users 
+         ORDER BY created_at DESC 
+         LIMIT $1 OFFSET $2`,
+        [limit, offset]
+      );
+      
+      return result.rows.map(row => new User(row));
+    } catch (error) {
+      console.error('Error getting all users:', error);
+      throw error;
+    }
+  }
+
+  // Check if user exists by id (lightweight check)
+  static async exists(id) {
+    try {
+      const result = await query(
+        'SELECT EXISTS(SELECT 1 FROM users WHERE id = $1)',
+        [id]
+      );
+      
+      return result.rows[0].exists;
+    } catch (error) {
+      console.error('Error checking if user exists:', error);
       throw error;
     }
   }
