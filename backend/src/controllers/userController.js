@@ -1,6 +1,6 @@
-// controllers/userController.js - Erweiterte Version
+// controllers/userController.js - mit bcryptjs statt bcrypt
 const User = require('../models/User');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs'); // bcryptjs statt bcrypt
 const path = require('path');
 const fs = require('fs').promises;
 
@@ -19,7 +19,7 @@ class UserController {
         username: user.username,
         email: user.email,
         avatar: user.avatar,
-        bio: user.bio, // Hinzugefügt
+        bio: user.bio,
         created_at: user.created_at,
         updated_at: user.updated_at,
         is_two_factor_auth_enabled: user.is_two_factor_auth_enabled
@@ -35,7 +35,7 @@ class UserController {
   // Update user profile
   static async updateProfile(req, res) {
     try {
-      const { username, email, bio } = req.body; // Bio hinzugefügt
+      const { username, email, bio } = req.body;
       const userId = req.user.id;
 
       // Validate input
@@ -49,7 +49,7 @@ class UserController {
         return res.status(400).json({ message: 'Invalid email format' });
       }
 
-      // Validate username (only letters, numbers, underscore, hyphen)
+      // Validate username
       const usernameRegex = /^[a-zA-Z0-9_-]+$/;
       if (!usernameRegex.test(username) || username.length < 3 || username.length > 30) {
         return res.status(400).json({ 
@@ -99,7 +99,7 @@ class UserController {
     }
   }
 
-  // Change password - NEU!
+  // Change password
   static async changePassword(req, res) {
     try {
       const { currentPassword, newPassword } = req.body;
@@ -136,95 +136,6 @@ class UserController {
       res.json({ message: 'Password changed successfully' });
     } catch (error) {
       console.error('Error changing password:', error);
-      res.status(500).json({ message: 'Server error' });
-    }
-  }
-
-  // Upload avatar
-  static async uploadAvatar(req, res) {
-    try {
-      if (!req.file) {
-        return res.status(400).json({ message: 'No file uploaded' });
-      }
-
-      const userId = req.user.id;
-      const avatarPath = `/uploads/avatars/${req.file.filename}`;
-
-      // Get current user to check for existing avatar
-      const currentUser = await User.findById(userId);
-      
-      // Delete old avatar file if it exists and is not the default
-      if (currentUser.avatar && currentUser.avatar !== '/uploads/avatars/default.png') {
-        try {
-          const oldAvatarPath = path.join(__dirname, '../../', currentUser.avatar);
-          await fs.unlink(oldAvatarPath);
-        } catch (err) {
-          console.log('Could not delete old avatar:', err.message);
-        }
-      }
-
-      // Update user avatar in database
-      const updatedUser = await User.update(userId, { avatar: avatarPath });
-      
-      if (!updatedUser) {
-        return res.status(404).json({ message: 'User not found' });
-      }
-
-      res.json({ 
-        message: 'Avatar uploaded successfully',
-        avatar: avatarPath 
-      });
-    } catch (error) {
-      console.error('Error uploading avatar:', error);
-      res.status(500).json({ message: 'Server error' });
-    }
-  }
-
-  // Get user stats (games, wins, losses, etc.)
-  static async getUserStats(req, res) {
-    try {
-      const userId = req.user.id;
-      
-      // TODO: Implement when game tables are created
-      // For now, return mock data
-      const stats = {
-        gamesPlayed: 0,
-        gamesWon: 0,
-        gamesLost: 0,
-        winRate: 0,
-        currentStreak: 0,
-        bestStreak: 0,
-        totalScore: 0,
-        averageScore: 0
-      };
-
-      res.json(stats);
-    } catch (error) {
-      console.error('Error getting user stats:', error);
-      res.status(500).json({ message: 'Server error' });
-    }
-  }
-
-  // Get user match history
-  static async getMatchHistory(req, res) {
-    try {
-      const userId = req.user.id;
-      const page = parseInt(req.query.page) || 1;
-      const limit = parseInt(req.query.limit) || 10;
-      const offset = (page - 1) * limit;
-
-      // TODO: Implement when game tables are created
-      // For now, return empty array
-      const matchHistory = {
-        matches: [],
-        totalCount: 0,
-        currentPage: page,
-        totalPages: 0
-      };
-
-      res.json(matchHistory);
-    } catch (error) {
-      console.error('Error getting match history:', error);
       res.status(500).json({ message: 'Server error' });
     }
   }
@@ -267,6 +178,91 @@ class UserController {
       res.json({ message: 'Account deleted successfully' });
     } catch (error) {
       console.error('Error deleting account:', error);
+      res.status(500).json({ message: 'Server error' });
+    }
+  }
+
+  // Upload avatar (falls multer installiert ist)
+  static async uploadAvatar(req, res) {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: 'No file uploaded' });
+      }
+
+      const userId = req.user.id;
+      const avatarPath = `/uploads/avatars/${req.file.filename}`;
+
+      // Get current user to check for existing avatar
+      const currentUser = await User.findById(userId);
+      
+      // Delete old avatar file if it exists and is not the default
+      if (currentUser.avatar && currentUser.avatar !== '/uploads/avatars/default.png') {
+        try {
+          const oldAvatarPath = path.join(__dirname, '../../', currentUser.avatar);
+          await fs.unlink(oldAvatarPath);
+        } catch (err) {
+          console.log('Could not delete old avatar:', err.message);
+        }
+      }
+
+      // Update user avatar in database
+      const updatedUser = await User.update(userId, { avatar: avatarPath });
+      
+      if (!updatedUser) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+
+      res.json({ 
+        message: 'Avatar uploaded successfully',
+        avatar: avatarPath 
+      });
+    } catch (error) {
+      console.error('Error uploading avatar:', error);
+      res.status(500).json({ message: 'Server error' });
+    }
+  }
+
+  // Get user stats (mock data für jetzt)
+  static async getUserStats(req, res) {
+    try {
+      const userId = req.user.id;
+      
+      const stats = {
+        gamesPlayed: 0,
+        gamesWon: 0,
+        gamesLost: 0,
+        winRate: 0,
+        currentStreak: 0,
+        bestStreak: 0,
+        totalScore: 0,
+        averageScore: 0
+      };
+
+      res.json(stats);
+    } catch (error) {
+      console.error('Error getting user stats:', error);
+      res.status(500).json({ message: 'Server error' });
+    }
+  }
+
+  // Get user match history (mock data für jetzt)
+  static async getMatchHistory(req, res) {
+    try {
+      const userId = req.user.id;
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 10;
+      const offset = (page - 1) * limit;
+
+      const matchHistory = {
+        matches: [],
+        totalCount: 0,
+        currentPage: page,
+        totalPages: 0
+      };
+
+      res.json(matchHistory);
+    } catch (error) {
+      console.error('Error getting match history:', error);
       res.status(500).json({ message: 'Server error' });
     }
   }
