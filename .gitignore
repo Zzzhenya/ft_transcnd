@@ -16,3 +16,8 @@ __MACOSX/
 # NOT MODIFY
 # ----------------------------
 docs/html/
+
+# ---
+# ETC
+# ---
+node_modules/
