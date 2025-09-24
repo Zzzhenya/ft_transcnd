@@ -5,6 +5,123 @@
 ## Overview
 This branch implements the "Designing the Backend as Microservices" major module for ft_transcendence. We are restructuring the application from a monolithic architecture to a distributed microservices system.
 
+## Diagram
+
+```mermaid
+graph TB
+    %% Frontend Layer
+    Frontend[Frontend - Jason<br/>3D Graphics + Tailwind CSS<br/>TypeScript Interface]
+    
+    %% API Gateway Layer
+    Gateway[API Gateway - Emily<br/>Node.js + Fastify Framework<br/>Request Routing + Remote Players<br/>WebSocket Management]
+    
+    %% Service Layer
+    UserService[User Service - Rene<br/>Authentication + JWT<br/>User Management + Profiles<br/>SQLite Database Module]
+    
+    GameService[Game Service - Shenya<br/>Server-side Pong Logic<br/>Microservices Architecture<br/>Tournament Management]
+    
+    LogService[Log Service - Irene<br/>ELK Stack Integration<br/>Centralized Logging<br/>Monitoring System]
+    
+    %% Database Layer
+    DB[(SQLite Database - Rene<br/>Shared Schema<br/>Users + Games + Tournaments<br/>Application Logs)]
+    
+    %% Monitoring Layer
+    MonitoringUI[Monitoring Dashboard - Irene<br/>Prometheus + Grafana<br/>System Metrics + Health Checks]
+    
+    %% Connections
+    Frontend -->|HTTP/WebSocket| Gateway
+    Gateway -->|HTTP REST| UserService
+    Gateway -->|HTTP REST| GameService
+    Gateway -->|HTTP Logs| LogService
+    
+    UserService -->|SQLite| DB
+    GameService -->|SQLite| DB
+    LogService -->|SQLite Access| DB
+    
+    LogService -->|Metrics| MonitoringUI
+    
+    %% Remote Players Flow
+    Frontend -.->|Remote Players| Gateway
+    Gateway -.->|Real-time| GameService
+    
+    %% Authentication Flow
+    Gateway -.->|JWT Check| UserService
+    GameService -.->|User Verify| UserService
+    
+    %% Module Annotations
+    classDef emilyWork fill:#e1f5fe
+    classDef shenyaWork fill:#f3e5f5
+    classDef reneWork fill:#e8f5e8
+    classDef jasonWork fill:#fff3e0
+    classDef ireneWork fill:#fce4ec
+    
+    class Gateway emilyWork
+    class GameService shenyaWork
+    class UserService,DB reneWork
+    class Frontend jasonWork
+    class LogService,MonitoringUI ireneWork
+```
+
+## Time flow 
+
+```mermaid
+sequenceDiagram
+    participant U as User Browser
+    participant G as API Gateway
+    participant A as Auth Service
+    participant GS as Game Service
+    participant DB as SQLite Database
+    participant L as Log Service
+
+    %% Authentication Flow
+    Note over U,L: User Login Process
+    U->>G: POST /api/auth/login
+    G->>A: Forward credentials
+    A->>DB: Validate user
+    DB-->>A: User data
+    A->>A: Generate JWT
+    A-->>G: Return JWT token
+    G-->>U: Login success + token
+
+    %% Game Creation Flow
+    Note over U,L: Game Creation Process
+    U->>G: POST /api/games/create (JWT)
+    G->>A: Verify JWT token
+    A-->>G: Token valid
+    G->>GS: Create game session
+    GS->>DB: Store game state
+    DB-->>GS: Game created
+    GS-->>G: Game ID + status
+    G-->>U: Game ready
+
+    %% Real-time Game Flow
+    Note over U,L: Real-time Gameplay
+    U->>G: WebSocket connect
+    G->>GS: Establish game session
+    
+    loop Every 16ms (60fps)
+        GS->>GS: Update ball physics
+        GS->>DB: Save game state
+        GS->>G: Broadcast game update
+        G->>U: WebSocket game state
+    end
+
+    %% Remote Player Joins
+    Note over U,L: Remote Player Connection
+    U->>G: Player input (paddle move)
+    G->>GS: Forward input
+    GS->>GS: Process physics
+    GS->>G: Updated game state
+    G->>U: Broadcast to all players
+
+    %% Logging Throughout
+    G->>L: Log requests
+    A->>L: Log auth events
+    GS->>L: Log game metrics
+
+```
+
+
 ## Architecture Goals
 
 ### Service Boundaries
