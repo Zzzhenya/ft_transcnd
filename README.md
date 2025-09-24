@@ -120,7 +120,79 @@ sequenceDiagram
     GS->>L: Log game metrics
 
 ```
-
+## Flow chart
+```mermaid
+flowchart TD
+    Start([User Opens Browser]) --> Login{User Logged In?}
+    
+    Login -->|No| LoginForm[Show Login Form]
+    LoginForm --> AuthReq[Send Credentials to Gateway]
+    AuthReq --> ValidateAuth{Valid Credentials?}
+    ValidateAuth -->|No| LoginError[Show Error Message]
+    LoginError --> LoginForm
+    ValidateAuth -->|Yes| JWTToken[Generate JWT Token]
+    JWTToken --> Dashboard[Show Game Dashboard]
+    
+    Login -->|Yes| Dashboard
+    
+    Dashboard --> GameChoice{What Action?}
+    
+    GameChoice -->|Create Game| CreateGame[Create New Game Session]
+    GameChoice -->|Join Tournament| Tournament[Enter Tournament]
+    GameChoice -->|Join Existing Game| JoinGame[Find Available Game]
+    
+    CreateGame --> GameSetup[Initialize Game State in Database]
+    GameSetup --> WaitPlayer[Wait for Second Player]
+    
+    JoinGame --> FindGame{Game Available?}
+    FindGame -->|No| NoGame[Show No Games Available]
+    NoGame --> Dashboard
+    FindGame -->|Yes| ConnectGame[Connect to Existing Game]
+    
+    WaitPlayer --> PlayerJoined{Player Joined?}
+    PlayerJoined -->|Yes| StartGame[Start Game Engine]
+    PlayerJoined -->|No| WaitPlayer
+    ConnectGame --> StartGame
+    
+    StartGame --> GameLoop[Real-time Game Loop]
+    GameLoop --> UpdatePhysics[Update Ball & Paddle Physics]
+    UpdatePhysics --> CheckCollision[Check Collisions]
+    CheckCollision --> UpdateScore{Score Changed?}
+    UpdateScore -->|Yes| SaveScore[Save Score to Database]
+    UpdateScore -->|No| BroadcastState[Send State to Players]
+    SaveScore --> BroadcastState
+    
+    BroadcastState --> GameOver{Game Finished?}
+    GameOver -->|No| PlayerInput{Player Input?}
+    PlayerInput -->|Yes| ProcessInput[Update Paddle Position]
+    PlayerInput -->|No| GameLoop
+    ProcessInput --> GameLoop
+    
+    GameOver -->|Yes| SaveResults[Save Final Results]
+    SaveResults --> ShowResults[Display Winner]
+    ShowResults --> Dashboard
+    
+    Tournament --> CreateBracket[Create Tournament Bracket]
+    CreateBracket --> MatchPlayers[Match Players for Games]
+    MatchPlayers --> TourneyGame[Start Tournament Game]
+    TourneyGame --> StartGame
+    
+    %% Logging flows
+    AuthReq -.-> LogAuth[Log Authentication Attempt]
+    CreateGame -.-> LogGame[Log Game Creation]
+    GameLoop -.-> LogPerformance[Log Performance Metrics]
+    
+    %% Styling
+    classDef startEnd fill:#e1f5fe
+    classDef process fill:#e8f5e8
+    classDef decision fill:#fff3e0
+    classDef error fill:#ffebee
+    
+    class Start,ShowResults startEnd
+    class LoginForm,CreateGame,GameLoop,UpdatePhysics process
+    class Login,ValidateAuth,GameChoice,PlayerJoined decision
+    class LoginError,NoGame error
+```
 
 ## Architecture Goals
 
@@ -134,7 +206,7 @@ sequenceDiagram
 ### Critical Design Decisions Needed
 
 #### Database Strategy
-- [ ] **Decision**: Shared database vs database per service
+- [x] **Decision**: Shared database vs database per service
 - [ ] **Rationale**: Document why we chose this approach
 - [ ] **Implementation**: How services will access data
 
