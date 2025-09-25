@@ -281,24 +281,45 @@ Game Service → Chat Service: game_ended event
 
 ## Directory Structure
 ```
-/services/
-  /api-gateway/
-    /src/
-    /Dockerfile
-  /user-service/
-    /src/
-    /Dockerfile
-  /game-service/
-    /src/  
-    /Dockerfile
-  /chat-service/
-    /src/
-    /Dockerfile
-/shared/
-  /types/          # Shared TypeScript interfaces
-  /utils/          # Common utilities
-/docker-compose.yml
-/docker-compose.dev.yml
+ft_transcendence_microservices/
+├── docker-compose.yml
+├── docker-compose.dev.yml
+├── README.md
+├── docs/
+│   ├── api-contracts.md
+│   ├── architecture.md
+│   └── deployment.md
+├── services/
+│   ├── gateway/              # API Gateway + Remote Players
+│   │   ├── src/
+│   │   ├── Dockerfile
+│   │   └── package.json
+│   ├── user-service/         # User Management + JWT
+│   │   ├── src/
+│   │   ├── Dockerfile
+│   │   └── package.json
+│   ├── game-service/         # Server-side Pong
+│   │   ├── src/
+│   │   ├── Dockerfile
+│   │   └── package.json
+│   └── log-service/          # Log Management + Monitoring
+│       ├── src/
+│       ├── Dockerfile
+│       └── package.json
+├── frontend/                 # 3D Graphics + Frontend Framework
+│   ├── src/
+│   ├── public/
+│   ├── package.json
+│   └── Dockerfile
+├── shared/
+│   ├── types/               # Shared TypeScript interfaces
+│   ├── database/            # SQLite schema and migrations
+│   ├── config/              # Environment variables and configs
+│   └── utils/               # Common utilities
+└── monitoring/              #  monitoring stack
+    ├── elk/                 # ELK stack configuration
+    ├── prometheus/          # Prometheus config
+    └── grafana/             # Grafana dashboards
 ```
 
 ## Dependencies & Integration Points
