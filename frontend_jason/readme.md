@@ -1,35 +1,49 @@
 # Frontend Specification
 
+## ✅ What it is
+- Single File Components? Nope.
+- React/Vue? Nope.
+- This is a minimal, production-leaning Vanilla TypeScript SPA with History API routing, a11y focus management, simple store/guards, 2D Canvas renderer stub, and Tailwind CSS — matching your spec.
+
 ## ✅ Architecture
-- **Run-time**: SPA (Single Page Application)  
+- **Run-time**: SPA (Single Page Application): Responsive Design
 - **Language**: TypeScript  
 - **Framework**: None (custom router / store implementation)  
 - **UI**: Tailwind CSS  
-- **3D**: Babylon.js  
+- **3D**: Babylon.js
 
 ## ✅ UI Page Structure (Essential)
 
 ### (0) Common
 - **AppShell**  
-  - Header (Logo / Current User / Setting)  
-  - Main container  
-  - Toast (Announcement / Error)  
+	- Header (Logo / Current User / Setting)  
+	- Main container  
+	- Toast (Announcement / Error)
+
+- **A11y/Device Support**
+	- Tailwind: responsive design (desktop / tablet / mobile)
+	- Input device std support: mouse / keyboard / touch
+		- pointer events API (pointerdown, pointermove, pointerup)
+		- ex): mousedown, touchstart
+
+- **Browser Compatibility**
+	- Firefox(Must) + Chrome(Additional) // Optimazation
 
 - **Routing**  
-  - History API (Forward / Back movement)  
-  - Accessibility: Move focus on navigation  
+	- History API: Forward / Back (pushState / popstate)
+	- Accessibility: Move focus on navigation
 
 ---
 
 ### (1) Init Page  
 - **Path**: `/init`  
 - **AliasForm**  
-  - User ID registration form with validation  
-    - Empty → “Please enter your ID”  
-    - Duplicate → “This ID already exists”  
-    - Length → “Maximum 16 characters allowed”  
-    - Forbidden word → “This ID contains restricted words”  
-  - Submit button enabled only when valid  
+	- User ID registration form with validation  
+		- Empty → “Please enter your ID”  
+		- Duplicate → “This ID already exists”  
+		- Length → “Maximum 16 characters allowed”  
+		- Forbidden word → “This ID contains restricted words”  
+		- Submit button enabled only when valid  
 
 - **On success** → Navigate to Lobby (`/`)  
 
@@ -118,54 +132,79 @@
 ## ✅ Folder Structure
 
 ```
-/src
-├── /app
-│   ├── router/
-│   ├── store/
-│   └── shell/
+./
+├── index.html
 │
-├── /pages
-│   ├── /lobby/
-│   ├── /local/
-│   ├── /tournaments/
-│   ├── /tournament-id/
-│   └── /game/
+├── vite.config.ts
+├── tailwind.config.js
+├── postcss.config.js
 │
-├── /game
-│   ├── state.ts        # GameState, physics params
-│   ├── systems.ts      # updatePhysics, score, reset
-│   └── input.ts        # keyboard mapping
+├── tsconfig.json
+├── package.json
 │
-├── /renderers
-│   ├── canvas2d.ts     # Phase 1
-│   └── babylon.ts      # Phase 3
+├── docker-compose.yml
+├── Dockerfile
 │
-├── /ui
-│   ├── HUD/
-│   ├── ResultModal/
-│   └── buttons/
+├── public/
+│   └── favicon.svg
 │
-└── /services
-    ├── tournament.ts   # tournament data
-    └── matchmaking.ts  # matchmaking mock
+└──	/src
+	├── style.css
+	├── main.ts
+	│
+	├── /app
+	│   ├── router/router.ts
+	│   ├── store/store.ts
+	│   └── shell/guards.ts
+	│
+	├── /pages
+	│   ├── lobby.ts
+	│   ├── local.ts
+	│   ├── tournaments.ts
+	│   ├── tournament-id.ts
+	│   ├── game.ts
+	│   └── not-found.ts
+	│
+	├── /game
+	│   ├── state.ts        # GameState, physics params
+	│   ├── systems.ts      # updatePhysics, score, reset
+	│   └── input.ts        # keyboard mapping
+	│
+	├── /renderers
+	│   ├── canvas2d.ts     # Phase 1
+	│   └── babylon.ts      # Phase 3
+	│
+	├── /ui
+	│   ├── HUD/
+	│   ├── ResultModal/
+	│   └── buttons/
+	│
+	└── /services
+		├── tournament.ts   # tournament data
+		└── matchmaking.ts  # matchmaking mock
 ```
 
 ## ✅ To-Do List (by priority)
 
 ### Phase 0: Scaffolding / Core
 1. **Scaffolding**  
-   - [ ] Init project: Vite + TypeScript + Tailwind  
+   - [✅] Init project: Vite + TypeScript + Tailwind
    - [ ] ESLint / Prettier (strict TypeScript)  
-   - [ ] `public/index.html`: `<main id="app" tabindex="-1">` (a11y focus target)  
+   - [✅] `public/index.html`: `<main id="app" tabindex="-1">` (a11y focus target)
+   - [⏳] Tailwind breakpoints (sm / md / lg), supported on all devices
+   - [⏳] Firefox + chrome // Compatibility
 
 2. **Routing (History API)**  
-   - [ ] Intercept `a[href]` +
-   		- `pushState`
-		- `replaceState`
-		- `popState`
-   - [ ] Focus `#app` on navigation (a11y)  
-   - [ ] Scroll restoration
-   - [ ] 404 handling (History fallback server config)  
+	- [✅] Intercept `a[href]` +
+   		- [✅]`pushState`
+		- [✅]`replaceState`
+		- [✅]`popState`
+	- [✅] Focus `#app` on navigation (a11y)
+	- [✅] Router smoke test
+	- [✅] Scroll restoration
+	- [⏳] 404 handling
+   		- [✅] View page of 404 client (not-found.ts)
+		- [ ] History fallback server config
 
 3. **Core Infra (Store / Guard)**  
    - Global store (observer pattern):  
@@ -261,7 +300,8 @@
 ---
 
 ## 📝 Final Check-list
-- [ ] Page transitions work without full refresh  
+- [ ] Page transitions work without full refresh
 - [ ] Browser forward / back navigation functions correctly  
-- [ ] Compatible with the latest Firefox (tested & polished)  
+- [ ] Compatible with the latest Firefox and chrome (tested & polished) 
+- [ ] Responsive layout (Desktop / Tablet / Mobile)
 - [ ] One-line execution with Docker (`docker compose up`)
