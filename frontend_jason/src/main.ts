@@ -1,11 +1,12 @@
+// Load styles from TailwindCSS
 import "./styles.css";
-import { initRouter, navigate } from "@/app/router";
 
-const root = document.getElementById("app")!;
+// Router setup: History API (f / b) + link interception.
+import { initRouter } from "./app/router";
+
+// Get app's root (main: "app"), start router, render current URL(= home)
+const root = document.querySelector<HTMLElement>("main#app")!;
+if (!root) throw new Error("Root element #app not found");
+
 const { render } = initRouter(root);
-
-// 초기 진입
 render(location.pathname + location.search);
-
-// 데모 링크 (원하면 제거)
-Object.assign(window, { navigate });
