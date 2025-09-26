@@ -189,7 +189,7 @@
 ### Phase 0: Scaffolding / Core
 1. **Scaffolding**  
    - [✅] Init project: Vite + TypeScript + Tailwind
-   - [ ] ESLint / Prettier (strict TypeScript)  
+   - [✅] ESLint / Prettier (strict TypeScript)  
    - [✅] `public/index.html`: `<main id="app" tabindex="-1">` (a11y focus target)
    - [⏳] Tailwind breakpoints (sm / md / lg), supported on all devices
    - [⏳] Firefox + chrome // Compatibility
@@ -204,14 +204,23 @@
 	- [✅] Scroll restoration
 	- [⏳] 404 handling
    		- [✅] View page of 404 client (not-found.ts)
-		- [ ] History fallback server config
+		- [🔺] History fallback server config
+			```
+			(Not fixed alone, must be with Backend side)
+			The router handles 404 views on the client side,
+			but for direct access or refresh at deep URLs
+			(ex: /game/123)
+			
+			the server currently returns a server 404.
+			To fix this, the server needs to always return index.html for unknown routes, so the client-side router can take over.
+			```
 
 3. **Core Infra (Store / Guard)**  
    - Global store (observer pattern):  
      - auth / alias, tournament, match  
    - Guards:  
      - `/game/:matchId`:  
-       - Local → Only matchIds issued from `/local`  
+       - Local → Only matchIds issued from `/local`
        - Tournament → Allowed only if `MyMatch.status === "ready"`  
 
 4. **AppShell + Page Stubs** (6 routes + 404)  
