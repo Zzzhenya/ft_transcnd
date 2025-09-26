@@ -1,7 +1,9 @@
-export default function (root: HTMLElement) {
+export default function renderNotFound(root: HTMLElement) {
   root.innerHTML = `
-    <section class="p-6 space-y-4">
-      <h2 class="text-2xl font-semibold">Not Found</h2>
-      <a href="/" class="underline text-blue-600">Go to Lobby</a>
-    </section>`;
+    <section class="p-6 flex flex-col items-center justify-center min-h-screen text-center space-y-4">
+      <h1 class="text-3xl font-bold">404 - Not Found</h1>
+      <p class="text-gray-600">SORRY! Can't find page.</p>
+      <a href="/" class="underline text-blue-600 hover:text-blue-800">Go to Lobby</a>
+    </section>
+  `;
 }
