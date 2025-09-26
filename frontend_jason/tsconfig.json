@@ -6,8 +6,12 @@
 		"moduleResolution": "Bundler",
 		"allowJs": false,
 		"checkJs": false,
+
+		// strict TS
 		"strict": true,
 		"noImplicitOverride": true,
+		"noUncheckedIndexedAccess": true,
+
 		"noUnusedLocals": true,
 		"noUnusedParameters": false,
 		"noFallthroughCasesInSwitch": true,
