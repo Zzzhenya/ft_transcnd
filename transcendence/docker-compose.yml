@@ -1,0 +1,77 @@
+version: '3.8'
+
+services:
+  # API Gateway Service
+  gateway:
+    build: ./services/gateway
+    ports:
+    environment:
+    depends_on:
+      - user-service
+      - game-service
+      - log-service
+      - database
+    volumes:
+    networks:
+      - transcendence-network
+
+  # User Service
+  user-service:
+    build: ./services/user-service
+    ports:
+    environment:
+    depends_on:
+      - database
+    volumes:
+    networks:
+      - transcendence-network
+
+  # Game Service
+  game-service:
+    build: ./services/game-service
+    ports:
+      -
+    environment:
+      - 
+    depends_on:
+      - database
+    volumes:
+      -
+    networks:
+      - transcendence-network
+
+  # Log Service
+  log-service:
+    build: ./services/log-service
+    ports:
+      -
+    environment:
+      -
+    volumes:
+      -
+    networks:
+      - transcendence-network
+
+  # Frontend 
+  frontend:
+    build: ./frontend
+    ports:
+      -
+    environment:
+      -
+    depends_on:
+      - gateway
+    networks:
+      - transcendence-network
+
+  # Database container - Shared SQLite
+  database:
+  
+
+volumes:
+  shared-data:
+    driver: local
+
+networks:
+  transcendence-network:
+    driver: bridge
