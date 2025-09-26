@@ -5,6 +5,8 @@ type Ctx = { params?: Record<string, string>; url: URL };
 type PageModule = { default: (root: HTMLElement, ctx: Ctx) => Cleanup | void };
 type Importer = (m: RegExpMatchArray) => Promise<PageModule>;
 
+const __DEV__ = import.meta.env.DEV ?? false;
+
 // 경로 테이블 (정규식 → 해당 페이지 동적 import)
 const routes: [RegExp, Importer][] = [
   [/^\/$/,                    () => import("../pages/lobby") as Promise<PageModule>],
@@ -30,19 +32,26 @@ export function initRouter(root: HTMLElement) {
 			직접 복원하면 좀 더 정확하다.
 	*/
 	if ("scrollRestoration" in history) {
-		try { history.scrollRestoration = "manual"; } catch {}
+		try {
+			history.scrollRestoration = "manual"; }
+		catch (err) {
+			if (__DEV__) console.warn("[router] scrollRestoration=manual failed:", err);
+		}
 	}
 
   // Save current scroll to history.
   function saveScroll() {
     const prev = history.state ?? {};
     try {
-      history.replaceState(
-        { ...prev, scrollX: window.scrollX, scrollY: window.scrollY },
+		history.replaceState(
+		{ ...prev, scrollX: window.scrollX, scrollY: window.scrollY },
         "",
         location.pathname + location.search,
-      );
-    } catch {}
+		);
+    }
+	catch (err) {
+    	if (__DEV__) console.warn("[router] saveScroll failed:", err);
+	}
   }
 
   async function render(path: string) {
@@ -146,7 +155,10 @@ export function navigate(to: string)
 			"",
 			location.pathname + location.search,
 		);
-	} catch {}
+	}
+	catch (err) {
+    	if (__DEV__) console.warn("[router] pre-nav saveScroll failed:", err);
+	}
 
 	// basic scroll state (맨 위) pops
 	history.pushState({ scrollX: 0, scrollY: 0 }, "", next);
@@ -165,7 +177,10 @@ export function replace(to: string) {
       		"",
       		location.pathname + location.search,
     	);
-	} catch {}
+	}
+	catch (err) {
+    	if (__DEV__) console.warn("[router] pre-replace saveScroll failed:", err);
+	}
 
 	history.replaceState({ scrollX: 0, scrollY: 0 }, "", next);
 	dispatchEvent(new PopStateEvent("popstate"));
