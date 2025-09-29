@@ -13,12 +13,12 @@ graph TB
     Frontend[Frontend - Jason<br/>3D Graphics + Tailwind CSS<br/>TypeScript Interface]
     
     %% API Gateway Layer
-    Gateway[API Gateway - Emily<br/>Node.js + Fastify Framework<br/>Request Routing + Remote Players<br/>WebSocket Management]
+    Gateway[API Gateway - Shenya<br/>Node.js + Fastify Framework<br/>Request Routing + Remote Players<br/>WebSocket Management]
     
     %% Service Layer
     UserService[User Service - Rene<br/>Authentication + JWT<br/>User Management + Profiles<br/>SQLite Database Module]
     
-    GameService[Game Service - Shenya<br/>Server-side Pong Logic<br/>Microservices Architecture<br/>Tournament Management]
+    GameService[Game Service - Emily<br/>Server-side Pong Logic<br/>Microservices Architecture<br/>Tournament Management]
     
     LogService[Log Service - Irene<br/>ELK Stack Integration<br/>Centralized Logging<br/>Monitoring System]
     
@@ -55,8 +55,8 @@ graph TB
     classDef jasonWork fill:#fff3e0
     classDef ireneWork fill:#fce4ec
     
-    class Gateway emilyWork
-    class GameService shenyaWork
+    class Gateway shenyaWork
+    class GameService emilyWork
     class UserService,DB reneWork
     class Frontend jasonWork
     class LogService,MonitoringUI ireneWork
