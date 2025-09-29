@@ -191,8 +191,16 @@
    - [✅] Init project: Vite + TypeScript + Tailwind
    - [✅] ESLint / Prettier (strict TypeScript)  
    - [✅] `public/index.html`: `<main id="app" tabindex="-1">` (a11y focus target)
-   - [⏳] Tailwind breakpoints (sm / md / lg), supported on all devices
-   - [⏳] Firefox + chrome // Compatibility
+   - [✅] Tailwind breakpoints (sm / md / lg), supported on all devices
+		- "Accessibility, Support on all devices" -> breakpoins.
+		- "Must use the TailwindCSS"
+		- pixel size 
+			- sm: 640px >=
+			- md: 768px >=
+			- lg: 1024px >=
+			- xl: 1280px >=
+			- 2xl: 1536px >=
+   - [✅] Firefox + chrome // Compatibility
 
 2. **Routing (History API)**  
 	- [✅] Intercept `a[href]` +

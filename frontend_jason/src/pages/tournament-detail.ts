@@ -1,10 +1,10 @@
 export default function (root: HTMLElement) {
-  root.innerHTML = `
-    <section class="p-6 space-y-6">
-      <h1 class="text-3xl font-bold">Lobby</h1>
-      <nav class="flex gap-3">
-        <a href="/local" class="px-3 py-2 rounded bg-blue-600 text-white">Local</a>
-        <a href="/tournaments" class="px-3 py-2 rounded bg-indigo-600 text-white">Tournaments</a>
-      </nav>
-    </section>`;
+	root.innerHTML = `
+		<section class="py-6 md:py-8 lg:py-10 space-y-6">
+			<h1 class="text-2xl sm:text-3xl lg:text-4xl font-bold">Tournament details</h1>
+			<nav class="flex flex-col sm:flex-row gap-2 sm:gap-3">
+				<a href="/local" class="w-full sm:w-auto px-4 py-2 rounded bg-blue-600 text-white text-center">Local</a>
+				<a href="/tournaments" class="w-full sm:w-auto px-4 py-2 rounded bg-indigo-600 text-white text-center">Tournaments</a>
+			</nav>
+		</section>`;
 }
