@@ -16,3 +16,6 @@ __MACOSX/
 # NOT MODIFY
 # ----------------------------
 docs/html/
+
+
+*.env
