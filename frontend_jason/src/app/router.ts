@@ -1,4 +1,5 @@
 // SPA 라우터: URL ↔ 페이지 모듈 매칭, a[href] 인터셉트, popstate 처리, 포커스 이동, 404 처리
+import { canEnterGame } from "./guards";
 
 type Cleanup = () => void;
 type Ctx = { params?: Record<string, string>; url: URL };
@@ -9,12 +10,12 @@ const __DEV__ = import.meta.env.DEV ?? false;
 
 // 경로 테이블 (정규식 → 해당 페이지 동적 import)
 const routes: [RegExp, Importer][] = [
-  [/^\/$/,                    () => import("../pages/lobby") as Promise<PageModule>],
-  [/^\/init$/,                () => import("../pages/init") as Promise<PageModule>],
-  [/^\/local$/,               () => import("../pages/local") as Promise<PageModule>],
-  [/^\/tournaments$/,         () => import("../pages/tournaments") as Promise<PageModule>],
-  [/^\/tournaments\/([^/]+)$/,() => import("../pages/tournament-detail") as Promise<PageModule>],
-  [/^\/game\/([^/]+)$/,       () => import("../pages/game") as Promise<PageModule>],
+	[/^\/$/,                    () => import("../pages/lobby") as Promise<PageModule>],
+	[/^\/init$/,                () => import("../pages/init") as Promise<PageModule>],
+	[/^\/local$/,               () => import("../pages/local") as Promise<PageModule>],
+	[/^\/tournaments$/,         () => import("../pages/tournaments") as Promise<PageModule>],
+	[/^\/tournaments\/([^/]+)$/,() => import("../pages/tournament-detail") as Promise<PageModule>],
+	[/^\/game\/([^/]+)$/,       () => import("../pages/game") as Promise<PageModule>],
 ];
 
 export function initRouter(root: HTMLElement) {
@@ -39,51 +40,66 @@ export function initRouter(root: HTMLElement) {
 		}
 	}
 
-  // Save current scroll to history.
-  function saveScroll() {
-    const prev = history.state ?? {};
-    try {
-		history.replaceState(
-		{ ...prev, scrollX: window.scrollX, scrollY: window.scrollY },
-        "",
-        location.pathname + location.search,
-		);
-    }
-	catch (err) {
-    	if (__DEV__) console.warn("[router] saveScroll failed:", err);
+	// Save current scroll to history.
+	function saveScroll() {
+		const prev = history.state ?? {};
+		try {
+			history.replaceState(
+			{ ...prev, scrollX: window.scrollX, scrollY: window.scrollY },
+			"",
+			location.pathname + location.search,
+			);
+		}
+		catch (err) {
+			if (__DEV__) console.warn("[router] saveScroll failed:", err);
+		}
 	}
-  }
 
-  async function render(path: string) {
-    // clean-up 'previous page'
-    cleanup?.();
+	async function render(path: string) {
 
-    const url = new URL(path, location.origin);
-    const pathname = url.pathname;
+		// clean-up 'previous page'
+		cleanup?.();
 
-    // Find matching router.
-    const hit = routes.find(([re]) => re.test(pathname));
-	if (!hit) {
-      const mod = (await import("../pages/not-found")) as PageModule;
-      cleanup = mod.default(root, { url }) || undefined;
-      postRenderFocus();
-      return;
-    }
+		const url = new URL(path, location.origin);
+		const pathname = url.pathname;
 
-    const [re, importer] = hit;
-    const m = pathname.match(re)!;
-    const mod = await importer(m);
+		// Find matching router.
+		const hit = routes.find(([re]) => re.test(pathname));
+		if (!hit) {
+			const mod = (await import("../pages/not-found")) as PageModule;
+			cleanup = mod.default(root, { url }) || undefined;
+			postRenderFocus();
+			return;
+		}
 
-    // /:id 한 개만 캡처하는 패턴 가정
-    const params = m[1] ? { id: m[1] } : undefined;
+		const [re, importer] = hit;
+		const m = pathname.match(re)!;
 
-    // 페이지 렌더 (clean-up 반환 가능)
-    cleanup = mod.default(root, { params, url }) || undefined;
+		// --- Guards: /game/:id ---
+		if (re.source === "^\\/game\\/([^/]+)$") {
+			const matchId = m[1]!;
+			const g = canEnterGame(matchId);
+		
+			if (!g.ok) {
+				if (__DEV__) console.warn("[guard:/game] blocked:", g.reason, "→", g.redirect);
+				history.replaceState({ scrollX: 0, scrollY: 0 }, "", g.redirect);
+				await render(g.redirect);
+				return;
+			}
+    	}
 
-    postRenderFocus();
-  }
+    	const mod = await importer(m);
 
-  // 내부 링크 인터셉트 (새탭/중클릭/수정키는 통과)
+    	// /:id 한 개만 캡처하는 패턴 가정
+    	const params = m[1] ? { id: m[1] } : undefined;
+
+    	// 페이지 렌더 (clean-up 반환 가능)
+    	cleanup = mod.default(root, { params, url }) || undefined;
+
+    	postRenderFocus();
+	}
+
+	// 내부 링크 인터셉트 (새탭/중클릭/수정키는 통과)
 	document.addEventListener("click", (e) => {
 		const a = (e.target as HTMLElement).closest?.("a[href]") as HTMLAnchorElement | null;
 		if (!a) return;
