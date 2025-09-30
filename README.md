@@ -5,6 +5,195 @@
 ## Overview
 This branch implements the "Designing the Backend as Microservices" major module for ft_transcendence. We are restructuring the application from a monolithic architecture to a distributed microservices system.
 
+## Diagram
+
+```mermaid
+graph TB
+    %% Frontend Layer
+    Frontend[Frontend - Jason<br/>3D Graphics + Tailwind CSS<br/>TypeScript Interface]
+    
+    %% API Gateway Layer
+    Gateway[API Gateway - Shenya<br/>Node.js + Fastify Framework<br/>Request Routing + Remote Players<br/>WebSocket Management]
+    
+    %% Service Layer
+    UserService[User Service - Rene<br/>Authentication + JWT<br/>User Management + Profiles<br/>SQLite Database Module]
+    
+    GameService[Game Service - Emily<br/>Server-side Pong Logic<br/>Microservices Architecture<br/>Tournament Management]
+    
+    LogService[Log Service - Irene<br/>ELK Stack Integration<br/>Centralized Logging<br/>Monitoring System]
+    
+    %% Database Layer
+    DB[(SQLite Database - Rene<br/>Shared Schema<br/>Users + Games + Tournaments<br/>Application Logs)]
+    
+    %% Monitoring Layer
+    MonitoringUI[Monitoring Dashboard - Irene<br/>Prometheus + Grafana<br/>System Metrics + Health Checks]
+    
+    %% Connections
+    Frontend -->|HTTP/WebSocket| Gateway
+    Gateway -->|HTTP REST| UserService
+    Gateway -->|HTTP REST| GameService
+    Gateway -->|HTTP Logs| LogService
+    
+    UserService -->|SQLite| DB
+    GameService -->|SQLite| DB
+    LogService -->|SQLite Access| DB
+    
+    LogService -->|Metrics| MonitoringUI
+    
+    %% Remote Players Flow
+    Frontend -.->|Remote Players| Gateway
+    Gateway -.->|Real-time| GameService
+    
+    %% Authentication Flow
+    Gateway -.->|JWT Check| UserService
+    GameService -.->|User Verify| UserService
+    
+    %% Module Annotations
+    classDef emilyWork fill:#e1f5fe
+    classDef shenyaWork fill:#f3e5f5
+    classDef reneWork fill:#e8f5e8
+    classDef jasonWork fill:#fff3e0
+    classDef ireneWork fill:#fce4ec
+    
+    class Gateway shenyaWork
+    class GameService emilyWork
+    class UserService,DB reneWork
+    class Frontend jasonWork
+    class LogService,MonitoringUI ireneWork
+```
+
+## Time flow 
+
+```mermaid
+sequenceDiagram
+    participant U as User Browser
+    participant G as API Gateway
+    participant A as Auth Service
+    participant GS as Game Service
+    participant DB as SQLite Database
+    participant L as Log Service
+
+    %% Authentication Flow
+    Note over U,L: User Login Process
+    U->>G: POST /api/auth/login
+    G->>A: Forward credentials
+    A->>DB: Validate user
+    DB-->>A: User data
+    A->>A: Generate JWT
+    A-->>G: Return JWT token
+    G-->>U: Login success + token
+
+    %% Game Creation Flow
+    Note over U,L: Game Creation Process
+    U->>G: POST /api/games/create (JWT)
+    G->>A: Verify JWT token
+    A-->>G: Token valid
+    G->>GS: Create game session
+    GS->>DB: Store game state
+    DB-->>GS: Game created
+    GS-->>G: Game ID + status
+    G-->>U: Game ready
+
+    %% Real-time Game Flow
+    Note over U,L: Real-time Gameplay
+    U->>G: WebSocket connect
+    G->>GS: Establish game session
+    
+    loop Every 16ms (60fps)
+        GS->>GS: Update ball physics
+        GS->>DB: Save game state
+        GS->>G: Broadcast game update
+        G->>U: WebSocket game state
+    end
+
+    %% Remote Player Joins
+    Note over U,L: Remote Player Connection
+    U->>G: Player input (paddle move)
+    G->>GS: Forward input
+    GS->>GS: Process physics
+    GS->>G: Updated game state
+    G->>U: Broadcast to all players
+
+    %% Logging Throughout
+    G->>L: Log requests
+    A->>L: Log auth events
+    GS->>L: Log game metrics
+
+```
+## Flow chart
+```mermaid
+flowchart TD
+    Start([User Opens Browser]) --> Login{User Logged In?}
+    
+    Login -->|No| LoginForm[Show Login Form]
+    LoginForm --> AuthReq[Send Credentials to Gateway]
+    AuthReq --> ValidateAuth{Valid Credentials?}
+    ValidateAuth -->|No| LoginError[Show Error Message]
+    LoginError --> LoginForm
+    ValidateAuth -->|Yes| JWTToken[Generate JWT Token]
+    JWTToken --> Dashboard[Show Game Dashboard]
+    
+    Login -->|Yes| Dashboard
+    
+    Dashboard --> GameChoice{What Action?}
+    
+    GameChoice -->|Create Game| CreateGame[Create New Game Session]
+    GameChoice -->|Join Tournament| Tournament[Enter Tournament]
+    GameChoice -->|Join Existing Game| JoinGame[Find Available Game]
+    
+    CreateGame --> GameSetup[Initialize Game State in Database]
+    GameSetup --> WaitPlayer[Wait for Second Player]
+    
+    JoinGame --> FindGame{Game Available?}
+    FindGame -->|No| NoGame[Show No Games Available]
+    NoGame --> Dashboard
+    FindGame -->|Yes| ConnectGame[Connect to Existing Game]
+    
+    WaitPlayer --> PlayerJoined{Player Joined?}
+    PlayerJoined -->|Yes| StartGame[Start Game Engine]
+    PlayerJoined -->|No| WaitPlayer
+    ConnectGame --> StartGame
+    
+    StartGame --> GameLoop[Real-time Game Loop]
+    GameLoop --> UpdatePhysics[Update Ball & Paddle Physics]
+    UpdatePhysics --> CheckCollision[Check Collisions]
+    CheckCollision --> UpdateScore{Score Changed?}
+    UpdateScore -->|Yes| SaveScore[Save Score to Database]
+    UpdateScore -->|No| BroadcastState[Send State to Players]
+    SaveScore --> BroadcastState
+    
+    BroadcastState --> GameOver{Game Finished?}
+    GameOver -->|No| PlayerInput{Player Input?}
+    PlayerInput -->|Yes| ProcessInput[Update Paddle Position]
+    PlayerInput -->|No| GameLoop
+    ProcessInput --> GameLoop
+    
+    GameOver -->|Yes| SaveResults[Save Final Results]
+    SaveResults --> ShowResults[Display Winner]
+    ShowResults --> Dashboard
+    
+    Tournament --> CreateBracket[Create Tournament Bracket]
+    CreateBracket --> MatchPlayers[Match Players for Games]
+    MatchPlayers --> TourneyGame[Start Tournament Game]
+    TourneyGame --> StartGame
+    
+    %% Logging flows
+    AuthReq -.-> LogAuth[Log Authentication Attempt]
+    CreateGame -.-> LogGame[Log Game Creation]
+    GameLoop -.-> LogPerformance[Log Performance Metrics]
+    
+    %% Styling
+    classDef startEnd fill:#e1f5fe
+    classDef process fill:#e8f5e8
+    classDef decision fill:#fff3e0
+    classDef error fill:#ffebee
+    
+    class Start,ShowResults startEnd
+    class LoginForm,CreateGame,GameLoop,UpdatePhysics process
+    class Login,ValidateAuth,GameChoice,PlayerJoined decision
+    class LoginError,NoGame error
+```
+
 ## Architecture Goals
 
 ### Service Boundaries
@@ -17,7 +206,7 @@ This branch implements the "Designing the Backend as Microservices" major module
 ### Critical Design Decisions Needed
 
 #### Database Strategy
-- [ ] **Decision**: Shared database vs database per service
+- [x] **Decision**: Shared database vs database per service
 - [ ] **Rationale**: Document why we chose this approach
 - [ ] **Implementation**: How services will access data
 
@@ -92,24 +281,45 @@ Game Service → Chat Service: game_ended event
 
 ## Directory Structure
 ```
-/services/
-  /api-gateway/
-    /src/
-    /Dockerfile
-  /user-service/
-    /src/
-    /Dockerfile
-  /game-service/
-    /src/  
-    /Dockerfile
-  /chat-service/
-    /src/
-    /Dockerfile
-/shared/
-  /types/          # Shared TypeScript interfaces
-  /utils/          # Common utilities
-/docker-compose.yml
-/docker-compose.dev.yml
+ft_transcendence_microservices/
+├── docker-compose.yml
+├── docker-compose.dev.yml
+├── README.md
+├── docs/
+│   ├── api-contracts.md
+│   ├── architecture.md
+│   └── deployment.md
+├── services/
+│   ├── gateway/              # API Gateway + Remote Players
+│   │   ├── src/
+│   │   ├── Dockerfile
+│   │   └── package.json
+│   ├── user-service/         # User Management + JWT
+│   │   ├── src/
+│   │   ├── Dockerfile
+│   │   └── package.json
+│   ├── game-service/         # Server-side Pong
+│   │   ├── src/
+│   │   ├── Dockerfile
+│   │   └── package.json
+│   └── log-service/          # Log Management + Monitoring
+│       ├── src/
+│       ├── Dockerfile
+│       └── package.json
+├── frontend/                 # 3D Graphics + Frontend Framework
+│   ├── src/
+│   ├── public/
+│   ├── package.json
+│   └── Dockerfile
+├── shared/
+│   ├── types/               # Shared TypeScript interfaces
+│   ├── database/            # SQLite schema and migrations
+│   ├── config/              # Environment variables and configs
+│   └── utils/               # Common utilities
+└── monitoring/              #  monitoring stack
+    ├── elk/                 # ELK stack configuration
+    ├── prometheus/          # Prometheus config
+    └── grafana/             # Grafana dashboards
 ```
 
 ## Dependencies & Integration Points

@@ -1,0 +1,22 @@
+{
+  "name": "transcendence-frontend",
+  "version": "1.0.0",
+  "description": "ft_transcendence 3D Frontend",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "serve -s dist -l 3004",
+    "build": "webpack --mode production",
+    "dev": "webpack serve --mode development --hot"
+  },
+  "dependencies": {
+    "@babylonjs/core": "^6.0.0",
+    "@babylonjs/gui": "^6.0.0",
+    "serve": "^14.0.0"
+  },
+  "devDependencies": {
+    "webpack": "^5.75.0",
+    "webpack-cli": "^5.0.0",
+    "webpack-dev-server": "^4.7.0",
+    "html-webpack-plugin": "^5.5.0"
+  }
+}

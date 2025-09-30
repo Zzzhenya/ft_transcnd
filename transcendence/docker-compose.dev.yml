@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  gateway:
+    build: 
+      context: ./services/gateway
+      target: development
+    volumes:
+      - ./services/gateway/src:/app/src
+    command: npm run dev
+
+  user-service:
+    build: 
+      context: ./services/user-service
+      target: development
+    volumes:
+      - ./services/user-service/src:/app/src
+    command: npm run dev
+
+  game-service:
+    build: 
+      context: ./services/game-service
+      target: development
+    volumes:
+      - ./services/game-service/src:/app/src
+    command: npm run dev
+
+  log-service:
+    build: 
+      context: ./services/log-service
+      target: development
+    volumes:
+      - ./services/log-service/src:/app/src
+    command: npm run dev
+
+  frontend:
+    build: 
+      context: ./frontend
+      target: development
+    volumes:
+      - ./frontend/src:/app/src
+    command: npm run dev
