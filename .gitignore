@@ -17,6 +17,18 @@ __MACOSX/
 # ----------------------------
 docs/html/
 
+# Environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+transcendence/.env
+transcendence/.env.local
+transcendence/.env.development.local
+transcendence/.env.example
+
+
 
 *.env
 
