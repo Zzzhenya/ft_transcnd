@@ -1,0 +1,77 @@
+version: '3.8'
+
+services:
+  gateway:
+    build: ./services/gateway
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - USER_SERVICE_URL=http://user-service:3001
+      - GAME_SERVICE_URL=http://game-service:3002
+      - LOG_SERVICE_URL=http://log-service:3003
+    depends_on:
+      - user-service
+      - game-service
+      - log-service
+      - database
+    volumes:
+      - shared-data:/app/shared
+
+  user-service:
+    build: ./services/user-service
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=sqlite:/app/shared/database/transcendence.db
+      - JWT_SECRET=your-secret-key-change-in-production
+    depends_on:
+      - database
+    volumes:
+      - shared-data:/app/shared
+
+  game-service:
+    build: ./services/game-service
+    ports:
+      - "3002:3002"
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=sqlite:/app/shared/database/transcendence.db
+      - USER_SERVICE_URL=http://user-service:3001
+    depends_on:
+      - database
+    volumes:
+      - shared-data:/app/shared
+
+  log-service:
+    build: ./services/log-service
+    ports:
+      - "3003:3003"
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=sqlite:/app/shared/database/transcendence.db
+    volumes:
+      - shared-data:/app/shared
+      - ./monitoring:/app/monitoring
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "3004:3004"
+    environment:
+      - NODE_ENV=development
+      - REACT_APP_API_URL=http://localhost:3000
+
+  database:
+    image: alpine:latest
+    command: sh -c "mkdir -p /shared/database && touch /shared/database/transcendence.db && tail -f /dev/null"
+    volumes:
+      - shared-data:/shared
+
+volumes:
+  shared-data:
+
+networks:
+  default:
+    name: transcendence-network
