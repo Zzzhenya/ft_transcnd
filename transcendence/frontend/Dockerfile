@@ -1,5 +1,6 @@
 FROM node:18-alpine AS base
 WORKDIR /app
+RUN apk add --no-cache curl
 COPY package*.json ./
 
 FROM base AS development
