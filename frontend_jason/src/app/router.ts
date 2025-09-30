@@ -1,5 +1,6 @@
 // SPA 라우터: URL ↔ 페이지 모듈 매칭, a[href] 인터셉트, popstate 처리, 포커스 이동, 404 처리
 import { canEnterGame } from "./guards";
+import { getAuth } from "@/app/auth";
 
 type Cleanup = () => void;
 type Ctx = { params?: Record<string, string>; url: URL };
@@ -16,6 +17,8 @@ const routes: [RegExp, Importer][] = [
 	[/^\/tournaments$/,         () => import("../pages/tournaments") as Promise<PageModule>],
 	[/^\/tournaments\/([^/]+)$/,() => import("../pages/tournament-detail") as Promise<PageModule>],
 	[/^\/game\/([^/]+)$/,       () => import("../pages/game") as Promise<PageModule>],
+	[/^\/auth$/,                () => import("../pages/auth") as Promise<PageModule>],
+	[/^\/profile$/,             () => import("../pages/profile") as Promise<PageModule>],
 ];
 
 export function initRouter(root: HTMLElement) {
@@ -74,6 +77,16 @@ export function initRouter(root: HTMLElement) {
 
 		const [re, importer] = hit;
 		const m = pathname.match(re)!;
+
+		// --- Mock auth guard: /profile ---
+		if (re.source === "^\\/profile$") {
+			if (!getAuth()) {
+				const next = `/auth?next=${encodeURIComponent(pathname + url.search)}`;
+				history.replaceState({ scrollX: 0, scrollY: 0 }, "", next);
+				await render(next);
+				return;
+			}
+		}
 
 		// --- Guards: /game/:id ---
 		if (re.source === "^\\/game\\/([^/]+)$") {

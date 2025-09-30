@@ -247,9 +247,9 @@
 	- [✅] `/*`: 404 Page with “Back to Lobby”
 
 5. **Auth (Mock for current process, real auth after Phase 1)**
-	- [] Add **mock auth** (login / logout) to unblock guarded routes
-	- [] Add **protected route** `profile` (redirects to `auth?next=...` when not signed it)
-	- [] **Adapter swap point** `src/app./auth.ts`
+	- [✅] Add **mock auth** (login / logout) to unblock guarded routes
+	- [✅] Add **protected route** `profile` (redirects to `auth?next=...` when not signed it)
+	- [✅] **Adapter swap point** `src/app./auth.ts`
 		- For now it re-exports mock
 		- Later replace with real API ('real-auth.ts`) **after Phase 1**
 
