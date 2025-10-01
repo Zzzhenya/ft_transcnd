@@ -1,14 +1,7 @@
 FROM node:18-alpine AS base
 WORKDIR /app
 RUN apk add --no-cache curl
-COPY package*.json ./
-RUN npm install --omit=dev
-
-FROM base AS development
+COPY . .
 RUN npm install
-COPY . .
-CMD ["npm", "run", "dev"]
-
-FROM base AS production
-COPY . .
-CMD ["npm", "start"]
+RUN npm run build
+CMD ["npm", "run", "start"]
