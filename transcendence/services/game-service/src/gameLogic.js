@@ -1,92 +1,144 @@
-const GAME_WIDTH = 100;
-const GAME_HEIGHT = 50;
-const PADDLE_HEIGHT = 10;
-const BALL_SIZE = 2;
-const PADDLE_SPEED = 2;
-const BALL_SPEED = 2;
+// export function movePaddle(gameState, player, direction) {
+//   const paddleSpeed = 10;
+//   const topBoundary = -100;   // top boundary
+//   const bottomBoundary = 100; // bottom boundary
 
-// Move paddle
-function movePaddle(gameState, player, direction) {
-  if (!gameState.paddles || typeof gameState.paddles[player] !== 'number') {
-    throw new Error(`Invalid paddles object or player key: ${player}`);
-  }
-  let pos = gameState.paddles[player];
-  pos += direction * PADDLE_SPEED;
-  pos = Math.max(0, Math.min(GAME_HEIGHT - PADDLE_HEIGHT, pos));
-  gameState.paddles[player] = pos;
+//   gameState.paddles[player] += direction * paddleSpeed;
+//   gameState.paddles[player] = Math.max(topBoundary, Math.min(bottomBoundary, gameState.paddles[player]));
+
+//   return gameState;
+// }
+
+// export function moveBall(gameState) {
+//   // Move ball
+//   gameState.ball.x += gameState.ball.vx;
+//   gameState.ball.y += gameState.ball.vy;
+
+//   // Bounce off top/bottom walls
+//   if (gameState.ball.y >= 100 || gameState.ball.y <= -100) {
+//     gameState.ball.vy *= -1;
+//   }
+
+//   // Paddle settings
+//   const paddleHeight = 40;
+//   const paddleX = 45; // near edges
+
+//   // Left paddle (Player1)
+//   if (
+//     gameState.ball.x <= -paddleX &&
+//     gameState.ball.y >= gameState.paddles.player1 - paddleHeight / 2 &&
+//     gameState.ball.y <= gameState.paddles.player1 + paddleHeight / 2
+//   ) {
+//     gameState.ball.vx *= -1; // bounce horizontally
+//   }
+
+//   // Right paddle (Player2)
+//   if (
+//     gameState.ball.x >= paddleX &&
+//     gameState.ball.y >= gameState.paddles.player2 - paddleHeight / 2 &&
+//     gameState.ball.y <= gameState.paddles.player2 + paddleHeight / 2
+//   ) {
+//     gameState.ball.vx *= -1;
+//   }
+
+//   // Scoring
+//   if (gameState.ball.x < -50) {
+//     gameState.score.player2++;
+//     resetBall(gameState);
+//   } else if (gameState.ball.x > 50) {
+//     gameState.score.player1++;
+//     resetBall(gameState);
+//   }
+
+//   return gameState;
+// }
+
+// function resetBall(gameState) {
+//   gameState.ball.x = 0;
+//   gameState.ball.y = 0;
+//   gameState.ball.vx = Math.random() > 0.5 ? 1 : -1;
+//   gameState.ball.vy = (Math.random() - 0.5) * 2;
+// }
+
+
+export function movePaddle(gameState, player, direction) {
+  const paddleSpeed = 10;              // paddle movement per frame
+  const topBoundary = -100;
+  const bottomBoundary = 100;
+
+  // Move paddle
+  gameState.paddles[player] += direction * paddleSpeed;
+  // Clamp within boundaries
+  gameState.paddles[player] = Math.max(topBoundary, Math.min(bottomBoundary, gameState.paddles[player]));
+
   return gameState;
 }
-function moveBall(gameState) {
+
+export function moveBall(gameState) {
+  const paddleHeight = 40;
+  const paddleX = 45;   // x position of paddles
+  const speedIncrement = 0.2; // increase speed after paddle hit
+
+  // Move ball
+  gameState.ball.x += gameState.ball.vx;
+  gameState.ball.y += gameState.ball.vy;
+
+  // Bounce off top/bottom walls
+  if (gameState.ball.y >= 100 || gameState.ball.y <= -100) {
+    gameState.ball.vy *= -1;
+  }
+
+  // Paddle collision function
+  function bounceOffPaddle(paddleY) {
+    const relativeY = gameState.ball.y - paddleY;   // how far from paddle center
+    const normalizedY = relativeY / (paddleHeight / 2); // -1 (top) to 1 (bottom)
+
+    // Reverse horizontal direction
+    gameState.ball.vx *= -1;
+
+    // Adjust vertical velocity based on where it hit
+    gameState.ball.vy = normalizedY * Math.abs(gameState.ball.vx);
+
+    // Increase speed a bit
+    if (gameState.ball.vx > 0) gameState.ball.vx += speedIncrement;
+    else gameState.ball.vx -= speedIncrement;
+  }
+
+  // Left paddle
   if (
-    !gameState.ball ||
-    typeof gameState.ball.x !== 'number' ||
-    typeof gameState.ball.y !== 'number' ||
-    typeof gameState.ball.vx !== 'number' ||
-    typeof gameState.ball.vy !== 'number'
+    gameState.ball.x <= -paddleX &&
+    gameState.ball.y >= gameState.paddles.player1 - paddleHeight / 2 &&
+    gameState.ball.y <= gameState.paddles.player1 + paddleHeight / 2
   ) {
-    throw new Error('Invalid ball object in gameState');
-  }
-  let ball = gameState.ball;
-  ball.x += ball.vx * BALL_SPEED;
-  ball.y += ball.vy * BALL_SPEED;
-
-  // Top/bottom wall collision
-  if (ball.y <= 0 || ball.y >= GAME_HEIGHT - BALL_SIZE) {
-    ball.vy *= -1;
-    ball.y = Math.max(0, Math.min(GAME_HEIGHT - BALL_SIZE, ball.y));
+    bounceOffPaddle(gameState.paddles.player1);
   }
 
-  // Left paddle collision
+  // Right paddle
   if (
-    ball.x <= 0 &&
-    ball.y >= gameState.paddles.player1 &&
-    ball.y <= gameState.paddles.player1 + PADDLE_HEIGHT
+    gameState.ball.x >= paddleX &&
+    gameState.ball.y >= gameState.paddles.player2 - paddleHeight / 2 &&
+    gameState.ball.y <= gameState.paddles.player2 + paddleHeight / 2
   ) {
-    ball.vx *= -1;
-    ball.x = BALL_SIZE;
+    bounceOffPaddle(gameState.paddles.player2);
   }
 
-  // Right paddle collision
-  if (
-    ball.x >= GAME_WIDTH - BALL_SIZE &&
-    ball.y >= gameState.paddles.player2 &&
-    ball.y <= gameState.paddles.player2 + PADDLE_HEIGHT
-  ) {
-    ball.vx *= -1;
-    ball.x = GAME_WIDTH - BALL_SIZE;
-  }
-
-  // Score for player2
-  if (ball.x < 0) {
-    gameState.score.player2 += 1;
-    resetBall(gameState, 1);
-  }
-
-  // Score for player1
-  if (ball.x > GAME_WIDTH) {
-    gameState.score.player1 += 1;
-    resetBall(gameState, -1);
+  // Scoring
+  if (gameState.ball.x < -50) {
+    gameState.score.player2++;
+    resetBall(gameState);
+  } else if (gameState.ball.x > 50) {
+    gameState.score.player1++;
+    resetBall(gameState);
   }
 
   return gameState;
 }
 
-// Reset ball to center, set direction
-function resetBall(gameState, direction) {
-  gameState.ball.x = GAME_WIDTH / 2;
-  gameState.ball.y = GAME_HEIGHT / 2;
-  gameState.ball.vx = direction;
-  gameState.ball.vy = direction;
+function resetBall(gameState) {
+  gameState.ball.x = 0;
+  gameState.ball.y = 0;
+  // Random horizontal direction
+  gameState.ball.vx = Math.random() > 0.5 ? 1 : -1;
+  // Random vertical velocity
+  gameState.ball.vy = (Math.random() - 0.5) * 2;
 }
-
-export {
-  movePaddle,
-  moveBall,
-  resetBall,
-  GAME_WIDTH,
-  GAME_HEIGHT,
-  PADDLE_HEIGHT,
-  BALL_SIZE,
-  PADDLE_SPEED,
-  BALL_SPEED,
-};
