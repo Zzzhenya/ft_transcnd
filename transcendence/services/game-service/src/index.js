@@ -45,6 +45,17 @@ fastify.post('/games', (request, reply) => {
   );
 });
 
+// List all games
+fastify.get('/games', (request, reply) => {
+  db.all('SELECT * FROM games', [], (err, rows) => {
+    if (err) {
+      reply.code(500).send({ error: err.message });
+    } else {
+      reply.send(rows);
+    }
+  });
+});
+
 // Get game state
 fastify.get('/games/:id/state', (request, reply) => {
   db.get('SELECT game_state FROM games WHERE id = ?', [request.params.id], (err, row) => {
@@ -75,21 +86,54 @@ fastify.put('/games/:id/state', (request, reply) => {
 });
 
 // End game and set winner
+// fastify.put('/games/:id/end', (request, reply) => {
+//   const { winner_id, final_score } = request.body;
+//   db.run(
+//     'UPDATE games SET winner_id = ?, final_score = ?, status = ?, finished_at = CURRENT_TIMESTAMP WHERE id = ?',
+//     [winner_id, JSON.stringify(final_score), 'finished', request.params.id],
+//     function (err) {
+//       if (err) {
+//         reply.code(500).send({ error: err.message });
+//       } else {
+//         reply.send({ ended: this.changes });
+//       }
+//     }
+//   );
+// });
 fastify.put('/games/:id/end', (request, reply) => {
   const { winner_id, final_score } = request.body;
-  db.run(
-    'UPDATE games SET winner_id = ?, final_score = ?, status = ?, finished_at = CURRENT_TIMESTAMP WHERE id = ?',
-    [winner_id, JSON.stringify(final_score), 'finished', request.params.id],
-    function (err) {
-      if (err) {
-        reply.code(500).send({ error: err.message });
-      } else {
-        reply.send({ ended: this.changes });
-      }
-    }
-  );
-});
+  const parsedScore = typeof final_score === "string" ? JSON.parse(final_score) : final_score;
 
+  db.get('SELECT game_state FROM games WHERE id = ?', [request.params.id], (err, row) => {
+    if (err) {
+      reply.code(500).send({ error: err.message });
+      return;
+    }
+    if (!row) {
+      reply.code(404).send({ error: 'Game not found' });
+      return;
+    }
+
+    // Parse existing game state
+    let gameState = JSON.parse(row.game_state);
+
+    // Sync score with final_score
+    gameState.score = parsedScore;
+
+    // Use datetime('now') instead of CURRENT_TIMESTAMP
+    db.run(
+      `UPDATE games SET winner_id = ?, final_score = ?, status = ?, finished_at = datetime('now'), game_state = ? WHERE id = ?`,
+      [winner_id, JSON.stringify(parsedScore), 'finished', JSON.stringify(gameState), request.params.id],
+      function (err) {
+        if (err) {
+          reply.code(500).send({ error: err.message });
+        } else {
+          reply.send({ ended: this.changes, game_state: gameState });
+        }
+      }
+    );
+  });
+});
 // Move paddle endpoint
 fastify.put('/games/:id/paddle', (request, reply) => {
   const { player, direction } = request.body; // player: 'player1' or 'player2', direction: -1 or 1
@@ -136,6 +180,7 @@ fastify.put('/games/:id/ball', (request, reply) => {
     );
   });
 });
+
 
 
 fastify.post('/tournaments', (request, reply) => {
