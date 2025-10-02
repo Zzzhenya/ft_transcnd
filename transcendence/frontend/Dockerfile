@@ -12,6 +12,5 @@ FROM base AS production
 RUN npm install
 COPY . .
 RUN npm run build
-RUN npm prune --production
 EXPOSE 3004
-CMD ["npm", "start"]
+CMD ["npx", "vite", "preview", "--host", "0.0.0.0", "--port", "3004"]
