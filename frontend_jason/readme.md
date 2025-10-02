@@ -16,7 +16,7 @@
 
 ### (0) Common
 - **AppShell**  
-	- Header (Logo / Current User / Setting)  
+	- Header (Logo / Current User / Setting)
 	- Main container  
 	- Toast (Announcement / Error)
 
@@ -264,11 +264,16 @@
 ---
 
 ### Phase 1: 2D Canvas MVP Renderer
-1. Attach **2D Canvas renderer** to `/game/:matchId`  
-2. Implement **Game Rules**: physics, scoring, reset, keyboard input  
-3. Add **HUD / ResultModal** with minimal info + exit button  
+1. Attach **2D Canvas renderer** to `/game/:matchId` 
+2. Implement **Game Rules**: physics, scoring, reset, keyboard input
+	- [✅] Basic info: GameConfig, GameState, Paddle, Ball, Score
+	- [✅] Logic to init: createPaddle, createBall, createState
+	- [✅] Logit to Serve & reset: serveBall (random angle, dir), resetRound
+	- [✅] Validation: assertValidConfig
+	- [ ] Physical collisions, scoring,round/set end, keyboard input processing
+3. Add **HUD / ResultModal** with minimal info + exit button
 4. Cleanup on unmount (timers / listeners)  
-5. Tournament flow: AliasGate → MyMatch → Game → Next round  
+5. Tournament flow: AliasGate → MyMatch → Game → Next round 
 
 ### Definition of Done (DoD)
 - [ ] Local flow from Lobby → Local → Game → ResultModal → Lobby  
