@@ -1,12 +1,11 @@
 /*
 	Manage user's keyboard input.
+	Check input, which key is pushed as from user.
 
 	leftPaddle: W (up), S (down)
-	rightPaddle: ArrosUp (up), ArrowDown (down)
-	P: Pause
-	R: Reset
+	rightPaddle: ArrowUp (up), ArrowDown (down)
+	pause, reset.
 */
-// Check input, which key is pushed as.
 export type InputState = {
 	upLeft: boolean;
 	dwLeft: boolean;
@@ -16,54 +15,70 @@ export type InputState = {
 	reset: boolean;
 };
 
-export function createInput(): { state: InputState; attach(el: Window): () => void } {
-  const state: InputState = {
-    upLeft: false,
-    dwLeft: false,
-    upRight: false,
-    dwRight: false,
-    pause: false,
-    reset: false,
-  };
+export function createInput() {
+	const state: InputState = {
+	upLeft: false,
+	dwLeft: false,
+	upRight: false,
+	dwRight: false,
+	pause: false,
+	reset: false,
+	};
 
-  const onKey = (v: boolean) => (e: KeyboardEvent) => {
-    switch (e.key) {
-      case "w":
-      case "W":
-        state.upLeft = v;
-        break;
-      case "s":
-      case "S":
-        state.dwLeft = v;
-        break;
-      case "ArrowUp":
-        state.upRight = v;
-        break;
-      case "ArrowDown":
-        state.dwRight = v;
-        break;
-      case "p":
-      case "P":
-        if (v) state.pause = !state.pause;
-        break;
-      case "r":
-      case "R":
-        if (v) state.reset = true;
-        break;
-    }
-  };
+	// v: value, e: event
+	function handleKey(v: boolean, e: KeyboardEvent) {
+		const k = e.key;
+		switch (k) {
+			case "w": case "W":
+				state.upLeft = v;
+				if (v) e.preventDefault();
+				break;
+			case "s": case "S":
+				state.dwLeft = v;
+				if (v) e.preventDefault();
+				break;
+			case "ArrowUp":
+				state.upRight = v;
+				if (v) e.preventDefault();
+				break;
+			case "ArrowDown":
+				state.dwRight = v;
+				if (v) e.preventDefault();
+				break;
+			case "p": case "P":
+				if (v && !e.repeat)
+					state.pause = !state.pause;
+				break;
+			case "r": case "R":
+				if (v && !e.repeat)
+					state.reset = true;
+				break;
+		}
+	}
 
-  const onKeyDown = onKey(true);
-  const onKeyUp = onKey(false);
+	function onKeyDown(e: KeyboardEvent) {
+		handleKey(true, e);
+	}
 
-  const attach = (el: Window) => {
-    el.addEventListener("keydown", onKeyDown);
-    el.addEventListener("keyup", onKeyUp);
-    return () => {
-      el.removeEventListener("keydown", onKeyDown);
-      el.removeEventListener("keyup", onKeyUp);
-    };
-  };
+	function onKeyUp(e: KeyboardEvent) {
+		handleKey(false, e);
+	}
 
-  return { state, attach };
+	/*
+		Param: 브라우저의 Window객체를 받는다.
+		window에서 "keydown(keyup)" 이벤트가 발생하면 [f] onKeyDown(Up) 실행.
+		return시 실행했던 이벤트 리스너를 해제한다.
+	*/
+	function attach(el: Window) {
+		el.addEventListener("keydown", onKeyDown);
+		el.addEventListener("keyup", onKeyUp);
+
+		// cleanup
+		return () => {
+			el.removeEventListener("keydown", onKeyDown);
+			el.removeEventListener("keyup", onKeyUp);
+		};
+	}
+
+	return { state, attach };
 }

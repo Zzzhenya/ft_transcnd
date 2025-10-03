@@ -144,9 +144,6 @@ export function createPaddle(
 	config: GameConfig = DefaultConfig
 ): Paddle {
 
-	// Validate config
-	assertValidConfig(config);
-
 	const courtHeight = config.court.height;
 	const paddleWidth = config.paddle.width;
 	const paddleHeight = config.paddle.height;
@@ -176,6 +173,10 @@ export function createBall(config: GameConfig = DefaultConfig): Ball {
 
 // Create new game statements, init elements.
 export function createState(config: GameConfig = DefaultConfig): GameState {
+
+	// Validate cfg one before creating.
+	assertValidConfig(config);
+
 	return {
 		status: "ready",
 		score: { left: 0, right: 0 },

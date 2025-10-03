@@ -265,21 +265,41 @@
 
 ### Phase 1: 2D Canvas MVP Renderer
 1. Attach **2D Canvas renderer** to `/game/:matchId` 
+	- [✅] Call 'mountGame(root)' in test.ts.
+	- [✅] Create canvas & set size
+
 2. Implement **Game Rules**: physics, scoring, reset, keyboard input
-	- [✅] Basic info: GameConfig, GameState, Paddle, Ball, Score
-	- [✅] Logic to init: createPaddle, createBall, createState
-	- [✅] Logit to Serve & reset: serveBall (random angle, dir), resetRound
-	- [✅] Validation: assertValidConfig
-	- [ ] Physical collisions, scoring,round/set end, keyboard input processing
+	- [✅] Type/State: GameConfig, GameState, Paddle, Ball, Score
+	- [✅] Logic to init factories: createPaddle, createBall, createState
+	- [✅] Logit to Serve / reset: serveBall (random angle 15-45 + dir), resetRound
+	- [✅] Validation: assertValidConfig runs once in [f]createState()
+	- [✅] keyboard input: createInput (W/S, A-Up/A-DN, P, R)
+	- [✅] Physics: wall/paddle collisions with dt; frame-independent movement
+	- [✅] Scoring/Rounds: goal detection(stepPhysics, onScore) updates score
+	- [✅] Round reset / pause / end: handled in the update loop
+	
 3. Add **HUD / ResultModal** with minimal info + exit button
-4. Cleanup on unmount (timers / listeners)  
-5. Tournament flow: AliasGate → MyMatch → Game → Next round 
+	- [✅] ResultDialog (backdrop + modal), winner text, button, ESC close.
+
+4. Cleanup on unmount
+	- [✅] cancelAnimationFrame(raf), dialog.destory()
+	- [✅] detach(): remove key listener
+	- [✅] remove canvas
+
+5. Tournament flow
+	- [ ] AliasGate → MyMatch → Game → Next round 
+	- [ ] Pending route wiring and page transitions
 
 ### Definition of Done (DoD)
-- [ ] Local flow from Lobby → Local → Game → ResultModal → Lobby  
-- [ ] Tournament flow from Lobby → Tournament list → Detail → AliasGate → Game → ResultModal → Next round  
-- [ ] No resource leaks (FPS / memory stable)  
+- [ ] Local flow:
+	- Lobby → Local → Game → ResultModal → Lobby
+	- Needs route navigation hooks and ResultModal button targets.
+- [ ] Tournament flow:
+	- Lobby → Tournament list → Detail → AliasGate → Game → ResultModal → Next round
+- [ ] No resource leaks (FPS / memory stable) 
+	- rAF canceled, listeners/DOM cleaned up, dialog listeners removed.
 - [ ] `#app` focus actually moves on navigation  
+	- Add router hook to all docuemnt.getElementById('app')?.focus() after render.
 
 ---
 
