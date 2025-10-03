@@ -100,20 +100,6 @@ export function serveBall(
 	state.status = "playing";
 }
 
-/*	
-	status: GameStatus;
-	score: Score;
-	ball: Ball;
-	winner: PlayerSide | null;
-
-	leftPaddle: Paddle;
-	rightPaddle: Paddle;
-
-	elapsedMs: number;
-	lastUpdateMs: number;
-	startMs: number;
-	remainingMs: number;
-*/
 export function resetRound(state: GameState, config: GameConfig = DefaultConfig): void {
 	// Put both paddle's Y position back in the middle of the court.
 	state.leftPaddle.posY = (config.court.height - config.paddle.height) / 2;

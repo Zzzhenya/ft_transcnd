@@ -1,11 +1,6 @@
-import { DefaultConfig, createState } from "./state";
-import { serveBall, resetRound } from "./logic";
+import { mountGame } from "../game/mount";
 
-const state = createState(DefaultConfig);
-console.log("Init statement:", state);
-
-serveBall(state);
-console.log("After service:", state);
-
-resetRound(state);
-console.log("After reset:", state);
+export default function mount(root: HTMLElement, params: { matchId: string }) {
+	const cleanup = mountGame(root);
+	return () => cleanup();
+}
