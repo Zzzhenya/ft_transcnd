@@ -52,13 +52,13 @@ function draw() {
   const paddleHeight = 40 * scaleY;  // 40 game units * 2 pixels/unit = 80 pixels
   const paddleWidth = 2 * scaleX;    // 2 game units * 8 pixels/unit = 16 pixels
   
-  // Paddle positions in game coordinates, then convert to canvas coordinates
-  const leftPaddleX = -48;   // Game coordinate: near left edge (-50)
-  const rightPaddleX = 48;   // Game coordinate: near right edge (+50)
+  // Paddle positions - place them right on the boundary lines
+  const leftPaddleX = -50;   // Left boundary 
+  const rightPaddleX = 50;   // Right boundary
   
-  // Convert game coordinates to canvas coordinates
-  const paddleXLeft = (leftPaddleX + 50) * scaleX;   // Convert -48 to canvas pixels
-  const paddleXRight = (rightPaddleX + 50) * scaleX; // Convert +48 to canvas pixels
+  // Convert game coordinates to canvas coordinates and adjust for paddle width
+  const paddleXLeft = (leftPaddleX + 50) * scaleX;           // Left edge of canvas (0)
+  const paddleXRight = (rightPaddleX + 50) * scaleX - paddleWidth; // Right edge minus paddle width
 
   // Left paddle (player1)
   const paddleY1 = canvas.height/2 - gameState.paddles.player1 * scaleY - paddleHeight/2;
@@ -79,17 +79,79 @@ function draw() {
   ctx.fillStyle = 'red';
   ctx.fill();
 
-  // Scores
+  // Scores and Tournament Info
   ctx.fillStyle = 'white';
   ctx.font = '20px Arial';
   ctx.fillText(gameState.score.player1, canvas.width/4, 30);
   ctx.fillText(gameState.score.player2, 3*canvas.width/4, 30);
+  
+  // Round information
+  ctx.fillStyle = 'white';
+  ctx.font = '16px Arial';
+  ctx.fillText(`Round ${gameState.tournament.currentRound}/${gameState.tournament.maxRounds}`, canvas.width/2 - 40, 30);
+  
+  // Rounds won
+  ctx.font = '14px Arial';
+  ctx.fillText(`Rounds: ${gameState.tournament.roundsWon.player1}`, canvas.width/4 - 30, 50);
+  ctx.fillText(`Rounds: ${gameState.tournament.roundsWon.player2}`, 3*canvas.width/4 - 30, 50);
+  
+  // Player labels at the bottom of the screen
+  ctx.fillStyle = 'lightblue';
+  ctx.font = '14px Arial';
+  ctx.fillText('Player 1', canvas.width/4 - 30, canvas.height - 30);
+  ctx.fillStyle = 'white';
+  ctx.font = '10px Arial';
+  ctx.fillText('(WASD)', canvas.width/4 - 25, canvas.height - 15);
+  
+  ctx.fillStyle = 'lightgreen';
+  ctx.font = '14px Arial';
+  ctx.fillText('Player 2', 3*canvas.width/4 - 30, canvas.height - 30);
+  ctx.fillStyle = 'white';
+  ctx.font = '10px Arial';
+  ctx.fillText('(Arrows)', 3*canvas.width/4 - 25, canvas.height - 15);
+  
+  // Game status
+  if (gameState.tournament.gameStatus === 'waiting') {
+    ctx.font = '24px Arial';
+    ctx.fillStyle = 'yellow';
+    ctx.fillText('Press SPACE to Start Game', canvas.width/2 - 120, canvas.height/2);
+  } else if (gameState.tournament.gameStatus === 'roundEnd') {
+    ctx.font = '24px Arial';
+    ctx.fillStyle = 'yellow';
+    ctx.fillText('Round End!', canvas.width/2 - 60, canvas.height/2 - 50);
+    ctx.font = '18px Arial';
+    ctx.fillText(`Next round starting in 3 seconds...`, canvas.width/2 - 100, canvas.height/2 - 20);
+    ctx.fillText(`Starting Round ${gameState.tournament.currentRound + 1}`, canvas.width/2 - 80, canvas.height/2 + 10);
+  } else if (gameState.tournament.gameStatus === 'gameEnd') {
+    ctx.font = '32px Arial';
+    ctx.fillStyle = 'gold';
+    const winner = gameState.tournament.winner === 'player1' ? 'Player 1' : 'Player 2';
+    ctx.fillText(`${winner} Wins!`, canvas.width/2 - 100, canvas.height/2);
+    ctx.font = '18px Arial';
+    ctx.fillStyle = 'white';
+    ctx.fillText('Game Over', canvas.width/2 - 50, canvas.height/2 + 30);
+    ctx.fillText('Press R to restart', canvas.width/2 - 70, canvas.height/2 + 60);
+  }
 }
 
 // Paddle control - both players
 document.addEventListener('keydown', (e) => {
   let player = null;
   let direction = 0;
+  
+  // Start game/round
+  if (e.key === ' ') { // Space bar
+    if (gameState.tournament.gameStatus === 'waiting') {
+      ws.send(JSON.stringify({ type: 'START_GAME' }));
+    }
+    return;
+  }
+  
+  // Restart game
+  if (e.key === 'r' || e.key === 'R') {
+    ws.send(JSON.stringify({ type: 'RESTART_GAME' }));
+    return;
+  }
   
   // Player 1 controls (WASD)
   if (e.key === 'w' || e.key === 'W') {
