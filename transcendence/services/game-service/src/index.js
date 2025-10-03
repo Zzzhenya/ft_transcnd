@@ -1,7 +1,7 @@
 // server.js
 import Fastify from 'fastify';
 import websocket from '@fastify/websocket';
-import { movePaddle, moveBall } from './gameLogic.js';
+import { movePaddle, moveBall, restartGame, startGame, startRound } from './gameLogic.js';
 import { readFileSync } from 'fs';
 import path from 'path';
 
@@ -14,7 +14,16 @@ await fastify.register(websocket);
 let gameState = {
   score: { player1: 0, player2: 0 },
   ball: { x: 0, y: 0, dx: 1, dy: 1 },
-  paddles: { player1: 0, player2: 0 }
+  paddles: { player1: 0, player2: 0 },
+  tournament: {
+    currentRound: 1,
+    maxRounds: 3,
+    scoreLimit: 5,
+    roundsWon: { player1: 0, player2: 0 },
+    gameStatus: 'waiting', // 'waiting', 'playing', 'roundEnd', 'gameEnd'
+    winner: null,
+    lastPointWinner: null
+  }
 };
 
 // Track connected clients
@@ -50,6 +59,21 @@ fastify.get('/game-ws', { websocket: true }, (conn) => {
         if (oldPaddle !== gameState.paddles[msg.player]) {
           broadcastState();
         }
+      }
+
+      if (msg.type === 'RESTART_GAME') {
+        restartGame(gameState);
+        broadcastState();
+      }
+
+      if (msg.type === 'START_GAME') {
+        startGame(gameState);
+        broadcastState();
+      }
+
+      if (msg.type === 'START_ROUND') {
+        startRound(gameState);
+        broadcastState();
       }
     } catch (err) {
       console.error('WS message parse error', err);
