@@ -15,6 +15,7 @@ await fastify.register(websocket);
 
 const games = new Map(); // gameId -> { state, clients, loop, players }
 let nextGameId = 1;
+let playerId = 1; // Counter for assigning unique player I
 
 /**
  * Broadcast game state to all connected clients in a given game
@@ -45,6 +46,8 @@ function broadcastState(gameId) {
     gameId,               // include gameId
     player1_id: game.player1_id, // include player1_id
     player2_id: game.player2_id, // include player2_id
+    player1_name: game.player1_name, // include player1_name
+    player2_name: game.player2_name, // include player2_name
     gameState: game.state
   });
 
@@ -62,7 +65,7 @@ function broadcastState(gameId) {
  * Create a new game
  */
 fastify.post('/games', async (request, reply) => {
-  const { player1_id, player2_id } = request.body;
+  const { player1_id, player2_id, player1_name, player2_name } = request.body;
   if (!player1_id || !player2_id) {
     return reply
       .code(400)
@@ -83,6 +86,8 @@ fastify.post('/games', async (request, reply) => {
     loop,
     player1_id,
     player2_id,
+    player1_name: player1_name || `Player ${player1_id}`,
+    player2_name: player2_name || `Player ${player2_id}`,
     status: 'waiting'
   });
 
@@ -90,6 +95,8 @@ fastify.post('/games', async (request, reply) => {
     id,
     player1_id,
     player2_id,
+    player1_name: player1_name || `Player ${player1_id}`,
+    player2_name: player2_name || `Player ${player2_id}`,
     status: 'waiting'
   });
 });
@@ -117,7 +124,15 @@ fastify.get('/game-ws/:gameId', { websocket: true }, (connection, request) => {
   );
 
   // Send initial state
-  ws.send(JSON.stringify({ type: 'STATE_UPDATE', gameState }));
+  ws.send(JSON.stringify({ 
+    type: 'STATE_UPDATE', 
+    gameId,
+    player1_id: game.player1_id,
+    player2_id: game.player2_id,
+    player1_name: game.player1_name,
+    player2_name: game.player2_name,
+    gameState 
+  }));
 
   // Listen for client messages
   ws.on('message', (raw) => {
@@ -169,3 +184,4 @@ fastify.get('/health', async () => ({ status: 'ok' }));
  */
 const address = await fastify.listen({ port: 3002, host: '0.0.0.0' });
 console.log(`Server listening on ${address}`);
+
