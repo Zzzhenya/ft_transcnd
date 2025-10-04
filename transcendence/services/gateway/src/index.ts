@@ -11,7 +11,8 @@ Tasks:
 import fastify, { type FastifyReply, type FastifyRequest } from 'fastify'
 import cors from '@fastify/cors'
 import firstRoute from './routes.js'
-import healthRoutes from './routes/health.route.js'
+import healthRoute from './routes/health.route.js'
+import wsRoute from './routes/ws.route.js'
 // console.log(services.users);
 
 const Fastify = fastify({logger:true});
@@ -57,6 +58,7 @@ const setupcors = async () => {
 setupcors();
 console.log("port: " + PORT);
 Fastify.register(firstRoute);
-Fastify.register(healthRoutes);
+Fastify.register(healthRoute);
+Fastify.register(wsRoute, { prefix: '/ws' })
 Fastify.log.info('Something important happened!');
 start();
