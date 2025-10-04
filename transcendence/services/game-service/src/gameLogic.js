@@ -22,11 +22,12 @@ export function moveBall(gameState) {
 
   const paddleHeight = 40;
   const paddleX = 50;       // Paddles are at the boundaries: x = ±50
-  const speedIncrement = 0.3;
+  const speedIncrement = 0.1;
+  const ballspeed = 0.5;
 
   // Simple ball movement - no speed multiplier
-  gameState.ball.x += gameState.ball.dx;
-  gameState.ball.y += gameState.ball.dy;
+  gameState.ball.x += gameState.ball.dx * (ballspeed + speedIncrement);
+  gameState.ball.y += gameState.ball.dy * (ballspeed + speedIncrement);
 
   if (gameState.ball.y >= 100 || gameState.ball.y <= -100) {
     gameState.ball.dy *= -1;
@@ -166,9 +167,26 @@ function startGame(gameState) {
   resetBall(gameState);
 }
 
-function startRound(gameState) {
-  gameState.tournament.gameStatus = 'playing';
-  resetBall(gameState);
+// function startRound(gameState) {
+//   gameState.tournament.gameStatus = 'playing';
+//   resetBall(gameState);
+// }
+
+function startGameLoop(gameState, broadcastState, moveBall) {
+  setInterval(() => {
+    const oldBall = { ...gameState.ball };
+    const oldScore = { ...gameState.score };
+
+    gameState = moveBall(gameState);
+
+    const ballMoved = oldBall.x !== gameState.ball.x || oldBall.y !== gameState.ball.y;
+    const scoreChanged = oldScore.player1 !== gameState.score.player1 || oldScore.player2 !== gameState.score.player2;
+
+    if (ballMoved || scoreChanged) {
+      broadcastState();
+    }
+  }, 1000 / 60); // 60 FPS
+  return gameState;
 }
 
-export { checkRoundEnd, endRound, startNextRound, restartGame, startGame, startRound };
+export { checkRoundEnd, endRound, startNextRound, restartGame, startGame, startGameLoop };
