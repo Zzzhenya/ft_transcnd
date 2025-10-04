@@ -55,6 +55,19 @@ services:
       - shared-data:/app/shared
       - ./monitoring:/app/monitoring
 
+  tournament-service:
+    build: ./services/tournament-service
+    ports:
+      - "3005:3005"
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=sqlite:/app/shared/database/transcendence.db
+      - USER_SERVICE_URL=http://user-service:3005
+    depends_on:
+      - database
+    volumes:
+      - shared-data:/app/shared
+
   frontend:
     build: ./frontend
     ports:
