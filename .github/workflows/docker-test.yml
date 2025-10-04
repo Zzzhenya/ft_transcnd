@@ -269,7 +269,7 @@ jobs:
           # bash script
           chmod +x transcendence/services/gateway/scripts/health-check.sh
 
-          bash ./transcendence/services/gateway/scripts/health-check.sh || {
+          bash transcendence/services/gateway/scripts/health-check.sh || {
             echo "❌ Gateway cannot reach health routes"
             exit 1
           }
