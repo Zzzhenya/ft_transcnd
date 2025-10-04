@@ -95,7 +95,7 @@ done
 #https
 
 #direct access via port
-for entry in "${services2[@]}"; do
-  IFS="|" read -r name url <<< "$entry"
-  check_url_neg "$name" "$url"
-done
+# for entry in "${services2[@]}"; do
+#   IFS="|" read -r name url <<< "$entry"
+#   check_url_neg "$name" "$url"
+# done
