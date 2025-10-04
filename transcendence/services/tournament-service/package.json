@@ -1,0 +1,18 @@
+{
+  "name": "tournament-service",
+  "version": "1.0.0",
+  "description": "ft_transcendence tournament-service",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js"
+  },
+  "dependencies": {
+    "@fastify/websocket": "^8.3.1",
+    "fastify": "^4.15.0"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.20"
+  }
+}

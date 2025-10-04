@@ -1,5 +1,5 @@
 export function movePaddle(gameState, player, direction) {
-  const paddleSpeed = 30;
+  const paddleSpeed = 15;
   const paddleHeight = 40;
   const topBoundary = -100 + paddleHeight / 2;
   const bottomBoundary = 100 - paddleHeight / 2;
@@ -167,17 +167,12 @@ function startGame(gameState) {
   resetBall(gameState);
 }
 
-// function startRound(gameState) {
-//   gameState.tournament.gameStatus = 'playing';
-//   resetBall(gameState);
-// }
-
 function startGameLoop(gameState, broadcastState, moveBall) {
   setInterval(() => {
     const oldBall = { ...gameState.ball };
     const oldScore = { ...gameState.score };
 
-    gameState = moveBall(gameState);
+    moveBall(gameState);
 
     const ballMoved = oldBall.x !== gameState.ball.x || oldBall.y !== gameState.ball.y;
     const scoreChanged = oldScore.player1 !== gameState.score.player1 || oldScore.player2 !== gameState.score.player2;
@@ -189,4 +184,22 @@ function startGameLoop(gameState, broadcastState, moveBall) {
   return gameState;
 }
 
-export { checkRoundEnd, endRound, startNextRound, restartGame, startGame, startGameLoop };
+// Game state
+function initialGameState() {
+  return {
+    score: { player1: 0, player2: 0 },
+    ball: { x: 0, y: 0, dx: 1, dy: 1 },
+    paddles: { player1: 0, player2: 0 },
+    tournament: {
+      currentRound: 1,
+      maxRounds: 3,
+      scoreLimit: 5,
+      roundsWon: { player1: 0, player2: 0 },
+      gameStatus: 'waiting', // 'waiting', 'playing', 'roundEnd', 'gameEnd'
+      winner: null,
+    lastPointWinner: null
+  }
+};
+}
+
+export { checkRoundEnd, endRound, startNextRound, restartGame, startGame, startGameLoop, initialGameState };

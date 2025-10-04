@@ -1,40 +1,26 @@
-// server.js
+// Run with: node server.js
+// wscat -c ws://localhost:3002/game-ws  for test websocket
 import Fastify from 'fastify';
 import websocket from '@fastify/websocket';
-import { moveBall, movePaddle, restartGame, startGame, startGameLoop} from './gameLogic.js';
-
+import { 
+  moveBall, 
+  movePaddle, 
+  restartGame, 
+  startGame, 
+  startGameLoop, 
+  initialGameState
+} from './gameLogic.js';
 
 const fastify = Fastify({ logger: true });
-
-// Register websocket plugin first
 await fastify.register(websocket);
 
-// Track connected clients
+// Connected clients
 const clients = new Set();
+let gameState = initialGameState();
+startGameLoop(gameState, broadcastState, moveBall);
 
-// Game state
-let gameState = {
-  score: { player1: 0, player2: 0 },
-  ball: { x: 0, y: 0, dx: 0.2, dy: 0.2 },
-  paddles: { player1: 0, player2: 0 },
-  tournament: {
-    currentRound: 1,
-    maxRounds: 3,
-    scoreLimit: 5,
-    roundsWon: { player1: 0, player2: 0 },
-    gameStatus: 'waiting', // 'waiting', 'playing', 'roundEnd', 'gameEnd'
-    winner: null,
-    lastPointWinner: null
-  }
-};
-
-// Helper: send state to all clients
-function broadcastState() {
-  const payload = JSON.stringify({ type: 'STATE_UPDATE', gameState });
-  for (const ws of clients) {
-    if (ws.readyState === 1) ws.send(payload);
-  }
-}
+// Health check
+fastify.get('/health', async () => ({ status: 'ok' }));
 
 // WebSocket route
 fastify.get('/game-ws', { websocket: true }, (conn) => {
@@ -50,27 +36,31 @@ fastify.get('/game-ws', { websocket: true }, (conn) => {
     try {
       const msg = JSON.parse(raw.toString());
 
-      if (msg.type === 'MOVE_PADDLE') {
-        const oldPaddle = gameState.paddles[msg.player];
-        gameState = movePaddle(gameState, msg.player, msg.direction);
-
-        // Only broadcast if paddle actually moved
-        if (oldPaddle !== gameState.paddles[msg.player]) {
-          broadcastState();
+      switch (msg.type) {
+        case 'MOVE_PADDLE': {
+          const oldPaddle = gameState.paddles[msg.player];
+          movePaddle(gameState, msg.player, msg.direction);
+          if (oldPaddle !== gameState.paddles[msg.player]) {
+            broadcastState();
+          }
+          break;
         }
-      }
 
-      if (msg.type === 'RESTART_GAME') {
-        restartGame(gameState);
-        broadcastState();
-      }
+        case 'RESTART_GAME':
+          restartGame(gameState);
+          broadcastState();
+          break;
 
-      if (msg.type === 'START_GAME') {
-        startGame(gameState);
-        broadcastState();
+        case 'START_GAME':
+          startGame(gameState);
+          broadcastState();
+          break;
+
+        default:
+          fastify.log.warn(`Unknown message type: ${msg.type}`);
       }
     } catch (err) {
-      console.error('WS message parse error', err);
+      fastify.log.error('WS message parse error:', err);
     }
   });
 
@@ -85,12 +75,13 @@ fastify.get('/game-ws', { websocket: true }, (conn) => {
   });
 });
 
-
-startGameLoop(gameState, broadcastState, moveBall);
-
-// Health check
-fastify.get('/health', async () => ({ status: 'ok' }));
-
+// Helper: send state to all clients
+function broadcastState() {
+  const payload = JSON.stringify({ type: 'STATE_UPDATE', gameState });
+  for (const ws of clients) {
+    if (ws.readyState === 1) ws.send(payload);
+  }
+}
 
 // Start server
 const address = await fastify.listen({ port: 3002, host: '0.0.0.0' });
