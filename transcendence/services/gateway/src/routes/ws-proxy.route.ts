@@ -1,11 +1,11 @@
 // src/routes/ws-proxy.route.ts
 import type { FastifyHttpOptions, FastifyInstance, FastifyServerOptions, FastifyPluginAsync } from "fastify"
 
-import { SocketStream } from 'fastify-websocket'
+import type {  } from '@fastify/websocket'
 
 import WebSocket from 'ws'
 
-const function createBackendSocket(url: string): Promise<WebSocket> {
+export function createBackendSocket(url: string): Promise<WebSocket> {
   return new Promise((resolve, reject) => {
     const ws = new WebSocket(url)
 
@@ -14,7 +14,7 @@ const function createBackendSocket(url: string): Promise<WebSocket> {
   })
 }
 
-const function forwardMessages(
+export function forwardMessages(
   clientSocket: WebSocket,
   backendSocket: WebSocket
 ) {
@@ -45,7 +45,7 @@ const function forwardMessages(
 
 const wsProxyRoute: FastifyPluginAsync = async (fastify) => {
   fastify.get('/pong', { websocket: true }, async (connection, req) => {
-    const clientSocket = connection.socket
+    const clientSocket = connection
 
     // Replace with dynamic routing logic if needed
     const backendUrl = 'ws://game-service/ws/pong'
@@ -55,7 +55,7 @@ const wsProxyRoute: FastifyPluginAsync = async (fastify) => {
       forwardMessages(clientSocket, backendSocket)
     } catch (err) {
       clientSocket.close()
-      fastify.log.error('Failed to connect to backend:', err)
+      fastify.log.error('Failed to connect to backend:' + err)
     }
   })
 }

@@ -12,7 +12,7 @@ import fastify, { type FastifyReply, type FastifyRequest } from 'fastify'
 import cors from '@fastify/cors'
 import firstRoute from './routes.js'
 import healthRoute from './routes/health.route.js'
-import wsRoute from './routes/ws.route.js'
+import wsRoute from './routes/ws-proxy.route.js'
 // console.log(services.users);
 
 const Fastify = fastify({logger:true});
