@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - microservices-refactor
-      # - api-gateway-basics
+      - api-gateway-basics
       - main
   pull_request:
     branches:
@@ -266,6 +266,16 @@ jobs:
           cd transcendence
           echo "Testing service-to-service communication..."
           
+          # bash script
+          chmod +x transcendence/services/gateway/scripts/health-check.sh
+
+          bash ./transcendence/services/gateway/scripts/health-check.sh || {
+            echo "❌ Gateway cannot reach health routes"
+            exit 1
+          }
+          echo "✅ Gateway ↔ health routes communication works"
+
+
           # Test that gateway can reach other services
           docker compose exec -T gateway curl -f -s http://user-service:3001/health || {
             echo "❌ Gateway cannot reach User Service"
