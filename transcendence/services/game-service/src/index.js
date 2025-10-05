@@ -1,29 +1,12 @@
-// Run with: node server.js
-// wscat -c ws://localhost:3002/game-ws  for test websocket
+// server.js
 import Fastify from 'fastify';
 import websocket from '@fastify/websocket';
-import { 
-  moveBall, 
-  movePaddle, 
-  restartGame, 
-  startGame, 
-  startGameLoop, 
-  initialGameState
-} from './gameLogic.js';
+import { moveBall, movePaddle, restartGame, startGame, startGameLoop, initialGameState } from './gameLogic.js';
 
 const fastify = Fastify({ logger: true });
 await fastify.register(websocket);
 
-// Connected clients
-const clients = new Set();
-let gameState = initialGameState();
-startGameLoop(gameState, broadcastState, moveBall);
-
-// Health check
-fastify.get('/health', async () => ({ status: 'ok' }));
-
-// In-memory games list (for demo; use a DB for production)
-const games = [];
+const games = new Map(); // gameId -> { state, clients, loop }
 let nextGameId = 1;
 
 // Create a new game
@@ -32,53 +15,63 @@ fastify.post('/games', async (request, reply) => {
   if (!player1_id || !player2_id) {
     return reply.code(400).send({ error: 'player1_id and player2_id are required' });
   }
-  const game = {
-    id: nextGameId++,
-    player1_id,
-    player2_id,
-    state: initialGameState(),
-    status: 'waiting'
-  };
-  games.push(game);
-  reply.code(201).send(game);
+
+  const id = nextGameId++;
+  const state = initialGameState();
+  const clients = new Set();
+
+function broadcastState(gameId) {
+  const game = games.get(gameId);
+  if (!game) return;
+  const payload = JSON.stringify({ type: 'STATE_UPDATE', gameState: game.state });
+  for (const ws of game.clients) {
+    if (ws.readyState === 1) ws.send(payload);
+  }
+}
+
+
+  // Start the loop for this game
+  const loop = startGameLoop(state, broadcastState, moveBall);
+
+  games.set(id, { state, clients, loop, player1_id, player2_id, status: 'waiting' });
+  reply.code(201).send({ id, player1_id, player2_id, status: 'waiting' });
 });
 
-// WebSocket route
-fastify.get('/game-ws', { websocket: true }, (conn) => {
-  const ws = conn.socket;
+// WebSocket route per game
+fastify.get('/game-ws/:gameId', { websocket: true }, (connection, request) => {
+  const gameId = parseInt(request.params.gameId, 10);
+  const game = games.get(gameId);
+  if (!game) {
+    connection.socket.close();
+    return;
+  }
+
+  const gameState = game.state;
+  const clients = game.clients;
+  const ws = connection.socket;
   clients.add(ws);
-  console.log('Client connected, total clients:', clients.size);
+  console.log('Client connected to game:', gameId, 'total clients:', clients.size);
 
   // Send initial state
   ws.send(JSON.stringify({ type: 'STATE_UPDATE', gameState }));
 
-  // Handle messages from this client
+  // Listen for messages
   ws.on('message', (raw) => {
     try {
       const msg = JSON.parse(raw.toString());
-
       switch (msg.type) {
-        case 'MOVE_PADDLE': {
-          const oldPaddle = gameState.paddles[msg.player];
+        case 'MOVE_PADDLE':
           movePaddle(gameState, msg.player, msg.direction);
-          if (oldPaddle !== gameState.paddles[msg.player]) {
-            broadcastState();
-          }
+          broadcastState(gameId);
           break;
-        }
-
         case 'RESTART_GAME':
           restartGame(gameState);
-          broadcastState();
+          broadcastState(gameId);
           break;
-
         case 'START_GAME':
           startGame(gameState);
-          broadcastState();
+          broadcastState(gameId);
           break;
-
-        default:
-          fastify.log.warn(`Unknown message type: ${msg.type}`);
       }
     } catch (err) {
       fastify.log.error('WS message parse error:', err);
@@ -87,22 +80,17 @@ fastify.get('/game-ws', { websocket: true }, (conn) => {
 
   ws.on('close', () => {
     clients.delete(ws);
-    console.log('Client disconnected, total clients:', clients.size);
+    console.log(`Client disconnected from game ${gameId}. Remaining: ${clients.size}`);
   });
 
   ws.on('error', (err) => {
-    console.error('Socket error:', err);
-    clients.delete(ws);
+    fastify.log.error(`Socket error in game ${gameId}:`, err);
+    game.clients.delete(ws);
   });
 });
 
-// Helper: send state to all clients
-function broadcastState() {
-  const payload = JSON.stringify({ type: 'STATE_UPDATE', gameState });
-  for (const ws of clients) {
-    if (ws.readyState === 1) ws.send(payload);
-  }
-}
+// Health check
+fastify.get('/health', async () => ({ status: 'ok' }));
 
 // Start server
 const address = await fastify.listen({ port: 3002, host: '0.0.0.0' });
