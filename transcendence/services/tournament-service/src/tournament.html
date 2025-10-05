@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Tournament Test</title>
+  <style>
+    body { background: #222; color: #fff; font-family: sans-serif; }
+    pre { background: #111; color: #0f0; padding: 1em; border-radius: 8px; }
+    button { margin: 0.5em 0; }
+    input { margin: 0.2em; }
+  </style>
+</head>
+<body>
+  <h1>Tournament Service Test</h1>
+  <form id="createForm">
+    <label>Player IDs (comma separated):</label>
+    <input type="text" id="players" value="1,2,3,4,5,6,7,8" size="30">
+    <button type="submit">Create Tournament</button>
+  </form>
+  <button id="startGameBtn" style="display:none;">Start First 1v1 Game</button>
+  <pre id="output"></pre>
+
+  <script>
+    const form = document.getElementById('createForm');
+    const output = document.getElementById('output');
+    const startGameBtn = document.getElementById('startGameBtn');
+    let bracket = null;
+
+    form.onsubmit = async (e) => {
+      e.preventDefault();
+      const players = document.getElementById('players').value
+        .split(',')
+        .map(x => parseInt(x.trim()))
+        .filter(x => !isNaN(x));
+      output.textContent = 'Creating tournament...';
+      startGameBtn.style.display = 'none';
+
+      try {
+        // Call tournament-service to create bracket
+        const res = await fetch('http://localhost:3005/tournaments/create?players=' + encodeURIComponent(JSON.stringify(players)));
+        bracket = await res.json();
+        output.textContent = JSON.stringify(bracket, null, 2);
+
+        // Show start game button if bracket is valid
+        if (bracket.rounds && bracket.rounds[0] && bracket.rounds[0][0]) {
+          startGameBtn.style.display = '';
+        }
+      } catch (err) {
+        output.textContent = 'Error: ' + err;
+      }
+    };
+
+    startGameBtn.onclick = async () => {
+      if (!bracket || !bracket.rounds || !bracket.rounds[0] || !bracket.rounds[0][0]) {
+        output.textContent += '\nNo valid match found.';
+        return;
+      }
+      // Get first match from first round
+      const match = bracket.rounds[0][0];
+      if (!match.player1 || !match.player2) {
+        output.textContent += '\nFirst match does not have two players.';
+        return;
+      }
+      output.textContent += `\nStarting game between Player ${match.player1} and Player ${match.player2}...`;
+
+      try {
+        // Call game-service to start the game
+        const res = await fetch('http://localhost:3002/games', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ player1_id: match.player1, player2_id: match.player2 })
+        });
+        const game = await res.json();
+        output.textContent += '\nGame started:\n' + JSON.stringify(game, null, 2);
+      } catch (err) {
+        output.textContent += '\nError starting game: ' + err;
+      }
+    };
+  </script>
+</body>
+</html>

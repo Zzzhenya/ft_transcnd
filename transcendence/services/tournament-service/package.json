@@ -10,7 +10,8 @@
   },
   "dependencies": {
     "@fastify/websocket": "^8.3.1",
-    "fastify": "^4.15.0"
+    "fastify": "^4.15.0",
+    "node-fetch": "^3.3.2"
   },
   "devDependencies": {
     "nodemon": "^2.0.20"

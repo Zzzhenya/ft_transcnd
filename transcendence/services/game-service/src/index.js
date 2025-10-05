@@ -22,6 +22,27 @@ startGameLoop(gameState, broadcastState, moveBall);
 // Health check
 fastify.get('/health', async () => ({ status: 'ok' }));
 
+// In-memory games list (for demo; use a DB for production)
+const games = [];
+let nextGameId = 1;
+
+// Create a new game
+fastify.post('/games', async (request, reply) => {
+  const { player1_id, player2_id } = request.body;
+  if (!player1_id || !player2_id) {
+    return reply.code(400).send({ error: 'player1_id and player2_id are required' });
+  }
+  const game = {
+    id: nextGameId++,
+    player1_id,
+    player2_id,
+    state: initialGameState(),
+    status: 'waiting'
+  };
+  games.push(game);
+  reply.code(201).send(game);
+});
+
 // WebSocket route
 fastify.get('/game-ws', { websocket: true }, (conn) => {
   const ws = conn.socket;
