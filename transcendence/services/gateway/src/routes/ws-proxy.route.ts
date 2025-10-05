@@ -45,14 +45,19 @@ export function forwardMessages(
 
 const wsProxyRoute: FastifyPluginAsync = async (fastify) => {
   fastify.get('/pong', { websocket: true }, async (connection, req) => {
+    console.log('Ws1\n');
     const clientSocket = connection
-
+    console.log('Ws2\n');
     // Replace with dynamic routing logic if needed
-    const backendUrl = 'ws://game-service/ws/pong'
-
+    // const backendUrl = 'ws://game-service/ws/pong'
+    const backendUrl = 'ws://game-service:3002/ws/pong'
+    console.log('Ws3\n');
     try {
+      console.log('Ws4\n');
       const backendSocket = await createBackendSocket(backendUrl)
+      console.log('Ws5\n');
       forwardMessages(clientSocket, backendSocket)
+      console.log('Ws6\n');
     } catch (err) {
       clientSocket.close()
       fastify.log.error('Failed to connect to backend:' + err)
