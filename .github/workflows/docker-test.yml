@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - microservices-refactor
-      # - api-gateway-basics
+      - api-gateway-basics
       - main
   pull_request:
     branches:
