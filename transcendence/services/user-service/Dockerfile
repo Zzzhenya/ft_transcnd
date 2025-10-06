@@ -1,14 +1,19 @@
-FROM node:18-alpine AS base
+FROM node:18-alpine
+
 WORKDIR /app
-RUN apk add --no-cache curl
+
+# Copy package files
 COPY package*.json ./
-RUN npm install --omit=dev
 
-FROM base AS development
+# Install dependencies
 RUN npm install
-COPY . .
-CMD ["npm", "run", "dev"]
 
-FROM base AS production
+# Copy application code
 COPY . .
+
+# Create data directory for SQLite
+RUN mkdir -p /app/data
+
+EXPOSE 3001
+
 CMD ["npm", "start"]
