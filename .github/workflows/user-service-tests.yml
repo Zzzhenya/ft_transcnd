@@ -189,12 +189,28 @@ jobs:
           elapsed=0
           
           while [ $elapsed -lt $timeout ]; do
-            if curl -f -s http://user-service:3001/health > /tmp/health_check.json 2>/dev/null; then
+            # More verbose debugging
+            echo "⏳ Waiting... ($elapsed/$timeout seconds)"
+            echo "=== Checking service logs ==="
+            docker compose logs --tail=5 user-service
+            echo "=== Testing connection ==="
+            
+            if curl -f -s http://user-service:3001/health > /tmp/health_check.json 2>/tmp/curl_error.log; then
               echo "✅ User service is ready!"
               cat /tmp/health_check.json
               break
             else
-              echo "⏳ Waiting... ($elapsed/$timeout seconds)"
+              echo "❌ Health check failed. Curl error:"
+              cat /tmp/curl_error.log 2>/dev/null || echo "No curl error log"
+              
+              # Try alternative methods
+              echo "=== Testing with wget ==="
+              if wget -q --spider http://user-service:3001/health; then
+                echo "✅ wget succeeded, trying curl again"
+              else
+                echo "❌ wget also failed"
+              fi
+              
               sleep 5
               elapsed=$((elapsed + 5))
             fi
@@ -202,8 +218,15 @@ jobs:
           
           if [ $elapsed -ge $timeout ]; then
             echo "❌ Service failed to start within $timeout seconds"
-            echo "=== Container logs ==="
-            docker compose logs user-service
+            echo "=== Final debugging information ==="
+            echo "=== Container status ==="
+            docker compose ps
+            echo "=== Container logs (last 50 lines) ==="
+            docker compose logs --tail=50 user-service
+            echo "=== Network information ==="
+            docker network ls
+            echo "=== Checking if port is open ==="
+            docker compose exec user-service netstat -tlnp 2>/dev/null || echo "netstat not available"
             exit 1
           fi
 
