@@ -143,6 +143,26 @@ export function registerWebSocketRoutes(fastify, games, broadcastState) {
  * @returns {string} JSON string of the initial state
  */
 function createInitialStateMessage(game, gameId) {
+  // Create a clean game state without circular references (intervals)
+  const cleanGameState = {
+    score: game.state.score,
+    ball: game.state.ball,
+    paddles: game.state.paddles,
+    tournament: {
+      currentRound: game.state.tournament.currentRound,
+      maxRounds: game.state.tournament.maxRounds,
+      scoreLimit: game.state.tournament.scoreLimit,
+      roundsWon: game.state.tournament.roundsWon,
+      gameStatus: game.state.tournament.gameStatus,
+      winner: game.state.tournament.winner,
+      lastPointWinner: game.state.tournament.lastPointWinner,
+      nextRoundCountdown: game.state.tournament.nextRoundCountdown,
+      nextRoundNumber: game.state.tournament.nextRoundNumber
+      // Exclude countdownInterval - it's not serializable
+    }
+    // Exclude gameLoopInterval - it's not serializable
+  };
+
   return JSON.stringify({
     type: 'STATE_UPDATE',
     gameId,
@@ -156,7 +176,7 @@ function createInitialStateMessage(game, gameId) {
     isRegistered: game.isRegistered || false,
     round: game.round || null,
     matchNumber: game.matchNumber || null,
-    gameState: game.state
+    gameState: cleanGameState
   });
 }
 

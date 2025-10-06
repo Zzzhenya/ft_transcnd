@@ -15,7 +15,7 @@ export function movePaddle(gameState, player, direction) {
 }
 
 export function moveBall(gameState) {
-  // Don't move ball if game/round is ended or waiting to start
+  // Don't move ball if game/round is ended, waiting to start, or paused
   if (gameState.tournament.gameStatus !== 'playing') {
     return gameState;
   }
@@ -139,6 +139,9 @@ function endRound(gameState, roundWinner) {
     // Game is over!
     gameState.tournament.gameStatus = 'gameEnd';
     gameState.tournament.winner = roundWinner;
+    
+    // Auto-cleanup intervals when game ends to prevent CPU usage
+    cleanupGame(gameState);
   } else {
     // Start countdown to next round
     gameState.tournament.gameStatus = 'roundCountdown';
@@ -161,6 +164,17 @@ function startNextRound(gameState) {
 }
 
 function restartGame(gameState) {
+  // Clear any active intervals to prevent memory leaks
+  if (gameState.tournament.countdownInterval) {
+    clearInterval(gameState.tournament.countdownInterval);
+    gameState.tournament.countdownInterval = null;
+  }
+  
+  if (gameState.gameLoopInterval) {
+    clearInterval(gameState.gameLoopInterval);
+    gameState.gameLoopInterval = null;
+  }
+  
   gameState.score.player1 = 0;
   gameState.score.player2 = 0;
   gameState.paddles.player1 = 0;  // Reset paddle positions
@@ -171,6 +185,7 @@ function restartGame(gameState) {
   gameState.tournament.gameStatus = 'waiting';  // Wait for start button
   gameState.tournament.winner = null;
   gameState.tournament.lastPointWinner = null;
+  gameState.tournament.nextRoundCountdown = 0;
   resetBall(gameState);
 }
 
@@ -179,29 +194,72 @@ function startGame(gameState) {
   resetBall(gameState);
 }
 
-function startGameLoop(gameState, broadcastState, moveBall) {
-  setInterval(() => {
-    const oldBall = { ...gameState.ball };
-    const oldScore = { ...gameState.score };
-    const oldPaddles = { ...gameState.paddles };
-    const oldStatus = gameState.tournament.gameStatus;
+function cleanupGame(gameState) {
+  // Clean up all intervals to prevent memory leaks
+  if (gameState.tournament.countdownInterval) {
+    clearInterval(gameState.tournament.countdownInterval);
+    gameState.tournament.countdownInterval = null;
+  }
+  
+  if (gameState.gameLoopInterval) {
+    clearInterval(gameState.gameLoopInterval);
+    gameState.gameLoopInterval = null;
+  }
+}
 
-    moveBall(gameState);
+function startGameLoop(gameState, broadcastState, moveBall, getClientCount) {
+  let lastBallX = gameState.ball.x;
+  let lastBallY = gameState.ball.y;
+  let lastScore1 = gameState.score.player1;
+  let lastScore2 = gameState.score.player2;
+  let lastPaddle1 = gameState.paddles.player1;
+  let lastPaddle2 = gameState.paddles.player2;
+  let lastStatus = gameState.tournament.gameStatus;
+  let framesSinceLastChange = 0;
+  
+  const gameLoopInterval = setInterval(() => {
+    const clientCount = getClientCount ? getClientCount() : 1;
+    
+    // Only process ball movement if game is playing and there are connected clients
+    if (gameState.tournament.gameStatus === 'playing' && clientCount > 0) {
+      moveBall(gameState);
+    }
 
-    const ballMoved = oldBall.x !== gameState.ball.x || oldBall.y !== gameState.ball.y;
-    const scoreChanged = oldScore.player1 !== gameState.score.player1 || oldScore.player2 !== gameState.score.player2;
-    const paddleMoved = oldPaddles.player1 !== gameState.paddles.player1 || oldPaddles.player2 !== gameState.paddles.player2;
+    const ballMoved = lastBallX !== gameState.ball.x || lastBallY !== gameState.ball.y;
+    const scoreChanged = lastScore1 !== gameState.score.player1 || lastScore2 !== gameState.score.player2;
+    const paddleMoved = lastPaddle1 !== gameState.paddles.player1 || lastPaddle2 !== gameState.paddles.player2;
+    const statusChanged = lastStatus !== gameState.tournament.gameStatus;
     
     // Check if we just entered countdown state and start the countdown
-    if (gameState.tournament.gameStatus === 'roundCountdown' && oldStatus !== 'roundCountdown') {
+    if (gameState.tournament.gameStatus === 'roundCountdown' && lastStatus !== 'roundCountdown') {
       startRoundCountdown(gameState, broadcastState);
     }
 
-    if (ballMoved || scoreChanged || paddleMoved) {
+    // Only broadcast if something actually changed
+    if (ballMoved || scoreChanged || paddleMoved || statusChanged) {
       broadcastState();
+      framesSinceLastChange = 0;
+      
+      // Update last values
+      lastBallX = gameState.ball.x;
+      lastBallY = gameState.ball.y;
+      lastScore1 = gameState.score.player1;
+      lastScore2 = gameState.score.player2;
+      lastPaddle1 = gameState.paddles.player1;
+      lastPaddle2 = gameState.paddles.player2;
+      lastStatus = gameState.tournament.gameStatus;
+    } else {
+      framesSinceLastChange++;
+      
+      // If nothing has changed for 60 frames (2 seconds), reduce frequency to save CPU
+      if (framesSinceLastChange > 60 && clientCount === 0) {
+        // Pause the game loop when no clients are connected and nothing is changing
+        return;
+      }
     }
-  }, 1000 / 60); // 60 FPS
-  return gameState;
+  }, 1000 / 30); // 30 FPS when active
+  
+  return gameLoopInterval;
 }
 
 // Game state
@@ -224,4 +282,4 @@ function initialGameState() {
   };
 }
 
-export { checkRoundEnd, endRound, startNextRound, restartGame, startGame, startGameLoop, startRoundCountdown, initialGameState };
+export { checkRoundEnd, endRound, startNextRound, restartGame, startGame, startGameLoop, startRoundCountdown, cleanupGame, initialGameState };

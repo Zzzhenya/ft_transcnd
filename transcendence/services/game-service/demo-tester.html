@@ -603,10 +603,14 @@
                     const nextRound = gameState.tournament.nextRoundNumber || gameState.tournament.currentRound + 1;
                     const countdown = gameState.tournament.nextRoundCountdown || 0;
                     
-                    gameStatus.textContent = `Round ${gameState.tournament.currentRound} finished. Next round starting...`;
+                    gameStatus.textContent = `Round ${gameState.tournament.currentRound} finished. Preparing for Round ${nextRound}...`;
                     
                     if (roundCountdown) {
-                        roundCountdown.textContent = `Round ${nextRound} starts in ${countdown} seconds`;
+                        if (countdown > 0) {
+                            roundCountdown.textContent = `Next round starts in ${countdown} second${countdown !== 1 ? 's' : ''}`;
+                        } else {
+                            roundCountdown.textContent = `Starting Round ${nextRound} now...`;
+                        }
                         roundCountdown.style.display = 'block';
                     }
                     
