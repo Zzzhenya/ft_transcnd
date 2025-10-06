@@ -195,7 +195,8 @@ jobs:
             docker compose logs --tail=5 user-service
             echo "=== Testing connection ==="
             
-            if curl -f -s http://user-service:3001/health > /tmp/health_check.json 2>/tmp/curl_error.log; then
+            # Test health check from within Docker network
+            if docker run --rm --network transcendence-network alpine/curl:latest curl -f -s http://user-service:3001/health > /tmp/health_check.json 2>/tmp/curl_error.log; then
               echo "✅ User service is ready!"
               cat /tmp/health_check.json
               break
@@ -203,12 +204,12 @@ jobs:
               echo "❌ Health check failed. Curl error:"
               cat /tmp/curl_error.log 2>/dev/null || echo "No curl error log"
               
-              # Try alternative methods
-              echo "=== Testing with wget ==="
-              if wget -q --spider http://user-service:3001/health; then
-                echo "✅ wget succeeded, trying curl again"
+              # Also try from user-service container itself
+              echo "=== Testing from within user-service container ==="
+              if docker compose exec -T user-service wget -q --spider http://127.0.0.1:3001/health; then
+                echo "✅ Service is responding on 127.0.0.1 within container"
               else
-                echo "❌ wget also failed"
+                echo "❌ Service not responding even within its own container"
               fi
               
               sleep 5
