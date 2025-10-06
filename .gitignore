@@ -28,3 +28,10 @@ transcendence/.env.local
 transcendence/.env.development.local
 transcendence/.env.example
 
+# database
+transcendence/data/
+
+# user-service/node_modules
+transcendence/services/user-service/node_modules/
+transcendence/shared/node_modules
+
