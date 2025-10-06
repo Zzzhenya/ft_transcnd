@@ -330,7 +330,7 @@ async function startCurrentMatch() {
     if (response.ok) {
       logOutput(`Match started! Game ID: ${data.gameId}`);
       logOutput(`Game WebSocket: ${data.gameUrl}`);
-      logOutput(`Open this URL to play: http://localhost:3002/game-ws/${data.gameId}`);
+      logOutput(`Open this URL to play: http://localhost:3002/ws/pong/game-ws/${data.gameId}`);
       loadTournamentDetails();
     } else {
       logOutput(`Error starting match: ${data.error}`, true);

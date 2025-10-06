@@ -127,6 +127,9 @@
         .center-line { stroke: #ffffff; stroke-width: 2; stroke-dasharray: 10,5; opacity: 0.5; }
         .score { fill: #ffffff; font-family: Arial, sans-serif; font-size: 28px; text-anchor: middle; font-weight: bold; }
         .round-info { fill: #ffffff; font-family: Arial, sans-serif; font-size: 16px; text-anchor: middle; }
+        .rounds-won { fill: #ffff00; font-family: Arial, sans-serif; font-size: 14px; text-anchor: middle; font-weight: bold; }
+        .winner-announcement { fill: #00ff00; font-family: Arial, sans-serif; font-size: 24px; text-anchor: middle; font-weight: bold; }
+        .countdown-display { fill: #ff6600; font-family: Arial, sans-serif; font-size: 20px; text-anchor: middle; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -200,9 +203,19 @@
                         <text class="score" id="score1" x="200" y="60">0</text>
                         <text class="score" id="score2" x="600" y="60">0</text>
                         
+                        <!-- Rounds Won -->
+                        <text class="rounds-won" id="roundsWon1" x="200" y="85">Rounds Won: 0</text>
+                        <text class="rounds-won" id="roundsWon2" x="600" y="85">Rounds Won: 0</text>
+                        
                         <!-- Round info -->
                         <text class="round-info" id="roundInfo" x="400" y="30">Round 1/3</text>
                         <text class="round-info" id="gameStatus" x="400" y="390" style="font-size: 14px;">Waiting for game...</text>
+                        
+                        <!-- Winner announcement -->
+                        <text class="winner-announcement" id="winnerAnnouncement" x="400" y="200" style="display: none;">WINNER!</text>
+                        
+                        <!-- Round countdown -->
+                        <text class="countdown-display" id="roundCountdown" x="400" y="180" style="display: none;">Next Round Starting...</text>
                     </svg>
                 </div>
                 
@@ -431,7 +444,7 @@
             currentGameId = gameId;
             log(`🔌 Connecting to game ${gameId}...`, 'info');
             
-            websocket = new WebSocket(`ws://localhost:3002/game-ws/${gameId}`);
+            websocket = new WebSocket(`ws://localhost:3002/ws/pong/game-ws/${gameId}`);
             
             websocket.onopen = () => {
                 document.getElementById('connectionStatus').className = 'status connected';
@@ -547,17 +560,71 @@
             if (score1 && gameState.score) score1.textContent = gameState.score.player1;
             if (score2 && gameState.score) score2.textContent = gameState.score.player2;
             
+            // Update rounds won
+            const roundsWon1 = document.getElementById('roundsWon1');
+            const roundsWon2 = document.getElementById('roundsWon2');
+            if (roundsWon1 && gameState.tournament && gameState.tournament.roundsWon) {
+                roundsWon1.textContent = `Rounds Won: ${gameState.tournament.roundsWon.player1 || 0}`;
+            }
+            if (roundsWon2 && gameState.tournament && gameState.tournament.roundsWon) {
+                roundsWon2.textContent = `Rounds Won: ${gameState.tournament.roundsWon.player2 || 0}`;
+            }
+            
             // Update round info
             const roundInfo = document.getElementById('roundInfo');
             if (roundInfo && gameState.tournament) {
-                roundInfo.textContent = `Round ${gameState.tournament.round || 1}/3`;
+                roundInfo.textContent = `Round ${gameState.tournament.currentRound || 1}/3`;
             }
             
-            // Update game status
+            // Update game status and winner announcement
             const gameStatus = document.getElementById('gameStatus');
+            const winnerAnnouncement = document.getElementById('winnerAnnouncement');
+            const roundCountdown = document.getElementById('roundCountdown');
+            
             if (gameStatus && gameState.tournament) {
                 const status = gameState.tournament.gameStatus || 'waiting';
-                gameStatus.textContent = `Status: ${status}`;
+                
+                // Handle different game states
+                if (status === 'gameEnd' && gameState.tournament.winner) {
+                    gameStatus.textContent = `Game Finished! Winner: ${gameState.tournament.winner.toUpperCase()}`;
+                    
+                    // Show winner announcement
+                    if (winnerAnnouncement) {
+                        winnerAnnouncement.textContent = `🏆 ${gameState.tournament.winner.toUpperCase()} WINS THE GAME! 🏆`;
+                        winnerAnnouncement.style.display = 'block';
+                    }
+                    
+                    // Hide countdown
+                    if (roundCountdown) {
+                        roundCountdown.style.display = 'none';
+                    }
+                } else if (status === 'roundCountdown') {
+                    // Show countdown to next round
+                    const nextRound = gameState.tournament.nextRoundNumber || gameState.tournament.currentRound + 1;
+                    const countdown = gameState.tournament.nextRoundCountdown || 0;
+                    
+                    gameStatus.textContent = `Round ${gameState.tournament.currentRound} finished. Next round starting...`;
+                    
+                    if (roundCountdown) {
+                        roundCountdown.textContent = `Round ${nextRound} starts in ${countdown} seconds`;
+                        roundCountdown.style.display = 'block';
+                    }
+                    
+                    // Hide winner announcement
+                    if (winnerAnnouncement) {
+                        winnerAnnouncement.style.display = 'none';
+                    }
+                } else {
+                    gameStatus.textContent = `Status: ${status}`;
+                    
+                    // Hide countdown and winner announcement during normal play
+                    if (roundCountdown) {
+                        roundCountdown.style.display = 'none';
+                    }
+                    if (winnerAnnouncement) {
+                        winnerAnnouncement.style.display = 'none';
+                    }
+                }
             }
         }
 

@@ -7,7 +7,8 @@ import {
   startGameLoop,
   initialGameState,
   moveBall,
-  movePaddle
+  movePaddle,
+  startRoundCountdown
 } from '../pong/gameLogic.js';
 
 /**
@@ -67,7 +68,7 @@ export function registerDemoRoutes(fastify, games, counters, broadcastState) {
         status: 'demo',
         isDemo: true,
         message: 'Demo game created with temporary players',
-        websocketUrl: `ws://localhost:3002/game-ws/${gameId}`
+        websocketUrl: `ws://localhost:3002/ws/pong/game-ws/${gameId}`
       });
 
     } catch (error) {

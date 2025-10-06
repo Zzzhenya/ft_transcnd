@@ -114,6 +114,21 @@ function checkRoundEnd(gameState) {
   }
 }
 
+function startRoundCountdown(gameState, broadcastState) {
+  if (gameState.tournament.gameStatus !== 'roundCountdown') return;
+  
+  const countdownInterval = setInterval(() => {
+    gameState.tournament.nextRoundCountdown--;
+    broadcastState(); // Broadcast the updated countdown
+    
+    if (gameState.tournament.nextRoundCountdown <= 0) {
+      clearInterval(countdownInterval);
+      startNextRound(gameState);
+      broadcastState(); // Broadcast the new round start
+    }
+  }, 1000); // Update every second
+}
+
 function endRound(gameState, roundWinner) {
   gameState.tournament.gameStatus = 'roundEnd';
   
@@ -125,16 +140,13 @@ function endRound(gameState, roundWinner) {
     gameState.tournament.gameStatus = 'gameEnd';
     gameState.tournament.winner = roundWinner;
   } else {
-    // Automatically start next round after delay
-    setTimeout(() => {
-      gameState.tournament.currentRound++;
-      gameState.score.player1 = 0;
-      gameState.score.player2 = 0;
-      gameState.paddles.player1 = 0;  // Reset paddle positions
-      gameState.paddles.player2 = 0;
-      gameState.tournament.gameStatus = 'playing';
-      resetBall(gameState); // Random direction for new round
-    }, 3000); // 3 second delay between rounds
+    // Start countdown to next round
+    gameState.tournament.gameStatus = 'roundCountdown';
+    gameState.tournament.nextRoundNumber = gameState.tournament.currentRound + 1;
+    gameState.tournament.nextRoundCountdown = 3;
+    
+    // Countdown with broadcasts (this needs to be called from a context with broadcastState)
+    // The actual countdown will be handled by the game loop or route handlers
   }
 }
 
@@ -171,13 +183,21 @@ function startGameLoop(gameState, broadcastState, moveBall) {
   setInterval(() => {
     const oldBall = { ...gameState.ball };
     const oldScore = { ...gameState.score };
+    const oldPaddles = { ...gameState.paddles };
+    const oldStatus = gameState.tournament.gameStatus;
 
     moveBall(gameState);
 
     const ballMoved = oldBall.x !== gameState.ball.x || oldBall.y !== gameState.ball.y;
     const scoreChanged = oldScore.player1 !== gameState.score.player1 || oldScore.player2 !== gameState.score.player2;
+    const paddleMoved = oldPaddles.player1 !== gameState.paddles.player1 || oldPaddles.player2 !== gameState.paddles.player2;
+    
+    // Check if we just entered countdown state and start the countdown
+    if (gameState.tournament.gameStatus === 'roundCountdown' && oldStatus !== 'roundCountdown') {
+      startRoundCountdown(gameState, broadcastState);
+    }
 
-    if (ballMoved || scoreChanged) {
+    if (ballMoved || scoreChanged || paddleMoved) {
       broadcastState();
     }
   }, 1000 / 60); // 60 FPS
@@ -195,11 +215,13 @@ function initialGameState() {
       maxRounds: 3,
       scoreLimit: 5,
       roundsWon: { player1: 0, player2: 0 },
-      gameStatus: 'waiting', // 'waiting', 'playing', 'roundEnd', 'gameEnd'
+      gameStatus: 'waiting', // 'waiting', 'playing', 'roundEnd', 'gameEnd', 'roundCountdown'
       winner: null,
-    lastPointWinner: null
-  }
-};
+      lastPointWinner: null,
+      nextRoundCountdown: 0,
+      nextRoundNumber: 1
+    }
+  };
 }
 
-export { checkRoundEnd, endRound, startNextRound, restartGame, startGame, startGameLoop, initialGameState };
+export { checkRoundEnd, endRound, startNextRound, restartGame, startGame, startGameLoop, startRoundCountdown, initialGameState };

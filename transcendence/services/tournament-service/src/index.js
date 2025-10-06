@@ -122,7 +122,7 @@ fastify.post('/tournaments/:tournamentId/start-match', async (request, reply) =>
       tournamentId,
       gameId: gameData.id,
       match: tournament.currentMatch,
-      gameUrl: `ws://localhost:3002/game-ws/${gameData.id}`,
+      gameUrl: `ws://localhost:3002/ws/pong/game-ws/${gameData.id}`,
       message: 'Match started successfully'
     });
   } catch (error) {
