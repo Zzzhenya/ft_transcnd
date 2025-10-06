@@ -154,7 +154,7 @@ jobs:
           echo "🔍 Checking User Service health..."
           
           # First check if the container is running
-          if ! docker compose ps user-service | grep -q "running"; then
+          if ! docker compose ps user-service | grep -Eq "running|healthy|Up"; then
             echo "❌ User service container is not running"
             docker compose logs user-service
             exit 1
@@ -162,7 +162,7 @@ jobs:
           
           # Wait for the service to be ready
           for i in {1..15}; do
-            if curl -f -s http://localhost:3001/health > /dev/null 2>&1; then
+            if curl -f -s http://user-service:3001/health > /dev/null 2>&1; then
               echo "✅ User Service is ready and responding"
               break
             else
@@ -190,7 +190,7 @@ jobs:
         run: |
           echo "🧪 Running comprehensive API tests..."
           
-          BASE_URL="http://localhost:3001"
+          BASE_URL="http://user-service:3001"
           
           # Health Check
           echo "1. 🏥 Testing Health Check"
@@ -279,7 +279,7 @@ jobs:
         run: |
           echo "🧪 Testing error handling and validation..."
           
-          BASE_URL="http://localhost:3001"
+          BASE_URL="http://user-service:3001"
           
           # Test registration with missing fields
           echo "1. Testing registration with missing fields"
@@ -341,7 +341,7 @@ jobs:
           
           # Test duplicate user registration
           echo "Testing duplicate user registration"
-          BASE_URL="http://localhost:3001"
+          BASE_URL="http://user-service:3001"
           
           DUPLICATE_PAYLOAD='{
             "username": "duplicate_test",
@@ -371,7 +371,7 @@ jobs:
         run: |
           echo "⚡ Running basic performance tests..."
           
-          BASE_URL="http://localhost:3001"
+          BASE_URL="http://user-service:3001"
           
           # Test multiple concurrent health checks
           echo "Testing concurrent health check requests..."
@@ -468,7 +468,7 @@ jobs:
           echo "🚀 Running load tests..."
           
           # Test health endpoint with 100 requests, 10 concurrent
-          ab -n 100 -c 10 http://localhost:3001/health
+          ab -n 100 -c 10 http://user-service:3001/health
           
           echo "✅ Load test completed"
 
