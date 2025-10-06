@@ -8,7 +8,8 @@ import {
   initialGameState,
   moveBall,
   movePaddle,
-  startRoundCountdown
+  startRoundCountdown,
+  cleanupGame
 } from '../pong/gameLogic.js';
 
 /**
@@ -40,7 +41,13 @@ export function registerDemoRoutes(fastify, games, counters, broadcastState) {
       const clients = new Set();
 
       // Start a game loop that updates the ball and broadcasts per game
-      const loop = startGameLoop(state, () => broadcastState(gameId), moveBall);
+      const loop = startGameLoop(
+        state, 
+        () => broadcastState(gameId), 
+        moveBall, 
+        () => clients.size
+      );
+      state.gameLoopInterval = loop; // Store reference for cleanup
 
       const game = {
         state,
@@ -129,10 +136,13 @@ export function registerDemoRoutes(fastify, games, counters, broadcastState) {
         return reply.code(400).send({ error: 'Game is not a demo game' });
       }
 
-      // Stop the game loop
+      // Stop the game loop and clean up all intervals
       if (game.loop) {
         clearInterval(game.loop);
       }
+      
+      // Clean up all intervals in game state
+      cleanupGame(game.state);
 
       // Close all WebSocket connections
       for (const ws of game.clients) {
@@ -179,10 +189,13 @@ export function registerDemoRoutes(fastify, games, counters, broadcastState) {
 
       // Delete each demo game
       for (const { gameId, game } of gamesToDelete) {
-        // Stop the game loop
+        // Stop the game loop and clean up all intervals
         if (game.loop) {
           clearInterval(game.loop);
         }
+        
+        // Clean up all intervals in game state
+        cleanupGame(game.state);
 
         // Close all WebSocket connections
         for (const ws of game.clients) {

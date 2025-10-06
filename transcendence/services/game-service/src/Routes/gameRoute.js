@@ -7,7 +7,8 @@ import {
   startGameLoop,
   initialGameState,
   moveBall,
-  movePaddle
+  movePaddle,
+  cleanupGame
 } from '../pong/gameLogic.js';
 
 /**
@@ -57,7 +58,12 @@ export function registerSingleGameRoutes(fastify, games, counters, broadcastStat
       const clients = new Set();
 
       // Start a game loop that updates the ball and broadcasts per game
-      const loop = startGameLoop(state, () => broadcastState(gameId), moveBall);
+      const loop = startGameLoop(
+        state, 
+        () => broadcastState(gameId), 
+        moveBall, 
+        () => clients.size
+      );
 
       const game = {
         state,
@@ -198,55 +204,36 @@ export function registerSingleGameRoutes(fastify, games, counters, broadcastStat
    * PUT /ws/pong/game/:gameId/result
    * Body: { winner: 'player1' | 'player2', finalScore: { player1: number, player2: number }, roundsWon: { player1: number, player2: number } }
    */
-  fastify.put('/ws/pong/game/:gameId/result', async (request, reply) => {
-    try {
-      const gameId = parseInt(request.params.gameId, 10);
-      const { winner, finalScore, roundsWon } = request.body;
-      
-      const game = games.get(gameId);
-      if (!game) {
-        return reply.code(404).send({ error: 'Game not found' });
-      }
+  fastify.put("/ws/pong/game/:gameId/result", async (req, reply) => {
+  const game = games.get(req.params.gameId);
+  if (!game) return reply.code(404).send({ error: "Game not found" });
 
-      if (!game.isRegistered || game.isDemo) {
-        return reply.code(400).send({ error: 'Can only update results for single games' });
-      }
+  const { winner } = req.body;
+  game.status = "completed";
+  game.winner = winner;
 
-      if (!winner || !finalScore || !roundsWon) {
-        return reply.code(400).send({ error: 'winner, finalScore, and roundsWon are required' });
-      }
+  // ✅ Stop loop here to prevent memory leaks
+  if (game.loop) {
+    clearInterval(game.loop);
+    game.loop = null;
+  }
+  
+  // Clean up all intervals in game state
+  cleanupGame(game.state);
 
-      // Update game result
-      game.winner = winner;
-      game.finalScore = finalScore;
-      game.status = 'completed';
-      game.completedAt = new Date();
-      
-      // Update game state
-      if (game.state) {
-        game.state.roundsWon = roundsWon;
-      }
+  // Broadcast final state to connected clients
+  broadcastState(game.id);
 
-      console.log(`[GameResult] Single game ${gameId} completed: ${winner} wins with rounds ${roundsWon.player1}-${roundsWon.player2}, final score ${finalScore.player1}-${finalScore.player2}`);
+  const result = {
+    gameId: game.id,
+    winner: winner,
+    timestamp: Date.now(),
+  };
+  console.log(`[Game ${game.id}] Result recorded:`, result);
 
-      return reply.send({
-        id: gameId,
-        winner: game.winner,
-        finalScore: game.finalScore,
-        roundsWon: roundsWon,
-        status: game.status,
-        completedAt: game.completedAt,
-        message: 'Single game result updated successfully'
-      });
-
-    } catch (error) {
-      console.error('[GameResult] Error updating game result:', error);
-      return reply.code(500).send({ error: 'Failed to update game result' });
-    }
+  games.delete(req.params.gameId);
+  reply.send({ message: "Game result recorded", result });
   });
-
-  // Register movement endpoint
-  addMovementEndpoint(fastify, games, broadcastState);
 }
 
 /**
