@@ -6,11 +6,7 @@ on:
       - user-service
       - microservices-refactor
       - main
-    paths:
-      - 'transcendence/services/**'
-      - 'transcendence/shared/**'
-      - 'transcendence/docker-compose.yml'
-      - '.github/workflows/api-testing.yml'
+    # No paths restriction for push - always run when pushing to these branches
   pull_request:
     branches:
       - microservices-refactor

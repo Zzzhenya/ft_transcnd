@@ -5,10 +5,7 @@ on:
     branches:
       - user-service
       - main
-    paths:
-      - 'transcendence/services/user-service/**'
-      - 'transcendence/shared/**'
-      - '.github/workflows/user-service-tests.yml'
+    # No paths restriction for push - always run when pushing to these branches
   pull_request:
     branches:
       - main
