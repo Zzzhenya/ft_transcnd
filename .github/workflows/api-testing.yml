@@ -284,23 +284,38 @@ jobs:
           
           # Test registration with missing fields
           echo "1. Testing registration with missing fields"
+          echo "Sending payload: {\"username\": \"test\"}"
           INVALID_REGISTER=$(curl -s -w "%{http_code}" -o /tmp/invalid_register.json \
             -X POST $BASE_URL/auth/register \
             -H "Content-Type: application/json" \
             -d '{"username": "test"}')
           
+          echo "Response body:"
+          cat /tmp/invalid_register.json
+          echo ""
+          echo "HTTP Status Code: $INVALID_REGISTER"
+          
           if [ "$INVALID_REGISTER" = "400" ]; then
             echo "✅ Validation error handled correctly"
           else
             echo "❌ Expected 400 but got: $INVALID_REGISTER"
+            echo "Debugging info:"
+            echo "Length of response: ${#INVALID_REGISTER}"
+            echo "Response as hex: $(echo -n "$INVALID_REGISTER" | xxd)"
           fi
           
           # Test login with wrong credentials
           echo "2. Testing login with invalid credentials"
+          echo "Sending payload: {\"username\": \"nonexistent\", \"password\": \"wrong\"}"
           INVALID_LOGIN=$(curl -s -w "%{http_code}" -o /tmp/invalid_login.json \
             -X POST $BASE_URL/auth/login \
             -H "Content-Type: application/json" \
             -d '{"username": "nonexistent", "password": "wrong"}')
+          
+          echo "Response body:"
+          cat /tmp/invalid_login.json
+          echo ""
+          echo "HTTP Status Code: $INVALID_LOGIN"
           
           if [ "$INVALID_LOGIN" = "401" ]; then
             echo "✅ Invalid credentials handled correctly"
