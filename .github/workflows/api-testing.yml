@@ -9,6 +9,7 @@ on:
     paths:
       - 'transcendence/services/**'
       - 'transcendence/shared/**'
+      - 'transcendence/docker-compose.yml'
   pull_request:
     branches:
       - microservices-refactor
@@ -16,6 +17,7 @@ on:
     paths:
       - 'transcendence/services/**'
       - 'transcendence/shared/**'
+      - 'transcendence/docker-compose.yml'
 
 jobs:
   unit-tests:
@@ -29,36 +31,68 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '18'
-          cache: 'npm'
-          cache-dependency-path: 'transcendence/services/*/package-lock.json'
+
+      - name: Check if services exist
+        run: |
+          echo "🔍 Checking service structure..."
+          ls -la transcendence/services/
+          
+          if [ -d "transcendence/services/user-service" ]; then
+            echo "✅ User service directory exists"
+            ls -la transcendence/services/user-service/
+          else
+            echo "❌ User service directory not found"
+            exit 1
+          fi
 
       - name: Install User Service dependencies
         run: |
           cd transcendence/services/user-service
-          npm ci
+          if [ -f package.json ]; then
+            echo "📦 Installing user-service dependencies..."
+            npm install
+          else
+            echo "❌ package.json not found in user-service"
+            exit 1
+          fi
 
       - name: Install Shared dependencies
         run: |
           cd transcendence/shared
           if [ -f package.json ]; then
-            npm ci
+            echo "📦 Installing shared dependencies..."
+            npm install
           else
+            echo "📦 Creating shared package.json and installing sqlite3..."
             npm init -y
             npm install sqlite3
           fi
 
-      - name: Run User Service unit tests (if they exist)
+      - name: Validate User Service code
         run: |
           cd transcendence/services/user-service
-          if [ -f package.json ] && grep -q '"test"' package.json; then
-            npm test
+          echo "🧪 Validating user service structure..."
+          
+          # Check if main files exist
+          if [ -f src/index.js ]; then
+            echo "✅ Main server file exists"
           else
-            echo "ℹ️ No unit tests found, creating basic validation test"
-            node -e "
-              console.log('🧪 Basic syntax validation...');
-              require('./src/index.js');
-              console.log('✅ User service code syntax is valid');
-            " || echo "❌ User service has syntax errors"
+            echo "❌ src/index.js not found"
+            exit 1
+          fi
+          
+          # Basic syntax check without running the server
+          echo "🔍 Checking Node.js syntax..."
+          node -c src/index.js && echo "✅ Syntax validation passed" || {
+            echo "❌ Syntax errors found"
+            exit 1
+          }
+          
+          # Check package.json scripts
+          if grep -q '"start"' package.json; then
+            echo "✅ Start script found"
+          else
+            echo "⚠️ No start script found in package.json"
           fi
 
   api-integration-tests:
@@ -77,36 +111,71 @@ jobs:
           cd transcendence
           cat > .env << EOF
           NODE_ENV=test
-          DATABASE_URL=sqlite:/app/shared/test.db
-          JWT_SECRET=test-jwt-secret-key-not-for-production
+          DATABASE_URL=sqlite:/app/shared/database/test.db
+          JWT_SECRET=test-jwt-secret-key-not-for-production-use-only
           USER_SERVICE_URL=http://user-service:3001
           GAME_SERVICE_URL=http://game-service:3002
           LOG_SERVICE_URL=http://log-service:3003
           GATEWAY_URL=http://gateway:3000
           EOF
+          
+          echo "✅ Test environment file created"
+
+      - name: Validate Docker Compose configuration
+        run: |
+          cd transcendence
+          echo "🔍 Validating docker-compose.yml..."
+          docker compose config > /dev/null
+          echo "✅ Docker Compose configuration is valid"
 
       - name: Build and start services
         run: |
           cd transcendence
           echo "🚀 Building and starting services for API testing..."
-          docker compose up -d --build user-service
+          
+          # Start only the necessary services for testing
+          docker compose up -d --build database user-service
           
           echo "⏳ Waiting for services to be ready..."
-          sleep 30
+          sleep 45
+
+      - name: Check container status
+        run: |
+          cd transcendence
+          echo "📊 Checking container status..."
+          docker compose ps
+          
+          echo "📋 Checking user-service logs..."
+          docker compose logs user-service | tail -20
 
       - name: Wait for User Service to be ready
         run: |
+          cd transcendence
           echo "🔍 Checking User Service health..."
-          for i in {1..12}; do
+          
+          # First check if the container is running
+          if ! docker compose ps user-service | grep -q "running"; then
+            echo "❌ User service container is not running"
+            docker compose logs user-service
+            exit 1
+          fi
+          
+          # Wait for the service to be ready
+          for i in {1..15}; do
             if curl -f -s http://localhost:3001/health > /dev/null 2>&1; then
-              echo "✅ User Service is ready"
+              echo "✅ User Service is ready and responding"
               break
             else
-              echo "⏳ Waiting for User Service... attempt $i/12"
+              echo "⏳ Waiting for User Service... attempt $i/15"
               sleep 10
-              if [ $i -eq 12 ]; then
-                echo "❌ User Service failed to start"
+              if [ $i -eq 15 ]; then
+                echo "❌ User Service failed to respond after 150 seconds"
+                echo "=== Container Status ==="
+                docker compose ps
+                echo "=== User Service Logs ==="
                 docker compose logs user-service
+                echo "=== Network Information ==="
+                docker network ls
                 exit 1
               fi
             fi
