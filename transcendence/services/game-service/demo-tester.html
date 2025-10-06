@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Demo Game Tester</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            margin: 0;
+        }
+        
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #ff6b6b, #ffa500);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .content {
+            padding: 30px;
+        }
+        
+        .section {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 25px;
+            margin-bottom: 25px;
+            border-left: 4px solid #007bff;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #007bff, #0056b3);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+            transition: all 0.3s ease;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,123,255,0.3);
+        }
+        
+        .btn:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .btn.success { background: linear-gradient(135deg, #28a745, #1e7e34); }
+        .btn.danger { background: linear-gradient(135deg, #dc3545, #c82333); }
+        .btn.warning { background: linear-gradient(135deg, #ffc107, #e0a800); }
+        
+        .status {
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            font-weight: 500;
+        }
+        
+        .status.connected {
+            background: #d1edff;
+            color: #0c5460;
+            border: 2px solid #bee5eb;
+        }
+        
+        .status.disconnected {
+            background: #f8d7da;
+            color: #721c24;
+            border: 2px solid #f5c6cb;
+        }
+        
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin: 15px 0;
+        }
+        
+        .logs {
+            height: 200px;
+            overflow-y: auto;
+            border: 2px solid #dee2e6;
+            padding: 15px;
+            background: #f8f9fa;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            border-radius: 8px;
+        }
+        
+        input {
+            padding: 10px;
+            border: 2px solid #dee2e6;
+            border-radius: 6px;
+            font-size: 16px;
+            width: 120px;
+            margin: 5px;
+        }
+
+        .game-canvas {
+            background: #000;
+            border: 3px solid #333;
+            border-radius: 8px;
+            margin: 20px 0;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+
+        .paddle { fill: #00ff00; }
+        .ball { fill: #ffff00; }
+        .center-line { stroke: #ffffff; stroke-width: 2; stroke-dasharray: 10,5; opacity: 0.5; }
+        .score { fill: #ffffff; font-family: Arial, sans-serif; font-size: 28px; text-anchor: middle; font-weight: bold; }
+        .round-info { fill: #ffffff; font-family: Arial, sans-serif; font-size: 16px; text-anchor: middle; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏓 Demo Game Tester</h1>
+            <p>Test your ping-pong demo games</p>
+        </div>
+        
+        <div class="content">
+            <!-- Service Status -->
+            <div class="section">
+                <h2>🔧 Service Status</h2>
+                <div class="controls">
+                    <button class="btn" onclick="checkHealth()">Check Health</button>
+                    <button class="btn" onclick="getStats()">Get Stats</button>
+                </div>
+                <div id="serviceStatus" class="status disconnected">Click "Check Health" to test service</div>
+            </div>
+
+            <!-- Demo Game Management -->
+            <div class="section">
+                <h2>🎮 Demo Game Management</h2>
+                <div class="controls">
+                    <button class="btn success" onclick="createDemoGame()">Create Demo Game</button>
+                    <button class="btn" onclick="listDemoGames()">List Demo Games</button>
+                    <button class="btn danger" onclick="deleteAllDemoGames()">Delete All Demo Games</button>
+                </div>
+                <div id="demoStatus">No demo games created yet</div>
+            </div>
+
+            <!-- Normal Game Management -->
+            <div class="section">
+                <h2>🏓 Normal Game Management</h2>
+                <div class="controls">
+                    <input type="text" id="player1Name" placeholder="Player 1 Name" value="Alice">
+                    <input type="text" id="player2Name" placeholder="Player 2 Name" value="Bob">
+                    <button class="btn success" onclick="createNormalGame()">Create Normal Game</button>
+                    <button class="btn" onclick="listNormalGames()">List Normal Games</button>
+                </div>
+                <div id="normalStatus">No normal games created yet</div>
+            </div>
+
+            <!-- Game Connection -->
+            <div class="section">
+                <h2>🌐 Game Connection</h2>
+                <div class="controls">
+                    <input type="number" id="gameIdInput" placeholder="Game ID" min="1" value="1">
+                    <button class="btn success" onclick="connectToGame()" id="connectBtn">Connect</button>
+                    <button class="btn danger" onclick="disconnectFromGame()" id="disconnectBtn" disabled>Disconnect</button>
+                </div>
+                <div id="connectionStatus" class="status disconnected">Not connected to any game</div>
+            </div>
+
+            <!-- Game Visualization -->
+            <div class="section">
+                <h2>🎯 Live Game View</h2>
+                <div style="text-align: center;">
+                    <svg class="game-canvas" width="800" height="400" id="gameCanvas">
+                        <!-- Center line -->
+                        <line class="center-line" x1="400" y1="0" x2="400" y2="400"></line>
+                        
+                        <!-- Paddles -->
+                        <rect class="paddle" id="paddle1" x="0" y="160" width="12" height="80" rx="6"></rect>
+                        <rect class="paddle" id="paddle2" x="788" y="160" width="12" height="80" rx="6"></rect>
+                        
+                        <!-- Ball -->
+                        <circle class="ball" id="ball" cx="400" cy="200" r="10"></circle>
+                        
+                        <!-- Scores -->
+                        <text class="score" id="score1" x="200" y="60">0</text>
+                        <text class="score" id="score2" x="600" y="60">0</text>
+                        
+                        <!-- Round info -->
+                        <text class="round-info" id="roundInfo" x="400" y="30">Round 1/3</text>
+                        <text class="round-info" id="gameStatus" x="400" y="390" style="font-size: 14px;">Waiting for game...</text>
+                    </svg>
+                </div>
+                
+                <!-- Paddle Controls -->
+                <div class="controls">
+                    <h4>Player 1 Controls (Left Paddle):</h4>
+                    <span style="color: #666; font-style: italic;">W key moves UP (+Y), S key moves DOWN (-Y)</span>
+                    <button class="btn" onclick="movePaddle('player1', 'up')" style="opacity: 0.5;">Player 1 ↑ (W key - moves toward top)</button>
+                    <button class="btn" onclick="movePaddle('player1', 'down')" style="opacity: 0.5;">Player 1 ↓ (S key - moves toward bottom)</button>
+                </div>
+                <div class="controls">
+                    <h4>Player 2 Controls (Right Paddle):</h4>
+                    <span style="color: #666; font-style: italic;">Arrow ↑ moves UP (+Y), Arrow ↓ moves DOWN (-Y)</span>
+                    <button class="btn" onclick="movePaddle('player2', 'up')" style="opacity: 0.5;">Player 2 ↑ (Arrow ↑ - moves toward top)</button>
+                    <button class="btn" onclick="movePaddle('player2', 'down')" style="opacity: 0.5;">Player 2 ↓ (Arrow ↓ - moves toward bottom)</button>
+                </div>
+            </div>
+
+            <!-- Game Controls -->
+            <div class="section">
+                <h2>🎯 Game Controls</h2>
+                <div class="controls">
+                    <button class="btn" onclick="sendGameMessage('START_GAME')">Start Game</button>
+                    <button class="btn warning" onclick="sendGameMessage('pause_game')">Pause Game</button>
+                    <button class="btn" onclick="sendGameMessage('RESTART_GAME')">Restart Game</button>
+                    <button class="btn" onclick="sendGameMessage('health_check')">WS Health Check</button>
+                    <button class="btn" onclick="sendGameMessage('stats')">WS Stats</button>
+                </div>
+                <div id="gameInfo">No game data available</div>
+            </div>
+
+            <!-- Event Logs -->
+            <div class="section">
+                <h2>📝 Event Logs</h2>
+                <button class="btn" onclick="clearLogs()">Clear Logs</button>
+                <div id="logs" class="logs">🚀 Demo Game Tester loaded<br></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let websocket = null;
+        let currentGameId = null;
+        const API_BASE = 'http://localhost:3002';
+        
+        function log(message, type = 'info') {
+            const logs = document.getElementById('logs');
+            const timestamp = new Date().toLocaleTimeString();
+            const icon = type === 'error' ? '❌' : type === 'success' ? '✅' : type === 'warning' ? '⚠️' : '📋';
+            logs.innerHTML += `[${timestamp}] ${icon} ${message}<br>`;
+            logs.scrollTop = logs.scrollHeight;
+        }
+        
+        function clearLogs() {
+            document.getElementById('logs').innerHTML = '🚀 Logs cleared<br>';
+        }
+        
+        async function checkHealth() {
+            try {
+                const response = await fetch(`${API_BASE}/health`);
+                const data = await response.json();
+                document.getElementById('serviceStatus').className = 'status connected';
+                document.getElementById('serviceStatus').textContent = `✅ Service Online - ${data.service} (uptime: ${data.uptime}s)`;
+                log('Health check successful - Service is running', 'success');
+            } catch (error) {
+                document.getElementById('serviceStatus').className = 'status disconnected';
+                document.getElementById('serviceStatus').textContent = `❌ Service Error: ${error.message}`;
+                log(`Health check failed: ${error.message}`, 'error');
+            }
+        }
+        
+        async function getStats() {
+            try {
+                const response = await fetch(`${API_BASE}/stats`);
+                const data = await response.json();
+                log(`📊 Stats: ${data.totalGames} total games, Next IDs: Game=${data.counters.nextGameId}, Player=${data.counters.nextPlayerId}`, 'info');
+            } catch (error) {
+                log(`Failed to get stats: ${error.message}`, 'error');
+            }
+        }
+        
+        async function createDemoGame() {
+            try {
+                log('🎮 Creating demo game...', 'info');
+                const response = await fetch(`${API_BASE}/ws/pong/demo`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({}) // Send empty JSON object
+                });
+                const data = await response.json();
+                
+                document.getElementById('demoStatus').innerHTML = `
+                    <strong>✅ Demo Game Created!</strong><br>
+                    🆔 Game ID: <strong>${data.id}</strong><br>
+                    🎯 Players: <strong>${data.player1_name}</strong> vs <strong>${data.player2_name}</strong><br>
+                    📊 Status: <strong>${data.status}</strong><br>
+                    🔗 WebSocket: <strong>${data.websocketUrl}</strong>
+                `;
+                
+                document.getElementById('gameIdInput').value = data.id;
+                log(`Demo game created! ID: ${data.id}, Players: ${data.player1_name} vs ${data.player2_name}`, 'success');
+            } catch (error) {
+                log(`Failed to create demo game: ${error.message}`, 'error');
+                document.getElementById('demoStatus').innerHTML = `<strong>❌ Failed to create demo game:</strong><br>${error.message}`;
+            }
+        }
+        
+        async function listDemoGames() {
+            try {
+                const response = await fetch(`${API_BASE}/ws/pong/demo`);
+                const data = await response.json();
+                
+                // Handle different response formats
+                const games = Array.isArray(data) ? data : (data.games || []);
+                
+                if (games.length === 0) {
+                    document.getElementById('demoStatus').innerHTML = '<strong>📭 No active demo games</strong>';
+                    log('No active demo games found', 'warning');
+                } else {
+                    const gamesList = games.map(game => 
+                        `🎮 Game ${game.id || game.gameId}: <strong>${game.player1_name}</strong> vs <strong>${game.player2_name}</strong> (${game.status})`
+                    ).join('<br>');
+                    
+                    document.getElementById('demoStatus').innerHTML = `
+                        <strong>🎮 Active Demo Games (${games.length}):</strong><br>
+                        ${gamesList}
+                    `;
+                    log(`Found ${games.length} active demo games`, 'success');
+                }
+            } catch (error) {
+                log(`Failed to list demo games: ${error.message}`, 'error');
+            }
+        }
+        
+        async function deleteAllDemoGames() {
+            try {
+                if (!confirm('Delete all demo games?')) return;
+                
+                const response = await fetch(`${API_BASE}/ws/pong/demo`, {
+                    method: 'DELETE'
+                });
+                const data = await response.json();
+                
+                document.getElementById('demoStatus').innerHTML = '<strong>🗑️ All demo games deleted</strong>';
+                log(`All demo games deleted: ${data.message}`, 'success');
+                
+                if (websocket) disconnectFromGame();
+            } catch (error) {
+                log(`Failed to delete demo games: ${error.message}`, 'error');
+            }
+        }
+        
+        async function createNormalGame() {
+            try {
+                const player1 = document.getElementById('player1Name').value.trim();
+                const player2 = document.getElementById('player2Name').value.trim();
+                
+                if (!player1 || !player2) {
+                    log('Please enter both player names', 'warning');
+                    return;
+                }
+                
+                log('🏓 Creating normal game...', 'info');
+                const response = await fetch(`${API_BASE}/ws/pong/game`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        player1_id: Math.floor(Math.random() * 1000),
+                        player2_id: Math.floor(Math.random() * 1000),
+                        player1_name: player1,
+                        player2_name: player2
+                    })
+                });
+                const data = await response.json();
+                
+                document.getElementById('normalStatus').innerHTML = `
+                    <strong>✅ Normal Game Created!</strong><br>
+                    🆔 Game ID: <strong>${data.id}</strong><br>
+                    🎯 Players: <strong>${data.player1_name}</strong> vs <strong>${data.player2_name}</strong><br>
+                    📊 Status: <strong>${data.status}</strong><br>
+                    🏆 Rules: <strong>${data.maxRounds} rounds, ${data.scoreLimit} points</strong><br>
+                    🔗 WebSocket: <strong>${data.websocketUrl}</strong>
+                `;
+                
+                document.getElementById('gameIdInput').value = data.id;
+                log(`Normal game created! ID: ${data.id}, Players: ${data.player1_name} vs ${data.player2_name}`, 'success');
+            } catch (error) {
+                log(`Failed to create normal game: ${error.message}`, 'error');
+                document.getElementById('normalStatus').innerHTML = `<strong>❌ Failed to create normal game:</strong><br>${error.message}`;
+            }
+        }
+        
+        async function listNormalGames() {
+            try {
+                const response = await fetch(`${API_BASE}/ws/pong/game`);
+                const data = await response.json();
+                
+                if (data.length === 0) {
+                    document.getElementById('normalStatus').innerHTML = '<strong>📭 No active normal games</strong>';
+                    log('No active normal games found', 'warning');
+                } else {
+                    const gamesList = data.map(game => 
+                        `🏓 Game ${game.gameId}: <strong>${game.player1_name}</strong> vs <strong>${game.player2_name}</strong> (${game.status})`
+                    ).join('<br>');
+                    
+                    document.getElementById('normalStatus').innerHTML = `
+                        <strong>🏓 Active Normal Games (${data.length}):</strong><br>
+                        ${gamesList}
+                    `;
+                    log(`Found ${data.length} active normal games`, 'success');
+                }
+            } catch (error) {
+                log(`Failed to list normal games: ${error.message}`, 'error');
+            }
+        }
+        
+        function connectToGame() {
+            const gameId = document.getElementById('gameIdInput').value;
+            if (!gameId) {
+                log('Please enter a valid game ID', 'warning');
+                return;
+            }
+            
+            if (websocket) websocket.close();
+            
+            currentGameId = gameId;
+            log(`🔌 Connecting to game ${gameId}...`, 'info');
+            
+            websocket = new WebSocket(`ws://localhost:3002/game-ws/${gameId}`);
+            
+            websocket.onopen = () => {
+                document.getElementById('connectionStatus').className = 'status connected';
+                document.getElementById('connectionStatus').textContent = `🔗 Connected to game ${gameId}`;
+                document.getElementById('connectBtn').disabled = true;
+                document.getElementById('disconnectBtn').disabled = false;
+                log(`Successfully connected to game ${gameId}`, 'success');
+            };
+            
+            websocket.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    log(`📨 Received: ${data.type}`, 'info');
+                    
+                    // Update game visualization if game state is received
+                    if (data.gameState) {
+                        updateGameVisualization(data.gameState);
+                    }
+                    
+                    // Update game info display
+                    document.getElementById('gameInfo').innerHTML = `
+                        <strong>Latest Message:</strong><br>
+                        Type: ${data.type}<br>
+                        ${JSON.stringify(data, null, 2).slice(0, 300)}...
+                    `;
+                } catch (error) {
+                    log(`Failed to parse message: ${error.message}`, 'error');
+                }
+            };
+            
+            websocket.onclose = (event) => {
+                document.getElementById('connectionStatus').className = 'status disconnected';
+                document.getElementById('connectionStatus').textContent = '🔌 Disconnected from game';
+                document.getElementById('connectBtn').disabled = false;
+                document.getElementById('disconnectBtn').disabled = true;
+                log(`Disconnected from game (code: ${event.code})`, 'warning');
+            };
+            
+            websocket.onerror = () => {
+                log(`WebSocket error: Connection failed`, 'error');
+            };
+        }
+        
+        function disconnectFromGame() {
+            if (websocket) {
+                websocket.close();
+                websocket = null;
+                currentGameId = null;
+                log('Manually disconnected from game', 'info');
+            }
+        }
+        
+        function sendGameMessage(messageType) {
+            if (!websocket || websocket.readyState !== WebSocket.OPEN) {
+                log('Cannot send message: Not connected to game', 'warning');
+                return;
+            }
+            
+            const message = { type: messageType };
+            websocket.send(JSON.stringify(message));
+            log(`📤 Sent: ${messageType}`, 'info');
+        }
+
+        function movePaddle(player, direction) {
+            if (!websocket || websocket.readyState !== WebSocket.OPEN) {
+                log('Cannot move paddle: Not connected to game', 'warning');
+                return;
+            }
+            
+            const message = {
+                type: 'MOVE_PADDLE',
+                player: player,
+                direction: direction
+            };
+            websocket.send(JSON.stringify(message));
+            log(`🎯 Moved ${player} paddle ${direction}`, 'info');
+        }
+
+        function updateGameVisualization(gameState) {
+            if (!gameState) return;
+            
+            // Update ball position
+            const ball = document.getElementById('ball');
+            if (ball && gameState.ball) {
+                // Convert game coordinates to SVG coordinates
+                // Game X: -50 to +50 → SVG X: 0 to 800 (scale by 8, offset by 400)
+                // Game Y: -100 to +100 → SVG Y: 0 to 400 (scale by 2, offset by 200, but inverted)
+                const ballX = (gameState.ball.x + 50) * 8; // Scale from -50/+50 to 0/800
+                const ballY = (100 - gameState.ball.y) * 2; // Scale and invert: +100 game Y → 0 SVG Y (top)
+                ball.setAttribute('cx', ballX);
+                ball.setAttribute('cy', ballY);
+            }
+            
+            // Update paddle positions
+            const paddle1 = document.getElementById('paddle1');
+            const paddle2 = document.getElementById('paddle2');
+            if (paddle1 && gameState.paddles) {
+                // Game Y: -100 to +100 → SVG Y: 400 to 0 (inverted)
+                // Game Y +100 (top) → SVG Y 0, Game Y -100 (bottom) → SVG Y 400
+                const paddle1Y = (100 - gameState.paddles.player1) * 2 - 40; // Convert and center paddle
+                paddle1.setAttribute('y', Math.max(0, Math.min(320, paddle1Y))); // Clamp: 0 to 400-80=320
+                console.log('Paddle 1: Game Y =', gameState.paddles.player1, '→ SVG Y =', paddle1Y);
+            }
+            if (paddle2 && gameState.paddles) {
+                const paddle2Y = (100 - gameState.paddles.player2) * 2 - 40; // Convert and center paddle  
+                paddle2.setAttribute('y', Math.max(0, Math.min(320, paddle2Y))); // Clamp: 0 to 400-80=320
+                console.log('Paddle 2: Game Y =', gameState.paddles.player2, '→ SVG Y =', paddle2Y);
+            }
+            
+            // Update scores
+            const score1 = document.getElementById('score1');
+            const score2 = document.getElementById('score2');
+            if (score1 && gameState.score) score1.textContent = gameState.score.player1;
+            if (score2 && gameState.score) score2.textContent = gameState.score.player2;
+            
+            // Update round info
+            const roundInfo = document.getElementById('roundInfo');
+            if (roundInfo && gameState.tournament) {
+                roundInfo.textContent = `Round ${gameState.tournament.round || 1}/3`;
+            }
+            
+            // Update game status
+            const gameStatus = document.getElementById('gameStatus');
+            if (gameStatus && gameState.tournament) {
+                const status = gameState.tournament.gameStatus || 'waiting';
+                gameStatus.textContent = `Status: ${status}`;
+            }
+        }
+
+        // Keyboard controls for both players
+        document.addEventListener('keydown', function(event) {
+            if (!websocket || websocket.readyState !== WebSocket.OPEN) {
+                return; // Only work when connected to game
+            }
+            
+            switch(event.key.toLowerCase()) {
+                // Player 1 controls: W/S keys
+                case 'w':
+                    event.preventDefault();
+                    movePaddle('player1', 'up');
+                    break;
+                case 's':
+                    event.preventDefault();
+                    movePaddle('player1', 'down');
+                    break;
+                
+                // Player 2 controls: Arrow keys
+                case 'arrowup':
+                    event.preventDefault();
+                    movePaddle('player2', 'up');
+                    break;
+                case 'arrowdown':
+                    event.preventDefault();
+                    movePaddle('player2', 'down');
+                    break;
+            }
+        });
+        
+        // Initialize
+        log('🚀 Demo Game Tester loaded successfully', 'success');
+        log('💡 Quick start: 1) Check Health 2) Create Demo Game 3) Connect to Game', 'info');
+        log('🎮 Controls: Player 1 = W/S keys, Player 2 = Arrow Up/Down keys', 'info');
+    </script>
+</body>
+</html>
