@@ -15,9 +15,9 @@ export function registerWebSocketRoutes(fastify, games, broadcastState) {
   
   /**
    * WebSocket route per game - handles all game types
-   * GET /game-ws/:gameId (WebSocket upgrade)
+   * GET /ws/pong/game-ws/:gameId (WebSocket upgrade)
    */
-  fastify.get('/game-ws/:gameId', { websocket: true }, (connection, request) => {
+  fastify.get('/ws/pong/game-ws/:gameId', { websocket: true }, (connection, request) => {
     const gameId = parseInt(request.params.gameId, 10);
     const game = games.get(gameId);
 
