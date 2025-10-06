@@ -1,4 +1,71 @@
-const { dbRun, dbGet, dbAll } = require('../../../../shared/config/database');
+// Temporarily use direct sqlite3 until shared database is properly mounted
+const sqlite3 = require('sqlite3').verbose();
+const path = require('path');
+
+// Create database connection
+const DB_PATH = process.env.DATABASE_URL ? 
+  process.env.DATABASE_URL.replace('sqlite:', '') : 
+  '/app/shared/database/transcendence.db';
+
+const db = new sqlite3.Database(DB_PATH, (err) => {
+  if (err) {
+    console.error('❌ Database connection error:', err);
+  } else {
+    console.log('✅ Connected to SQLite database at:', DB_PATH);
+    db.run('PRAGMA foreign_keys = ON');
+    
+    // Create users table if it doesn't exist
+    db.run(`
+      CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username VARCHAR(50) UNIQUE NOT NULL,
+        email VARCHAR(100) UNIQUE NOT NULL,
+        password VARCHAR(255) NOT NULL,
+        bio TEXT,
+        avatar VARCHAR(255),
+        is_two_factor_auth_enabled BOOLEAN DEFAULT FALSE,
+        two_factor_auth_secret VARCHAR(255),
+        forty_two_id VARCHAR(255),
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `, (err) => {
+      if (err) {
+        console.error('❌ Error creating users table:', err);
+      } else {
+        console.log('✅ Users table ready');
+      }
+    });
+  }
+});
+
+// Promisify database methods
+const dbRun = (sql, params = []) => {
+  return new Promise((resolve, reject) => {
+    db.run(sql, params, function (err) {
+      if (err) reject(err);
+      else resolve({ lastID: this.lastID, changes: this.changes });
+    });
+  });
+};
+
+const dbGet = (sql, params = []) => {
+  return new Promise((resolve, reject) => {
+    db.get(sql, params, (err, row) => {
+      if (err) reject(err);
+      else resolve(row);
+    });
+  });
+};
+
+const dbAll = (sql, params = []) => {
+  return new Promise((resolve, reject) => {
+    db.all(sql, params, (err, rows) => {
+      if (err) reject(err);
+      else resolve(rows);
+    });
+  });
+};
 
 class User {
   constructor(data) {
