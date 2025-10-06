@@ -187,7 +187,7 @@ jobs:
           elapsed=0
           
           while [ $elapsed -lt $timeout ]; do
-            if curl -f -s http://localhost:3001/health > /tmp/health_check.json 2>/dev/null; then
+            if curl -f -s http://user-service:3001/health > /tmp/health_check.json 2>/dev/null; then
               echo "✅ User service is ready!"
               cat /tmp/health_check.json
               break
@@ -209,7 +209,7 @@ jobs:
         run: |
           echo "🧪 Running API integration tests..."
           
-          BASE_URL="http://localhost:3001"
+          BASE_URL="http://user-service:3001"
           
           # Test 1: Health Check
           echo "1. Testing health endpoint..."
@@ -289,7 +289,7 @@ jobs:
         run: |
           echo "🧪 Testing API error handling..."
           
-          BASE_URL="http://localhost:3001"
+          BASE_URL="http://user-service:3001"
           
           # Test invalid registration
           echo "Testing invalid registration data..."
