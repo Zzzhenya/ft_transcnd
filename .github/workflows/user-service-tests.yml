@@ -8,12 +8,14 @@ on:
     paths:
       - 'transcendence/services/user-service/**'
       - 'transcendence/shared/**'
+      - '.github/workflows/user-service-tests.yml'
   pull_request:
     branches:
       - main
     paths:
       - 'transcendence/services/user-service/**'
       - 'transcendence/shared/**'
+      - '.github/workflows/user-service-tests.yml'
 
 jobs:
   validate-structure:
