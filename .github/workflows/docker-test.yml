@@ -3,11 +3,13 @@ name: Docker Build Validation
 on:
   push:
     branches:
+      - user-service
       - microservices-refactor
       - api-gateway-basics
       - main
   pull_request:
     branches:
+      - user-service
       - microservices-refactor
       - main
 
