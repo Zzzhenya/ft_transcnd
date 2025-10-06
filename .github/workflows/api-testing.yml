@@ -162,8 +162,10 @@ jobs:
           
           # Wait for the service to be ready
           for i in {1..15}; do
-            if curl -f -s http://user-service:3001/health > /dev/null 2>&1; then
+            if docker run --rm --network transcendence-network alpine/curl:latest curl -f -s http://user-service:3001/health > /dev/null 2>&1; then
               echo "✅ User Service is ready and responding"
+              echo "⏳ Giving service additional time to fully initialize..."
+              sleep 10
               break
             else
               echo "⏳ Waiting for User Service... attempt $i/15"
@@ -188,9 +190,10 @@ jobs:
 
       - name: Test User Service Endpoints
         run: |
+          cd transcendence
           echo "🧪 Running comprehensive API tests..."
           
-          BASE_URL="http://user-service:3001"
+          BASE_URL="http://localhost:3001"
           
           # Health Check
           echo "1. 🏥 Testing Health Check"
