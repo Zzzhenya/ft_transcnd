@@ -10,6 +10,7 @@ on:
       - 'transcendence/services/**'
       - 'transcendence/shared/**'
       - 'transcendence/docker-compose.yml'
+      - '.github/workflows/api-testing.yml'
   pull_request:
     branches:
       - microservices-refactor
@@ -18,6 +19,7 @@ on:
       - 'transcendence/services/**'
       - 'transcendence/shared/**'
       - 'transcendence/docker-compose.yml'
+      - '.github/workflows/api-testing.yml'
 
 jobs:
   unit-tests:
