@@ -39,7 +39,12 @@ export function moveBall(gameState) {
     console.log(`[Ball] Near boundary: x=${gameState.ball.x}, y=${gameState.ball.y}, dx=${gameState.ball.dx}, dy=${gameState.ball.dy}`);
   }
 
-  if (gameState.ball.y >= 100 || gameState.ball.y <= -100) {
+  // Wall collision - top and bottom boundaries
+  if (gameState.ball.y >= 96) {
+    gameState.ball.y = 96; // Position ball at wall surface (wall at 100, ball at 96)
+    gameState.ball.dy *= -1;
+  } else if (gameState.ball.y <= -96) {
+    gameState.ball.y = -96; // Position ball at wall surface (wall at -100, ball at -96)
     gameState.ball.dy *= -1;
   }
 
@@ -67,7 +72,7 @@ export function moveBall(gameState) {
     gameState.ball.y <= gameState.paddles.player1 + paddleHeight / 2
   ) {
     console.log(`[Collision] Left paddle hit! Ball: (${gameState.ball.x}, ${gameState.ball.y}), Paddle1: ${gameState.paddles.player1}`);
-    gameState.ball.x = -paddleX + 2;
+    gameState.ball.x = -paddleX + 3; // Position ball at outer surface of paddle (paddle at -50, ball at -47)
     bounceOffPaddle(gameState.paddles.player1);
   }
 
@@ -80,7 +85,7 @@ export function moveBall(gameState) {
     gameState.ball.y <= gameState.paddles.player2 + paddleHeight / 2
   ) {
     console.log(`[Collision] Right paddle hit! Ball: (${gameState.ball.x}, ${gameState.ball.y}), Paddle2: ${gameState.paddles.player2}`);
-    gameState.ball.x = paddleX - 2;
+    gameState.ball.x = paddleX - 3; // Position ball at outer surface of paddle (paddle at +50, ball at +47)
     bounceOffPaddle(gameState.paddles.player2);
   }
 
