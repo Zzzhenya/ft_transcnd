@@ -81,6 +81,14 @@ services:
       - ./frontend/src:/app/src
     command: npm run dev
 
+  tournament-service:
+      build: 
+        context: ./services/tournament-service
+        target: development
+      volumes:
+        - ./services/tournament-service/src:/app/src
+      command: npm run dev
+
   database:
     image: alpine:latest
     command: sh -c "mkdir -p /shared/database && touch /shared/database/transcendence.db && tail -f /dev/null"
