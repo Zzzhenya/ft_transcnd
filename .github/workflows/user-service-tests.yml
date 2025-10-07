@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - user-service
-      - api-gateway-basics
       - main
     # No paths restriction for push - always run when pushing to these branches
   pull_request:
