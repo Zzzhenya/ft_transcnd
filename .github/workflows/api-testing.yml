@@ -192,7 +192,7 @@ jobs:
           cd transcendence
           echo "🧪 Running comprehensive API tests..."
           
-          BASE_URL="http://localhost:3000/user-service"
+          BASE_URL="http://localhost:3001"
           
           # Health Check
           echo "1. 🏥 Testing Health Check"
