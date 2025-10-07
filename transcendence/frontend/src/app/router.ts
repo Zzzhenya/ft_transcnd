@@ -12,10 +12,12 @@ const __DEV__ = import.meta.env.DEV ?? false;
 // 경로 테이블 (정규식 → 해당 페이지 동적 import)
 const routes: [RegExp, Importer][] = [
 	[/^\/$/,                    () => import("../pages/lobby") as Promise<PageModule>],
+	[/^\/lobby$/,               () => import("../pages/lobby") as Promise<PageModule>],
 	[/^\/init$/,                () => import("../pages/init") as Promise<PageModule>],
 	[/^\/local$/,               () => import("../pages/local") as Promise<PageModule>],
 	[/^\/tournaments$/,         () => import("../pages/tournaments") as Promise<PageModule>],
 	[/^\/tournaments\/([^/]+)$/,() => import("../pages/tournament-detail") as Promise<PageModule>],
+	[/^\/tournament\/next$/,    () => import("../pages/tournament-next") as Promise<PageModule>],
 	[/^\/game\/([^/]+)$/,       () => import("../pages/game") as Promise<PageModule>],
 	[/^\/auth$/,                () => import("../pages/auth") as Promise<PageModule>],
 	[/^\/profile$/,             () => import("../pages/profile") as Promise<PageModule>],
@@ -23,6 +25,9 @@ const routes: [RegExp, Importer][] = [
 
 export function initRouter(root: HTMLElement) {
 	let cleanup: Cleanup | undefined;
+
+	if (!root.hasAttribute("tabindex"))
+		root.setAttribute("tabindex", "-1");
 
 	/*
 		Manually off the browser's basic setting of scroll Restroation
@@ -72,6 +77,9 @@ export function initRouter(root: HTMLElement) {
 			const mod = (await import("../pages/not-found")) as PageModule;
 			cleanup = mod.default(root, { url }) || undefined;
 			postRenderFocus();
+			// {
+			// 	root.focus( {preventScroll: true } );
+			// }
 			return;
 		}
 
@@ -103,8 +111,21 @@ export function initRouter(root: HTMLElement) {
 
     	const mod = await importer(m);
 
-    	// /:id 한 개만 캡처하는 패턴 가정
-    	const params = m[1] ? { id: m[1] } : undefined;
+    	// matchId 단일 캡처 패턴
+		// const params = m[1] ? { matchId: m[1] } : undefined; // + rename: id -> matchId
+
+		// route-specific param mapping
+		let params: Record<string, string> | undefined;
+		if (m[1]) {
+			const v = m[1];
+			params = { id: v };                 // for pages expecting "id"
+			if (re.source === "^\\/game\\/([^/]+)$") {
+				params.matchId = v;               // for pages/game.ts
+			}
+			if (re.source === "^\\/tournaments\\/([^/]+)$") {
+				params.tournamentId = v;          // (optional) if you want a named key
+			}
+		}
 
     	// 페이지 렌더 (clean-up 반환 가능)
     	cleanup = mod.default(root, { params, url }) || undefined;
@@ -129,11 +150,8 @@ export function initRouter(root: HTMLElement) {
 		if (next === curr) { e.preventDefault(); return; }
 
 		e.preventDefault();
-
 		// Before leaving page, save current scroll
 		saveScroll();	
-
-		// 
 		history.pushState({ scrollX: 0, scrollY: 0 }, "", next);
 		render(next);
 	});
@@ -162,12 +180,14 @@ export function initRouter(root: HTMLElement) {
 		}
 	});
 
-  	// 전환 후 포커스 (a11y)
+  	// 전환 후 포커스 (a11y): post-render focus - focus the provided root
 	// 화면 전환 후 브라우저의 포커스를 어디로할지 결정한다.
 	function postRenderFocus() {
-    	document.getElementById("app")?.focus({ preventScroll: true });
+		root.focus({ preventScroll: true }); // + use root instead of querying #app
+    	// document.getElementById("app")?.focus({ preventScroll: true });
 	}
 
+	render(location.pathname + location.search);
 	return { render };
 }
 

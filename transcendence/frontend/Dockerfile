@@ -6,7 +6,7 @@ FROM base AS development
 RUN npm install
 COPY . .
 EXPOSE 3004
-CMD ["npm", "run", "dev"]
+CMD ["npx", "vite", "--host", "0.0.0.0", "--port", "3004"]
 
 FROM base AS production
 RUN npm install
