@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Tournament Service Test</title>
+<style>
+  body { 
+    background: #111; 
+    color: white; 
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 20px;
+  }
+  
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  
+  .section {
+    background: #222;
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+  
+  .section h2 {
+    color: #4CAF50;
+    margin-top: 0;
+  }
+  
+  .form-group {
+    margin-bottom: 15px;
+  }
+  
+  .form-group label {
+    display: block;
+    margin-bottom: 5px;
+    color: #ccc;
+  }
+  
+  .form-group input, .form-group textarea {
+    width: 100%;
+    padding: 8px;
+    border-radius: 5px;
+    border: 1px solid #555;
+    background: #333;
+    color: white;
+    box-sizing: border-box;
+  }
+  
+  .form-group textarea {
+    resize: vertical;
+    height: 100px;
+  }
+  
+  .btn {
+    padding: 10px 20px;
+    border-radius: 5px;
+    border: none;
+    background: #4CAF50;
+    color: white;
+    cursor: pointer;
+    margin-right: 10px;
+    margin-bottom: 10px;
+  }
+  
+  .btn:hover {
+    background: #45a049;
+  }
+  
+  .btn:disabled {
+    background: #666;
+    cursor: not-allowed;
+  }
+  
+  .btn-danger {
+    background: #f44336;
+  }
+  
+  .btn-danger:hover {
+    background: #d32f2f;
+  }
+  
+  .tournament-list {
+    display: grid;
+    gap: 15px;
+  }
+  
+  .tournament-card {
+    background: #333;
+    border-radius: 8px;
+    padding: 15px;
+    border: 1px solid #555;
+  }
+  
+  .tournament-card h3 {
+    margin: 0 0 10px 0;
+    color: #4CAF50;
+  }
+  
+  .status {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 3px;
+    font-size: 12px;
+    text-transform: uppercase;
+  }
+  
+  .status.created {
+    background: #2196F3;
+  }
+  
+  .status.active {
+    background: #FF9800;
+  }
+  
+  .status.finished {
+    background: #4CAF50;
+  }
+  
+  .bracket {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    margin-top: 15px;
+  }
+  
+  .round {
+    border: 1px solid #555;
+    border-radius: 5px;
+    padding: 10px;
+    background: #2a2a2a;
+  }
+  
+  .round h4 {
+    margin: 0 0 10px 0;
+    color: #4CAF50;
+  }
+  
+  .match {
+    background: #333;
+    border: 1px solid #555;
+    border-radius: 3px;
+    padding: 8px;
+    margin-bottom: 5px;
+    font-size: 14px;
+  }
+  
+  .match.current {
+    border-color: #4CAF50;
+    background: #2d4a2d;
+  }
+  
+  .match .winner {
+    color: #FFD700;
+    font-weight: bold;
+  }
+  
+  .output {
+    background: #000;
+    color: #0f0;
+    padding: 15px;
+    border-radius: 5px;
+    font-family: monospace;
+    white-space: pre-wrap;
+    max-height: 400px;
+    overflow-y: auto;
+    margin-top: 15px;
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <h1>🏆 Tournament Service Test Interface</h1>
+  
+  <!-- Create Tournament Section -->
+  <div class="section">
+    <h2>Create New Tournament</h2>
+    <div class="form-group">
+      <label for="tournamentName">Tournament Name:</label>
+      <input type="text" id="tournamentName" placeholder="My Tournament" value="Test Tournament">
+    </div>
+    <div class="form-group">
+      <label for="playersInput">Players (one per line):</label>
+      <textarea id="playersInput" placeholder="Player 1&#10;Player 2&#10;Player 3&#10;Player 4">Alice
+Bob
+Charlie
+David</textarea>
+    </div>
+    <button class="btn" onclick="createTournament()">Create Tournament</button>
+  </div>
+  
+  <!-- Tournament List Section -->
+  <div class="section">
+    <h2>Active Tournaments</h2>
+    <button class="btn" onclick="loadTournaments()">Refresh List</button>
+    <div id="tournamentList" class="tournament-list">
+      <p>Click "Refresh List" to load tournaments</p>
+    </div>
+  </div>
+  
+  <!-- Tournament Details Section -->
+  <div class="section">
+    <h2>Tournament Details</h2>
+    <div class="form-group">
+      <label for="tournamentId">Tournament ID:</label>
+      <input type="number" id="tournamentId" placeholder="Enter tournament ID">
+    </div>
+    <button class="btn" onclick="loadTournamentDetails()">Load Details</button>
+    <button class="btn" onclick="startCurrentMatch()">Start Current Match</button>
+    <button class="btn" onclick="advanceMatch()">Advance Match</button>
+    <button class="btn btn-danger" onclick="deleteTournament()">Delete Tournament</button>
+    
+    <div id="tournamentDetails"></div>
+  </div>
+  
+  <!-- Output Section -->
+  <div class="section">
+    <h2>API Responses</h2>
+    <button class="btn" onclick="clearOutput()">Clear Output</button>
+    <div id="output" class="output">API responses will appear here...</div>
+  </div>
+</div>
+
+<script>
+const API_BASE = 'http://localhost:3005';
+
+let currentTournament = null;
+
+function logOutput(message, isError = false) {
+  const output = document.getElementById('output');
+  const timestamp = new Date().toLocaleTimeString();
+  const prefix = isError ? '[ERROR]' : '[INFO]';
+  output.textContent += `${timestamp} ${prefix} ${message}\n`;
+  output.scrollTop = output.scrollHeight;
+}
+
+function clearOutput() {
+  document.getElementById('output').textContent = '';
+}
+
+async function createTournament() {
+  const name = document.getElementById('tournamentName').value;
+  const playersText = document.getElementById('playersInput').value;
+  const players = playersText.split('\n').map(p => p.trim()).filter(p => p.length > 0);
+  
+  if (players.length < 2) {
+    logOutput('Error: At least 2 players required', true);
+    return;
+  }
+  
+  try {
+    const response = await fetch(`${API_BASE}/tournaments`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, players })
+    });
+    
+    const data = await response.json();
+    
+    if (response.ok) {
+      logOutput(`Tournament created successfully! ID: ${data.id}`);
+      document.getElementById('tournamentId').value = data.id;
+      currentTournament = data;
+      displayTournamentDetails(data);
+      loadTournaments();
+    } else {
+      logOutput(`Error creating tournament: ${data.error}`, true);
+    }
+  } catch (error) {
+    logOutput(`Network error: ${error.message}`, true);
+  }
+}
+
+async function loadTournaments() {
+  try {
+    const response = await fetch(`${API_BASE}/tournaments`);
+    const tournaments = await response.json();
+    
+    if (response.ok) {
+      displayTournamentList(tournaments);
+      logOutput(`Loaded ${tournaments.length} tournaments`);
+    } else {
+      logOutput(`Error loading tournaments: ${tournaments.error}`, true);
+    }
+  } catch (error) {
+    logOutput(`Network error: ${error.message}`, true);
+  }
+}
+
+async function loadTournamentDetails() {
+  const tournamentId = document.getElementById('tournamentId').value;
+  if (!tournamentId) {
+    logOutput('Please enter a tournament ID', true);
+    return;
+  }
+  
+  try {
+    const response = await fetch(`${API_BASE}/tournaments/${tournamentId}`);
+    const tournament = await response.json();
+    
+    if (response.ok) {
+      currentTournament = tournament;
+      displayTournamentDetails(tournament);
+      logOutput(`Loaded tournament details for ID: ${tournamentId}`);
+    } else {
+      logOutput(`Error loading tournament: ${tournament.error}`, true);
+    }
+  } catch (error) {
+    logOutput(`Network error: ${error.message}`, true);
+  }
+}
+
+async function startCurrentMatch() {
+  const tournamentId = document.getElementById('tournamentId').value;
+  if (!tournamentId) {
+    logOutput('Please enter a tournament ID', true);
+    return;
+  }
+  
+  try {
+    const response = await fetch(`${API_BASE}/tournaments/${tournamentId}/start-match`, {
+      method: 'POST'
+    });
+    
+    const data = await response.json();
+    
+    if (response.ok) {
+      logOutput(`Match started! Game ID: ${data.gameId}`);
+      logOutput(`Game WebSocket: ${data.gameUrl}`);
+      logOutput(`Open this URL to play: http://localhost:3002/ws/pong/game-ws/${data.gameId}`);
+      loadTournamentDetails();
+    } else {
+      logOutput(`Error starting match: ${data.error}`, true);
+    }
+  } catch (error) {
+    logOutput(`Network error: ${error.message}`, true);
+  }
+}
+
+async function advanceMatch() {
+  const tournamentId = document.getElementById('tournamentId').value;
+  if (!tournamentId || !currentTournament || !currentTournament.currentMatch) {
+    logOutput('No current match to advance', true);
+    return;
+  }
+  
+  const match = currentTournament.currentMatch.match;
+  const winner = prompt(`Who won the match between ${match.player1} and ${match.player2}?\n\nEnter the winner's name exactly:`);
+  
+  if (!winner) return;
+  
+  if (winner !== match.player1 && winner !== match.player2) {
+    logOutput(`Error: Winner must be either "${match.player1}" or "${match.player2}"`, true);
+    return;
+  }
+  
+  try {
+    const response = await fetch(`${API_BASE}/tournaments/${tournamentId}/advance`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ winnerId: winner })
+    });
+    
+    const data = await response.json();
+    
+    if (response.ok) {
+      logOutput(data.message);
+      loadTournamentDetails();
+    } else {
+      logOutput(`Error advancing match: ${data.error}`, true);
+    }
+  } catch (error) {
+    logOutput(`Network error: ${error.message}`, true);
+  }
+}
+
+async function deleteTournament() {
+  const tournamentId = document.getElementById('tournamentId').value;
+  if (!tournamentId) {
+    logOutput('Please enter a tournament ID', true);
+    return;
+  }
+  
+  if (!confirm(`Are you sure you want to delete tournament ${tournamentId}?`)) {
+    return;
+  }
+  
+  try {
+    const response = await fetch(`${API_BASE}/tournaments/${tournamentId}`, {
+      method: 'DELETE'
+    });
+    
+    const data = await response.json();
+    
+    if (response.ok) {
+      logOutput(`Tournament ${tournamentId} deleted successfully`);
+      document.getElementById('tournamentDetails').innerHTML = '';
+      loadTournaments();
+    } else {
+      logOutput(`Error deleting tournament: ${data.error}`, true);
+    }
+  } catch (error) {
+    logOutput(`Network error: ${error.message}`, true);
+  }
+}
+
+function displayTournamentList(tournaments) {
+  const listContainer = document.getElementById('tournamentList');
+  
+  if (tournaments.length === 0) {
+    listContainer.innerHTML = '<p>No tournaments found</p>';
+    return;
+  }
+  
+  listContainer.innerHTML = tournaments.map(tournament => `
+    <div class="tournament-card">
+      <h3>${tournament.name} (ID: ${tournament.id})</h3>
+      <p><span class="status ${tournament.status}">${tournament.status}</span></p>
+      <p><strong>Players:</strong> ${tournament.players.join(', ')}</p>
+      <p><strong>Created:</strong> ${new Date(tournament.createdAt).toLocaleString()}</p>
+      ${tournament.currentMatch ? `
+        <p><strong>Current Match:</strong> ${tournament.currentMatch.match.player1} vs ${tournament.currentMatch.match.player2}</p>
+      ` : ''}
+      ${tournament.winner ? `
+        <p><strong>Winner:</strong> <span class="winner">${tournament.winner}</span></p>
+      ` : ''}
+      <button class="btn" onclick="selectTournament(${tournament.id})">Select</button>
+    </div>
+  `).join('');
+}
+
+function selectTournament(id) {
+  document.getElementById('tournamentId').value = id;
+  loadTournamentDetails();
+}
+
+function displayTournamentDetails(tournament) {
+  const detailsContainer = document.getElementById('tournamentDetails');
+  
+  let bracketHtml = '<div class="bracket">';
+  
+  if (tournament.bracket && tournament.bracket.rounds) {
+    tournament.bracket.rounds.forEach((round, roundIdx) => {
+      bracketHtml += `<div class="round"><h4>Round ${roundIdx + 1}</h4>`;
+      
+      round.forEach((match, matchIdx) => {
+        const isCurrentMatch = tournament.currentMatch && 
+          tournament.currentMatch.roundIdx === roundIdx && 
+          tournament.currentMatch.matchIdx === matchIdx;
+        
+        const player1 = match.player1 || 'TBD';
+        const player2 = match.player2 || 'TBD';
+        
+        bracketHtml += `
+          <div class="match ${isCurrentMatch ? 'current' : ''}">
+            <div>${player1} vs ${player2}</div>
+            ${match.winner ? `<div class="winner">Winner: ${match.winner}</div>` : ''}
+            ${isCurrentMatch ? '<div style="color: #4CAF50; font-size: 12px;">← Current Match</div>' : ''}
+          </div>
+        `;
+      });
+      
+      bracketHtml += '</div>';
+    });
+  }
+  
+  bracketHtml += '</div>';
+  
+  detailsContainer.innerHTML = `
+    <h3>${tournament.name} (ID: ${tournament.id})</h3>
+    <p><strong>Status:</strong> <span class="status ${tournament.status}">${tournament.status}</span></p>
+    <p><strong>Players:</strong> ${tournament.players.join(', ')}</p>
+    ${tournament.currentMatch ? `
+      <p><strong>Current Match:</strong> ${tournament.currentMatch.match.player1} vs ${tournament.currentMatch.match.player2}</p>
+    ` : '<p><strong>No current match</strong></p>'}
+    ${tournament.bracket.winner ? `
+      <p><strong>Tournament Winner:</strong> <span class="winner">${tournament.bracket.winner}</span> 🏆</p>
+    ` : ''}
+    ${bracketHtml}
+  `;
+}
+
+// Load tournaments on page load
+window.addEventListener('load', () => {
+  logOutput('Tournament Service Test Interface loaded');
+  logOutput(`Tournament API: ${API_BASE}`);
+});
+</script>
+
+</body>
+</html>
+      const players = document.getElementById('players').value
+        .split(',')
+        .map(x => parseInt(x.trim()))
+        .filter(x => !isNaN(x));
+      output.textContent = 'Creating tournament...';
+      startGameBtn.style.display = 'none';
+
+      try {
+        // Call tournament-service to create bracket
+        const res = await fetch('http://localhost:3005/tournaments/create?players=' + encodeURIComponent(JSON.stringify(players)));
+        bracket = await res.json();
+        output.textContent = JSON.stringify(bracket, null, 2);
+
+        // Show start game button if bracket is valid
+        if (bracket.rounds && bracket.rounds[0] && bracket.rounds[0][0]) {
+          startGameBtn.style.display = '';
+        }
+      } catch (err) {
+        output.textContent = 'Error: ' + err;
+      }
+    };
+
+    startGameBtn.onclick = async () => {
+      if (!bracket || !bracket.rounds || !bracket.rounds[0] || !bracket.rounds[0][0]) {
+        output.textContent += '\nNo valid match found.';
+        return;
+      }
+      // Get first match from first round
+      const match = bracket.rounds[0][0];
+      if (!match.player1 || !match.player2) {
+        output.textContent += '\nFirst match does not have two players.';
+        return;
+      }
+      output.textContent += `\nStarting game between Player ${match.player1} and Player ${match.player2}...`;
+
+      try {
+        // Call game-service to start the game
+        const res = await fetch('http://localhost:3002/games', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ player1_id: match.player1, player2_id: match.player2 })
+        });
+        const game = await res.json();
+        output.textContent += '\nGame started:\n' + JSON.stringify(game, null, 2);
+      } catch (err) {
+        output.textContent += '\nError starting game: ' + err;
+      }
+    };
+  </script>
+</body>
+</html>

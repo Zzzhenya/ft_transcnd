@@ -3,12 +3,17 @@
   "version": "1.0.0",
   "description": "ft_transcendence game-service",
   "main": "src/index.js",
+  "type": "module",
   "scripts": {
     "start": "node src/index.js",
     "dev": "nodemon src/index.js"
   },
   "dependencies": {
-    "fastify": "^4.15.0"
+    "@fastify/cors": "^8.5.0",
+    "@fastify/websocket": "^7.2.0",
+    "fastify": "^4.15.0",
+    "fastify-websocket": "^4.2.2",
+    "sqlite3": "^5.1.7"
   },
   "devDependencies": {
     "nodemon": "^2.0.20"

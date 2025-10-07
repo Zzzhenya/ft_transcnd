@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Pong Game Client</title>
+  <style>
+    canvas {
+      border: 2px solid #000;
+      background-color: #eee;
+      display: block;
+      margin: 20px auto;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="game" width="600" height="400"></canvas>
+
+  <script>
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+
+    // ✅ Connect via API Gateway at localhost:3000
+    const ws = new WebSocket('ws://localhost:3000/ws/pong');
+
+    let paddles = {};
+    let ball = { x: 0, y: 0 };
+
+    // Send paddle position (mouse Y)
+    canvas.addEventListener('mousemove', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const y = e.clientY - rect.top;
+
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'move', y }));
+      }
+    });
+
+    ws.onopen = () => {
+      console.log('✅ Connected to game server via API gateway');
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === 'state') {
+          ball = data.ball;
+          paddles = data.paddles;
+          drawGame();
+        }
+      } catch (err) {
+        console.error('Invalid message from server', err);
+      }
+    };
+
+    ws.onclose = () => {
+      console.log('🔌 Disconnected from server');
+    };
+
+    function drawGame() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Draw ball
+      ctx.beginPath();
+      ctx.arc(ball.x, ball.y, 10, 0, Math.PI * 2);
+      ctx.fillStyle = '#f00';
+      ctx.fill();
+      ctx.closePath();
+
+      // Draw paddles
+      const paddleWidth = 10;
+      const paddleHeight = 60;
+      let i = 0;
+      for (const id in paddles) {
+        const y = paddles[id].y;
+        const x = i === 0 ? 20 : canvas.width - 30;
+        ctx.fillStyle = '#00f';
+        ctx.fillRect(x, y - paddleHeight / 2, paddleWidth, paddleHeight);
+        i++;
+      }
+    }
+  </script>
+</body>
+</html>
