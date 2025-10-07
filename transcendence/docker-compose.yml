@@ -72,7 +72,7 @@ services:
   frontend:
     build: ./frontend
     ports:
-      - "3004:3004"
+      - "3004:3004"  # Docker frontend on port 3004
     environment:
       - NODE_ENV=development
       - REACT_APP_API_URL=http://localhost:3000
