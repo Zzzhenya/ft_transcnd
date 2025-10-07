@@ -18,8 +18,8 @@ services:
 
   user-service:
     build: ./services/user-service
-    # ports:
-    #   - "3001:3001"
+    ports:
+      - "3001:3001"
     environment:
       - NODE_ENV=development
       - DATABASE_URL=sqlite:/app/shared/database/transcendence.db
