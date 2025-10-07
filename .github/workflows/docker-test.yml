@@ -267,9 +267,6 @@ jobs:
         run: |
           cd transcendence
           echo "Testing service-to-service communication..."
-<<<<<<< HEAD
-          
-=======
 
           echo "Running test script - gateway health routes..."
 
@@ -281,8 +278,6 @@ jobs:
           }
           echo "✅ Gateway ↔ health routes communication works"
 
-
->>>>>>> main
           # Test that gateway can reach other services
           docker compose exec -T gateway curl -f -s http://user-service:3001/health || {
             echo "❌ Gateway cannot reach User Service"
