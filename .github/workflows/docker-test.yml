@@ -3,10 +3,13 @@ name: Docker Build Validation
 on:
   push:
     branches:
+      - user-service
       - microservices-refactor
+      - api-gateway-basics
       - main
   pull_request:
     branches:
+      - user-service
       - microservices-refactor
       - main
 
@@ -264,7 +267,22 @@ jobs:
         run: |
           cd transcendence
           echo "Testing service-to-service communication..."
+<<<<<<< HEAD
           
+=======
+
+          echo "Running test script - gateway health routes..."
+
+          chmod +x ./services/gateway/scripts/health-check.sh
+
+          bash ./services/gateway/scripts/health-check.sh || {
+            echo "❌ Gateway cannot reach health routes"
+            exit 1
+          }
+          echo "✅ Gateway ↔ health routes communication works"
+
+
+>>>>>>> main
           # Test that gateway can reach other services
           docker compose exec -T gateway curl -f -s http://user-service:3001/health || {
             echo "❌ Gateway cannot reach User Service"

@@ -1,0 +1,46 @@
+<!-- HTML5 Document-->
+<!doctype html>
+
+<!-- Main language: English -->
+<html lang="en">
+	<head>
+		<!-- Character incoding option: supprots various languages and Emoji -->
+		<meta charset="UTF-8" />
+
+		<!-- Viewport settings for responsive design -->
+		<meta name="viewport" content="width=device-width,initial-scale=1" />
+    	<title>TEAM.Shirt</title>
+		<script type="module" crossorigin src="/assets/index-DjqTOsJu.js"></script>
+		<link rel="stylesheet" crossorigin href="/assets/index-CCx52zn6.css">
+	</head>
+
+	<!-- main container
+		min-h-scrren: minimun height of viewport
+		bg-slate-50: light grey color 
+	-->
+	<body class="min-h-screen bg-slate-50">
+		<!-- Skip link
+		 	Jump to the main directory
+			to where: 'app'
+			sr-only: hide on the scrren but screen reader can read it.
+		-->
+		<a href="#app" class="sr-only focus:not-sr-only absolute left-2 top-2 p-2 bg-white rounded shadow">
+			Skip to main content
+		</a>
+
+		<!-- Main container
+			focus_visible - TailwindCSS utility class.	
+				focus_visible: outline				키보드 포커스 시 윤곽선 표시
+				focus_visible: outline-2			윤곽선 두께 2px 설정
+				focus_visible: outline-offset-4		경께로부터 4px 떨어지도록 요소 설정
+				focus_visible: outline-indigo-500	윤곽선 색상 인디고(500) 설정
+		-->
+		<main
+			id="app"
+			tabindex="-1"
+			class="min-h-screen mx-auto max-w-screen-xl px-4 sm:px-6 lg:px-8 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-indigo-500">
+		</main>
+
+		<!-- Entry point script (TypeScript, using ES module) -->
+	</body>
+</html>

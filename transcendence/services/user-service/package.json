@@ -1,16 +1,19 @@
 {
   "name": "user-service",
   "version": "1.0.0",
-  "description": "ft_transcendence user-service",
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",
     "dev": "nodemon src/index.js"
   },
   "dependencies": {
-    "fastify": "^4.15.0"
+    "@fastify/cors": "^8.5.0",
+    "bcrypt": "^5.1.1",
+    "fastify": "^4.29.1",
+    "jsonwebtoken": "^9.0.2",
+    "sqlite3": "^5.1.6"
   },
   "devDependencies": {
-    "nodemon": "^2.0.20"
+    "nodemon": "^3.0.1"
   }
 }
