@@ -17,38 +17,7 @@ __MACOSX/
 # ----------------------------
 docs/html/
 
-# Environment files
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-transcendence/.env
-transcendence/.env.local
-transcendence/.env.development.local
-transcendence/.env.example
-
-# database
-transcendence/data/
-
-# user-service/node_modules
-transcendence/services/user-service/node_modules/
-transcendence/shared/node_modules
-
-
-*.env
-
-# Ignore all test files
-**/test*.js
-**/test*.ts
-**/__tests__/
-
-# Ignore all pytest files
-**/test*.py
-
-# Ignore node_modules
+# ---
+# ETC
+# ---
 node_modules/
-transcendence/services/game-service/src/pytest/__pycache__/test_game_service.cpython-312-pytest-8.4.2.pyc
-
-
-transcendence/services/game-service/src/for_reference.md

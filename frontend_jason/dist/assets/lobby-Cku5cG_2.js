@@ -1,8 +1,4 @@
-import { getAuth, signOut } from "@/app/auth";
-import { navigate } from "@/app/router";
-
-export default function (root: HTMLElement) {
-	root.innerHTML = `
+function s(e){e.innerHTML=`
 	<section class="py-6 md:py-8 lg:py-10 space-y-8">
 
 		<!-- Viewport -->
@@ -27,9 +23,6 @@ export default function (root: HTMLElement) {
 			<a href="/local" class="w-full sm:w-auto px-4 py-2 rounded bg-blue-600 text-white text-center">Local</a>
 			<a href="/tournaments" class="w-full sm:w-auto px-4 py-2 rounded bg-indigo-600 text-white text-center">Tournaments</a>
 			<a href="/init" class="w-full sm:w-auto px-4 py-2 rounded bg-emerald-600 text-white text-center">Init</a>
-
-			<!-- Auth-aware slot -->
-      		<span id="authNav" class="w-full sm:w-auto"></span>
 		</nav>
 
 		<!-- Color demo: yellow -> green -> blue -->
@@ -62,50 +55,4 @@ export default function (root: HTMLElement) {
 			</div>
 		</section>
 
-    </section>`;
-
-	// --- Auth-aware nav ---
-	const authNav = root.querySelector<HTMLElement>("#authNav")!;
-
-	function renderAuthNav() {
-		const user = getAuth();
-		authNav.innerHTML = user
-      		? `
-				<div class="flex flex-col sm:flex-row gap-2">
-					<a href="/profile"
-						class="w-full sm:w-auto px-4 sm:px-5 lg:px-6 py-2 sm:py-2.5 lg:py-3
-							text-sm sm:text-base rounded bg-slate-800 text-white text-center">
-					Profile
-					</a>
-					<button id="logout"
-						class="w-full sm:w-auto px-4 sm:px-5 lg:px-6 py-2 sm:py-2.5 lg:py-3
-							text-sm sm:text-base rounded bg-slate-600 text-white">
-					Sign out
-					</button>
-				</div>`
-			: `
-				<a href="/auth?next=/profile"
-					class="w-full sm:w-auto px-4 sm:px-5 lg:px-6 py-2 sm:py-2.5 lg:py-3
-						text-sm sm:text-base rounded bg-emerald-600 text-white text-center">
-					Sign in
-				</a>`;
-
-		// Sign out 클릭 처리
-		authNav.querySelector<HTMLButtonElement>("#logout")?.addEventListener("click", async (e) => {
-			e.preventDefault();
-			await signOut();
-			navigate("/auth?next=/profile");
-		});
-	}
-
-	renderAuthNav();
-
-	// mock-auth.ts에서 dispatch하는 'auth:changed' 이벤트로 즉시 UI 갱신
-	const onAuthChanged = () => renderAuthNav();
-	window.addEventListener("auth:changed", onAuthChanged);
-
-	// 라우팅으로 페이지 떠날 때 리스너 해제 (메모리 누수 방지)
-	return () => {
-		window.removeEventListener("auth:changed", onAuthChanged);
-	};
-}
+    </section>`}export{s as default};
