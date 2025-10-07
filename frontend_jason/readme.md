@@ -9,7 +9,7 @@
 - **Run-time**: SPA (Single Page Application): Responsive Design
 - **Language**: TypeScript  
 - **Framework**: None (custom router / store implementation)  
-- **UI**: Tailwind CSS  
+- **UI**: Tailwind CSS
 - **3D**: Babylon.js
 
 ## ✅ UI Page Structure (Essential)
@@ -286,25 +286,25 @@
 	- [✅] detach(): remove key listener
 	- [✅] remove canvas
 
-5. Tournament flow
+5. Tournament flow (stubbed)
 	- [ ] AliasGate → MyMatch → Game → Next round 
 	- [ ] Pending route wiring and page transitions
 
 ### Definition of Done (DoD)
-- [ ] Local flow:
-	- Lobby → Local → Game → ResultModal → Lobby
-	- Needs route navigation hooks and ResultModal button targets.
+- [✅] Local flow:
+	- [✅] Lobby → Local → Game → ResultModal → Lobby
+	- [✅] Needs route navigation hooks and ResultModal button targets.
 - [ ] Tournament flow:
 	- Lobby → Tournament list → Detail → AliasGate → Game → ResultModal → Next round
 - [ ] No resource leaks (FPS / memory stable) 
 	- rAF canceled, listeners/DOM cleaned up, dialog listeners removed.
-- [ ] `#app` focus actually moves on navigation  
-	- Add router hook to all docuemnt.getElementById('app')?.focus() after render.
+- [✅] `#app` focus actually moves on navigation  
+	- Router focuses `root` post-render.
 
 ---
 
 ### Phase 2: Tournament Expansion
-1. **BracketView auto-update** after each match result  
+1. **BracketView auto-update** after each match result
 2. **Announcements / QueueStatus** finalized transitions  
 
 ### Definition of Done (DoD)
@@ -333,7 +333,7 @@
 - **Extension**: Consistent design & utility classes even with more components  
 - **Principle**:  
   - No mixed plain CSS  
-  - Reusable UI → Componentized for maintainability & collaboration  
+  - Reusable UI → Componentized for maintainability & collaboration
 
 ---
 
