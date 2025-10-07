@@ -1,7 +1,7 @@
 
 export function broadcastState(gameId, games) {
   const game = games.get(gameId);
-  if (!game) return;
+  if (!game || game.clients.size === 0) return; // Skip if no clients
 
   // Create a clean game state without circular references (intervals)
   const cleanGameState = {
