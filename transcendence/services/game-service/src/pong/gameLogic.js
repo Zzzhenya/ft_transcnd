@@ -1,15 +1,20 @@
 export function movePaddle(gameState, player, direction) {
-  const paddleSpeed = 15;
+  const paddleSpeed = 20;
   const paddleHeight = 40;
-  const topBoundary = -100 + paddleHeight / 2;
-  const bottomBoundary = 100 - paddleHeight / 2;
+  // Game area is -100 to +100, paddle height is 40
+  // So paddle center must be between -80 and +80 to keep paddle fully visible
+  const topBoundary = -100 + paddleHeight / 2;    // -100 + 20 = -80
+  const bottomBoundary = 100 - paddleHeight / 2;  // 100 - 20 = 80
 
   let dir = direction;
   if (direction === 'up') dir = 1;     // up moves paddle up (positive Y)
   if (direction === 'down') dir = -1;  // down moves paddle down (negative Y)
   
+  const oldPosition = gameState.paddles[player];
   gameState.paddles[player] += dir * paddleSpeed;
   gameState.paddles[player] = Math.max(topBoundary, Math.min(bottomBoundary, gameState.paddles[player]));
+  
+  console.log(`[Paddle] ${player} moved ${direction}: ${oldPosition} -> ${gameState.paddles[player]} (boundaries: ${topBoundary} to ${bottomBoundary})`);
 
   return gameState;
 }
@@ -21,13 +26,18 @@ export function moveBall(gameState) {
   }
 
   const paddleHeight = 40;
-  const paddleX = 50;       // Paddles are at the boundaries: x = ±50
+  const paddleX = 50;       // Paddles are at the boundaries: x = ±50 (same as scoring line)
   const speedIncrement = 0.1;
-  const ballspeed = 0.5;
+  const ballspeed = 1.2; // Base ball speed
 
   // Simple ball movement - no speed multiplier
   gameState.ball.x += gameState.ball.dx * (ballspeed + speedIncrement);
   gameState.ball.y += gameState.ball.dy * (ballspeed + speedIncrement);
+
+  // Debug ball position when near boundaries
+  if (Math.abs(gameState.ball.x) > 45) {
+    console.log(`[Ball] Near boundary: x=${gameState.ball.x}, y=${gameState.ball.y}, dx=${gameState.ball.dx}, dy=${gameState.ball.dy}`);
+  }
 
   if (gameState.ball.y >= 100 || gameState.ball.y <= -100) {
     gameState.ball.dy *= -1;
@@ -36,10 +46,16 @@ export function moveBall(gameState) {
   function bounceOffPaddle(paddleY) {
     const relativeY = gameState.ball.y - paddleY;
     const normalizedY = relativeY / (paddleHeight / 2);
-    gameState.ball.dx *= -1;
-    gameState.ball.dy = normalizedY * Math.abs(gameState.ball.dx);
-    if (gameState.ball.dx > 0) gameState.ball.dx += speedIncrement;
-    else gameState.ball.dx -= speedIncrement;
+    
+    console.log(`[Bounce] Ball speed before: dx=${gameState.ball.dx}, dy=${gameState.ball.dy}`);
+    
+    // Keep constant speed - don't increase speed on each hit
+    const baseSpeed = 2; // Constant ball speed
+    
+    gameState.ball.dx = gameState.ball.dx > 0 ? -baseSpeed : baseSpeed; // Reverse direction with constant speed
+    gameState.ball.dy = normalizedY * baseSpeed; // Set Y velocity based on paddle hit position
+    
+    console.log(`[Bounce] Ball speed after: dx=${gameState.ball.dx}, dy=${gameState.ball.dy}`);
   }
 
   // Left paddle collision - ball hits paddle at left boundary
@@ -50,6 +66,7 @@ export function moveBall(gameState) {
     gameState.ball.y >= gameState.paddles.player1 - paddleHeight / 2 &&
     gameState.ball.y <= gameState.paddles.player1 + paddleHeight / 2
   ) {
+    console.log(`[Collision] Left paddle hit! Ball: (${gameState.ball.x}, ${gameState.ball.y}), Paddle1: ${gameState.paddles.player1}`);
     gameState.ball.x = -paddleX + 2;
     bounceOffPaddle(gameState.paddles.player1);
   }
@@ -62,16 +79,19 @@ export function moveBall(gameState) {
     gameState.ball.y >= gameState.paddles.player2 - paddleHeight / 2 &&
     gameState.ball.y <= gameState.paddles.player2 + paddleHeight / 2
   ) {
+    console.log(`[Collision] Right paddle hit! Ball: (${gameState.ball.x}, ${gameState.ball.y}), Paddle2: ${gameState.paddles.player2}`);
     gameState.ball.x = paddleX - 2;
     bounceOffPaddle(gameState.paddles.player2);
   }
 
   if (gameState.ball.x < -50) {
+    console.log(`[SCORE] Ball missed left paddle! Final ball position: x=${gameState.ball.x}, y=${gameState.ball.y}`);
     gameState.score.player2++;
     gameState.tournament.lastPointWinner = 'player2';
     checkRoundEnd(gameState);
     resetBall(gameState, 'player1'); // Ball goes to loser (player1)
   } else if (gameState.ball.x > 50) {
+    console.log(`[SCORE] Ball missed right paddle! Final ball position: x=${gameState.ball.x}, y=${gameState.ball.y}`);
     gameState.score.player1++;
     gameState.tournament.lastPointWinner = 'player1';
     checkRoundEnd(gameState);
@@ -116,13 +136,18 @@ function checkRoundEnd(gameState) {
 
 function startRoundCountdown(gameState, broadcastState) {
   if (gameState.tournament.gameStatus !== 'roundCountdown') return;
+  if (gameState.tournament.countdownInterval) return; // Already counting down
   
-  const countdownInterval = setInterval(() => {
+  // Broadcast initial countdown value first
+  broadcastState();
+  
+  gameState.tournament.countdownInterval = setInterval(() => {
     gameState.tournament.nextRoundCountdown--;
     broadcastState(); // Broadcast the updated countdown
     
     if (gameState.tournament.nextRoundCountdown <= 0) {
-      clearInterval(countdownInterval);
+      clearInterval(gameState.tournament.countdownInterval);
+      gameState.tournament.countdownInterval = null;
       startNextRound(gameState);
       broadcastState(); // Broadcast the new round start
     }
@@ -160,6 +185,8 @@ function startNextRound(gameState) {
   gameState.paddles.player1 = 0;  // Reset paddle positions
   gameState.paddles.player2 = 0;
   gameState.tournament.gameStatus = 'playing';
+  gameState.tournament.nextRoundCountdown = 0;
+  gameState.tournament.countdownInterval = null;
   resetBall(gameState); // Random direction for new round
 }
 
@@ -186,6 +213,7 @@ function restartGame(gameState) {
   gameState.tournament.winner = null;
   gameState.tournament.lastPointWinner = null;
   gameState.tournament.nextRoundCountdown = 0;
+  gameState.isPaused = false;  // Reset pause state
   resetBall(gameState);
 }
 
@@ -215,13 +243,24 @@ function startGameLoop(gameState, broadcastState, moveBall, getClientCount) {
   let lastPaddle1 = gameState.paddles.player1;
   let lastPaddle2 = gameState.paddles.player2;
   let lastStatus = gameState.tournament.gameStatus;
-  let framesSinceLastChange = 0;
+  let inactiveFrames = 0;
   
   const gameLoopInterval = setInterval(() => {
     const clientCount = getClientCount ? getClientCount() : 1;
     
-    // Only process ball movement if game is playing and there are connected clients
-    if (gameState.tournament.gameStatus === 'playing' && clientCount > 0) {
+    // Pause game when no clients connected to save CPU
+    if (clientCount === 0 && gameState.tournament.gameStatus === 'playing') {
+      inactiveFrames++;
+      // Only check every 10 frames when no clients (save CPU)
+      if (inactiveFrames % 10 !== 0) {
+        return;
+      }
+    } else {
+      inactiveFrames = 0;
+    }
+    
+        // Only process ball movement if game is actively playing, not paused, and has clients
+    if (gameState.tournament.gameStatus === 'playing' && !gameState.isPaused && clientCount > 0) {
       moveBall(gameState);
     }
 
@@ -235,12 +274,14 @@ function startGameLoop(gameState, broadcastState, moveBall, getClientCount) {
       startRoundCountdown(gameState, broadcastState);
     }
 
-    // Only broadcast if something actually changed
+    // Smart broadcasting: only when something actually changed
     if (ballMoved || scoreChanged || paddleMoved || statusChanged) {
-      broadcastState();
-      framesSinceLastChange = 0;
+      // Only broadcast if there are clients to receive updates
+      if (clientCount > 0) {
+        broadcastState();
+      }
       
-      // Update last values
+      // Update last values for next comparison
       lastBallX = gameState.ball.x;
       lastBallY = gameState.ball.y;
       lastScore1 = gameState.score.player1;
@@ -248,16 +289,8 @@ function startGameLoop(gameState, broadcastState, moveBall, getClientCount) {
       lastPaddle1 = gameState.paddles.player1;
       lastPaddle2 = gameState.paddles.player2;
       lastStatus = gameState.tournament.gameStatus;
-    } else {
-      framesSinceLastChange++;
-      
-      // If nothing has changed for 60 frames (2 seconds), reduce frequency to save CPU
-      if (framesSinceLastChange > 60 && clientCount === 0) {
-        // Pause the game loop when no clients are connected and nothing is changing
-        return;
-      }
     }
-  }, 1000 / 30); // 30 FPS when active
+  }, 1000 / 20); // Reduced to 20 FPS for better CPU efficiency
   
   return gameLoopInterval;
 }
@@ -266,7 +299,7 @@ function startGameLoop(gameState, broadcastState, moveBall, getClientCount) {
 function initialGameState() {
   return {
     score: { player1: 0, player2: 0 },
-    ball: { x: 0, y: 0, dx: 1, dy: 1 },
+    ball: { x: 0, y: 0, dx: 2, dy: 2 },
     paddles: { player1: 0, player2: 0 },
     tournament: {
       currentRound: 1,
@@ -277,8 +310,11 @@ function initialGameState() {
       winner: null,
       lastPointWinner: null,
       nextRoundCountdown: 0,
-      nextRoundNumber: 1
-    }
+      nextRoundNumber: 1,
+      countdownInterval: null
+    },
+    gameLoopInterval: null,
+    isPaused: false
   };
 }
 
