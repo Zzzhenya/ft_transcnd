@@ -64,6 +64,7 @@ export function registerSingleGameRoutes(fastify, games, counters, broadcastStat
         moveBall, 
         () => clients.size
       );
+      state.gameLoopInterval = loop; // Store reference for cleanup
 
       const game = {
         state,
