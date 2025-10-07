@@ -186,12 +186,12 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y curl jq
 
-      - name: Test User Service Endpoints
+      - name: Test User Service Endpointss
         run: |
           cd transcendence
           echo "🧪 Running comprehensive API tests..."
           
-          BASE_URL="http://localhost:3001"
+          BASE_URL="http://localhost:3000/user-service"
           
           # Health Check
           echo "1. 🏥 Testing Health Check"
