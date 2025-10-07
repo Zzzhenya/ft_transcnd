@@ -5,6 +5,7 @@ on:
     branches:
       - user-service
       - microservices-refactor
+      - api-gateway-basics
       - main
     # No paths restriction for push - always run when pushing to these branches
   pull_request:
