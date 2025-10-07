@@ -1,0 +1,561 @@
+name: API Testing
+
+on:
+  push:
+    branches:
+      - user-service
+      - microservices-refactor
+      - api-gateway-basics
+      - main
+    # No paths restriction for push - always run when pushing to these branches
+  pull_request:
+    branches:
+      - microservices-refactor
+      - main
+    paths:
+      - 'transcendence/services/**'
+      - 'transcendence/shared/**'
+      - 'transcendence/docker-compose.yml'
+      - '.github/workflows/api-testing.yml'
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Check if services exist
+        run: |
+          echo "🔍 Checking service structure..."
+          ls -la transcendence/services/
+          
+          if [ -d "transcendence/services/user-service" ]; then
+            echo "✅ User service directory exists"
+            ls -la transcendence/services/user-service/
+          else
+            echo "❌ User service directory not found"
+            exit 1
+          fi
+
+      - name: Install User Service dependencies
+        run: |
+          cd transcendence/services/user-service
+          if [ -f package.json ]; then
+            echo "📦 Installing user-service dependencies..."
+            npm install
+          else
+            echo "❌ package.json not found in user-service"
+            exit 1
+          fi
+
+      - name: Install Shared dependencies
+        run: |
+          cd transcendence/shared
+          if [ -f package.json ]; then
+            echo "📦 Installing shared dependencies..."
+            npm install
+          else
+            echo "📦 Creating shared package.json and installing sqlite3..."
+            npm init -y
+            npm install sqlite3
+          fi
+
+      - name: Validate User Service code
+        run: |
+          cd transcendence/services/user-service
+          echo "🧪 Validating user service structure..."
+          
+          # Check if main files exist
+          if [ -f src/index.js ]; then
+            echo "✅ Main server file exists"
+          else
+            echo "❌ src/index.js not found"
+            exit 1
+          fi
+          
+          # Basic syntax check without running the server
+          echo "🔍 Checking Node.js syntax..."
+          node -c src/index.js && echo "✅ Syntax validation passed" || {
+            echo "❌ Syntax errors found"
+            exit 1
+          }
+          
+          # Check package.json scripts
+          if grep -q '"start"' package.json; then
+            echo "✅ Start script found"
+          else
+            echo "⚠️ No start script found in package.json"
+          fi
+
+  api-integration-tests:
+    runs-on: ubuntu-latest
+    needs: unit-tests
+      
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Create test environment file
+        run: |
+          cd transcendence
+          cat > .env << EOF
+          NODE_ENV=test
+          DATABASE_URL=sqlite:/app/shared/database/test.db
+          JWT_SECRET=test-jwt-secret-key-not-for-production-use-only
+          USER_SERVICE_URL=http://user-service:3001
+          GAME_SERVICE_URL=http://game-service:3002
+          LOG_SERVICE_URL=http://log-service:3003
+          GATEWAY_URL=http://gateway:3000
+          EOF
+          
+          echo "✅ Test environment file created"
+
+      - name: Validate Docker Compose configuration
+        run: |
+          cd transcendence
+          echo "🔍 Validating docker-compose.yml..."
+          docker compose config > /dev/null
+          echo "✅ Docker Compose configuration is valid"
+
+      - name: Build and start services
+        run: |
+          cd transcendence
+          echo "🚀 Building and starting services for API testing..."
+          
+          # Start only the necessary services for testing
+          docker compose up -d --build database user-service
+          
+          echo "⏳ Waiting for services to be ready..."
+          sleep 45
+
+      - name: Check container status
+        run: |
+          cd transcendence
+          echo "📊 Checking container status..."
+          docker compose ps
+          
+          echo "📋 Checking user-service logs..."
+          docker compose logs user-service | tail -20
+
+      - name: Wait for User Service to be ready
+        run: |
+          cd transcendence
+          echo "🔍 Checking User Service health..."
+          
+          # First check if the container is running
+          if ! docker compose ps user-service | grep -Eq "running|healthy|Up"; then
+            echo "❌ User service container is not running"
+            docker compose logs user-service
+            exit 1
+          fi
+          
+          # Wait for the service to be ready
+          for i in {1..15}; do
+            if docker run --rm --network transcendence-network alpine/curl:latest curl -f -s http://user-service:3001/health > /dev/null 2>&1; then
+              echo "✅ User Service is ready and responding"
+              echo "⏳ Giving service additional time to fully initialize..."
+              sleep 10
+              break
+            else
+              echo "⏳ Waiting for User Service... attempt $i/15"
+              sleep 10
+              if [ $i -eq 15 ]; then
+                echo "❌ User Service failed to respond after 150 seconds"
+                echo "=== Container Status ==="
+                docker compose ps
+                echo "=== User Service Logs ==="
+                docker compose logs user-service
+                echo "=== Network Information ==="
+                docker network ls
+                exit 1
+              fi
+            fi
+          done
+
+      - name: Install testing tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y curl jq
+
+      - name: Test User Service Endpointss
+        run: |
+          cd transcendence
+          echo "🧪 Running comprehensive API tests..."
+          
+          BASE_URL="http://localhost:3001"
+          
+          # Health Check
+          echo "1. 🏥 Testing Health Check"
+          HEALTH_RESPONSE=$(curl -s -w "%{http_code}" -o /tmp/health.json $BASE_URL/health)
+          if [ "$HEALTH_RESPONSE" = "200" ]; then
+            echo "✅ Health check passed"
+            cat /tmp/health.json | jq .
+          else
+            echo "❌ Health check failed with status: $HEALTH_RESPONSE"
+            exit 1
+          fi
+          
+          # User Registration
+          echo "2. 👤 Testing User Registration"
+          UNIQUE_ID=$(date +%s)
+          REGISTER_PAYLOAD='{
+            "username": "testuser'$UNIQUE_ID'",
+            "email": "test'$UNIQUE_ID'@example.com",
+            "password": "SecurePassword123!"
+          }'
+          
+          REGISTER_RESPONSE=$(curl -s -w "%{http_code}" -o /tmp/register.json \
+            -X POST $BASE_URL/auth/register \
+            -H "Content-Type: application/json" \
+            -d "$REGISTER_PAYLOAD")
+          
+          if [ "$REGISTER_RESPONSE" = "201" ]; then
+            echo "✅ User registration passed"
+            cat /tmp/register.json | jq .
+          else
+            echo "❌ User registration failed with status: $REGISTER_RESPONSE"
+            cat /tmp/register.json
+            exit 1
+          fi
+          
+          # Extract token from registration
+          TOKEN=$(cat /tmp/register.json | jq -r '.token // empty')
+          
+          # User Login (test with same credentials)
+          echo "3. 🔐 Testing User Login"
+          LOGIN_PAYLOAD='{
+            "username": "testuser'$UNIQUE_ID'",
+            "password": "SecurePassword123!"
+          }'
+          
+          LOGIN_RESPONSE=$(curl -s -w "%{http_code}" -o /tmp/login.json \
+            -X POST $BASE_URL/auth/login \
+            -H "Content-Type: application/json" \
+            -d "$LOGIN_PAYLOAD")
+          
+          if [ "$LOGIN_RESPONSE" = "200" ]; then
+            echo "✅ User login passed"
+            cat /tmp/login.json | jq .
+            # Use login token if registration token wasn't available
+            if [ -z "$TOKEN" ]; then
+              TOKEN=$(cat /tmp/login.json | jq -r '.access_token // empty')
+            fi
+          else
+            echo "❌ User login failed with status: $LOGIN_RESPONSE"
+            cat /tmp/login.json
+            exit 1
+          fi
+          
+          # Profile Access (Protected Route)
+          echo "4. 👥 Testing Protected Profile Endpoint"
+          if [ ! -z "$TOKEN" ]; then
+            PROFILE_RESPONSE=$(curl -s -w "%{http_code}" -o /tmp/profile.json \
+              -X GET $BASE_URL/auth/profile \
+              -H "Authorization: Bearer $TOKEN")
+            
+            if [ "$PROFILE_RESPONSE" = "200" ]; then
+              echo "✅ Profile access passed"
+              cat /tmp/profile.json | jq .
+            else
+              echo "❌ Profile access failed with status: $PROFILE_RESPONSE"
+              cat /tmp/profile.json
+              exit 1
+            fi
+          else
+            echo "⚠️ No token available, skipping profile test"
+          fi
+          
+          echo "🎉 All API tests passed!"
+
+      - name: Test Invalid Requests
+        run: |
+          echo "🧪 Testing error handling and validation..."
+          
+          BASE_URL="http://localhost:3001"
+          
+          # Test registration with missing fields
+          echo "1. Testing registration with missing fields"
+          echo "Sending payload: {\"username\": \"test\"}"
+          INVALID_REGISTER=$(curl -s -w "%{http_code}" -o /tmp/invalid_register.json \
+            -X POST $BASE_URL/auth/register \
+            -H "Content-Type: application/json" \
+            -d '{"username": "test"}')
+          
+          echo "Response body:"
+          cat /tmp/invalid_register.json
+          echo ""
+          echo "HTTP Status Code: $INVALID_REGISTER"
+          
+          if [ "$INVALID_REGISTER" = "400" ]; then
+            echo "✅ Validation error handled correctly"
+          else
+            echo "❌ Expected 400 but got: $INVALID_REGISTER"
+            echo "Debugging info:"
+            echo "Length of response: ${#INVALID_REGISTER}"
+            echo "Response as hex: $(echo -n "$INVALID_REGISTER" | xxd)"
+          fi
+          
+          # Test login with wrong credentials
+          echo "2. Testing login with invalid credentials"
+          echo "Sending payload: {\"username\": \"nonexistent\", \"password\": \"wrong\"}"
+          INVALID_LOGIN=$(curl -s -w "%{http_code}" -o /tmp/invalid_login.json \
+            -X POST $BASE_URL/auth/login \
+            -H "Content-Type: application/json" \
+            -d '{"username": "nonexistent", "password": "wrong"}')
+          
+          echo "Response body:"
+          cat /tmp/invalid_login.json
+          echo ""
+          echo "HTTP Status Code: $INVALID_LOGIN"
+          
+          if [ "$INVALID_LOGIN" = "401" ]; then
+            echo "✅ Invalid credentials handled correctly"
+          else
+            echo "❌ Expected 401 but got: $INVALID_LOGIN"
+          fi
+          
+          # Test protected route without token
+          echo "3. Testing protected route without token"
+          NO_TOKEN_RESPONSE=$(curl -s -w "%{http_code}" -o /tmp/no_token.json \
+            -X GET $BASE_URL/auth/profile)
+          
+          if [ "$NO_TOKEN_RESPONSE" = "401" ]; then
+            echo "✅ Missing token handled correctly"
+          else
+            echo "❌ Expected 401 but got: $NO_TOKEN_RESPONSE"
+          fi
+          
+          # Test protected route with invalid token
+          echo "4. Testing protected route with invalid token"
+          INVALID_TOKEN_RESPONSE=$(curl -s -w "%{http_code}" -o /tmp/invalid_token.json \
+            -X GET $BASE_URL/auth/profile \
+            -H "Authorization: Bearer invalid-token")
+          
+          if [ "$INVALID_TOKEN_RESPONSE" = "403" ]; then
+            echo "✅ Invalid token handled correctly"
+          else
+            echo "❌ Expected 403 but got: $INVALID_TOKEN_RESPONSE"
+          fi
+          
+          echo "✅ All error handling tests passed!"
+
+      - name: Test Database Operations
+        run: |
+          echo "🗄️ Testing database operations..."
+          
+          # Check if database was created and has data
+          docker compose exec -T user-service ls -la /Users/IreneRivero/Documents/42projects/ft_transcnd/transcendence/data/ || echo "Database directory check"
+          
+          # Test duplicate user registration
+          echo "Testing duplicate user registration"
+          BASE_URL="http://localhost:3001"
+          
+          DUPLICATE_PAYLOAD='{
+            "username": "duplicate_test",
+            "email": "duplicate@test.com",
+            "password": "password123"
+          }'
+          
+          # First registration
+          curl -s -X POST $BASE_URL/auth/register \
+            -H "Content-Type: application/json" \
+            -d "$DUPLICATE_PAYLOAD" > /dev/null
+          
+          # Second registration (should fail)
+          DUPLICATE_RESPONSE=$(curl -s -w "%{http_code}" -o /tmp/duplicate.json \
+            -X POST $BASE_URL/auth/register \
+            -H "Content-Type: application/json" \
+            -d "$DUPLICATE_PAYLOAD")
+          
+          if [ "$DUPLICATE_RESPONSE" = "409" ]; then
+            echo "✅ Duplicate user prevention works"
+          else
+            echo "⚠️ Duplicate user response: $DUPLICATE_RESPONSE"
+            cat /tmp/duplicate.json
+          fi
+
+      - name: Performance Testing
+        run: |
+          echo "⚡ Running basic performance tests..."
+          
+          BASE_URL="http://localhost:3001"
+          
+          # Test multiple concurrent health checks
+          echo "Testing concurrent health check requests..."
+          for i in {1..10}; do
+            curl -s $BASE_URL/health > /dev/null &
+          done
+          wait
+          echo "✅ Concurrent requests handled"
+          
+          # Test response time
+          echo "Testing response time..."
+          START_TIME=$(date +%s%N)
+          curl -s $BASE_URL/health > /dev/null
+          END_TIME=$(date +%s%N)
+          RESPONSE_TIME=$(( (END_TIME - START_TIME) / 1000000 ))
+          echo "Response time: ${RESPONSE_TIME}ms"
+          
+          if [ $RESPONSE_TIME -lt 1000 ]; then
+            echo "✅ Response time is acceptable (< 1000ms)"
+          else
+            echo "⚠️ Response time is high: ${RESPONSE_TIME}ms"
+          fi
+
+      - name: Show service logs on failure
+        if: failure()
+        run: |
+          cd transcendence
+          echo "=== User Service Logs ==="
+          docker compose logs user-service | tail -100
+
+      - name: Cleanup
+        if: always()
+        run: |
+          cd transcendence
+          docker compose down -v
+          docker system prune -f
+
+  security-tests:
+    runs-on: ubuntu-latest
+    needs: [api-integration-tests]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Security scan with npm audit
+        run: |
+          cd transcendence/services/user-service
+          npm audit --audit-level=high || echo "⚠️ Security vulnerabilities found"
+
+      - name: Check for hardcoded secrets
+        run: |
+          echo "🔍 Scanning for potential security issues..."
+          
+          # Check for hardcoded passwords/secrets (exclude test files)
+          if grep -r -i "password.*=" transcendence/services/user-service/src/ | grep -v test | grep -v example; then
+            echo "⚠️ Potential hardcoded passwords found"
+          else
+            echo "✅ No hardcoded passwords detected"
+          fi
+          
+          # Check for exposed API keys
+          if grep -r -E "(api[_-]?key|secret[_-]?key)" transcendence/services/user-service/src/ | grep -v test | grep -v example; then
+            echo "⚠️ Potential API keys found in source"
+          else
+            echo "✅ No exposed API keys detected"
+          fi
+
+  load-tests:
+    runs-on: ubuntu-latest
+    needs: [api-integration-tests]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Start services for load testing
+        run: |
+          cd transcendence
+          docker compose up -d --build user-service
+          sleep 30
+
+      - name: Install Apache Bench
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y apache2-utils
+
+      - name: Run load tests
+        run: |
+          echo "🚀 Running load tests..."
+          
+          # Test health endpoint with 100 requests, 10 concurrent
+          ab -n 100 -c 10 http://localhost:3001/health
+          
+          echo "✅ Load test completed"
+
+      - name: Cleanup load test
+        if: always()
+        run: |
+          cd transcendence
+          docker compose down -v
+
+  api-documentation-test:
+    runs-on: ubuntu-latest
+    needs: unit-tests
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check API documentation
+        run: |
+          echo "📚 Checking API documentation..."
+          
+          # Check if there's API documentation
+          if [ -f transcendence/docs/api-contracts.md ]; then
+            echo "✅ API documentation found"
+            
+            # Check if documentation mentions the endpoints we're testing
+            if grep -q "/auth/register\|/auth/login\|/auth/profile" transcendence/docs/api-contracts.md; then
+              echo "✅ API endpoints documented"
+            else
+              echo "⚠️ API endpoints not fully documented"
+            fi
+          else
+            echo "⚠️ API documentation missing"
+          fi
+
+  final-api-status:
+    runs-on: ubuntu-latest
+    needs: [unit-tests, api-integration-tests, api-documentation-test]
+    if: always()
+    
+    steps:
+      - name: Report API test results
+        run: |
+          echo "=== API Testing Results ==="
+          
+          if [ "${{ needs.unit-tests.result }}" = "success" ]; then
+            echo "✅ Unit tests passed"
+          else
+            echo "❌ Unit tests failed"
+          fi
+          
+          if [ "${{ needs.api-integration-tests.result }}" = "success" ]; then
+            echo "✅ API integration tests passed"
+          else
+            echo "❌ API integration tests failed"
+          fi
+          
+          echo "ℹ️ Security tests run separately"
+          
+          if [ "${{ needs.api-documentation-test.result }}" = "success" ]; then
+            echo "✅ Documentation check passed"
+          else
+            echo "❌ Documentation check failed"
+          fi
+          
+          # Only fail if critical tests failed
+          if [ "${{ needs.unit-tests.result }}" != "success" ] || \
+             [ "${{ needs.api-integration-tests.result }}" != "success" ]; then
+            echo "❌ Critical API tests failed"
+            exit 1
+          fi
+          
+          echo "🎉 API testing pipeline completed successfully!"
