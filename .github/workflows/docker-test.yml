@@ -225,25 +225,6 @@ jobs:
             fi
           done
 
-      - name: Test Other Unexposed Services
-        run: |
-          echo "Testing User Service..."
-          cd transcendence
-          pwd
-          for i in {1..3}; do
-            docker-compose -f docker-compose.yml run --rm health-checker
-            if ! echo $? ; then
-              echo "✅ User Service is responding"
-              break
-            else
-              echo "⏳ User Service not ready, attempt $i/3"
-              sleep 5
-              if [ "$i" == "3" ] ; then
-                exit 1
-              fi
-            fi
-          done
-
       - name: Test User Service
         run: |
           echo "Testing User Service..."
@@ -282,6 +263,20 @@ jobs:
       #         sleep 5
       #       fi
           done
+
+      - name: Test Other Unexposed Services
+        run: |
+          echo "Test Other Unexposed Services.."
+          cd transcendence
+          pwd
+          docker-compose -f docker-compose.yml run --rm health-checker
+          if [ ! echo $? ] ; then
+            echo "✅ Other Unexposed Services are responding"
+            break
+          else
+            echo "⏳ Other Unexposed Services are not ready"
+            exit 1
+          fi
 
       - name: Test inter-service communication
         run: |
