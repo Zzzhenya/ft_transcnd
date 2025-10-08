@@ -168,7 +168,7 @@ jobs:
           echo "🚀 Starting services for testing..."
           
           # Start only essential services
-          docker compose up -d database user-service
+          docker compose up -d database user-service gateway
           
           echo "⏳ Waiting for services to initialize..."
           sleep 30
@@ -232,7 +232,8 @@ jobs:
         run: |
           echo "🧪 Running API integration tests..."
           
-          BASE_URL="http://localhost:3001"
+          # BASE_URL="http://localhost:3001"
+          BASE_URL="http://localhost:3000/user-service"
           
           # Test 1: Health Check
           echo "1. Testing health endpoint..."
@@ -257,8 +258,8 @@ jobs:
             -H "Content-Type: application/json" \
             -d "$REGISTER_DATA")
           
-          if [ "$REGISTER_RESPONSE" = "201" ]; then
-            echo "✅ User registration successful"
+          if [ "$REGISTER_RESPONSE" = "201" ] ; then
+            echo "✅ User registration successful status: $REGISTER_RESPONSE"
             cat /tmp/register.json | jq .
           else
             echo "❌ User registration failed with status: $REGISTER_RESPONSE"
@@ -312,7 +313,7 @@ jobs:
         run: |
           echo "🧪 Testing API error handling..."
           
-          BASE_URL="http://localhost:3001"
+          BASE_URL="http://localhost:3000/user-service"
           
           # Test invalid registration
           echo "Testing invalid registration data..."
