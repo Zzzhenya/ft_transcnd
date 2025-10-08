@@ -61,7 +61,7 @@ console.log("port: " + PORT);
 Fastify.register(firstRoute);
 Fastify.register(healthRoute);
 Fastify.register(wsRoute, { prefix: '/ws' })
-Fastify.register(userRoute, { prefix: '/user-service/auth' })
+Fastify.register(userRoute, { prefix: '/user-service' })
 // Fastify.register(wsRoute)
 Fastify.log.info('Something important happened!');
 start();

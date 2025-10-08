@@ -3,9 +3,9 @@
 set -e
 
 #http://frontend:3004/health
+#http://gateway:3000/health
 
 SERVICES="
-http://gateway:3000/health
 http://user-service:3001/health
 http://game-service:3002/health
 http://log-service:3003/health
