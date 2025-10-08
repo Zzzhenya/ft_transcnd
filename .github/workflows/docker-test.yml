@@ -228,6 +228,8 @@ jobs:
       - name: Test Other Unexposed Services
         run: |
           echo "Testing User Service..."
+          cd transcendence
+          pwd
           for i in {1..3}; do
             docker-compose -f docker-compose.yml run --rm health-checker
             if ! echo $? ; then
@@ -245,41 +247,41 @@ jobs:
       - name: Test User Service
         run: |
           echo "Testing User Service..."
-      #     for i in {1..3}; do
+          for i in {1..3}; do
       #       if curl -f -s http://localhost:3001/health; then
-      #         echo "✅ User Service is responding"
+              echo "✅ User Service is responding"
       #         break
       #       else
       #         echo "⏳ User Service not ready, attempt $i/3"
       #         sleep 5
       #       fi
-      #     done
+          done
 
       - name: Test Game Service
         run: |
           echo "Testing Game Service..."
-      #     for i in {1..3}; do
+          for i in {1..3}; do
       #       if curl -f -s http://localhost:3002/health; then
-      #         echo "✅ Game Service is responding"
+              echo "✅ Game Service is responding"
       #         break
       #       else
       #         echo "⏳ Game Service not ready, attempt $i/3"
       #         sleep 5
       #       fi
-      #     done
+          done
 
       - name: Test Log Service
         run: |
           echo "Testing Log Service..."
-      #     for i in {1..3}; do
+          for i in {1..3}; do
       #       if curl -f -s http://localhost:3003/health; then
-      #         echo "✅ Log Service is responding"
+              echo "✅ Log Service is responding"
       #         break
       #       else
       #         echo "⏳ Log Service not ready, attempt $i/3"
       #         sleep 5
       #       fi
-      #     done
+          done
 
       - name: Test inter-service communication
         run: |
