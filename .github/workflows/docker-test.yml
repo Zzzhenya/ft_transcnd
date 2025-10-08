@@ -7,7 +7,7 @@ on:
       - microservices-refactor
       - api-gateway-basics
       - main
-      # - health-check-via-compose
+      - health-check-via-compose
   pull_request:
     branches:
       - user-service
