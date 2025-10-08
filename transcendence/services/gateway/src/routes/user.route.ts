@@ -1,10 +1,31 @@
-// user-service/auth
+// user-service/
 
 import type { FastifyHttpOptions, FastifyInstance, FastifyServerOptions, FastifyPluginAsync } from "fastify"
 
 const userRoutes: FastifyPluginAsync = async (fastify) => {
 
-	fastify.post('/register', async (request, reply) => {
+// route:/user-service/health for user-service
+	fastify.get('/health', async (request , reply) => {
+	    try
+	    {
+	        fastify.log.error("Gateway received GET request for /users")
+	        const response = await fetch('http://user-service:3001/health', {
+	        method: 'GET',
+	        headers: {
+	        'Authorization': request.headers['authorization'] || '',
+	    }})
+	    const data = await response.json();
+	    reply.status(response.status).send(data);
+	    }
+	    catch (error) {
+		    fastify.log.error(error)
+		    reply.status(404);
+	}
+	// reply.code(200).header('Content-Type', 'application/json; charset=utf-8')
+	// return { hello: 'Users' }
+	})
+
+	fastify.post('/auth/register', async (request, reply) => {
 		try
 		{
 			fastify.log.error("Gateway received POST request for /register")
@@ -22,7 +43,7 @@ const userRoutes: FastifyPluginAsync = async (fastify) => {
 	}
 	});
 
-	fastify.post('/login', async (request, reply) => {
+	fastify.post('/auth/login', async (request, reply) => {
 		try
 		{
 			fastify.log.error("Gateway received POST request for /login")
@@ -40,7 +61,7 @@ const userRoutes: FastifyPluginAsync = async (fastify) => {
 	}
 	});
 
-	fastify.get('/profile', async (request, reply) => {
+	fastify.get('/auth/profile', async (request, reply) => {
 		try
 		{
 			fastify.log.error("Gateway received GET request for /profile")
