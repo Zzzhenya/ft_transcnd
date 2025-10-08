@@ -5,7 +5,6 @@ on:
     branches:
       - user-service
       - main
-      - health-check-via-compose
     # No paths restriction for push - always run when pushing to these branches
   pull_request:
     branches:
@@ -239,9 +238,9 @@ jobs:
           # Test 1: Health Check
           echo "1. Testing health endpoint..."
           if curl -f -s "$BASE_URL/health"; then
-            echo "✅ Health check passed jajajaja"
+            echo "✅ Health check passed"
           else
-            echo "❌ Health check failed jajajaja"
+            echo "❌ Health check failed"
             exit 1
           fi
           
@@ -259,7 +258,7 @@ jobs:
             -H "Content-Type: application/json" \
             -d "$REGISTER_DATA")
           
-          if [ "$REGISTER_RESPONSE" = "201" ] || [ "$REGISTER_RESPONSE" = "500" ]; then
+          if [ "$REGISTER_RESPONSE" = "201" ] ; then
             echo "✅ User registration successful status: $REGISTER_RESPONSE"
             cat /tmp/register.json | jq .
           else
@@ -268,45 +267,45 @@ jobs:
             exit 1
           fi
           
-          # # Extract token for further tests
-          # TOKEN=$(cat /tmp/register.json | jq -r '.token // empty')
+          # Extract token for further tests
+          TOKEN=$(cat /tmp/register.json | jq -r '.token // empty')
           
-          # # Test 3: User Login
-          # echo "3. Testing user login..."
-          # LOGIN_DATA="{
-          #   \"username\": \"testuser$UNIQUE_ID\",
-          #   \"password\": \"TestPassword123\"
-          # }"
+          # Test 3: User Login
+          echo "3. Testing user login..."
+          LOGIN_DATA="{
+            \"username\": \"testuser$UNIQUE_ID\",
+            \"password\": \"TestPassword123\"
+          }"
           
-          # LOGIN_RESPONSE=$(curl -s -w "%{http_code}" -o /tmp/login.json \
-          #   -X POST "$BASE_URL/auth/login" \
-          #   -H "Content-Type: application/json" \
-          #   -d "$LOGIN_DATA")
+          LOGIN_RESPONSE=$(curl -s -w "%{http_code}" -o /tmp/login.json \
+            -X POST "$BASE_URL/auth/login" \
+            -H "Content-Type: application/json" \
+            -d "$LOGIN_DATA")
           
-          # if [ "$LOGIN_RESPONSE" = "200" ]; then
-          #   echo "✅ User login successful"
-          #   cat /tmp/login.json | jq .
-          # else
-          #   echo "❌ User login failed with status: $LOGIN_RESPONSE"
-          #   cat /tmp/login.json
-          #   exit 1
-          # fi
+          if [ "$LOGIN_RESPONSE" = "200" ]; then
+            echo "✅ User login successful"
+            cat /tmp/login.json | jq .
+          else
+            echo "❌ User login failed with status: $LOGIN_RESPONSE"
+            cat /tmp/login.json
+            exit 1
+          fi
           
-          # # Test 4: Protected endpoint (if token available)
-          # if [ ! -z "$TOKEN" ]; then
-          #   echo "4. Testing protected profile endpoint..."
-          #   PROFILE_RESPONSE=$(curl -s -w "%{http_code}" -o /tmp/profile.json \
-          #     -X GET "$BASE_URL/auth/profile" \
-          #     -H "Authorization: Bearer $TOKEN")
+          # Test 4: Protected endpoint (if token available)
+          if [ ! -z "$TOKEN" ]; then
+            echo "4. Testing protected profile endpoint..."
+            PROFILE_RESPONSE=$(curl -s -w "%{http_code}" -o /tmp/profile.json \
+              -X GET "$BASE_URL/auth/profile" \
+              -H "Authorization: Bearer $TOKEN")
             
-          #   if [ "$PROFILE_RESPONSE" = "200" ]; then
-          #     echo "✅ Profile access successful"
-          #     cat /tmp/profile.json | jq .
-          #   else
-          #     echo "⚠️ Profile access failed with status: $PROFILE_RESPONSE"
-          #     cat /tmp/profile.json
-          #   fi
-          # fi
+            if [ "$PROFILE_RESPONSE" = "200" ]; then
+              echo "✅ Profile access successful"
+              cat /tmp/profile.json | jq .
+            else
+              echo "⚠️ Profile access failed with status: $PROFILE_RESPONSE"
+              cat /tmp/profile.json
+            fi
+          fi
           
           echo "🎉 All API tests completed successfully!"
 
@@ -314,7 +313,7 @@ jobs:
         run: |
           echo "🧪 Testing API error handling..."
           
-          BASE_URL="http://localhost:3001"
+          BASE_URL="http://localhost:3000/user-service"
           
           # Test invalid registration
           echo "Testing invalid registration data..."
