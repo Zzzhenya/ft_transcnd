@@ -290,7 +290,7 @@ jobs:
           echo "Test Other Unexposed Services.."
           cd transcendence
           pwd
-          docker-compose -f docker-compose.yml run --rm health-checker
+          docker compose -f docker-compose.yml run --rm health-checker
           if [ ! echo $? ] ; then
             echo "✅ Other Unexposed Services are responding"
             break
