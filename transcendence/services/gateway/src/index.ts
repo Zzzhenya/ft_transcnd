@@ -14,6 +14,7 @@ import firstRoute from './routes.js'
 import healthRoute from './routes/health.route.js'
 import wsRoute from './routes/ws-proxy.route.js'
 import statsRoute from './routes/stats.route.js'
+import userRoute from './routes/user.route.js'
 // console.log(services.users);
 
 const Fastify = fastify({logger:true});
@@ -62,6 +63,7 @@ Fastify.register(firstRoute);
 Fastify.register(healthRoute);
 Fastify.register(statsRoute);
 Fastify.register(wsRoute, { prefix: '/ws' })
+Fastify.register(userRoute, { prefix: '/user-service' })
 // Fastify.register(wsRoute)
 Fastify.log.info('Something important happened!');
 start();
