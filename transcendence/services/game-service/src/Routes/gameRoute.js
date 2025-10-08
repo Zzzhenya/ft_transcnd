@@ -25,9 +25,9 @@ export function registerSingleGameRoutes(fastify, games, counters, broadcastStat
    * POST /ws/pong/game
    * Body: { 
    *   player1_id: number, 
-   *   player2_id: number, 
-   *   player1_name: string, 
-   *   player2_name: string
+   *   player1_name: string,
+   *   player2_id?: number (optional - for immediate full game creation),
+   *   player2_name?: string (optional - for immediate full game creation)
    * }
    */
   fastify.post('/ws/pong/game', async (request, reply) => {
@@ -39,8 +39,8 @@ export function registerSingleGameRoutes(fastify, games, counters, broadcastStat
         player2_name
       } = request.body;
 
-      // Validation
-      const validation = validateSingleGameCreation(request.body);
+      // Validation for single player creation
+      const validation = validateGameCreation(request.body);
       if (!validation.valid) {
         return reply.code(400).send({ error: validation.error });
       }
@@ -64,16 +64,17 @@ export function registerSingleGameRoutes(fastify, games, counters, broadcastStat
         moveBall, 
         () => clients.size
       );
+      state.gameLoopInterval = loop; // Store reference for cleanup
 
       const game = {
         state,
         clients,
         loop,
         player1_id: parseInt(player1_id),
-        player2_id: parseInt(player2_id),
+        player2_id: player2_id ? parseInt(player2_id) : null,
         player1_name: player1_name.trim(),
-        player2_name: player2_name.trim(),
-        status: 'waiting',
+        player2_name: player2_name ? player2_name.trim() : null,
+        status: player2_id ? 'ready' : 'waiting_for_player',
         isDemo: false,
         isRegistered: true,
         createdAt: new Date(),
@@ -81,6 +82,7 @@ export function registerSingleGameRoutes(fastify, games, counters, broadcastStat
         completedAt: null,
         winner: null,
         finalScore: { player1: 0, player2: 0 },
+        playersReady: { player1: false, player2: false },
         // Game rules
         maxRounds: 3,
         scoreLimit: 5
@@ -88,7 +90,10 @@ export function registerSingleGameRoutes(fastify, games, counters, broadcastStat
 
       games.set(gameId, game);
 
-      console.log(`[Game] Created single game ${gameId} with players ${player1_name} vs ${player2_name} (3 rounds, score limit: 5)`);
+      const playerInfo = player2_id ? 
+        `${player1_name} vs ${player2_name}` : 
+        `${player1_name} (waiting for opponent)`;
+      console.log(`[Game] Created single game ${gameId} with players ${playerInfo} (3 rounds, score limit: 5)`);
 
       const response = {
         id: gameId,
@@ -110,6 +115,98 @@ export function registerSingleGameRoutes(fastify, games, counters, broadcastStat
     } catch (error) {
       console.error('[SingleGame] Error creating single game:', error);
       return reply.code(500).send({ error: 'Failed to create single game' });
+    }
+  });
+
+  /**
+   * Join an existing game as player2
+   * POST /ws/pong/game/:gameId/join
+   * Body: { 
+   *   player2_id: number, 
+   *   player2_name: string
+   * }
+   */
+  fastify.post('/ws/pong/game/:gameId/join', async (request, reply) => {
+    try {
+      const gameId = parseInt(request.params.gameId, 10);
+      const { player2_id, player2_name } = request.body;
+
+      // Validation
+      if (!player2_id || !player2_name) {
+        return reply.code(400).send({ 
+          error: 'player2_id and player2_name are required' 
+        });
+      }
+
+      if (typeof player2_name !== 'string' || player2_name.trim().length === 0) {
+        return reply.code(400).send({ 
+          error: 'player2_name must be a non-empty string' 
+        });
+      }
+
+      const game = games.get(gameId);
+      if (!game) {
+        return reply.code(404).send({ error: 'Game not found' });
+      }
+
+      if (game.isDemo) {
+        return reply.code(400).send({ error: 'Cannot join demo games' });
+      }
+
+      if (game.status !== 'waiting_for_player') {
+        return reply.code(400).send({ 
+          error: `Game is not accepting players. Current status: ${game.status}` 
+        });
+      }
+
+      if (game.player2_id) {
+        return reply.code(400).send({ error: 'Game already has 2 players' });
+      }
+
+      if (parseInt(player2_id) === game.player1_id) {
+        return reply.code(400).send({ 
+          error: 'Cannot join your own game' 
+        });
+      }
+
+      // Join the game
+      game.player2_id = parseInt(player2_id);
+      game.player2_name = player2_name.trim();
+      game.status = 'ready';
+
+      console.log(`[Game] Player ${player2_name} joined game ${gameId}. Status: ${game.status}`);
+
+      // Broadcast to connected clients that player joined
+      const joinMessage = JSON.stringify({
+        type: 'PLAYER_JOINED',
+        gameId: gameId,
+        player2_name: game.player2_name,
+        status: game.status,
+        message: `${game.player2_name} joined the game! Both players can now ready up.`
+      });
+
+      for (const client of game.clients) {
+        if (client.readyState === 1) { // WebSocket.OPEN
+          client.send(joinMessage);
+        }
+      }
+
+      const response = {
+        id: gameId,
+        player1_id: game.player1_id,
+        player2_id: game.player2_id,
+        player1_name: game.player1_name,
+        player2_name: game.player2_name,
+        status: game.status,
+        message: 'Successfully joined the game',
+        websocketUrl: `ws://localhost:3002/ws/pong/game-ws/${gameId}`
+      };
+
+      return reply.code(200).send(response);
+
+    } catch (error) {
+      console.error('[Game] Error joining game:', error);
+      return reply.code(500).send({ error: 'Failed to join game' });
     }
   });
 
@@ -237,46 +334,51 @@ export function registerSingleGameRoutes(fastify, games, counters, broadcastStat
 }
 
 /**
- * Validates single game creation parameters
+ * Validates game creation parameters
+ * Supports both single-player creation and full game creation
  * @param {Object} body - Request body
  * @returns {Object} Validation result
  */
-function validateSingleGameCreation(body) {
+function validateGameCreation(body) {
   const { player1_id, player2_id, player1_name, player2_name } = body;
   
-  if (!player1_id || !player2_id) {
+  // Player 1 is always required
+  if (!player1_id || !player1_name) {
     return {
       valid: false,
-      error: 'player1_id and player2_id are required'
-    };
-  }
-  
-  if (!player1_name || !player2_name) {
-    return {
-      valid: false,
-      error: 'player1_name and player2_name are required'
-    };
-  }
-  
-  if (player1_id === player2_id) {
-    return {
-      valid: false,
-      error: 'player1_id and player2_id must be different'
+      error: 'player1_id and player1_name are required'
     };
   }
 
-  if (typeof player1_name !== 'string' || typeof player2_name !== 'string') {
+  if (typeof player1_name !== 'string' || player1_name.trim().length === 0) {
     return {
       valid: false,
-      error: 'Player names must be strings'
+      error: 'player1_name must be a non-empty string'
     };
   }
 
-  if (player1_name.trim().length === 0 || player2_name.trim().length === 0) {
-    return {
-      valid: false,
-      error: 'Player names cannot be empty'
-    };
+  // If player2 info is provided, validate it
+  if (player2_id || player2_name) {
+    if (!player2_id || !player2_name) {
+      return {
+        valid: false,
+        error: 'If providing player2 info, both player2_id and player2_name are required'
+      };
+    }
+
+    if (typeof player2_name !== 'string' || player2_name.trim().length === 0) {
+      return {
+        valid: false,
+        error: 'player2_name must be a non-empty string'
+      };
+    }
+
+    if (player1_id === player2_id) {
+      return {
+        valid: false,
+        error: 'player1_id and player2_id must be different'
+      };
+    }
   }
   
   return { valid: true };

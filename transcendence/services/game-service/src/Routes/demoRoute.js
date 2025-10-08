@@ -40,13 +40,9 @@ export function registerDemoRoutes(fastify, games, counters, broadcastState) {
       state.gameId = gameId;
       const clients = new Set();
 
-      // Start a game loop that updates the ball and broadcasts per game
-      const loop = startGameLoop(
-        state, 
-        () => broadcastState(gameId), 
-        moveBall, 
-        () => clients.size
-      );
+            // Start a game loop that updates the ball and broadcasts per game
+      const getClientCount = () => clients.size;
+      const loop = startGameLoop(state, () => broadcastState(gameId), moveBall, getClientCount);
       state.gameLoopInterval = loop; // Store reference for cleanup
 
       const game = {
