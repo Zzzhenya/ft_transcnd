@@ -233,7 +233,7 @@ jobs:
         run: |
           echo "🧪 Running API integration tests..."
           
-          BASE_URL="http://localhost:3001"
+          BASE_URL="http://user-service:3001"
           
           # Test 1: Health Check
           echo "1. Testing health endpoint..."
