@@ -1,54 +1,5 @@
 # Frontend Specification
 
-## 🚀 Quick Start with Makefile
-
-This frontend comes with a comprehensive Makefile to help with development and deployment tasks.
-
-### Available Commands
-
-```bash
-# Show all available commands
-make help
-
-# Development
-make install      # Install npm dependencies
-make dev         # Start development server
-make build       # Build for production
-make preview     # Preview production build
-
-# Code Quality
-make lint        # Run ESLint
-make lint-fix    # Run ESLint with auto-fix
-make format      # Format code with Prettier
-make check       # Run all checks
-
-# Docker
-make docker-build # Build Docker image
-make docker-dev   # Run development container
-make docker-prod  # Run production container
-make docker-stop  # Stop running container
-make docker-clean # Remove container and image
-
-# Utility
-make logs        # Show container logs
-make status      # Show container status
-make shell       # Open shell in container
-```
-
-### Quick Examples
-
-```bash
-# Start development environment
-make install
-make dev
-
-# Build and run in production mode
-make docker-prod
-
-# Check code quality
-make check
-```
-
 ## ✅ What it is
 - Single File Components? Nope.
 - React/Vue? Nope.
@@ -58,14 +9,14 @@ make check
 - **Run-time**: SPA (Single Page Application): Responsive Design
 - **Language**: TypeScript  
 - **Framework**: None (custom router / store implementation)  
-- **UI**: Tailwind CSS  
+- **UI**: Tailwind CSS
 - **3D**: Babylon.js
 
 ## ✅ UI Page Structure (Essential)
 
 ### (0) Common
 - **AppShell**  
-	- Header (Logo / Current User / Setting)  
+	- Header (Logo / Current User / Setting)
 	- Main container  
 	- Toast (Announcement / Error)
 
@@ -313,22 +264,47 @@ make check
 ---
 
 ### Phase 1: 2D Canvas MVP Renderer
-1. Attach **2D Canvas renderer** to `/game/:matchId`  
-2. Implement **Game Rules**: physics, scoring, reset, keyboard input  
-3. Add **HUD / ResultModal** with minimal info + exit button  
-4. Cleanup on unmount (timers / listeners)  
-5. Tournament flow: AliasGate → MyMatch → Game → Next round  
+1. Attach **2D Canvas renderer** to `/game/:matchId` 
+	- [✅] Call 'mountGame(root)' in test.ts.
+	- [✅] Create canvas & set size
+
+2. Implement **Game Rules**: physics, scoring, reset, keyboard input
+	- [✅] Type/State: GameConfig, GameState, Paddle, Ball, Score
+	- [✅] Logic to init factories: createPaddle, createBall, createState
+	- [✅] Logit to Serve / reset: serveBall (random angle 15-45 + dir), resetRound
+	- [✅] Validation: assertValidConfig runs once in [f]createState()
+	- [✅] keyboard input: createInput (W/S, A-Up/A-DN, P, R)
+	- [✅] Physics: wall/paddle collisions with dt; frame-independent movement
+	- [✅] Scoring/Rounds: goal detection(stepPhysics, onScore) updates score
+	- [✅] Round reset / pause / end: handled in the update loop
+	
+3. Add **HUD / ResultModal** with minimal info + exit button
+	- [✅] ResultDialog (backdrop + modal), winner text, button, ESC close.
+
+4. Cleanup on unmount
+	- [✅] cancelAnimationFrame(raf), dialog.destory()
+	- [✅] detach(): remove key listener
+	- [✅] remove canvas
+
+5. Tournament flow (stubbed)
+	- [ ] AliasGate → MyMatch → Game → Next round 
+	- [ ] Pending route wiring and page transitions
 
 ### Definition of Done (DoD)
-- [ ] Local flow from Lobby → Local → Game → ResultModal → Lobby  
-- [ ] Tournament flow from Lobby → Tournament list → Detail → AliasGate → Game → ResultModal → Next round  
-- [ ] No resource leaks (FPS / memory stable)  
-- [ ] `#app` focus actually moves on navigation  
+- [✅] Local flow:
+	- [✅] Lobby → Local → Game → ResultModal → Lobby
+	- [✅] Needs route navigation hooks and ResultModal button targets.
+- [ ] Tournament flow:
+	- Lobby → Tournament list → Detail → AliasGate → Game → ResultModal → Next round
+- [ ] No resource leaks (FPS / memory stable) 
+	- rAF canceled, listeners/DOM cleaned up, dialog listeners removed.
+- [✅] `#app` focus actually moves on navigation  
+	- Router focuses `root` post-render.
 
 ---
 
 ### Phase 2: Tournament Expansion
-1. **BracketView auto-update** after each match result  
+1. **BracketView auto-update** after each match result
 2. **Announcements / QueueStatus** finalized transitions  
 
 ### Definition of Done (DoD)
@@ -357,7 +333,7 @@ make check
 - **Extension**: Consistent design & utility classes even with more components  
 - **Principle**:  
   - No mixed plain CSS  
-  - Reusable UI → Componentized for maintainability & collaboration  
+  - Reusable UI → Componentized for maintainability & collaboration
 
 ---
 
