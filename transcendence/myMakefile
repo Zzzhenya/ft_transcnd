@@ -11,8 +11,9 @@ $(DATA_DIR):
 
 
 # compose: $(ENV_FILE) $(DATA_DIR)
-compose:
+compose: 
 	@docker compose -f docker-compose.yml up --build -d
+	docker-compose -f docker-compose.yml run --rm health-checker
 	docker ps | wc -l
 
 up: compose
