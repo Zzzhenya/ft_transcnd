@@ -291,9 +291,9 @@ jobs:
           cd transcendence
           pwd
           docker compose -f docker-compose.yml run --rm health-checker
-          if [ ! echo $? ] ; then
+          RES=$?
+          if [ $RES -eq 0 ] ; then
             echo "✅ Other Unexposed Services are responding"
-            break
           else
             echo "⏳ Other Unexposed Services are not ready"
             exit 1
