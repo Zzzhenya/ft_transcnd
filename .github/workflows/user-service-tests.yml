@@ -167,14 +167,9 @@ jobs:
         run: |
           cd transcendence
           echo "🚀 Starting services for testing..."
-
-
-          #build
-          docker compose build database user-service
           
           # Start only essential services
-          # docker compose up -d database user-service
-          docker run -d --name user-service --network transcendance_network -p 3001:3001 transcendence-user-service
+          docker compose up -d database user-service gateway
           
           echo "⏳ Waiting for services to initialize..."
           sleep 30
@@ -238,8 +233,8 @@ jobs:
         run: |
           echo "🧪 Running API integration tests..."
           
-          BASE_URL="http://localhost:3001"
-          # BASE_URL="http://localhost:3000/user-service"
+          # BASE_URL="http://localhost:3001"
+          BASE_URL="http://localhost:3000/user-service"
           
           # Test 1: Health Check
           echo "1. Testing health endpoint..."
