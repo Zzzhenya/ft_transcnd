@@ -4,12 +4,12 @@ import type { FastifyHttpOptions, FastifyInstance, FastifyServerOptions, Fastify
 
 const userRoutes: FastifyPluginAsync = async (fastify) => {
 
-	fastify.get('/register', async (request, reply) => {
+	fastify.post('/register', async (request, reply) => {
 		try
 		{
-			fastify.log.error("Gateway received GET request for /register")
+			fastify.log.error("Gateway received POST request for /register")
 			const response = await fetch('http://user-service:3001/auth/register', {
-			method: 'GET',
+			method: 'POST',
 			headers: {
 			'Authorization': request.headers['authorization'] || '',
 		}})
@@ -22,12 +22,12 @@ const userRoutes: FastifyPluginAsync = async (fastify) => {
 	}
 	});
 
-	fastify.get('/login', async (request, reply) => {
+	fastify.post('/login', async (request, reply) => {
 		try
 		{
-			fastify.log.error("Gateway received GET request for /login")
+			fastify.log.error("Gateway received POST request for /login")
 			const response = await fetch('http://user-service:3001/auth/login', {
-			method: 'GET',
+			method: 'POST',
 			headers: {
 			'Authorization': request.headers['authorization'] || '',
 		}})

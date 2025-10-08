@@ -13,7 +13,7 @@ import cors from '@fastify/cors'
 import firstRoute from './routes.js'
 import healthRoute from './routes/health.route.js'
 import wsRoute from './routes/ws-proxy.route.js'
-import userRoutes from './routes/user.route.js'
+import userRoute from './routes/user.route.js'
 // console.log(services.users);
 
 const Fastify = fastify({logger:true});
@@ -61,7 +61,7 @@ console.log("port: " + PORT);
 Fastify.register(firstRoute);
 Fastify.register(healthRoute);
 Fastify.register(wsRoute, { prefix: '/ws' })
-Fastify.register(wsRoute, { prefix: '/user-service/auth' })
+Fastify.register(userRoute, { prefix: '/user-service/auth' })
 // Fastify.register(wsRoute)
 Fastify.log.info('Something important happened!');
 start();
