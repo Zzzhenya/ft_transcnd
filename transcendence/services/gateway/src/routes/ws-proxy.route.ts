@@ -63,6 +63,100 @@ const wsProxyRoute: FastifyPluginAsync = async (fastify) => {
       fastify.log.error('Failed to connect to backend:' + err)
     }
   })
+
+// demo
+
+  fastify.get('/pong/demo', async (request , reply) => {
+    try
+    {
+        fastify.log.error("Gateway received GET request for /ws/pong/demo")
+        const response = await fetch('http://game-service:3002/ws/pong/demo', {
+        method: 'GET',
+        headers: {
+        'Authorization': request.headers['authorization'] || '',
+      }})
+    const data = await response.json();
+    reply.status(response.status).send(data);
+    }
+    catch (error) {
+      fastify.log.error(error)
+      reply.status(404);
+    }
+  })
+
+  fastify.post('/pong/demo', async (request , reply) => {
+    try
+    {
+        fastify.log.error("Gateway received POST request for /ws/pong/demo")
+        const response = await fetch('http://game-service:3002/ws/pong/demo', {
+        method: 'POST',
+        headers: {
+        'Authorization': request.headers['authorization'] || '',
+      }})
+    const data = await response.json();
+    reply.status(response.status).send(data);
+    }
+    catch (error) {
+      fastify.log.error(error)
+      reply.status(404);
+    }
+  })
+
+  fastify.delete('/pong/demo/:gameId', async (request , reply) => {
+    try
+    {
+        fastify.log.error("Gateway received DELETE request for /ws/pong/demo/:gameId")
+        const response = await fetch('http://game-service:3002/ws/pong/demo/:gameId', {
+        method: 'DELETE',
+        headers: {
+        'Authorization': request.headers['authorization'] || '',
+      }})
+    const data = await response.json();
+    reply.status(response.status).send(data);
+    }
+    catch (error) {
+      fastify.log.error(error)
+      reply.status(404);
+    }
+  })
+
+  fastify.delete('/pong/demo', async (request , reply) => {
+    try
+    {
+        fastify.log.error("Gateway received DELETE request for /ws/pong/demo")
+        const response = await fetch('http://game-service:3002/ws/pong/demo', {
+        method: 'DELETE',
+        headers: {
+        'Authorization': request.headers['authorization'] || '',
+      }})
+    const data = await response.json();
+    reply.status(response.status).send(data);
+    }
+    catch (error) {
+      fastify.log.error(error)
+      reply.status(404);
+    }
+  })
+
+  fastify.post('/pong/demo/:gameId/move', async (request , reply) => {
+    try
+    {
+        fastify.log.error("Gateway received POST request for /ws/pong/demo/:gameId/move")
+        const response = await fetch('http://game-service:3002/ws/pong/demo/:gameId/move', {
+        method: 'POST',
+        headers: {
+        'Authorization': request.headers['authorization'] || '',
+      }})
+    const data = await response.json();
+    reply.status(response.status).send(data);
+    }
+    catch (error) {
+      fastify.log.error(error)
+      reply.status(404);
+    }
+  })
+
+
 }
 
 export default wsProxyRoute
