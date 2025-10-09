@@ -28,12 +28,15 @@ const userRoutes: FastifyPluginAsync = async (fastify) => {
 	fastify.post('/auth/register', async (request, reply) => {
 		try
 		{
-			fastify.log.error("Gateway received POST request for /register")
+			fastify.log.info("Gateway received POST request for /register")
+			fastify.log.info({ body: request.body }, "Request body")
 			const response = await fetch('http://user-service:3001/auth/register', {
 			method: 'POST',
 			headers: {
-			'Authorization': request.headers['authorization'] || '',
-		}})
+			'Content-Type': 'application/json',
+			'Authorization': request.headers['authorization'] || '',},
+			body:JSON.stringify(request.body),
+		})
 		const data = await response.json();
 		reply.status(response.status).send(data);
 		}
@@ -50,8 +53,10 @@ const userRoutes: FastifyPluginAsync = async (fastify) => {
 			const response = await fetch('http://user-service:3001/auth/login', {
 			method: 'POST',
 			headers: {
-			'Authorization': request.headers['authorization'] || '',
-		}})
+			'Content-Type': 'application/json',
+			'Authorization': request.headers['authorization'] || '',},
+			body:JSON.stringify(request.body),
+		})
 		const data = await response.json();
 		reply.status(response.status).send(data);
 		}

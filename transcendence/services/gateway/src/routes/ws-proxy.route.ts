@@ -91,8 +91,10 @@ const wsProxyRoute: FastifyPluginAsync = async (fastify) => {
         const response = await fetch('http://game-service:3002/ws/pong/demo', {
         method: 'POST',
         headers: {
-        'Authorization': request.headers['authorization'] || '',
-      }})
+        'Content-Type': 'application/json',
+        'Authorization': request.headers['authorization'] || '',},
+        body:JSON.stringify(request.body),
+      })
     const data = await response.json();
     reply.status(response.status).send(data);
     }
@@ -145,8 +147,10 @@ const wsProxyRoute: FastifyPluginAsync = async (fastify) => {
         const response = await fetch('http://game-service:3002/ws/pong/demo/:gameId/move', {
         method: 'POST',
         headers: {
-        'Authorization': request.headers['authorization'] || '',
-      }})
+        'Content-Type': 'application/json',
+        'Authorization': request.headers['authorization'] || '',},
+        body:JSON.stringify(request.body),
+      })
     const data = await response.json();
     reply.status(response.status).send(data);
     }
@@ -165,8 +169,10 @@ const wsProxyRoute: FastifyPluginAsync = async (fastify) => {
         const response = await fetch('http://game-service:3002/ws/pong/game', {
         method: 'POST',
         headers: {
-        'Authorization': request.headers['authorization'] || '',
-      }})
+        'Content-Type': 'application/json',
+        'Authorization': request.headers['authorization'] || '',},
+        body:JSON.stringify(request.body),
+      })
     const data = await response.json();
     reply.status(response.status).send(data);
     }
@@ -219,8 +225,10 @@ const wsProxyRoute: FastifyPluginAsync = async (fastify) => {
         const response = await fetch('http://game-service:3002/ws/pong/game/:gameId/join', {
         method: 'POST',
         headers: {
-        'Authorization': request.headers['authorization'] || '',
-      }})
+        'Content-Type': 'application/json',
+        'Authorization': request.headers['authorization'] || '',},
+        body:JSON.stringify(request.body),
+      })
     const data = await response.json();
     reply.status(response.status).send(data);
     }
@@ -237,8 +245,10 @@ const wsProxyRoute: FastifyPluginAsync = async (fastify) => {
         const response = await fetch('http://game-service:3002/ws/pong/game/:gameId/move', {
         method: 'POST',
         headers: {
-        'Authorization': request.headers['authorization'] || '',
-      }})
+        'Content-Type': 'application/json',
+        'Authorization': request.headers['authorization'] || '',},
+        body:JSON.stringify(request.body),
+      })
     const data = await response.json();
     reply.status(response.status).send(data);
     }
@@ -265,7 +275,6 @@ const wsProxyRoute: FastifyPluginAsync = async (fastify) => {
       reply.status(404);
     }
   })
-
 
 
 }
