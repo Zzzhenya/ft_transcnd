@@ -20,7 +20,7 @@ export function movePaddle(gameState, player, direction) {
 }
 
 export function moveBall(gameState) {
-  // Don't move ball if game/round is ended, waiting to start, or paused
+  // Don't move ball if game/round is ended or waiting to start
   if (gameState.tournament.gameStatus !== 'playing') {
     return gameState;
   }
@@ -218,7 +218,6 @@ function restartGame(gameState) {
   gameState.tournament.winner = null;
   gameState.tournament.lastPointWinner = null;
   gameState.tournament.nextRoundCountdown = 0;
-  gameState.isPaused = false;  // Reset pause state
   resetBall(gameState);
 }
 
@@ -253,7 +252,7 @@ function startGameLoop(gameState, broadcastState, moveBall, getClientCount) {
   const gameLoopInterval = setInterval(() => {
     const clientCount = getClientCount ? getClientCount() : 1;
     
-    // Pause game when no clients connected to save CPU
+    // Optimize CPU usage when no clients connected
     if (clientCount === 0 && gameState.tournament.gameStatus === 'playing') {
       inactiveFrames++;
       // Only check every 10 frames when no clients (save CPU)
@@ -264,8 +263,8 @@ function startGameLoop(gameState, broadcastState, moveBall, getClientCount) {
       inactiveFrames = 0;
     }
     
-        // Only process ball movement if game is actively playing, not paused, and has clients
-    if (gameState.tournament.gameStatus === 'playing' && !gameState.isPaused && clientCount > 0) {
+        // Only process ball movement if game is actively playing and has clients
+    if (gameState.tournament.gameStatus === 'playing' && clientCount > 0) {
       moveBall(gameState);
     }
 
@@ -309,7 +308,7 @@ function initialGameState() {
     tournament: {
       currentRound: 1,
       maxRounds: 3,
-      scoreLimit: 5,
+      scoreLimit: 3,
       roundsWon: { player1: 0, player2: 0 },
       gameStatus: 'waiting', // 'waiting', 'playing', 'roundEnd', 'gameEnd', 'roundCountdown'
       winner: null,
@@ -318,8 +317,7 @@ function initialGameState() {
       nextRoundNumber: 1,
       countdownInterval: null
     },
-    gameLoopInterval: null,
-    isPaused: false
+    gameLoopInterval: null
   };
 }
 
