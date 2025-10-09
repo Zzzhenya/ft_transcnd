@@ -296,7 +296,7 @@
 	- [✅] Needs route navigation hooks and ResultModal button targets.
 - [ ] Tournament flow:
 	- Lobby → Tournament list → Detail → AliasGate → Game → ResultModal → Next round
-- [ ] No resource leaks (FPS / memory stable) 
+- [✅] No resource leaks (FPS / memory stable) 
 	- rAF canceled, listeners/DOM cleaned up, dialog listeners removed.
 - [✅] `#app` focus actually moves on navigation  
 	- Router focuses `root` post-render.
