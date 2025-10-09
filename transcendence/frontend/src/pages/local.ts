@@ -5,19 +5,32 @@ export default function (root: HTMLElement) {
   let ctx: CanvasRenderingContext2D;
   let player1Keys = { up: false, down: false }; // WASD keys for left paddle
   let player2Keys = { up: false, down: false }; // Arrow keys for right paddle
+  
+  // Game state - can be local or from backend
+  let gameState = {
+    ball: { x: 0, y: 0, dx: 3, dy: 2 },
+    paddles: { player1: 0, player2: 0 },
+    score: { player1: 0, player2: 0 },
+    gameStatus: 'waiting'
+  };
+  let gameLoop: number | null = null;
+  let lastTime = 0;
+  let isConnectedToBackend = false;
+  let connectionAttempts = 0;
+  const maxConnectionAttempts = 3;
 
   root.innerHTML = `
     <section class="py-6 md:py-8 lg:py-10 space-y-8">
       <header class="space-y-2">
-        <h1 class="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold">Local Game</h1>
+        <h1 class="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold">🏓 Network Pong Game</h1>
         <p class="text-sm sm:text-base md:text-lg text-gray-600">
-          Two-player local game - Player vs Player
+          Multiplayer game connecting through gateway to backend
         </p>
       </header>
 
       <div class="flex gap-4 justify-center">
         <button id="startBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold">
-          Start Game
+          Start Network Game
         </button>
         <button id="restartBtn" class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold" disabled>
           Restart Game
@@ -28,7 +41,7 @@ export default function (root: HTMLElement) {
       </div>
 
       <div id="gameStatus" class="text-center text-lg font-medium">
-        Click "Start Game" to begin
+        🌐 Click "Start Network Game" to connect to backend
       </div>
 
       <div class="flex justify-center">
@@ -38,9 +51,10 @@ export default function (root: HTMLElement) {
       </div>
 
       <div class="text-center text-gray-500 text-sm space-y-1">
-        <p><strong>Player 1 (Left Paddle):</strong> W/S keys to move up/down</p>
-        <p><strong>Player 2 (Right Paddle):</strong> Arrow Keys ↑/↓ to move up/down</p>
-        <p>Game connects through the gateway to the game service</p>
+        <p><strong>🎯 Player 1 (Left Paddle):</strong> W/S keys to move up/down</p>
+        <p><strong>🎯 Player 2 (Right Paddle):</strong> Arrow Keys ↑/↓ to move up/down</p>
+        <p id="connectionStatus">🔄 Ready to connect to backend game service</p>
+        <p>🏆 First to 5 points wins!</p>
       </div>
     </section>
   `;
@@ -49,6 +63,7 @@ export default function (root: HTMLElement) {
   const restartBtn = root.querySelector('#restartBtn') as HTMLButtonElement;
   const lobbyBtn = root.querySelector('#lobbyBtn') as HTMLButtonElement;
   const gameStatus = root.querySelector('#gameStatus') as HTMLDivElement;
+  const connectionStatus = root.querySelector('#connectionStatus') as HTMLParagraphElement;
   canvas = root.querySelector('#gameCanvas') as HTMLCanvasElement;
   ctx = canvas.getContext('2d')!;
 
@@ -56,11 +71,15 @@ export default function (root: HTMLElement) {
     gameStatus.textContent = message;
   }
 
+  function updateConnectionStatus(message: string) {
+    connectionStatus.textContent = message;
+  }
+
   async function createDemoGame(): Promise<string | null> {
     try {
-      updateStatus('Creating demo game...');
+      updateStatus('🔄 Creating demo game...');
+      updateConnectionStatus('📡 Connecting to gateway...');
       
-      // Call gateway API (not game service directly) - USE HTTP not WS!
       const response = await fetch('http://localhost:3000/ws/pong/demo', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -71,87 +90,202 @@ export default function (root: HTMLElement) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      // Parse the API response
       const result = await response.json();
-      console.log('Demo game created:', result);
-      
-      // Expected response format:
-      // {
-      //   "id": 7,
-      //   "player1_id": 13,
-      //   "player2_id": 14,
-      //   "player1_name": "d13", 
-      //   "player2_name": "d14",
-      //   "status": "demo",
-      //   "isDemo": true,
-      //   "message": "Demo game created with temporary players",
-      //   "websocketUrl": "ws://localhost:3002/ws/pong/game-ws/7"
-      // }
+      console.log('✅ Demo game created:', result);
       
       if (!result.id) {
         throw new Error('No game ID in response');
       }
       
-      updateStatus(`Demo game ${result.id} created successfully`);
+      updateStatus(`🎮 Demo game ${result.id} created successfully`);
+      updateConnectionStatus('✅ Game created on backend');
       return result.id.toString();
       
     } catch (error) {
-      console.error('Error creating demo game:', error);
-      updateStatus('Error creating game');
+      console.error('❌ Error creating demo game:', error);
+      updateStatus('❌ Error creating game - falling back to local');
+      updateConnectionStatus('❌ Backend connection failed');
       return null;
     }
   }
 
   function connectWebSocket(gameId: string) {
+    connectionAttempts++;
     try {
       const wsUrl = `ws://localhost:3000/ws/pong/game-ws/${gameId}`;
-      console.log(`Connecting to WebSocket: ${wsUrl}`);
-      updateStatus('Connecting to game...');
+      console.log(`🔌 Connecting to WebSocket: ${wsUrl} (attempt ${connectionAttempts})`);
+      updateStatus('🔄 Connecting to game...');
+      updateConnectionStatus(`🔌 WebSocket connecting... (${connectionAttempts}/${maxConnectionAttempts})`);
       
       ws = new WebSocket(wsUrl);
       
       ws.onopen = () => {
-        console.log('WebSocket connected successfully');
-        updateStatus('Connected! Game starting...');
+        console.log('✅ WebSocket connected successfully');
+        isConnectedToBackend = true;
+        updateStatus('🌐 Connected! Starting network game...');
+        updateConnectionStatus('✅ Connected to backend game service');
+        
+        // Start the network game loop
+        startNetworkGame();
+        
+        // Start the game automatically when connected
+        setTimeout(() => {
+          if (ws && ws.readyState === WebSocket.OPEN) {
+            console.log('📤 Sending START_GAME message');
+            ws.send(JSON.stringify({
+              type: 'START_GAME'
+            }));
+          }
+        }, 500);
       };
       
       ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
-          console.log('WebSocket message received:', data);
-          handleGameMessage(data);
+          console.log('📨 Backend message:', data);
+          handleBackendMessage(data);
         } catch (error) {
-          console.error('Error parsing WebSocket message:', error);
+          console.error('❌ Error parsing backend message:', error);
         }
       };
       
       ws.onclose = (event) => {
-        console.log('WebSocket closed:', event.code, event.reason);
-        updateStatus('Disconnected from game');
+        console.log('🔌 WebSocket closed:', event.code, event.reason);
+        isConnectedToBackend = false;
+        
+        if (connectionAttempts < maxConnectionAttempts && event.code === 1006) {
+          updateStatus(`🔄 Connection lost, retrying... (${connectionAttempts}/${maxConnectionAttempts})`);
+          updateConnectionStatus(`🔄 Reconnecting... (${connectionAttempts}/${maxConnectionAttempts})`);
+          setTimeout(() => connectWebSocket(gameId), 2000);
+        } else {
+          updateStatus('❌ Backend connection failed - please try again');
+          updateConnectionStatus('❌ Unable to connect to backend');
+          startBtn.disabled = false;
+        }
       };
       
       ws.onerror = (error) => {
-        console.error('WebSocket error:', error);
-        updateStatus('Connection error');
+        console.error('❌ WebSocket error:', error);
+        updateStatus('❌ Connection error');
+        updateConnectionStatus('❌ WebSocket error occurred');
       };
       
     } catch (error) {
-      console.error('Error connecting to WebSocket:', error);
-      updateStatus('Failed to connect');
+      console.error('❌ Error connecting to WebSocket:', error);
+      updateStatus('❌ Failed to connect - please try again');
+      updateConnectionStatus('❌ Network connection failed');
+      startBtn.disabled = false;
     }
   }
 
-  function handleGameMessage(data: any) {
-    if (data.type === 'gameState') {
-      drawGame(data.gameState);
-    } else if (data.type === 'gameStarted') {
-      updateStatus('Game in progress - Player 1: W/S, Player 2: ↑/↓');
-    } else if (data.type === 'gameEnded') {
-      updateStatus(`Game ended! Winner: ${data.winner || 'Nobody'}`);
+  function handleBackendMessage(data: any) {
+    if (data.type === 'STATE_UPDATE' && data.gameState) {
+      // Use backend game state
+      gameState = {
+        ball: data.gameState.ball || gameState.ball,
+        paddles: data.gameState.paddles || gameState.paddles,
+        score: data.gameState.score || gameState.score,
+        gameStatus: data.gameState.tournament?.gameStatus || 'playing'
+      };
+      
+      console.log('🎮 Backend state update:', gameState);
+      
+      // Update status based on game status
+      if (gameState.gameStatus === 'playing') {
+        updateStatus('🌐 Network game active - Player 1: W/S, Player 2: ↑/↓');
+      } else if (gameState.gameStatus === 'waiting') {
+        updateStatus('⏳ Game waiting to start...');
+      } else if (gameState.gameStatus === 'gameEnd') {
+        updateStatus(`🏆 Game ended! Winner: ${data.gameState.tournament?.winner || 'Nobody'}`);
+      }
     }
   }
 
-  function drawGame(gameState: any) {
+  function sendPaddleMovement() {
+    if (!ws || ws.readyState !== WebSocket.OPEN || !isConnectedToBackend) {
+      // If not connected to backend, do nothing
+      return;
+    }
+    
+    // Send to backend only when keys are pressed
+    let messagesSent = false;
+    
+    if (player1Keys.up) {
+      ws.send(JSON.stringify({
+        type: 'MOVE_PADDLE',
+        player: 'player1',
+        direction: 'up'
+      }));
+      messagesSent = true;
+    }
+    if (player1Keys.down) {
+      ws.send(JSON.stringify({
+        type: 'MOVE_PADDLE',
+        player: 'player1',
+        direction: 'down'
+      }));
+      messagesSent = true;
+    }
+    if (player2Keys.up) {
+      ws.send(JSON.stringify({
+        type: 'MOVE_PADDLE',
+        player: 'player2',
+        direction: 'up'
+      }));
+      messagesSent = true;
+    }
+    if (player2Keys.down) {
+      ws.send(JSON.stringify({
+        type: 'MOVE_PADDLE',
+        player: 'player2',
+        direction: 'down'
+      }));
+      messagesSent = true;
+    }
+    
+    // Optional: Log when messages are sent for debugging
+    if (messagesSent) {
+      console.log('📤 Sent paddle movement to backend');
+    }
+  }
+
+  function startNetworkGame() {
+    console.log('🌐 Starting network game loop');
+    
+    // Reset connection flags
+    startBtn.disabled = true;
+    restartBtn.disabled = false;
+    
+    // Clear any existing local game loop
+    if (gameLoop) {
+      cancelAnimationFrame(gameLoop);
+      gameLoop = null;
+    }
+    
+    // Start the network game loop
+    lastTime = 0;
+    const updateNetworkGame = (currentTime: number) => {
+      if (lastTime === 0) lastTime = currentTime;
+      lastTime = currentTime;
+      
+      // Send paddle movements continuously while connected
+      if (isConnectedToBackend) {
+        sendPaddleMovement();
+      }
+      
+      // Always render the current game state
+      drawGame();
+      
+      // Continue the loop if still connected or game is active
+      if (isConnectedToBackend || gameState.gameStatus === 'playing') {
+        gameLoop = requestAnimationFrame(updateNetworkGame);
+      }
+    };
+    
+    gameLoop = requestAnimationFrame(updateNetworkGame);
+  }
+
+  function drawGame() {
     if (!ctx || !canvas) return;
     
     // Clear canvas
@@ -159,58 +293,89 @@ export default function (root: HTMLElement) {
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
     // Draw center line
-    ctx.setLineDash([5, 15]);
+    ctx.setLineDash([10, 10]);
     ctx.beginPath();
     ctx.moveTo(canvas.width / 2, 0);
     ctx.lineTo(canvas.width / 2, canvas.height);
-    ctx.strokeStyle = '#444444';
+    ctx.strokeStyle = isConnectedToBackend ? '#00ff00' : '#888888';
+    ctx.lineWidth = 2;
     ctx.stroke();
     ctx.setLineDash([]);
     
+    // Convert coordinates
+    const scaleX = canvas.width / 200;
+    const scaleY = canvas.height / 200;
+    const offsetX = canvas.width / 2;
+    const offsetY = canvas.height / 2;
+    
+    function toCanvasX(gameX: number) { return offsetX + (gameX * scaleX); }
+    function toCanvasY(gameY: number) { return offsetY - (gameY * scaleY); }
+    
     // Draw paddles
-    ctx.fillStyle = '#ffffff';
+    ctx.fillStyle = isConnectedToBackend ? '#00ff00' : '#ffffff';
+    const paddleWidth = 12;
+    const paddleHeight = 60;
     
-    // Left paddle (Player 1)
-    ctx.fillRect(20, gameState.leftPaddle.y, 10, 60);
+    // Left paddle
+    const leftPaddleX = toCanvasX(-90);
+    const leftPaddleY = toCanvasY(gameState.paddles.player1) - paddleHeight / 2;
+    ctx.fillRect(leftPaddleX - paddleWidth/2, leftPaddleY, paddleWidth, paddleHeight);
     
-    // Right paddle (Player 2)
-    ctx.fillRect(canvas.width - 30, gameState.rightPaddle.y, 10, 60);
+    // Right paddle
+    const rightPaddleX = toCanvasX(90);
+    const rightPaddleY = toCanvasY(gameState.paddles.player2) - paddleHeight / 2;
+    ctx.fillRect(rightPaddleX - paddleWidth/2, rightPaddleY, paddleWidth, paddleHeight);
     
     // Draw ball
+    const ballX = toCanvasX(gameState.ball.x);
+    const ballY = toCanvasY(gameState.ball.y);
+    
+    ctx.shadowColor = isConnectedToBackend ? '#00ff00' : '#ffff00';
+    ctx.shadowBlur = 15;
     ctx.beginPath();
-    ctx.arc(gameState.ball.x, gameState.ball.y, 5, 0, Math.PI * 2);
+    ctx.arc(ballX, ballY, 8, 0, Math.PI * 2);
+    ctx.fillStyle = isConnectedToBackend ? '#00ff00' : '#ffff00';
     ctx.fill();
+    ctx.shadowBlur = 0;
     
     // Draw score
-    ctx.font = '24px Arial';
+    ctx.font = 'bold 36px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(
+      `${gameState.score.player1} - ${gameState.score.player2}`,
+      canvas.width / 2,
+      50
+    );
+    
+    // Draw connection indicator
+    ctx.font = '14px Arial';
+    ctx.fillStyle = isConnectedToBackend ? '#00ff00' : '#ff8800';
     ctx.textAlign = 'center';
     ctx.fillText(
-      `${gameState.score.left} - ${gameState.score.right}`,
+      isConnectedToBackend ? '🌐 NETWORK MODE' : '🔧 LOCAL MODE',
       canvas.width / 2,
-      30
+      canvas.height - 40
     );
     
     // Draw player labels
-    ctx.font = '14px Arial';
+    ctx.font = '16px Arial';
     ctx.fillStyle = '#888888';
     ctx.textAlign = 'left';
-    ctx.fillText('Player 1 (W/S)', 10, canvas.height - 10);
+    ctx.fillText('Player 1 (W/S)', 20, canvas.height - 20);
     ctx.textAlign = 'right';
-    ctx.fillText('Player 2 (↑/↓)', canvas.width - 10, canvas.height - 10);
+    ctx.fillText('Player 2 (↑/↓)', canvas.width - 20, canvas.height - 20);
   }
 
   function setupKeyboardControls() {
     document.addEventListener('keydown', (e) => {
-      // Player 1 controls (left paddle) - WASD
       if (e.key === 'w' || e.key === 'W') {
         player1Keys.up = true;
         e.preventDefault();
       } else if (e.key === 's' || e.key === 'S') {
         player1Keys.down = true;
         e.preventDefault();
-      }
-      // Player 2 controls (right paddle) - Arrow keys
-      else if (e.key === 'ArrowUp') {
+      } else if (e.key === 'ArrowUp') {
         player2Keys.up = true;
         e.preventDefault();
       } else if (e.key === 'ArrowDown') {
@@ -221,14 +386,11 @@ export default function (root: HTMLElement) {
     });
 
     document.addEventListener('keyup', (e) => {
-      // Player 1 controls (left paddle) - WASD
       if (e.key === 'w' || e.key === 'W') {
         player1Keys.up = false;
       } else if (e.key === 's' || e.key === 'S') {
         player1Keys.down = false;
-      }
-      // Player 2 controls (right paddle) - Arrow keys
-      else if (e.key === 'ArrowUp') {
+      } else if (e.key === 'ArrowUp') {
         player2Keys.up = false;
       } else if (e.key === 'ArrowDown') {
         player2Keys.down = false;
@@ -237,93 +399,65 @@ export default function (root: HTMLElement) {
     });
   }
 
-  function sendPaddleMovement() {
-    if (!ws || ws.readyState !== WebSocket.OPEN) return;
-    
-    // Player 1 (left paddle) movement
-    let player1Direction = 0;
-    if (player1Keys.up) player1Direction = -1;
-    if (player1Keys.down) player1Direction = 1;
-    
-    // Player 2 (right paddle) movement
-    let player2Direction = 0;
-    if (player2Keys.up) player2Direction = -1;
-    if (player2Keys.down) player2Direction = 1;
-    
-    // Send player 1 movement
-    ws.send(JSON.stringify({
-      type: 'MOVE_PADDLE',
-      playerId: 'player1',
-      direction: player1Direction
-    }));
-    
-    // Send player 2 movement
-    ws.send(JSON.stringify({
-      type: 'MOVE_PADDLE',
-      playerId: 'player2',
-      direction: player2Direction
-    }));
-  }
-
   async function handleStartGame() {
     startBtn.disabled = true;
-    updateStatus('Starting new game...');
+    connectionAttempts = 0;
+    updateStatus('🔄 Starting network game...');
     
     try {
       const newGameId = await createDemoGame();
       if (newGameId) {
-        console.log(`Game created successfully with ID: ${newGameId}`);
+        console.log(`✅ Game created with ID: ${newGameId}`);
         gameId = newGameId;
         connectWebSocket(gameId);
         restartBtn.disabled = false;
       } else {
-        console.error('Failed to create game - no game ID returned');
-        updateStatus('Failed to create game');
+        console.log('❌ Failed to create game');
+        updateStatus('❌ Failed to create game - please try again');
         startBtn.disabled = false;
       }
     } catch (error) {
-      console.error('Error in handleStartGame:', error);
-      updateStatus('Error starting game');
+      console.error('❌ Error in handleStartGame:', error);
+      updateStatus('❌ Network error - please try again');
       startBtn.disabled = false;
     }
   }
 
-  async function handleRestartGame() {
-    if (!gameId || !ws || ws.readyState !== WebSocket.OPEN) {
-      updateStatus('Cannot restart - not connected to game');
-      return;
+  function handleRestartGame() {
+    if (gameLoop) {
+      cancelAnimationFrame(gameLoop);
+      gameLoop = null;
     }
     
-    try {
-      updateStatus('Restarting game...');
-      
-      // Send restart message via WebSocket
-      ws.send(JSON.stringify({
-        type: 'RESTART_GAME'
-      }));
-      
-      updateStatus('Restart request sent');
-    } catch (error) {
-      console.error('Error restarting game:', error);
-      updateStatus('Error restarting game');
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: 'RESTART_GAME' }));
+      updateStatus('🔄 Restart request sent to backend');
+    } else {
+      updateStatus('❌ Cannot restart - not connected to backend');
     }
   }
 
   function handleBackToLobby() {
-    // Close WebSocket connection if active
     if (ws) {
       ws.close();
       ws = null;
     }
-    
-    // Reset game state
-    gameId = null;
-    startBtn.disabled = false;
-    restartBtn.disabled = true;
-    
-    // Navigate to lobby page
+    if (gameLoop) {
+      cancelAnimationFrame(gameLoop);
+      gameLoop = null;
+    }
     window.location.href = '/lobby';
   }
+
+  // Initialize
+  drawGame();
+  
+  // Continuous rendering for smooth display
+  const renderLoop = () => {
+    drawGame();
+    requestAnimationFrame(renderLoop);
+  };
+  requestAnimationFrame(renderLoop);
 
   startBtn.addEventListener('click', handleStartGame);
   restartBtn.addEventListener('click', handleRestartGame);

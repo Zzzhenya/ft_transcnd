@@ -10,6 +10,7 @@ Tasks:
 */
 import fastify, { type FastifyReply, type FastifyRequest } from 'fastify'
 import cors from '@fastify/cors'
+import websocket from '@fastify/websocket'
 import firstRoute from './routes.js'
 import healthRoute from './routes/health.route.js'
 import wsRoute from './routes/ws-proxy.route.js'
@@ -57,7 +58,13 @@ const setupcors = async () => {
   console.log('here\n');
 }
 
+const setupWebSocket = async () => {
+  await Fastify.register(websocket);
+  console.log('WebSocket plugin registered');
+}
+
 setupcors();
+setupWebSocket();
 console.log("port: " + PORT);
 Fastify.register(firstRoute);
 Fastify.register(healthRoute);
