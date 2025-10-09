@@ -291,7 +291,7 @@
         
         async function getStats() {
             try {
-                const response = await fetch(`${API_BASE}/stats`);
+                const response = await fetch(`http://localhost:3000/user-service/stats`);
                 const data = await response.json();
                 log(`📊 Stats: ${data.totalGames} total games, Next IDs: Game=${data.counters.nextGameId}, Player=${data.counters.nextPlayerId}`, 'info');
             } catch (error) {

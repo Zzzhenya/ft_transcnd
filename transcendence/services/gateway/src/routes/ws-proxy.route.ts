@@ -44,13 +44,13 @@ export function forwardMessages(
 
 
 const wsProxyRoute: FastifyPluginAsync = async (fastify) => {
-  fastify.get('/pong', { websocket: true }, async (connection, req) => {
+  fastify.get('/pong/game-ws', { websocket: true }, async (connection, req) => {
     console.log('Ws1\n');
     const clientSocket = connection
     console.log('Ws2\n');
     // Replace with dynamic routing logic if needed
     // const backendUrl = 'ws://game-service/ws/pong'
-    const backendUrl = 'ws://game-service:3002/ws/pong'
+    const backendUrl = 'ws://game-service:3002/ws/pong/game-ws'
     console.log('Ws3\n');
     try {
       console.log('Ws4\n');
@@ -63,6 +63,220 @@ const wsProxyRoute: FastifyPluginAsync = async (fastify) => {
       fastify.log.error('Failed to connect to backend:' + err)
     }
   })
+
+// demo
+
+  fastify.get('/pong/demo', async (request , reply) => {
+    try
+    {
+        fastify.log.error("Gateway received GET request for /ws/pong/demo")
+        const response = await fetch('http://game-service:3002/ws/pong/demo', {
+        method: 'GET',
+        headers: {
+        'Authorization': request.headers['authorization'] || '',
+      }})
+    const data = await response.json();
+    reply.status(response.status).send(data);
+    }
+    catch (error) {
+      fastify.log.error(error)
+      reply.status(404);
+    }
+  })
+
+  fastify.post('/pong/demo', async (request , reply) => {
+    try
+    {
+        fastify.log.error("Gateway received POST request for /ws/pong/demo")
+        const response = await fetch('http://game-service:3002/ws/pong/demo', {
+        method: 'POST',
+        headers: {
+        'Content-Type': 'application/json',
+        'Authorization': request.headers['authorization'] || '',},
+        body:JSON.stringify(request.body),
+      })
+    const data = await response.json();
+    reply.status(response.status).send(data);
+    }
+    catch (error) {
+      fastify.log.error(error)
+      reply.status(404);
+    }
+  })
+
+  fastify.delete('/pong/demo/:gameId', async (request , reply) => {
+    try
+    {
+        fastify.log.error("Gateway received DELETE request for /ws/pong/demo/:gameId")
+        const response = await fetch('http://game-service:3002/ws/pong/demo/:gameId', {
+        method: 'DELETE',
+        headers: {
+        'Authorization': request.headers['authorization'] || '',
+      }})
+    const data = await response.json();
+    reply.status(response.status).send(data);
+    }
+    catch (error) {
+      fastify.log.error(error)
+      reply.status(404);
+    }
+  })
+
+  fastify.delete('/pong/demo', async (request , reply) => {
+    try
+    {
+        fastify.log.error("Gateway received DELETE request for /ws/pong/demo")
+        const response = await fetch('http://game-service:3002/ws/pong/demo', {
+        method: 'DELETE',
+        headers: {
+        'Authorization': request.headers['authorization'] || '',
+      }})
+    const data = await response.json();
+    reply.status(response.status).send(data);
+    }
+    catch (error) {
+      fastify.log.error(error)
+      reply.status(404);
+    }
+  })
+
+  fastify.post('/pong/demo/:gameId/move', async (request , reply) => {
+    try
+    {
+        fastify.log.error("Gateway received POST request for /ws/pong/demo/:gameId/move")
+        const response = await fetch('http://game-service:3002/ws/pong/demo/:gameId/move', {
+        method: 'POST',
+        headers: {
+        'Content-Type': 'application/json',
+        'Authorization': request.headers['authorization'] || '',},
+        body:JSON.stringify(request.body),
+      })
+    const data = await response.json();
+    reply.status(response.status).send(data);
+    }
+    catch (error) {
+      fastify.log.error(error)
+      reply.status(404);
+    }
+  })
+
+// game
+
+  fastify.post('/pong/game', async (request , reply) => {
+    try
+    {
+        fastify.log.error("Gateway received POST request for /ws/pong/game")
+        const response = await fetch('http://game-service:3002/ws/pong/game', {
+        method: 'POST',
+        headers: {
+        'Content-Type': 'application/json',
+        'Authorization': request.headers['authorization'] || '',},
+        body:JSON.stringify(request.body),
+      })
+    const data = await response.json();
+    reply.status(response.status).send(data);
+    }
+    catch (error) {
+      fastify.log.error(error)
+      reply.status(404);
+    }
+  })
+
+  fastify.get('/pong/game', async (request , reply) => {
+    try
+    {
+        fastify.log.error("Gateway received GET request for /ws/pong/game")
+        const response = await fetch('http://game-service:3002/ws/pong/game', {
+        method: 'GET',
+        headers: {
+        'Authorization': request.headers['authorization'] || '',
+      }})
+    const data = await response.json();
+    reply.status(response.status).send(data);
+    }
+    catch (error) {
+      fastify.log.error(error)
+      reply.status(404);
+    }
+  })
+
+  fastify.get('/pong/game/:gameId', async (request , reply) => {
+    try
+    {
+        fastify.log.error("Gateway received GET request for /ws/pong/game/:gameId")
+        const response = await fetch('http://game-service:3002/ws/pong/game/:gameId', {
+        method: 'GET',
+        headers: {
+        'Authorization': request.headers['authorization'] || '',
+      }})
+    const data = await response.json();
+    reply.status(response.status).send(data);
+    }
+    catch (error) {
+      fastify.log.error(error)
+      reply.status(404);
+    }
+  })
+
+  fastify.post('/pong/game/:gameId/join', async (request , reply) => {
+    try
+    {
+        fastify.log.error("Gateway received POST request for /ws/pong/game/:gameId/join")
+        const response = await fetch('http://game-service:3002/ws/pong/game/:gameId/join', {
+        method: 'POST',
+        headers: {
+        'Content-Type': 'application/json',
+        'Authorization': request.headers['authorization'] || '',},
+        body:JSON.stringify(request.body),
+      })
+    const data = await response.json();
+    reply.status(response.status).send(data);
+    }
+    catch (error) {
+      fastify.log.error(error)
+      reply.status(404);
+    }
+  })
+
+  fastify.post('/pong/game/:gameId/move', async (request , reply) => {
+    try
+    {
+        fastify.log.error("Gateway received POST request for /ws/pong/game/:gameId/move")
+        const response = await fetch('http://game-service:3002/ws/pong/game/:gameId/move', {
+        method: 'POST',
+        headers: {
+        'Content-Type': 'application/json',
+        'Authorization': request.headers['authorization'] || '',},
+        body:JSON.stringify(request.body),
+      })
+    const data = await response.json();
+    reply.status(response.status).send(data);
+    }
+    catch (error) {
+      fastify.log.error(error)
+      reply.status(404);
+    }
+  })
+
+  fastify.put('/pong/game/:gameId/result', async (request , reply) => {
+    try
+    {
+        fastify.log.error("Gateway received PUT request for /ws/pong/game/:gameId/result")
+        const response = await fetch('http://game-service:3002/ws/pong/game/:gameId/result', {
+        method: 'PUT',
+        headers: {
+        'Authorization': request.headers['authorization'] || '',
+      }})
+    const data = await response.json();
+    reply.status(response.status).send(data);
+    }
+    catch (error) {
+      fastify.log.error(error)
+      reply.status(404);
+    }
+  })
+
+
 }
 
 export default wsProxyRoute
