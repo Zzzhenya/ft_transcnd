@@ -10,6 +10,7 @@ Tasks:
 */
 import fastify, { type FastifyReply, type FastifyRequest } from 'fastify'
 import cors from '@fastify/cors'
+import websocket from '@fastify/websocket'
 import firstRoute from './routes.js'
 import healthRoute from './routes/health.route.js'
 import wsRoute from './routes/ws-proxy.route.js'
@@ -53,6 +54,7 @@ const start = async () => {
 
 const setupcors = async () => {
   await Fastify.register(cors, {  });
+  await Fastify.register(websocket);
   console.log('here\n');
 }
 
