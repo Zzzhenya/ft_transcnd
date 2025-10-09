@@ -6,6 +6,8 @@
   "scripts": {
     "start": "node dist/index.js",
     "build": "tsc",
+    "dev": "npm run build && npm start",
+    "watch": "tsc -w",
     "oldoldstart": "tsc -w & nodemon dist/index.js",
     "oldbuild": "tsc -p tsconfig.json",
     "oldstart": "node dist/index.js"
