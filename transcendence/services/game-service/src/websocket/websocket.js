@@ -11,6 +11,13 @@ import { movePaddle, restartGame, startGame, startGameLoop, moveBall } from '../
  * @param {Map} games - Games storage map
  * @param {Function} broadcastState - Function to broadcast game state
  */
+
+function retnum(str) { 
+    var num = str.replace(/[^0-9]/g, ''); 
+    return num; 
+}
+
+
 export function registerWebSocketRoutes(fastify, games, broadcastState) {
   
   /**
@@ -18,8 +25,16 @@ export function registerWebSocketRoutes(fastify, games, broadcastState) {
    * GET /ws/pong/game-ws/:gameId (WebSocket upgrade)
    */
   fastify.get('/ws/pong/game-ws/:gameId', { websocket: true }, (connection, request) => {
-    const gameId = parseInt(request.params.gameId, 10);
+    const gameId = parseInt(retnum(request.params.gameId), 10);
+    // const gameId = request.params.gameId;
     const game = games.get(gameId);
+
+    console.log(games)
+
+    // const gameId = req.params.gameId;
+    // const game = gameId;
+
+    console.log("🆔gameId= ", gameId)
 
     if (!game) {
       console.warn(`[WS] Connection attempt to invalid game ID: ${gameId}`);
@@ -28,10 +43,11 @@ export function registerWebSocketRoutes(fastify, games, broadcastState) {
     }
 
     const ws = connection.socket;
+
     const gameState = game.state;
     const clients = game.clients;
     clients.add(ws);
-
+    console.log("🆔add client to ws: ")
     // Determine game type for logging
     let gameTypeLabel = 'NORMAL';
     if (game.isDemo) {
@@ -51,6 +67,7 @@ export function registerWebSocketRoutes(fastify, games, broadcastState) {
     ws.on('message', (rawMessage) => {
       try {
         const message = JSON.parse(rawMessage.toString());
+        console.log(message)
         handleWebSocketMessage(message, gameState, gameId, broadcastState, games);
       } catch (error) {
         console.error(`[WS] Message parse error in game ${gameId}:`, error);
@@ -99,6 +116,7 @@ export function registerWebSocketRoutes(fastify, games, broadcastState) {
     console.log(`[Demo-WS] Redirecting demo game ${gameId} to main WebSocket handler`);
     
     // Use the same logic as the main WebSocket route
+
     const ws = connection.socket;
     const gameState = game.state;
     const clients = game.clients;

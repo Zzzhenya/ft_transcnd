@@ -12,6 +12,7 @@ import { games, counters } from './pong/createGame.js';
 
 const fastify = Fastify({ logger: true });
 await fastify.register(websocket);
+// fastify.register(websocket);
 
 //CORS used to development and test with frontend
 // In production, configure CORS properly or remove it if not needed
