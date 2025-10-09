@@ -18,8 +18,8 @@ services:
 
   user-service:
     build: ./services/user-service
-    ports:
-      - "3001:3001"
+    # ports:
+    #   - "3001:3001"
     environment:
       - NODE_ENV=development
       - DATABASE_URL=sqlite:/app/shared/database/transcendence.db
@@ -31,8 +31,8 @@ services:
 
   game-service:
     build: ./services/game-service
-    ports:
-      - "3002:3002"
+    # ports:
+    #   - "3002:3002"
     environment:
       - NODE_ENV=development
       - DATABASE_URL=sqlite:/app/shared/database/transcendence.db
@@ -44,8 +44,8 @@ services:
 
   log-service:
     build: ./services/log-service
-    ports:
-      - "3003:3003"
+    # ports:
+    #   - "3003:3003"
     environment:
       - NODE_ENV=development
       - DATABASE_URL=sqlite:/app/shared/database/transcendence.db
@@ -55,8 +55,8 @@ services:
 
   tournament-service:
     build: ./services/tournament-service
-    ports:
-      - "3005:3005"
+    # ports:
+    #   - "3005:3005"
     environment:
       - NODE_ENV=development
       - DATABASE_URL=sqlite:/app/shared/database/transcendence.db
@@ -80,6 +80,12 @@ services:
     command: sh -c "mkdir -p /shared/database && touch /shared/database/transcendence.db && tail -f /dev/null"
     volumes:
       - shared-data:/shared
+
+  health-checker:
+    image: curlimages/curl
+    volumes:
+      - ./health-check.sh:/health-check.sh
+    entrypoint: ["sh", "/health-check.sh"]
 
 volumes:
   shared-data:
