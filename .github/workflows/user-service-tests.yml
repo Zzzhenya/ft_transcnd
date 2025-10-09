@@ -272,7 +272,7 @@ jobs:
           # Test 3: User Login
           echo "3. Testing user login..."
           LOGIN_DATA="{
-            \"username\": \"testuser$UNIQUE_ID\",
+            \"email\": \"test$UNIQUE_ID@example.com\",
             \"password\": \"TestPassword123\"
           }"
           
@@ -332,7 +332,7 @@ jobs:
           INVALID_LOGIN=$(curl -s -w "%{http_code}" -o /tmp/invalid_login.json \
             -X POST "$BASE_URL/auth/login" \
             -H "Content-Type: application/json" \
-            -d '{"username": "nonexistent", "password": "wrong"}')
+            -d '{"email": "nonexistent@example.com", "password": "wrong"}')
           
           if [ "$INVALID_LOGIN" = "401" ]; then
             echo "✅ Invalid credentials properly rejected"
