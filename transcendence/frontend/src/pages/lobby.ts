@@ -1,5 +1,6 @@
 import { getAuth, signOut } from "@/app/auth";
 import { navigate } from "@/app/router";
+import { getState, subscribe } from "@/app/store";
 
 export default function (root: HTMLElement) {
 	root.innerHTML = `
@@ -14,11 +15,14 @@ export default function (root: HTMLElement) {
 			<span class="hidden xl:inline px-2 py-1 rounded bg-slate-200">Viewport: ≥1280 (xl)</span>
 		</div>
 
+		<!-- User info -->
+		<div id="userInfo" class="rounded border p-3 bg-gray-50"></div>
+
 		<!-- Typo size -->
 		<header class="space-y-2">
 			<h1 class="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold">Lobby</h1>
 			<p class="text-sm sm:text-base md:text-lg text-gray-600">
-				Resize to see changes at <span class="font-mono">sm(640)</span>, <span class="font-mono">md(768)</span>, <span class="font-mono">lg(1024)</span>.
+				Choose your game mode below.
 			</p>
 		</header>
 
@@ -64,6 +68,43 @@ export default function (root: HTMLElement) {
 
     </section>`;
 
+	// --- User info section ---
+	const userInfo = root.querySelector<HTMLElement>("#userInfo")!;
+
+	function renderUserInfo() {
+		const user = getAuth();
+		const state = getState();
+		
+		if (user) {
+			// Authenticated user
+			userInfo.innerHTML = `
+				<div class="flex items-center gap-2">
+					<span class="text-green-600">●</span>
+					<span class="font-medium">Logged in as ${user.name}</span>
+					<span class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">Registered</span>
+				</div>
+			`;
+		} else if (state.session.alias) {
+			// Guest with alias
+			userInfo.innerHTML = `
+				<div class="flex items-center gap-2">
+					<span class="text-blue-600">●</span>
+					<span class="font-medium">Playing as ${state.session.alias}</span>
+					<span class="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">Guest</span>
+				</div>
+			`;
+		} else {
+			// No user, no alias
+			userInfo.innerHTML = `
+				<div class="flex items-center gap-2">
+					<span class="text-gray-400">●</span>
+					<span class="text-gray-600">Not signed in</span>
+					<a href="/auth" class="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded hover:bg-gray-200">Sign in or play as guest</a>
+				</div>
+			`;
+		}
+	}
+
 	// --- Auth-aware nav ---
 	const authNav = root.querySelector<HTMLElement>("#authNav")!;
 
@@ -98,14 +139,21 @@ export default function (root: HTMLElement) {
 		});
 	}
 
+	renderUserInfo();
 	renderAuthNav();
 
 	// mock-auth.ts에서 dispatch하는 'auth:changed' 이벤트로 즉시 UI 갱신
-	const onAuthChanged = () => renderAuthNav();
+	const onAuthChanged = () => {
+		renderUserInfo();
+		renderAuthNav();
+	};
+	
 	window.addEventListener("auth:changed", onAuthChanged);
+	const unsubscribeStore = subscribe(() => renderUserInfo());
 
 	// 라우팅으로 페이지 떠날 때 리스너 해제 (메모리 누수 방지)
 	return () => {
 		window.removeEventListener("auth:changed", onAuthChanged);
+		unsubscribeStore();
 	};
 }
