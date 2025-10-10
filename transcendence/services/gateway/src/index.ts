@@ -10,9 +10,12 @@ Tasks:
 */
 import fastify, { type FastifyReply, type FastifyRequest } from 'fastify'
 import cors from '@fastify/cors'
+import websocket from '@fastify/websocket'
 import firstRoute from './routes.js'
 import healthRoute from './routes/health.route.js'
 import wsRoute from './routes/ws-proxy.route.js'
+import statsRoute from './routes/stats.route.js'
+import userRoute from './routes/user.route.js'
 // console.log(services.users);
 
 const Fastify = fastify({logger:true});
@@ -33,6 +36,12 @@ const PORT = 3000
 //     .send({ 'hello': 'Hello World!' })
 // 	// reply.send({ greeting: 'Hello!' })
 // })
+
+
+const setupWebSocket = async () => {
+  await Fastify.register(websocket);
+  console.log('WebSocket plugin registered');
+}
 
 function listening(){
     console.log(`App server is up and running on localhost: port 3000`);
@@ -56,10 +65,13 @@ const setupcors = async () => {
 }
 
 setupcors();
+setupWebSocket();
 console.log("port: " + PORT);
 Fastify.register(firstRoute);
 Fastify.register(healthRoute);
+Fastify.register(statsRoute);
 Fastify.register(wsRoute, { prefix: '/ws' })
+Fastify.register(userRoute, { prefix: '/user-service' })
 // Fastify.register(wsRoute)
 Fastify.log.info('Something important happened!');
 start();
