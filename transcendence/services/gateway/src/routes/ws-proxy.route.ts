@@ -9,159 +9,183 @@ export function createBackendSocket(url: string): Promise<WebSocket> {
   return new Promise((resolve, reject) => {
     const ws = new WebSocket(url)
 
-    ws.on('open', () => resolve(ws))
-    ws.on('error', (err) => reject(err))
+    console.log(ws)
+    ws.onopen = () =>
+    {
+      console.log('WebSocket Open')
+      resolve(ws)
+    }
+    ws.onerror = (err) =>
+    {
+      console.error('Websocket error: ', err)
+      reject(err)
+    }
   })
 }
 
-export function forwardMessages(
-  clientSocket: any,  // Fastify WebSocket connection
+export function forwardMessages (
+  clientSocket: WebSocket, // why make it any type
   backendSocket: WebSocket
-) {
+  ) {
+
   console.log('Setting up message forwarding...');
-  console.log('Client socket type:', typeof clientSocket);
-  console.log('Client socket keys:', Object.keys(clientSocket || {}));
-  
+  // fastify.log.info('Client socket type:', typeof clientSocket);
+  // fastify.log.info('Client socket keys:', Object.keys(clientSocket || {}));
+
+
   // Forward from client -> backend
-  if (clientSocket && typeof clientSocket.on === 'function') {
-    clientSocket.on('message', (msg: any) => {
-      if (backendSocket.readyState === WebSocket.OPEN) {
-        console.log('📤 Forwarding client->backend:', msg.toString());
-        backendSocket.send(msg);
-      } else {
-        console.warn('⚠️ Backend socket not open when trying to forward message');
+  clientSocket.on('message', (msg) => {
+    if (backendSocket.readyState === WebSocket.OPEN) {
+      try {
+        const parsed = JSON.parse(msg.toString()); // Ensure text
+        backendSocket.send(JSON.stringify(parsed)); // Force stringified JSON
+        // backendSocket.send(JSON.stringify(msg)); // Force stringified JSON
+        // console.log(msg)
+      } catch (err) {
+        console.error('Invalid JSON from client:', err);
       }
-    });
-    console.log('✅ Client message handler attached');
-  } else {
-    console.error('❌ Client socket does not have "on" method');
-    console.error('❌ Available methods:', clientSocket ? Object.getOwnPropertyNames(clientSocket).filter(p => typeof clientSocket[p] === 'function') : 'none');
-  }
+    }
+  })
 
   // Forward from backend -> client
-  backendSocket.on('message', (msg: any) => {
-    if (clientSocket && typeof clientSocket.send === 'function') {
-      console.log('📥 Forwarding backend->client:', msg.toString());
+  backendSocket.on('message', (msg) => {
+    if (clientSocket.readyState === WebSocket.OPEN) {
       try {
-        clientSocket.send(msg);
-      } catch (error) {
-        console.error('❌ Error sending to client:', error);
+        // not necessary to parse but doing all the same
+        const parsed = JSON.parse(msg.toString()); // Ensure text
+        clientSocket.send(JSON.stringify(parsed)); // Force stringified JSON
+        // clientSocket.send(JSON.stringify(msg)); // Force stringified JSON
+        // console.log(msg)
+        // console.log(msg)
+        // clientSocket.send(msg)
+      } catch (err) {
+        console.error('Invalid JSON from game-service:', msg);
       }
-    } else {
-      console.error('❌ Client socket not available or no send method');
     }
-  });
-
-  // Handle errors
-  backendSocket.on('error', (error: any) => {
-    console.error('❌ Backend socket error:', error);
-  });
-
-  if (clientSocket && typeof clientSocket.on === 'function') {
-    clientSocket.on('error', (error: any) => {
-      console.error('❌ Client socket error:', error);
-    });
-  }
+  })
 
   // Handle closures
   const closeBoth = () => {
-    console.log('🔌 Closing both connections...');
-    try {
-      if (clientSocket && typeof clientSocket.close === 'function') {
-        clientSocket.close();
-      }
-    } catch (error) {
-      console.error('❌ Error closing client socket:', error);
-    }
+    // if (clientSocket.readyState === WebSocket.OPEN) clientSocket.close()
+    // if (backendSocket.readyState === WebSocket.OPEN) backendSocket.close()
+    console.log('Close both connections')
     
     try {
-      if (backendSocket.readyState === WebSocket.OPEN) {
-        backendSocket.close();
+      if (clientSocket && typeof clientSocket.close === 'function') {
+        if (clientSocket.readyState === WebSocket.OPEN){
+          clientSocket.close();
+        }
       }
     } catch (error) {
-      console.error('❌ Error closing backend socket:', error);
+      console.error('❌ Error closing client socket:', error)
     }
-  };
 
-  if (clientSocket && typeof clientSocket.on === 'function') {
-    clientSocket.on('close', () => {
-      console.log('🔌 Client disconnected');
-      closeBoth();
-    });
+    try {
+      if (backendSocket && backendSocket.readyState === WebSocket.OPEN){
+        backendSocket.close()
+      }
+    } catch (error) {
+      console.error('❌ Error closing backend socket:', error)
+    }
+
   }
-  
-  backendSocket.on('close', () => {
-    console.log('🔌 Backend disconnected');
-    closeBoth();
-  });
+
+  // if (clientSocket && typeof clientSocket.on === 'function') {
+  //   clientSocket.on('close', closeBoth)
+  //   console.log('Client disconnected the ws connection')
+  // }
+
+  // backendSocket.on('close', closeBoth)
+  // console.log('Backend disconnected the ws connection')
+
+  const pingInterval = setInterval(() => {
+    if (clientSocket.readyState === WebSocket.OPEN) {
+      clientSocket.ping();
+    }
+    if (backendSocket.readyState === WebSocket.OPEN) {
+      backendSocket.ping();
+    }
+  }, 30_000); // every 30s
+
+  // ⛔️ Stop the interval when either side disconnects
+  const clear = () => clearInterval(pingInterval);
+  clientSocket.on('close', clear);
+  backendSocket.on('close', clear);
 }
 
 
+interface GameParams {
+  gameId: string;
+}
+
+
+
 const wsProxyRoute: FastifyPluginAsync = async (fastify) => {
-  fastify.register(async function (fastify) {
-    fastify.get('/pong/game-ws/:gameId', { websocket: true }, async (connection: any, req: any) => {
-      console.log('WebSocket proxy connecting...');
-      
-      // With Fastify WebSocket, the connection IS the WebSocket
-      const clientSocket = connection;
-      
-      console.log('Connection object:', typeof connection);
-      console.log('Connection is socket:', connection && typeof connection.send === 'function');
-      console.log('Available methods:', connection ? Object.getOwnPropertyNames(connection).filter(k => typeof connection[k] === 'function').slice(0, 10) : 'none');
-      
-      // Extract gameId from URL path since req.params may not work in WebSocket handlers
-      let gameId = null;
-      
-      // Method 1: Try req.params first
-      if (req.params && req.params.gameId) {
-        gameId = req.params.gameId;
-        console.log('GameId from req.params:', gameId);
+  fastify.get<{Params: GameParams;}>('/pong/game-ws/:gameId', { websocket: true }, async (connection, req) => {
+    const clientSocket = connection
+
+    fastify.log.info("Extract gameId")
+
+    // Extract gameId from URL path since req.params may not work in WebSocket handlers
+    let gameId = null;
+    
+    // Method 1: Try req.params first
+
+    if (req.params)
+    {
+      var gameIdStr = req.params.gameId;
+      gameId = parseInt(gameIdStr.replace(/[^0-9]/g, ''),10); 
+      // gameId = req.params.gameId;
+      console.log('other: ', gameId)
+    }
+    // if (req.params && req.params.gameId) {
+    //   gameId = req.params.gameId;
+    //   console.log('GameId from req.params:', gameId);
+    // }
+    
+    // Method 2: Extract from URL if params didn't work
+    // if (!gameId && req.url) {
+    //   const urlMatch = req.url.match(/\/pong\/game-ws\/(\d+)/);
+    //   gameId = urlMatch ? urlMatch[1] : null;
+    //   console.log('GameId from URL regex:', gameId);
+    // }
+    
+    // Method 3: Try raw URL if available
+    if (!gameId && req.raw && req.raw.url) {
+      const rawUrlMatch = req.raw.url.match(/\/ws\/pong\/game-ws\/(\d+)/);
+      gameId = rawUrlMatch ? rawUrlMatch[1] : null;
+      console.log('GameId from raw URL:', gameId);
+    }
+    
+    console.log('Final gameId:', gameId);
+    
+    if (!gameId) {
+      console.error('GameId not found in request');
+      console.log('Request details:', {
+        url: req.url,
+        rawUrl: req.raw?.url,
+        params: req.params
+      });
+      if (clientSocket && typeof clientSocket.close === 'function') {
+        clientSocket.close();
       }
-      
-      // Method 2: Extract from URL if params didn't work
-      if (!gameId && req.url) {
-        const urlMatch = req.url.match(/\/pong\/game-ws\/(\d+)/);
-        gameId = urlMatch ? urlMatch[1] : null;
-        console.log('GameId from URL regex:', gameId);
+      return;
+    }
+    console.log(gameId)
+    // const backendUrl = 'ws://game-service:3002/ws/pong/game-ws'
+    const backendUrl = `ws://game-service:3002/ws/pong/game-ws/${gameId}`;
+    try {
+      const backendSocket = await createBackendSocket(backendUrl)
+      fastify.log.info('WebSocket proxy connected successfully');
+      forwardMessages(clientSocket, backendSocket)
+      fastify.log.info('Message forward setup successfully');
+    } catch (err) {
+      fastify.log.info('Failed to connect to backend:');
+      if (clientSocket && typeof clientSocket.close === 'function'){
+        clientSocket.close();
       }
-      
-      // Method 3: Try raw URL if available
-      if (!gameId && req.raw && req.raw.url) {
-        const rawUrlMatch = req.raw.url.match(/\/ws\/pong\/game-ws\/(\d+)/);
-        gameId = rawUrlMatch ? rawUrlMatch[1] : null;
-        console.log('GameId from raw URL:', gameId);
-      }
-      
-      console.log('Final gameId:', gameId);
-      
-      if (!gameId) {
-        console.error('GameId not found in request');
-        console.log('Request details:', {
-          url: req.url,
-          rawUrl: req.raw?.url,
-          params: req.params
-        });
-        if (clientSocket && typeof clientSocket.close === 'function') {
-          clientSocket.close();
-        }
-        return;
-      }
-      
-      const backendUrl = `ws://game-service:3002/ws/pong/game-ws/${gameId}`;
-      console.log(`Proxying WebSocket to: ${backendUrl}`);
-      
-      try {
-        const backendSocket = await createBackendSocket(backendUrl);
-        console.log('WebSocket proxy connected successfully');
-        forwardMessages(clientSocket, backendSocket);
-      } catch (err) {
-        console.error('Failed to connect to backend:', err);
-        if (clientSocket && typeof clientSocket.close === 'function') {
-          clientSocket.close();
-        }
-      }
-    });
-  });
+    }
+  })
 
 // demo
 
@@ -190,8 +214,10 @@ const wsProxyRoute: FastifyPluginAsync = async (fastify) => {
         const response = await fetch('http://game-service:3002/ws/pong/demo', {
         method: 'POST',
         headers: {
-        'Authorization': request.headers['authorization'] || '',
-      }})
+        'Content-Type': 'application/json',
+        'Authorization': request.headers['authorization'] || '',},
+        body:JSON.stringify(request.body),
+      })
     const data = await response.json();
     reply.status(response.status).send(data);
     }
@@ -244,8 +270,10 @@ const wsProxyRoute: FastifyPluginAsync = async (fastify) => {
         const response = await fetch('http://game-service:3002/ws/pong/demo/:gameId/move', {
         method: 'POST',
         headers: {
-        'Authorization': request.headers['authorization'] || '',
-      }})
+        'Content-Type': 'application/json',
+        'Authorization': request.headers['authorization'] || '',},
+        body:JSON.stringify(request.body),
+      })
     const data = await response.json();
     reply.status(response.status).send(data);
     }
@@ -264,8 +292,10 @@ const wsProxyRoute: FastifyPluginAsync = async (fastify) => {
         const response = await fetch('http://game-service:3002/ws/pong/game', {
         method: 'POST',
         headers: {
-        'Authorization': request.headers['authorization'] || '',
-      }})
+        'Content-Type': 'application/json',
+        'Authorization': request.headers['authorization'] || '',},
+        body:JSON.stringify(request.body),
+      })
     const data = await response.json();
     reply.status(response.status).send(data);
     }
@@ -318,8 +348,10 @@ const wsProxyRoute: FastifyPluginAsync = async (fastify) => {
         const response = await fetch('http://game-service:3002/ws/pong/game/:gameId/join', {
         method: 'POST',
         headers: {
-        'Authorization': request.headers['authorization'] || '',
-      }})
+        'Content-Type': 'application/json',
+        'Authorization': request.headers['authorization'] || '',},
+        body:JSON.stringify(request.body),
+      })
     const data = await response.json();
     reply.status(response.status).send(data);
     }
@@ -336,8 +368,10 @@ const wsProxyRoute: FastifyPluginAsync = async (fastify) => {
         const response = await fetch('http://game-service:3002/ws/pong/game/:gameId/move', {
         method: 'POST',
         headers: {
-        'Authorization': request.headers['authorization'] || '',
-      }})
+        'Content-Type': 'application/json',
+        'Authorization': request.headers['authorization'] || '',},
+        body:JSON.stringify(request.body),
+      })
     const data = await response.json();
     reply.status(response.status).send(data);
     }
@@ -364,8 +398,6 @@ const wsProxyRoute: FastifyPluginAsync = async (fastify) => {
       reply.status(404);
     }
   })
-
-
 
 }
 
