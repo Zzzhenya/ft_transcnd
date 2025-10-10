@@ -5,6 +5,8 @@ on:
     branches:
       - user-service
       - main
+      - integration-gateway-pong-front
+
     # No paths restriction for push - always run when pushing to these branches
   pull_request:
     branches:
@@ -168,7 +170,7 @@ jobs:
           echo "🚀 Starting services for testing..."
           
           # Start only essential services
-          docker compose up -d database user-service
+          docker compose up -d database user-service gateway
           
           echo "⏳ Waiting for services to initialize..."
           sleep 30
@@ -232,7 +234,8 @@ jobs:
         run: |
           echo "🧪 Running API integration tests..."
           
-          BASE_URL="http://localhost:3001"
+          # BASE_URL="http://localhost:3001"
+          BASE_URL="http://localhost:3000/user-service"
           
           # Test 1: Health Check
           echo "1. Testing health endpoint..."
@@ -257,8 +260,8 @@ jobs:
             -H "Content-Type: application/json" \
             -d "$REGISTER_DATA")
           
-          if [ "$REGISTER_RESPONSE" = "201" ]; then
-            echo "✅ User registration successful"
+          if [ "$REGISTER_RESPONSE" = "201" ] ; then
+            echo "✅ User registration successful status: $REGISTER_RESPONSE"
             cat /tmp/register.json | jq .
           else
             echo "❌ User registration failed with status: $REGISTER_RESPONSE"
@@ -272,7 +275,7 @@ jobs:
           # Test 3: User Login
           echo "3. Testing user login..."
           LOGIN_DATA="{
-            \"username\": \"testuser$UNIQUE_ID\",
+            \"email\": \"test$UNIQUE_ID@example.com\",
             \"password\": \"TestPassword123\"
           }"
           
@@ -312,7 +315,7 @@ jobs:
         run: |
           echo "🧪 Testing API error handling..."
           
-          BASE_URL="http://localhost:3001"
+          BASE_URL="http://localhost:3000/user-service"
           
           # Test invalid registration
           echo "Testing invalid registration data..."
@@ -332,7 +335,7 @@ jobs:
           INVALID_LOGIN=$(curl -s -w "%{http_code}" -o /tmp/invalid_login.json \
             -X POST "$BASE_URL/auth/login" \
             -H "Content-Type: application/json" \
-            -d '{"username": "nonexistent", "password": "wrong"}')
+            -d '{"email": "nonexistent@example.com", "password": "wrong"}')
           
           if [ "$INVALID_LOGIN" = "401" ]; then
             echo "✅ Invalid credentials properly rejected"
