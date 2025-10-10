@@ -12,10 +12,10 @@ import { movePaddle, restartGame, startGame, startGameLoop, moveBall } from '../
  * @param {Function} broadcastState - Function to broadcast game state
  */
 
-function retnum(str) { 
-    var num = str.replace(/[^0-9]/g, ''); 
-    return num; 
-}
+// function retnum(str) { 
+//     var num = str.replace(/[^0-9]/g, ''); 
+//     return num; 
+// }
 
 
 export function registerWebSocketRoutes(fastify, games, broadcastState) {
@@ -25,8 +25,8 @@ export function registerWebSocketRoutes(fastify, games, broadcastState) {
    * GET /ws/pong/game-ws/:gameId (WebSocket upgrade)
    */
   fastify.get('/ws/pong/game-ws/:gameId', { websocket: true }, (connection, request) => {
-    const gameId = parseInt(retnum(request.params.gameId), 10);
-    // const gameId = request.params.gameId;
+    // const gameId = parseInt(retnum(request.params.gameId), 10);
+    const gameId = parseInt(request.params.gameId, 10);
     const game = games.get(gameId);
 
     console.log(games)
@@ -181,9 +181,11 @@ function createInitialStateMessage(game, gameId) {
     // Exclude gameLoopInterval - it's not serializable
   };
 
+  console.log(cleanGameState);
+
   return JSON.stringify({
     type: 'STATE_UPDATE',
-    gameId,
+    id: gameId,
     player1_id: game.player1_id,
     player2_id: game.player2_id,
     player1_name: game.player1_name,
@@ -265,7 +267,9 @@ function handleWebSocketMessage(message, gameState, gameId, broadcastState, game
       break;
 
     case 'stats':
-      getStats(gameState);
+      broadcastState(gameId);
+      // I don't know what to do here but there is no function named getStats()
+      // getStats(gameState);
       break;
 
     default:
