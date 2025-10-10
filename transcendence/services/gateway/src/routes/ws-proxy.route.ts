@@ -36,32 +36,31 @@ export function forwardMessages (
   // Forward from client -> backend
   clientSocket.on('message', (msg) => {
     if (backendSocket.readyState === WebSocket.OPEN) {
-      // if (msg){
-      //   console.log("Here: ", msg)
-      //   backendSocket.send(msg)
-      // }
-      // else{
-      //   console.log("No message")
-      //   backendSocket.send("jaja")
-      // }
-      backendSocket.send(msg)
-      console.log(msg)
+      try {
+        const parsed = JSON.parse(msg.toString()); // Ensure text
+        backendSocket.send(JSON.stringify(parsed)); // Force stringified JSON
+        // backendSocket.send(JSON.stringify(msg)); // Force stringified JSON
+        // console.log(msg)
+      } catch (err) {
+        console.error('Invalid JSON from client:', err);
+      }
     }
   })
 
   // Forward from backend -> client
   backendSocket.on('message', (msg) => {
     if (clientSocket.readyState === WebSocket.OPEN) {
-      console.log(msg)
-      clientSocket.send(msg)
-      // if (msg){
-      //   console.log("Here: ", msg)
-      //   clientSocket.send(msg)
-      // }
-      // else{
-      //   console.log("No message")
-      //   clientSocket.send("jaja")
-      // }
+      try {
+        // not necessary to parse but doing all the same
+        const parsed = JSON.parse(msg.toString()); // Ensure text
+        clientSocket.send(JSON.stringify(parsed)); // Force stringified JSON
+        // clientSocket.send(JSON.stringify(msg)); // Force stringified JSON
+        // console.log(msg)
+        // console.log(msg)
+        // clientSocket.send(msg)
+      } catch (err) {
+        console.error('Invalid JSON from game-service:', msg);
+      }
     }
   })
 
