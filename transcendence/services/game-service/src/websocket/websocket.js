@@ -12,11 +12,6 @@ import { movePaddle, restartGame, startGame, startGameLoop, moveBall } from '../
  * @param {Function} broadcastState - Function to broadcast game state
  */
 
-// function retnum(str) { 
-//     var num = str.replace(/[^0-9]/g, ''); 
-//     return num; 
-// }
-
 
 export function registerWebSocketRoutes(fastify, games, broadcastState) {
   
@@ -25,14 +20,8 @@ export function registerWebSocketRoutes(fastify, games, broadcastState) {
    * GET /ws/pong/game-ws/:gameId (WebSocket upgrade)
    */
   fastify.get('/ws/pong/game-ws/:gameId', { websocket: true }, (connection, request) => {
-    // const gameId = parseInt(retnum(request.params.gameId), 10);
     const gameId = parseInt(request.params.gameId, 10);
     const game = games.get(gameId);
-
-    console.log(games)
-
-    // const gameId = req.params.gameId;
-    // const game = gameId;
 
     console.log("🆔gameId= ", gameId)
 
@@ -185,7 +174,7 @@ function createInitialStateMessage(game, gameId) {
 
   return JSON.stringify({
     type: 'STATE_UPDATE',
-    id: gameId,
+    gameId,
     player1_id: game.player1_id,
     player2_id: game.player2_id,
     player1_name: game.player1_name,

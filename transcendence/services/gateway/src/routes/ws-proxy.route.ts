@@ -91,13 +91,13 @@ export function forwardMessages (
 
   }
 
-  if (clientSocket && typeof clientSocket.on === 'function') {
-    clientSocket.on('close', closeBoth)
-    console.log('Client disconnected the ws connection')
-  }
+  // if (clientSocket && typeof clientSocket.on === 'function') {
+  //   clientSocket.on('close', closeBoth)
+  //   console.log('Client disconnected the ws connection')
+  // }
 
-  backendSocket.on('close', closeBoth)
-  console.log('Backend disconnected the ws connection')
+  // backendSocket.on('close', closeBoth)
+  // console.log('Backend disconnected the ws connection')
 
   const pingInterval = setInterval(() => {
     if (clientSocket.readyState === WebSocket.OPEN) {
@@ -172,6 +172,7 @@ const wsProxyRoute: FastifyPluginAsync = async (fastify) => {
       }
       return;
     }
+    console.log(gameId)
     // const backendUrl = 'ws://game-service:3002/ws/pong/game-ws'
     const backendUrl = `ws://game-service:3002/ws/pong/game-ws/${gameId}`;
     try {
