@@ -37,6 +37,12 @@ const PORT = 3000
 // 	// reply.send({ greeting: 'Hello!' })
 // })
 
+
+const setupWebSocket = async () => {
+  await Fastify.register(websocket);
+  console.log('WebSocket plugin registered');
+}
+
 function listening(){
     console.log(`App server is up and running on localhost: port 3000`);
 };
@@ -56,11 +62,6 @@ const start = async () => {
 const setupcors = async () => {
   await Fastify.register(cors, {  });
   console.log('here\n');
-}
-
-const setupWebSocket = async () => {
-  await Fastify.register(websocket);
-  console.log('WebSocket plugin registered');
 }
 
 setupcors();
