@@ -104,7 +104,7 @@ fastify.get('/auth/profile', {
 
 // Health check
 fastify.get('/health', async (request, reply) => {
-  return { service: 'gateway', status: 'healthy', timestamp: new Date() };
+  return { service: 'user-service', status: 'healthy', timestamp: new Date() };
 });
 
 // Start server
