@@ -13,6 +13,7 @@ $(DATA_DIR):
 # compose: $(ENV_FILE) $(DATA_DIR)
 compose: 
 	@docker compose -f docker-compose.yml up --build -d
+	sleep 2
 	docker-compose -f docker-compose.yml run --rm health-checker
 	docker ps | wc -l
 
