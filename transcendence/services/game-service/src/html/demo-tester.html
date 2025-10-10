@@ -447,6 +447,8 @@
             log(`🔌 Connecting to game ${gameId}...`, 'info');
             
             websocket = new WebSocket(`ws://localhost:3000/ws/pong/game-ws/${gameId}`);
+            websocket.binaryType = 'arraybuffer'; 
+            // here
             
             websocket.onopen = () => {
                 document.getElementById('connectionStatus').className = 'status connected';
@@ -460,22 +462,10 @@
             
             websocket.onmessage = (event) => {
                 try {
-                    // log('One');
-                    // const data = JSON.parse(event.data);
-                    // log('two');
 
-                    const rawData = event.data;
-                    let data;
-
-                    if (typeof rawData === 'string') {
-                        data = JSON.parse(rawData);
-                    } else if (typeof rawData === 'object') {
-                        data = rawData; // assume it's already parsed
-                        console.log(rawData)
-                        console.log(JSON.parse(rawData))
-                    } else {
-                        throw new Error('Unexpected message format');
-                    }
+                    const buffer = event.data; // now an ArrayBuffer instead of a Blob
+                    const text = new TextDecoder().decode(buffer);
+                    const data = JSON.parse(text);
 
                     log(`📨 Received: ${data.type}`, 'info');
                     
