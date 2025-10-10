@@ -447,7 +447,7 @@
             log(`🔌 Connecting to game ${gameId}...`, 'info');
             
             websocket = new WebSocket(`ws://localhost:3000/ws/pong/game-ws/${gameId}`);
-            websocket.binaryType = 'arraybuffer'; 
+            // websocket.binaryType = 'arraybuffer'; 
             // here
             
             websocket.onopen = () => {
@@ -463,9 +463,10 @@
             websocket.onmessage = (event) => {
                 try {
 
-                    const buffer = event.data; // now an ArrayBuffer instead of a Blob
-                    const text = new TextDecoder().decode(buffer);
-                    const data = JSON.parse(text);
+                    // const buffer = event.data; // now an ArrayBuffer instead of a Blob
+                    // const text = new TextDecoder().decode(buffer);
+                    // const data = JSON.parse(text);
+                    const data = JSON.parse(event.data);
 
                     log(`📨 Received: ${data.type}`, 'info');
                     
