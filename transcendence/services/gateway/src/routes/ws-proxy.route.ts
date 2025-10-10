@@ -53,7 +53,7 @@ export function forwardMessages (
   backendSocket.on('message', (msg) => {
     if (clientSocket.readyState === WebSocket.OPEN) {
       console.log(msg)
-      client.send(msg)
+      clientSocket.send(msg)
       // if (msg){
       //   console.log("Here: ", msg)
       //   clientSocket.send(msg)
@@ -91,13 +91,27 @@ export function forwardMessages (
 
   }
 
-  // if (clientSocket && typeof clientSocket.on === 'function') {
-  //   clientSocket.on('close', closeBoth)
-  //   console.log('Client disconnected the ws connection')
-  // }
+  if (clientSocket && typeof clientSocket.on === 'function') {
+    clientSocket.on('close', closeBoth)
+    console.log('Client disconnected the ws connection')
+  }
 
-  // backendSocket.on('close', closeBoth)
-  // console.log('Backend disconnected the ws connection')
+  backendSocket.on('close', closeBoth)
+  console.log('Backend disconnected the ws connection')
+
+  const pingInterval = setInterval(() => {
+    if (clientSocket.readyState === WebSocket.OPEN) {
+      clientSocket.ping();
+    }
+    if (backendSocket.readyState === WebSocket.OPEN) {
+      backendSocket.ping();
+    }
+  }, 30_000); // every 30s
+
+  // ⛔️ Stop the interval when either side disconnects
+  const clear = () => clearInterval(pingInterval);
+  clientSocket.on('close', clear);
+  backendSocket.on('close', clear);
 }
 
 
@@ -108,7 +122,7 @@ interface GameParams {
 
 
 const wsProxyRoute: FastifyPluginAsync = async (fastify) => {
-  fastify.get<{Params: GameParams;}>('/pong/game-ws:gameId', { websocket: true }, async (connection, req) => {
+  fastify.get<{Params: GameParams;}>('/pong/game-ws/:gameId', { websocket: true }, async (connection, req) => {
     const clientSocket = connection
 
     fastify.log.info("Extract gameId")
@@ -120,7 +134,9 @@ const wsProxyRoute: FastifyPluginAsync = async (fastify) => {
 
     if (req.params)
     {
-      gameId = req.params.gameId;
+      var gameIdStr = req.params.gameId;
+      gameId = parseInt(gameIdStr.replace(/[^0-9]/g, ''),10); 
+      // gameId = req.params.gameId;
       console.log('other: ', gameId)
     }
     // if (req.params && req.params.gameId) {
@@ -129,11 +145,11 @@ const wsProxyRoute: FastifyPluginAsync = async (fastify) => {
     // }
     
     // Method 2: Extract from URL if params didn't work
-    if (!gameId && req.url) {
-      const urlMatch = req.url.match(/\/pong\/game-ws\/(\d+)/);
-      gameId = urlMatch ? urlMatch[1] : null;
-      console.log('GameId from URL regex:', gameId);
-    }
+    // if (!gameId && req.url) {
+    //   const urlMatch = req.url.match(/\/pong\/game-ws\/(\d+)/);
+    //   gameId = urlMatch ? urlMatch[1] : null;
+    //   console.log('GameId from URL regex:', gameId);
+    // }
     
     // Method 3: Try raw URL if available
     if (!gameId && req.raw && req.raw.url) {

@@ -446,7 +446,7 @@
             currentGameId = gameId;
             log(`🔌 Connecting to game ${gameId}...`, 'info');
             
-            websocket = new WebSocket(`ws://localhost:3000/ws/pong/game-ws:${gameId}`);
+            websocket = new WebSocket(`ws://localhost:3000/ws/pong/game-ws/${gameId}`);
             
             websocket.onopen = () => {
                 document.getElementById('connectionStatus').className = 'status connected';
@@ -455,10 +455,28 @@
                 document.getElementById('disconnectBtn').disabled = false;
                 log(`Successfully connected to game ${gameId}`, 'success');
             };
+
+            var x = 0;
             
             websocket.onmessage = (event) => {
                 try {
-                    const data = JSON.parse(event.data);
+                    // log('One');
+                    // const data = JSON.parse(event.data);
+                    // log('two');
+
+                    const rawData = event.data;
+                    let data;
+
+                    if (typeof rawData === 'string') {
+                        data = JSON.parse(rawData);
+                    } else if (typeof rawData === 'object') {
+                        data = rawData; // assume it's already parsed
+                        console.log(rawData)
+                        console.log(JSON.parse(rawData))
+                    } else {
+                        throw new Error('Unexpected message format');
+                    }
+
                     log(`📨 Received: ${data.type}`, 'info');
                     
                     // Update game visualization if game state is received
