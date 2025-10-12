@@ -2,9 +2,9 @@
 # Script listet Raw-Dateien aus gewünschtem Ordner des Repos auf
 
 # Benutzer-Konfiguration
-USER="ELREKO"
-REPO="trancsendenc_Phase_1_test_public"
-BRANCH="main"
+USER="Zzzhenya"
+REPO="ft_transcnd"
+BRANCH="rene_codebase/legacy"
 
 # Eingabe des Zielordners
 read -p "Welcher Ordner im Repository soll durchsucht werden? " FOLDER
