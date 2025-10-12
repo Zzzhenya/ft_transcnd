@@ -1,0 +1,82 @@
+cd ~/Project/ft_transcnd/transcendence/services/user-service && cat > user-service-deps.html << 'HTMLEND'
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Service - Dependencies</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; min-height: 100vh; }
+        .container { max-width: 1400px; margin: 0 auto; background: white; border-radius: 15px; padding: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
+        h1 { color: #1e3c72; margin-bottom: 20px; }
+        .alert { background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin: 20px 0; }
+        .stat-card { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 10px; text-align: center; }
+        .stat-number { font-size: 2.5em; font-weight: bold; }
+        .diagram { background: #f8f9fa; border-radius: 10px; padding: 20px; margin: 20px 0; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 User Service - Dependency Analysis</h1>
+        
+        <div class="alert">
+            <strong>⚠️ Warnung:</strong> authController.js und authMiddleware.js werden nicht verwendet!
+        </div>
+        
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-number">5</div>
+                <div>Dateien</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">0</div>
+                <div>Circular Dependencies ✅</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">2</div>
+                <div>Ungenutzte Files ⚠️</div>
+            </div>
+        </div>
+        
+        <h2>📊 Dependency Graph</h2>
+        <div class="diagram">
+            <div class="mermaid">
+graph TB
+    index["index.js<br/>🚀 Entry Point"]
+    authService["authService.js<br/>⚙️ Business Logic"]
+    userModel["User.js<br/>💾 Database"]
+    authController["authController.js<br/>❌ UNUSED"]
+    authMiddleware["authMiddleware.js<br/>❌ UNUSED"]
+    
+    index --> authService
+    index --> userModel
+    authService --> userModel
+    
+    authController -.-> authService
+    authController -.-> userModel
+    authMiddleware -.-> userModel
+    
+    style index fill:#4CAF50,stroke:#2E7D32,color:#fff,stroke-width:3px
+    style authService fill:#FF9800,stroke:#E65100,color:#fff
+    style userModel fill:#9C27B0,stroke:#6A1B9A,color:#fff
+    style authController fill:#f44336,stroke:#c62828,color:#fff,stroke-dasharray: 5 5
+    style authMiddleware fill:#f44336,stroke:#c62828,color:#fff,stroke-dasharray: 5 5
+            </div>
+        </div>
+        
+        <h2>💡 Empfehlungen</h2>
+        <ul>
+            <li><strong>Option 1:</strong> Refactore index.js um Controller/Middleware zu nutzen</li>
+            <li><strong>Option 2:</strong> Lösche authController.js und authMiddleware.js</li>
+        </ul>
+    </div>
+    
+    <script>
+        mermaid.initialize({ startOnLoad: true, theme: 'default', securityLevel: 'loose' });
+    </script>
+</body>
+</html>
+HTMLEND
