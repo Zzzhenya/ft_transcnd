@@ -17,5 +17,7 @@ data = response.json()
 print("Files in repo with raw URLs:\n")
 for item in data.get("tree", []):
     if item["type"] == "blob":  # only files
-        raw_url = RAW_BASE + item["path"]
-        print(raw_url)
+        # Skip files in legacy/ folder
+        if not item["path"].startswith("legacy/") and not item["path"].startswith("frontend_jason/"):
+            raw_url = RAW_BASE + item["path"]
+            print(raw_url)
