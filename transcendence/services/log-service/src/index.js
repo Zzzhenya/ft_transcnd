@@ -1,5 +1,21 @@
 const fastify = require('fastify')({ logger: true });
 const logger = require('./logger');
+const axios = require('axios');
+
+const LOGSTASH_URL = process.env.LOGSTASH_URL || 'http://logstash:5001';
+
+// Función para enviar logs a Logstash
+async function sendToLogstash(logData) {
+  try {
+    await axios.post(LOGSTASH_URL, logData, {
+      timeout: 2000,
+      validateStatus: () => true
+    });
+  } catch (error) {
+    // Silently fail if Logstash is not available
+    console.log('Logstash unavailable:', error.message);
+  }
+}
 
 // Health check
 fastify.get('/health', async (request, reply) => {
@@ -7,7 +23,8 @@ fastify.get('/health', async (request, reply) => {
     service: 'log-service',
     status: 'healthy',
     timestamp: new Date(),
-    elasticsearch: process.env.ELASTICSEARCH_URL ? 'connected' : 'not configured'
+    elasticsearch: process.env.ELASTICSEARCH_URL ? 'connected' : 'not configured',
+    logstash: process.env.LOGSTASH_URL ? 'configured' : 'not configured'
   };
 });
 
@@ -23,14 +40,19 @@ fastify.post('/api/logs', async (request, reply) => {
       });
     }
 
-    // Enviar log a Winston (que lo manda a Elasticsearch)
-    logger.log({
+    const logData = {
       level,
       message,
       service,
-      ...metadata,
+      metadata: metadata || {},
       timestamp: new Date().toISOString()
-    });
+    };
+
+    // Enviar log a Winston (que lo manda a Elasticsearch)
+    logger.log(logData);
+
+    // También enviar a Logstash para procesamiento adicional
+    await sendToLogstash(logData);
 
     return {
       success: true,
@@ -55,18 +77,21 @@ fastify.post('/api/logs/batch', async (request, reply) => {
       });
     }
 
-    logs.forEach(log => {
+    for (const log of logs) {
       const { level, message, service, metadata } = log;
       if (level && message && service) {
-        logger.log({
+        const logData = {
           level,
           message,
           service,
-          ...metadata,
+          metadata: metadata || {},
           timestamp: new Date().toISOString()
-        });
+        };
+        
+        logger.log(logData);
+        await sendToLogstash(logData);
       }
-    });
+    }
 
     return {
       success: true,
