@@ -44,11 +44,13 @@ services:
 
   log-service:
     build: ./services/log-service
-    # ports:
-    #   - "3003:3003"
+    ports:
+      - "3003:3003"
     environment:
       - NODE_ENV=development
       - DATABASE_URL=sqlite:/app/shared/database/transcendence.db
+      - ELASTICSEARCH_URL=http://elasticsearch:9200
+      - LOGSTASH_URL=http://logstash:5001
     volumes:
       - shared-data:/app/shared
       - ./monitoring:/app/monitoring
@@ -77,6 +79,30 @@ services:
       timeout: 15s
       retries: 8
       start_period: 60s  # Give more time to start
+
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.11.0
+    container_name: transcendence-logstash
+    profiles: ["monitoring", "full"]  # Optional service
+    environment:
+      - "LS_JAVA_OPTS=-Xms256m -Xmx256m"  # Reduced memory usage
+      - ENVIRONMENT=development
+    ports:
+      - "5010:5000"  # HTTP input for applications
+      - "5011:5001"  # HTTP input for log-service
+      - "5044:5044"  # Beats input
+    volumes:
+      - ./monitoring/logstash/logstash.conf:/usr/share/logstash/pipeline/logstash.conf:ro
+      - ./monitoring/logs:/usr/share/logstash/logs:ro
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9600/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
 
   kibana:
     image: docker.elastic.co/kibana/kibana:8.11.0
