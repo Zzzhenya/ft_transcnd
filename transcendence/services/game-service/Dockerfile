@@ -1,6 +1,6 @@
 FROM node:18-alpine AS base
 WORKDIR /app
-RUN apk add --no-cache curl python3 make g++
+RUN apk add --no-cache curl python3 make g++ py3-setuptools
 COPY package*.json ./
 RUN npm install --omit=dev
 
