@@ -15,7 +15,6 @@ export default function (root: HTMLElement) {
   gameStatus: 'waiting'
 };
 
-  //let gameState: any = null;
   let player1Name = 'Player 1';
   let player2Name = 'Player 2';
   let gameLoop: number | null = null;
@@ -210,34 +209,6 @@ function handleBackendMessage(data: any) {
   }
 }
 
-// function handleBackendMessage(data: any) {
-//   if (data.type === 'STATE_UPDATE' && data.gameState) {
-//     gameState = {
-//       ball: data.gameState.ball || gameState.ball,
-//       paddles: data.gameState.paddles || gameState.paddles,
-//       score: data.gameState.score || gameState.score,
-//       tournament: data.gameState.tournament || gameState.tournament, // <-- FIX HERE
-// 	  gameStatus: data.gameState.tournament?.gameStatus || 'playing'
-//     };
-
-//     console.log('🎮 Backend state update:', gameState);
-
-// 	if (data.gameState) {
-//   		player1Name = data.gameState.player1_name || player1Name;
-//  		player2Name = data.gameState.player2_name || player2Name;
-// 	}
-//     // Update status based on game status
-//     if (gameState.gameStatus === 'playing') {
-//       updateStatus('🎮 Game active - Player 1: W/S, Player 2: ↑/↓');
-//     } else if (gameState.gameStatus === 'waiting' && ws && ws.readyState === WebSocket.OPEN) {
-//       // Automatically start the game after restart
-//       ws.send(JSON.stringify({ type: 'START_GAME' }));
-//       updateStatus('🔄 Starting game after restart...');
-//     } else if (gameState.gameStatus === 'gameEnd') {
-//       updateStatus(`🏆 Game ended! Winner: ${data.gameState.tournament?.winner || 'Nobody'}`);
-//     }
-//   }
-// }
 
   function sendPaddleMovement() {
     if (!ws || ws.readyState !== WebSocket.OPEN) {
@@ -288,7 +259,7 @@ function handleBackendMessage(data: any) {
   }
 
   function startNetworkGame() {
-    console.log('🌐 Starting network game loop');
+    console.log('🌐 Starting local game loop');
     
     // Reset connection flags
     startBtn.disabled = true;
@@ -350,7 +321,7 @@ function toCanvasY(gameY: number) { return (100 - gameY) * scaleY; }
 
   // Paddle size in game units
   const paddleWidth = 2;
-  const paddleHeight = 40;
+  const paddleHeight = 60;
 
   // Draw paddles
   ctx.fillStyle = '#00ff00';
@@ -504,38 +475,6 @@ function setupKeyboardControls() {
     if (changed) sendPaddleMovement();
   });
 }
-
-//   function setupKeyboardControls() {
-//     document.addEventListener('keydown', (e) => {
-//       if (e.key === 'w' || e.key === 'W') {
-//         player1Keys.up = true;
-//         e.preventDefault();
-//       } else if (e.key === 's' || e.key === 'S') {
-//         player1Keys.down = true;
-//         e.preventDefault();
-//       } else if (e.key === 'ArrowUp') {
-//         player2Keys.up = true;
-//         e.preventDefault();
-//       } else if (e.key === 'ArrowDown') {
-//         player2Keys.down = true;
-//         e.preventDefault();
-//       }
-//       sendPaddleMovement();
-//     });
-
-//     document.addEventListener('keyup', (e) => {
-//       if (e.key === 'w' || e.key === 'W') {
-//         player1Keys.up = false;
-//       } else if (e.key === 's' || e.key === 'S') {
-//         player1Keys.down = false;
-//       } else if (e.key === 'ArrowUp') {
-//         player2Keys.up = false;
-//       } else if (e.key === 'ArrowDown') {
-//         player2Keys.down = false;
-//       }
-//       sendPaddleMovement();
-//     });
-//   }
 
   async function handleStartGame() {
     startBtn.disabled = true;

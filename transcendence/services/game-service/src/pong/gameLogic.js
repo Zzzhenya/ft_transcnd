@@ -1,6 +1,6 @@
 export function movePaddle(gameState, player, direction) {
   const paddleSpeed = 15;
-  const paddleHeight = 40;
+  const paddleHeight = 60;
   // Game area is -100 to +100, paddle height is 40
   // So paddle center must be between -80 and +80 to keep paddle fully visible
   const topBoundary = -100 + paddleHeight / 2;    // -100 + 20 = -80
@@ -25,7 +25,7 @@ export function moveBall(gameState) {
     return gameState;
   }
 
-  const paddleHeight = 40;
+  const paddleHeight = 60;
   const paddleX = 50;       // Paddles are at the boundaries: x = ±50 (same as scoring line)
   const speedIncrement = 0.1;
   const ballspeed = 1.2; // Base ball speed
