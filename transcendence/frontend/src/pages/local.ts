@@ -176,34 +176,68 @@ export default function (root: HTMLElement) {
     }
   }
 
+
+  let hasSentStartGame = false;
+
 function handleBackendMessage(data: any) {
   if (data.type === 'STATE_UPDATE' && data.gameState) {
     gameState = {
       ball: data.gameState.ball || gameState.ball,
       paddles: data.gameState.paddles || gameState.paddles,
       score: data.gameState.score || gameState.score,
-      tournament: data.gameState.tournament || gameState.tournament, // <-- FIX HERE
-	  gameStatus: data.gameState.tournament?.gameStatus || 'playing'
+      tournament: data.gameState.tournament || gameState.tournament,
+      gameStatus: data.gameState.tournament?.gameStatus || 'playing'
     };
 
-    console.log('🎮 Backend state update:', gameState);
+    player1Name = data.gameState.player1_name || player1Name;
+    player2Name = data.gameState.player2_name || player2Name;
 
-	if (data.gameState) {
-  		player1Name = data.gameState.player1_name || player1Name;
- 		player2Name = data.gameState.player2_name || player2Name;
-	}
-    // Update status based on game status
     if (gameState.gameStatus === 'playing') {
       updateStatus('🎮 Game active - Player 1: W/S, Player 2: ↑/↓');
-    } else if (gameState.gameStatus === 'waiting' && ws && ws.readyState === WebSocket.OPEN) {
-      // Automatically start the game after restart
+      hasSentStartGame = false; // Reset for next round/game
+    } else if (
+      gameState.gameStatus === 'waiting' &&
+      ws &&
+      ws.readyState === WebSocket.OPEN &&
+      !hasSentStartGame
+    ) {
       ws.send(JSON.stringify({ type: 'START_GAME' }));
       updateStatus('🔄 Starting game after restart...');
+      hasSentStartGame = true;
     } else if (gameState.gameStatus === 'gameEnd') {
       updateStatus(`🏆 Game ended! Winner: ${data.gameState.tournament?.winner || 'Nobody'}`);
     }
   }
 }
+
+// function handleBackendMessage(data: any) {
+//   if (data.type === 'STATE_UPDATE' && data.gameState) {
+//     gameState = {
+//       ball: data.gameState.ball || gameState.ball,
+//       paddles: data.gameState.paddles || gameState.paddles,
+//       score: data.gameState.score || gameState.score,
+//       tournament: data.gameState.tournament || gameState.tournament, // <-- FIX HERE
+// 	  gameStatus: data.gameState.tournament?.gameStatus || 'playing'
+//     };
+
+//     console.log('🎮 Backend state update:', gameState);
+
+// 	if (data.gameState) {
+//   		player1Name = data.gameState.player1_name || player1Name;
+//  		player2Name = data.gameState.player2_name || player2Name;
+// 	}
+//     // Update status based on game status
+//     if (gameState.gameStatus === 'playing') {
+//       updateStatus('🎮 Game active - Player 1: W/S, Player 2: ↑/↓');
+//     } else if (gameState.gameStatus === 'waiting' && ws && ws.readyState === WebSocket.OPEN) {
+//       // Automatically start the game after restart
+//       ws.send(JSON.stringify({ type: 'START_GAME' }));
+//       updateStatus('🔄 Starting game after restart...');
+//     } else if (gameState.gameStatus === 'gameEnd') {
+//       updateStatus(`🏆 Game ended! Winner: ${data.gameState.tournament?.winner || 'Nobody'}`);
+//     }
+//   }
+// }
 
   function sendPaddleMovement() {
     if (!ws || ws.readyState !== WebSocket.OPEN) {
@@ -429,37 +463,79 @@ ctx.fillText(
 
 }
 
-  function setupKeyboardControls() {
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'w' || e.key === 'W') {
-        player1Keys.up = true;
-        e.preventDefault();
-      } else if (e.key === 's' || e.key === 'S') {
-        player1Keys.down = true;
-        e.preventDefault();
-      } else if (e.key === 'ArrowUp') {
-        player2Keys.up = true;
-        e.preventDefault();
-      } else if (e.key === 'ArrowDown') {
-        player2Keys.down = true;
-        e.preventDefault();
-      }
-      sendPaddleMovement();
-    });
+function setupKeyboardControls() {
+  document.addEventListener('keydown', (e) => {
+    let changed = false;
+    if (e.key === 'w' || e.key === 'W') {
+      if (!player1Keys.up) changed = true;
+      player1Keys.up = true;
+      e.preventDefault();
+    } else if (e.key === 's' || e.key === 'S') {
+      if (!player1Keys.down) changed = true;
+      player1Keys.down = true;
+      e.preventDefault();
+    } else if (e.key === 'ArrowUp') {
+      if (!player2Keys.up) changed = true;
+      player2Keys.up = true;
+      e.preventDefault();
+    } else if (e.key === 'ArrowDown') {
+      if (!player2Keys.down) changed = true;
+      player2Keys.down = true;
+      e.preventDefault();
+    }
+    if (changed) sendPaddleMovement();
+  });
 
-    document.addEventListener('keyup', (e) => {
-      if (e.key === 'w' || e.key === 'W') {
-        player1Keys.up = false;
-      } else if (e.key === 's' || e.key === 'S') {
-        player1Keys.down = false;
-      } else if (e.key === 'ArrowUp') {
-        player2Keys.up = false;
-      } else if (e.key === 'ArrowDown') {
-        player2Keys.down = false;
-      }
-      sendPaddleMovement();
-    });
-  }
+  document.addEventListener('keyup', (e) => {
+    let changed = false;
+    if (e.key === 'w' || e.key === 'W') {
+      if (player1Keys.up) changed = true;
+      player1Keys.up = false;
+    } else if (e.key === 's' || e.key === 'S') {
+      if (player1Keys.down) changed = true;
+      player1Keys.down = false;
+    } else if (e.key === 'ArrowUp') {
+      if (player2Keys.up) changed = true;
+      player2Keys.up = false;
+    } else if (e.key === 'ArrowDown') {
+      if (player2Keys.down) changed = true;
+      player2Keys.down = false;
+    }
+    if (changed) sendPaddleMovement();
+  });
+}
+
+//   function setupKeyboardControls() {
+//     document.addEventListener('keydown', (e) => {
+//       if (e.key === 'w' || e.key === 'W') {
+//         player1Keys.up = true;
+//         e.preventDefault();
+//       } else if (e.key === 's' || e.key === 'S') {
+//         player1Keys.down = true;
+//         e.preventDefault();
+//       } else if (e.key === 'ArrowUp') {
+//         player2Keys.up = true;
+//         e.preventDefault();
+//       } else if (e.key === 'ArrowDown') {
+//         player2Keys.down = true;
+//         e.preventDefault();
+//       }
+//       sendPaddleMovement();
+//     });
+
+//     document.addEventListener('keyup', (e) => {
+//       if (e.key === 'w' || e.key === 'W') {
+//         player1Keys.up = false;
+//       } else if (e.key === 's' || e.key === 'S') {
+//         player1Keys.down = false;
+//       } else if (e.key === 'ArrowUp') {
+//         player2Keys.up = false;
+//       } else if (e.key === 'ArrowDown') {
+//         player2Keys.down = false;
+//       }
+//       sendPaddleMovement();
+//     });
+//   }
 
   async function handleStartGame() {
     startBtn.disabled = true;
