@@ -1,3 +1,5 @@
+import { courtRect } from "./system";
+
 // 게임에 필요한 타입, 상태, 설정값 정의.
 export type Vec2 = { x: number; y: number };	// pos, vel
 export type PlayerSide = "left" | "right";			// Direction for player || direction
@@ -41,6 +43,9 @@ export type Score = {
 	right: number;
 };
 
+// To show who the winner is in each round.
+export type RoundWins = { left: number; right: number };
+
 /*
 	Gutter:
 	패들이 gutter없이 완전히 벽에 붙어 있을 경우,
@@ -56,6 +61,7 @@ export type GameConfig = {
 	ball: { radius: number; speed: number; };
 	winScore: number;		// Score to win
 	roundTimeSec: number;	// Time limit for one round. 0: Can't play anymore.
+	roundsToWin: number;	// Number of round to win.
 };
 
 /*
@@ -70,7 +76,18 @@ export type GameState = {
 	status: GameStatus;
 	score: Score;
 	ball: Ball;
+
+	// Winner
 	winner: PlayerSide | null;	// left player || right player || null (Not yet decided)
+	matchWinner?: PlayerSide | null; // Final winner
+	roundWinner?: PlayerSide | null; // Round winner
+
+	// Info of round
+	round: number;				// Current Round
+	roundWins: RoundWins;		// Number of winning for each side (left, right)
+	roundsToWin: number;		// Number of rounds based on ending of match.
+								// Sometimes it's 2 (1. left: win, 2. left: win -> game over)
+								// Somethiems it's 3 (1. left: win, 2. right: win -> 3. right: win)
 
 	// Paddle
 	leftPaddle: Paddle;
@@ -90,6 +107,7 @@ export const DefaultConfig: GameConfig = {
 	ball: { radius: 8, speed: 420},
 	winScore: 5,
 	roundTimeSec: 0,
+	roundsToWin: 2,
 };
 
 // Validate config & error handling
@@ -109,12 +127,11 @@ function assertValidConfig(config: GameConfig) {
 }
 
 // Get both paddle's starting 'pos.x' point.
-function getPaddleStartPosX(
-	playerSide: PlayerSide, config: GameConfig
-): number {
-	if (playerSide === "left")
-		return config.court.gutter;
-	return config.court.width - config.court.gutter - config.paddle.width;	
+function getPaddleStartPosX(playerSide: PlayerSide, config: GameConfig): number {
+	const r = courtRect(config);
+	return playerSide === "left"
+		? r.x + config.court.gutter
+		: r.right - config.court.gutter - config.paddle.width;
 }
 
 /* 
@@ -164,8 +181,9 @@ export function createPaddle(
 
 // Create the ball in the center of court. Just create not start to move.
 export function createBall(config: GameConfig = DefaultConfig): Ball {
+	const r = courtRect(config);
 	return {
-		pos: { x: config.court.width / 2, y: config.court.height / 2 },
+		pos: { x: r.x + r.w / 2, y: r.y + r.h / 2 },
 		vel: { x: 0, y: 0 },
 		radius: config.ball.radius,
 	};
@@ -177,14 +195,30 @@ export function createState(config: GameConfig = DefaultConfig): GameState {
 	// Validate cfg one before creating.
 	assertValidConfig(config);
 
+	// RoundsToWin -> literal
+	const roundsToWin = config.roundsToWin ?? 2;
+
 	return {
 		status: "ready",
 		score: { left: 0, right: 0 },
 		ball: createBall(config),
-			winner: null,
-			startMs: Date.now(),
+
+		// Init winner
+		winner: null,
+		matchWinner: null,
+		roundWinner: null,
+
+		// Init round
+		round: 1,
+		roundWins: { left: 0, right: 0 },
+		roundsToWin,
+
+		// Init paddle			
 		leftPaddle: createPaddle("left", config),
 		rightPaddle: createPaddle("right", config),
+		
+		// Init time
+		startMs: Date.now(),
 		elapsedMs: 0,
 		lastUpdateMs: performance.now(),
 		remainingMs: config.roundTimeSec * 1000,

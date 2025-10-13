@@ -8,15 +8,15 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 class AuthService {
   static async register(username, email, password) {
     try {
-      // Prüfe ob Benutzer bereits existiert
+      // Check if user already exists
       const existingEmail = await User.findByEmail(email);
       if (existingEmail) {
-        throw new Error('Email bereits registriert');
+        throw new Error('Email already registered');
       }
 
       const existingUsername = await User.findByUsername(username);
       if (existingUsername) {
-        throw new Error('Benutzername bereits vergeben');
+        throw new Error('Username already taken');
       }
 
       // Passwort hashen
@@ -95,16 +95,16 @@ class AuthService {
 
   static async login(email, password) {
     try {
-      // Benutzer finden
+      // Find user
       const user = await User.findByEmail(email);
       if (!user) {
-        throw new Error('Ungültige Anmeldedaten');
+        throw new Error('Invalid credentials');
       }
 
-      // Passwort prüfen
+      // Check password
       const isValidPassword = await bcrypt.compare(password, user.password);
       if (!isValidPassword) {
-        throw new Error('Ungültige Anmeldedaten');
+        throw new Error('Invalid credentials');
       }
 
       // JWT Token erstellen

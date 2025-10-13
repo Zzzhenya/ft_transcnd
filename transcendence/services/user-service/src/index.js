@@ -47,56 +47,46 @@ fastify.post('/auth/register', async (request, reply) => {
 
     if (!username || !email || !password) {
       return reply.code(400).send({
-        message: 'Benutzername, E-Mail und Passwort sind erforderlich'
+        message: 'Username, email and password are required'
       });
     }
 
     const result = await AuthService.register(username, email, password);
 
     return reply.code(201).send({
-      message: 'Benutzer erfolgreich registriert',
+      message: 'User successfully registered',
       user: result.user,
       token: result.token
     });
   } catch (error) {
     console.error('Registration error:', error);
-    if (error.message.includes('bereits')) {
+    if (error.message.includes('already')) {
       return reply.code(409).send({ message: error.message });
     }
-    return reply.code(500).send({ message: 'Serverfehler', error: error.message });
+    return reply.code(500).send({ message: 'Server error', error: error.message });
   }
 });
 
 // Login endpoint
 fastify.post('/auth/login', async (request, reply) => {
   try {
-    const { username, password } = request.body;
+    const { email, password } = request.body;
 
-    if (!username || !password) {
+    if (!email || !password) {
       return reply.code(400).send({
-        message: 'Benutzername und Passwort sind erforderlich'
+        message: 'Email and password are required'
       });
     }
 
-    const user = await AuthService.validateUser(username, password);
-
-    if (!user) {
-      return reply.code(401).send({ message: 'Ungültige Anmeldedaten' });
-    }
-
-    const token = AuthService.generateToken(user);
+    const result = await AuthService.login(email, password);
 
     return reply.code(200).send({
-      access_token: token,
-      user: {
-        id: user.id,
-        username: user.username,
-        email: user.email,
-        avatar: user.avatar
-      }
+      token: result.token,
+      user: result.user
     });
   } catch (error) {
-    return reply.code(500).send({ message: 'Serverfehler', error: error.message });
+    console.error('Login error:', error);
+    return reply.code(401).send({ message: 'Invalid credentials' });
   }
 });
 
@@ -114,7 +104,7 @@ fastify.get('/auth/profile', {
 
 // Health check
 fastify.get('/health', async (request, reply) => {
-  return { status: 'ok', service: 'user-service' };
+  return { service: 'user-service', status: 'healthy', timestamp: new Date() };
 });
 
 // Start server

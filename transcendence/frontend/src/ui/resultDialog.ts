@@ -84,8 +84,8 @@ export function createResultDialog(
 	toLobby.style.fontWeight = "600";
 
 	// Next round
-	const nextRound = document.createElement("a");
-	nextRound.href = routes.next;
+	const nextRound = document.createElement("button");
+	nextRound.type = "button";
 	nextRound.textContent = "Next round";
 	nextRound.style.padding = "10px 14px";
 	nextRound.style.border = "1px solid #fff";
@@ -116,6 +116,13 @@ export function createResultDialog(
 		if (e.key === "Escape")
 			api.hide();
 	};
+
+	// When user next round clicks, customEvent is executed.
+	nextRound.addEventListener("click", (e) => {
+		e.preventDefault();
+		e.stopPropagation();
+		dialog.dispatchEvent(new CustomEvent("next-round"));
+	});	
 
   const api: ResultDialog = {
 	el: dialog,
