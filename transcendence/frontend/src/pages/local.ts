@@ -25,15 +25,13 @@ export default function (root: HTMLElement) {
   root.innerHTML = `
     <section class="py-6 md:py-8 lg:py-10 space-y-8">
       <header class="space-y-2">
-        <h1 class="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold">🏓 Network Pong Game</h1>
-        <p class="text-sm sm:text-base md:text-lg text-gray-600">
-          Multiplayer game connecting through gateway to backend
-        </p>
+        <h1 class="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold">🏓 Local Pong Game</h1>
+        
       </header>
 
       <div class="flex gap-4 justify-center">
         <button id="startBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold">
-          Start Network Game
+          Start Local Game
         </button>
         <button id="restartBtn" class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold" disabled>
           Restart Game
@@ -54,10 +52,8 @@ export default function (root: HTMLElement) {
       </div>
 
       <div class="text-center text-gray-500 text-sm space-y-1">
-        <p><strong>🎯 Player 1 (Left Paddle):</strong> W/S keys to move up/down</p>
-        <p><strong>🎯 Player 2 (Right Paddle):</strong> Arrow Keys ↑/↓ to move up/down</p>
-        <p id="connectionStatus">🔄 Ready to connect to backend game service</p>
-        <p>🏆 First to 5 points wins!</p>
+       <p id="connectionStatus">🔄 Ready to connect to backend game service</p>
+        <p>🏆 First to 5 points wins round, player wins 2 rounds is the final winner!</p>
       </div>
     </section>
   `;
@@ -124,7 +120,7 @@ export default function (root: HTMLElement) {
       
       ws.onopen = () => {
         console.log('✅ WebSocket connected successfully');
-        updateStatus('🌐 Connected! Starting network game...');
+        updateStatus('🌐 Connected! Starting game...');
         updateConnectionStatus('✅ Connected to backend game service');
         
         // Start the network game loop
@@ -185,7 +181,8 @@ function handleBackendMessage(data: any) {
       ball: data.gameState.ball || gameState.ball,
       paddles: data.gameState.paddles || gameState.paddles,
       score: data.gameState.score || gameState.score,
-      gameStatus: data.gameState.tournament?.gameStatus || 'playing'
+      tournament: data.gameState.tournament || gameState.tournament, // <-- FIX HERE
+	  gameStatus: data.gameState.tournament?.gameStatus || 'playing'
     };
 
     console.log('🎮 Backend state update:', gameState);
@@ -291,88 +288,6 @@ function handleBackendMessage(data: any) {
     gameLoop = requestAnimationFrame(updateNetworkGame);
   }
 
-//   function drawGame() {
-//     if (!ctx || !canvas) return;
-    
-//     // Clear canvas
-//     ctx.fillStyle = '#000000';
-//     ctx.fillRect(0, 0, canvas.width, canvas.height);
-    
-//     // Draw center line
-//     ctx.setLineDash([10, 10]);
-//     ctx.beginPath();
-//     ctx.moveTo(canvas.width / 2, 0);
-//     ctx.lineTo(canvas.width / 2, canvas.height);
-//     ctx.strokeStyle = '#888888';
-//     ctx.lineWidth = 2;
-//     ctx.stroke();
-//     ctx.setLineDash([]);
-    
-//     // Convert coordinates
-//     const scaleX = canvas.width / 100;
-//     const scaleY = canvas.height / 200;
-//     const offsetX = canvas.width / 2;
-//     const offsetY = canvas.height / 2;
-    
-//     function toCanvasX(gameX: number) { return offsetX + (gameX * scaleX); }
-//     function toCanvasY(gameY: number) { return offsetY - (gameY * scaleY); }
-    
-//     // Draw paddles
-//     ctx.fillStyle = '#00ff00';
-//     const paddleWidth = 20;
-//     const paddleHeight = 100;
-    
-//     // Left paddle
-//     const leftPaddleX = toCanvasX(-50);
-//     const leftPaddleY = toCanvasY(gameState.paddles.player1) - paddleHeight / 2;
-//     ctx.fillRect(leftPaddleX - paddleWidth/2, leftPaddleY, paddleWidth, paddleHeight);
-    
-//     // Right paddle
-//     const rightPaddleX = toCanvasX(50);
-//     const rightPaddleY = toCanvasY(gameState.paddles.player2) - paddleHeight / 2;
-//     ctx.fillRect(rightPaddleX - paddleWidth/2, rightPaddleY, paddleWidth, paddleHeight);
-    
-//     // Draw ball
-//     const ballX = toCanvasX(gameState.ball.x);
-//     const ballY = toCanvasY(gameState.ball.y);
-    
-//     ctx.shadowColor = '#ffff00';
-//     ctx.shadowBlur = 15;
-//     ctx.beginPath();
-//     ctx.arc(ballX, ballY, 8, 0, Math.PI * 2);
-//     ctx.fillStyle =  '#ffff00';
-//     ctx.fill();
-//     ctx.shadowBlur = 0;
-    
-//     // Draw score
-//     ctx.font = 'bold 36px Arial';
-//     ctx.textAlign = 'center';
-//     ctx.fillStyle = '#ffffff';
-//     ctx.fillText(
-//       `${gameState.score.player1} - ${gameState.score.player2}`,
-//       canvas.width / 2,
-//       50
-//     );
-    
-//     // Draw connection indicator
-//     ctx.font = '14px Arial';
-//     ctx.fillStyle = '#ff8800';
-//     ctx.textAlign = 'center';
-//     ctx.fillText(
-//       '🔧 LOCAL MODE',
-//       canvas.width / 2,
-//       canvas.height - 40
-//     );
-    
-//     // Draw player labels
-//     ctx.font = '16px Arial';
-//     ctx.fillStyle = '#888888';
-//     ctx.textAlign = 'left';
-//     ctx.fillText('Player 1 (W/S)', 20, canvas.height - 20);
-//     ctx.textAlign = 'right';
-//     ctx.fillText('Player 2 (↑/↓)', canvas.width - 20, canvas.height - 20);
-//   }
-
 function drawGame() {
   if (!ctx || !canvas || !gameState) return;
 
@@ -452,15 +367,6 @@ ctx.fillRect(
     50
   );
 
-  // Draw connection indicator
-  ctx.font = '14px Arial';
-  ctx.fillStyle = '#00ff00';
-  ctx.textAlign = 'center';
-  ctx.fillText(
-    '🌐 NETWORK MODE',
-    canvas.width / 2,
-    canvas.height - 40
-  );
 
   // Draw player labels
   ctx.font = '16px Arial';
@@ -468,7 +374,58 @@ ctx.fillRect(
   ctx.textAlign = 'left';
   ctx.fillText('Player 1 (W/S)', 20, canvas.height - 20);
   ctx.textAlign = 'right';
+
   ctx.fillText('Player 2 (↑/↓)', canvas.width - 20, canvas.height - 20);
+
+
+ // Draw player names and rounds won on each side
+  ctx.font = '20px Arial';
+  ctx.fillStyle = '#00ffcc';
+  ctx.textAlign = 'left';
+  ctx.fillText(player1Name, 30, 40);
+  ctx.font = '16px Arial';
+  ctx.fillStyle = '#ffcc00';
+  ctx.textAlign = 'left';
+  ctx.fillText(
+    `Rounds Won: ${gameState.tournament?.roundsWon?.player1 || 0}`,
+    30,
+    65 // 25px below the name
+  );
+
+  ctx.font = '20px Arial';
+  ctx.fillStyle = '#00ffcc';
+  ctx.textAlign = 'right';
+  ctx.fillText(player2Name, canvas.width - 30, 40);
+  ctx.font = '16px Arial';
+  ctx.fillStyle = '#ffcc00';
+  ctx.textAlign = 'right';
+  ctx.fillText(
+    `Rounds Won: ${gameState.tournament?.roundsWon?.player2 || 0}`,
+    canvas.width - 30,
+    65 // 25px below the
+  );
+
+  // Draw score
+ctx.font = 'bold 36px Arial';
+ctx.textAlign = 'center';
+ctx.fillStyle = '#ffffff';
+ctx.fillText(
+  `${gameState.score.player1} - ${gameState.score.player2}`,
+  canvas.width / 2,
+  50
+);
+
+// Draw current round number under the score
+ctx.font = 'bold 24px Arial';
+ctx.fillStyle = '#00ffcc';
+ctx.textAlign = 'center';
+const currentRound = gameState.tournament?.currentRound || 1;
+ctx.fillText(
+  `Round ${currentRound}`,
+  canvas.width / 2,
+  85 // 35px below the score
+);
+
 }
 
   function setupKeyboardControls() {
@@ -506,7 +463,7 @@ ctx.fillRect(
   async function handleStartGame() {
     startBtn.disabled = true;
     connectionAttempts = 0;
-    updateStatus('🔄 Starting network game...');
+    updateStatus('🔄 Starting local game...');
     
     try {
       const newGameId = await createLocalGame();
