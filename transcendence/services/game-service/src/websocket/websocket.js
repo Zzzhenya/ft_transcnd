@@ -214,8 +214,12 @@ function handleWebSocketMessage(message, gameState, gameId, broadcastState, game
       break;
 
     case 'START_GAME':
-      startGame(gameState);
-      
+       if (gameState.tournament.gameStatus !== 'playing') {
+          startGame(gameState);
+      }
+
+      //startGame(gameState);
+
       // Restart game loop if it was cleared (e.g., after restart)
       if (game && !gameState.gameLoopInterval) {
         console.log(`[WS] Restarting game loop for game ${gameId}`);

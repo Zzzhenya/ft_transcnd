@@ -5,16 +5,17 @@ export default function (root: HTMLElement) {
   let ctx: CanvasRenderingContext2D;
   let player1Keys = { up: false, down: false }; // WASD keys for left paddle
   let player2Keys = { up: false, down: false }; // Arrow keys for right paddle
-  
-  // Game state - can be local or from backend
-//   let gameState = {
-//     ball: { x: 0, y: 0, dx: 3, dy: 2 },
-//     paddles: { player1: 0, player2: 0 },
-//     score: { player1: 0, player2: 0 },
-//     gameStatus: 'waiting'
-//   };
 
-  let gameState: any = null;
+
+  let gameState: any = {
+  ball: { x: 0, y: 0 },
+  paddles: { player1: 0, player2: 0 },
+  score: { player1: 0, player2: 0 },
+  tournament: { roundsWon: { player1: 0, player2: 0 }, winner: null, currentRound: 1 },
+  gameStatus: 'waiting'
+};
+
+  //let gameState: any = null;
   let player1Name = 'Player 1';
   let player2Name = 'Player 2';
   let gameLoop: number | null = null;
@@ -193,7 +194,7 @@ function handleBackendMessage(data: any) {
 	}
     // Update status based on game status
     if (gameState.gameStatus === 'playing') {
-      updateStatus('🌐 Network game active - Player 1: W/S, Player 2: ↑/↓');
+      updateStatus('🎮 Game active - Player 1: W/S, Player 2: ↑/↓');
     } else if (gameState.gameStatus === 'waiting' && ws && ws.readyState === WebSocket.OPEN) {
       // Automatically start the game after restart
       ws.send(JSON.stringify({ type: 'START_GAME' }));

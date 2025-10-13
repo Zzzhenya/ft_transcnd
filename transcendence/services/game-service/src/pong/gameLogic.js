@@ -1,5 +1,5 @@
 export function movePaddle(gameState, player, direction) {
-  const paddleSpeed = 20;
+  const paddleSpeed = 15;
   const paddleHeight = 40;
   // Game area is -100 to +100, paddle height is 40
   // So paddle center must be between -80 and +80 to keep paddle fully visible
