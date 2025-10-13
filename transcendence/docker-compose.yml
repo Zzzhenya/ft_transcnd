@@ -87,6 +87,20 @@ services:
       - ./health-check.sh:/health-check.sh
     entrypoint: ["sh", "/health-check.sh"]
 
+  sqlite-web:
+    image: coleifer/sqlite-web
+    container_name: sqlite-web
+    restart: unless-stopped
+    ports:
+      - "8082:8080"
+    volumes:
+      - shared-data:/app/shared
+    command: ["sqlite_web", "/app/shared/database/transcendence.db", "--host", "0.0.0.0", "--port", "8080"]
+    depends_on:
+      - database
+    labels:
+      - "com.transcendence.description=SQLite Web Admin Interface"
+
 volumes:
   shared-data:
 
