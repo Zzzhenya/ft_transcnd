@@ -259,7 +259,7 @@
     <script>
         let websocket = null;
         let currentGameId = null;
-        const API_BASE = 'http://localhost:3002';
+        const API_BASE = 'http://localhost:3000/game-service';
         
         function log(message, type = 'info') {
             const logs = document.getElementById('logs');
@@ -300,7 +300,7 @@
         async function createDemoGame() {
             try {
                 log('🎮 Creating demo game...', 'info');
-                const response = await fetch(`${API_BASE}/ws/pong/demo`, {
+                const response = await fetch(`http://localhost:3000/ws/pong/demo`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({}) // Send empty JSON object
@@ -325,7 +325,7 @@
         
         async function listDemoGames() {
             try {
-                const response = await fetch(`${API_BASE}/ws/pong/demo`);
+                const response = await fetch(`http://localhost:3000/ws/pong/demo`);
                 const data = await response.json();
                 
                 // Handle different response formats
@@ -354,7 +354,7 @@
             try {
                 if (!confirm('Delete all demo games?')) return;
                 
-                const response = await fetch(`${API_BASE}/ws/pong/demo`, {
+                const response = await fetch(`http://localhost:3000/ws/pong/demo`, {
                     method: 'DELETE'
                 });
                 const data = await response.json();
@@ -379,7 +379,7 @@
                 }
                 
                 log('🏓 Creating normal game...', 'info');
-                const response = await fetch(`${API_BASE}/ws/pong/game`, {
+                const response = await fetch(`http://localhost:3000/ws/pong/game`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -444,7 +444,9 @@
             currentGameId = gameId;
             log(`🔌 Connecting to game ${gameId}...`, 'info');
             
-            websocket = new WebSocket(`ws://localhost:3002/ws/pong/game-ws/${gameId}`);
+            websocket = new WebSocket(`ws://localhost:3000/ws/pong/game-ws/${gameId}`);
+            // websocket.binaryType = 'arraybuffer'; 
+            // here
             
             websocket.onopen = () => {
                 document.getElementById('connectionStatus').className = 'status connected';
@@ -453,10 +455,17 @@
                 document.getElementById('disconnectBtn').disabled = false;
                 log(`Successfully connected to game ${gameId}`, 'success');
             };
+
+            var x = 0;
             
             websocket.onmessage = (event) => {
                 try {
+
+                    // const buffer = event.data; // now an ArrayBuffer instead of a Blob
+                    // const text = new TextDecoder().decode(buffer);
+                    // const data = JSON.parse(text);
                     const data = JSON.parse(event.data);
+
                     log(`📨 Received: ${data.type}`, 'info');
                     
                     // Update game visualization if game state is received
