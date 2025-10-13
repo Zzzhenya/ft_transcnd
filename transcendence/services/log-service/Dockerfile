@@ -1,14 +1,18 @@
-FROM node:18-alpine AS base
+FROM node:18-alpine
+
 WORKDIR /app
-RUN apk add --no-cache curl
+
+# Copy package files
 COPY package*.json ./
-RUN npm install --omit=dev
 
-FROM base AS development
-RUN npm install
-COPY . .
-CMD ["npm", "run", "dev"]
+# Install dependencies
+RUN npm ci --only=production
 
-FROM base AS production
+# Copy source code
 COPY . .
+
+# Expose the log service port
+EXPOSE 3005
+
+# Start the service
 CMD ["npm", "start"]
