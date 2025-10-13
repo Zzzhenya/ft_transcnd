@@ -32,15 +32,13 @@ CMD ["npm", "run", "dev"]
 FROM base AS production
 
 # Install only production dependencies
-RUN npm install --only=production
+RUN npm install --production
 
-# Copy application code
+# Copy application code PRIMERO
 COPY . .
 
-# Create data directory for SQLite
+# LUEGO crear directorios (esto ya copia todo lo que necesitas)
 RUN mkdir -p /app/data
-
-# Create shared directory structure
 RUN mkdir -p /app/shared/database
 
 EXPOSE 3001
