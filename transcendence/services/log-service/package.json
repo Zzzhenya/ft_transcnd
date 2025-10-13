@@ -11,7 +11,8 @@
     "fastify": "^4.15.0",
     "winston": "^3.11.0",
     "winston-elasticsearch": "^0.17.4",
-    "@elastic/elasticsearch": "^8.11.0"
+    "@elastic/elasticsearch": "^8.11.0",
+    "axios": "^1.12.2"
   },
   "devDependencies": {
     "nodemon": "^2.0.20"
