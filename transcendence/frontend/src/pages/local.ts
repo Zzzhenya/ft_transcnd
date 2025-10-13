@@ -7,15 +7,18 @@ export default function (root: HTMLElement) {
   let player2Keys = { up: false, down: false }; // Arrow keys for right paddle
   
   // Game state - can be local or from backend
-  let gameState = {
-    ball: { x: 0, y: 0, dx: 3, dy: 2 },
-    paddles: { player1: 0, player2: 0 },
-    score: { player1: 0, player2: 0 },
-    gameStatus: 'waiting'
-  };
+//   let gameState = {
+//     ball: { x: 0, y: 0, dx: 3, dy: 2 },
+//     paddles: { player1: 0, player2: 0 },
+//     score: { player1: 0, player2: 0 },
+//     gameStatus: 'waiting'
+//   };
+
+  let gameState: any = null;
+  let player1Name = 'Player 1';
+  let player2Name = 'Player 2';
   let gameLoop: number | null = null;
   let lastTime = 0;
-  let isConnectedToBackend = false;
   let connectionAttempts = 0;
   const maxConnectionAttempts = 3;
 
@@ -41,7 +44,7 @@ export default function (root: HTMLElement) {
       </div>
 
       <div id="gameStatus" class="text-center text-lg font-medium">
-        🌐 Click "Start Network Game" to connect to backend
+        🌐 Click "Start Local Game" to connect to backend
       </div>
 
       <div class="flex justify-center">
@@ -75,9 +78,9 @@ export default function (root: HTMLElement) {
     connectionStatus.textContent = message;
   }
 
-  async function createDemoGame(): Promise<string | null> {
+  async function createLocalGame(): Promise<string | null> {
     try {
-      updateStatus('🔄 Creating demo game...');
+      updateStatus('🔄 Creating local game...');
       updateConnectionStatus('📡 Connecting to gateway...');
       
       const response = await fetch('http://localhost:3000/ws/pong/demo', {
@@ -91,18 +94,18 @@ export default function (root: HTMLElement) {
       }
 
       const result = await response.json();
-      console.log('✅ Demo game created:', result);
-      
+      console.log('✅ Local game created:', result);
+
       if (!result.id) {
         throw new Error('No game ID in response');
       }
-      
-      updateStatus(`🎮 Demo game ${result.id} created successfully`);
+
+      updateStatus(`🎮 Local game ${result.id} created successfully`);
       updateConnectionStatus('✅ Game created on backend');
       return result.id.toString();
       
     } catch (error) {
-      console.error('❌ Error creating demo game:', error);
+      console.error('❌ Error creating local game:', error);
       updateStatus('❌ Error creating game - falling back to local');
       updateConnectionStatus('❌ Backend connection failed');
       return null;
@@ -121,7 +124,6 @@ export default function (root: HTMLElement) {
       
       ws.onopen = () => {
         console.log('✅ WebSocket connected successfully');
-        isConnectedToBackend = true;
         updateStatus('🌐 Connected! Starting network game...');
         updateConnectionStatus('✅ Connected to backend game service');
         
@@ -151,7 +153,6 @@ export default function (root: HTMLElement) {
       
       ws.onclose = (event) => {
         console.log('🔌 WebSocket closed:', event.code, event.reason);
-        isConnectedToBackend = false;
         
         if (connectionAttempts < maxConnectionAttempts && event.code === 1006) {
           updateStatus(`🔄 Connection lost, retrying... (${connectionAttempts}/${maxConnectionAttempts})`);
@@ -178,31 +179,36 @@ export default function (root: HTMLElement) {
     }
   }
 
-  function handleBackendMessage(data: any) {
-    if (data.type === 'STATE_UPDATE' && data.gameState) {
-      // Use backend game state
-      gameState = {
-        ball: data.gameState.ball || gameState.ball,
-        paddles: data.gameState.paddles || gameState.paddles,
-        score: data.gameState.score || gameState.score,
-        gameStatus: data.gameState.tournament?.gameStatus || 'playing'
-      };
-      
-      console.log('🎮 Backend state update:', gameState);
-      
-      // Update status based on game status
-      if (gameState.gameStatus === 'playing') {
-        updateStatus('🌐 Network game active - Player 1: W/S, Player 2: ↑/↓');
-      } else if (gameState.gameStatus === 'waiting') {
-        updateStatus('⏳ Game waiting to start...');
-      } else if (gameState.gameStatus === 'gameEnd') {
-        updateStatus(`🏆 Game ended! Winner: ${data.gameState.tournament?.winner || 'Nobody'}`);
-      }
+function handleBackendMessage(data: any) {
+  if (data.type === 'STATE_UPDATE' && data.gameState) {
+    gameState = {
+      ball: data.gameState.ball || gameState.ball,
+      paddles: data.gameState.paddles || gameState.paddles,
+      score: data.gameState.score || gameState.score,
+      gameStatus: data.gameState.tournament?.gameStatus || 'playing'
+    };
+
+    console.log('🎮 Backend state update:', gameState);
+
+	if (data.gameState) {
+  		player1Name = data.gameState.player1_name || player1Name;
+ 		player2Name = data.gameState.player2_name || player2Name;
+	}
+    // Update status based on game status
+    if (gameState.gameStatus === 'playing') {
+      updateStatus('🌐 Network game active - Player 1: W/S, Player 2: ↑/↓');
+    } else if (gameState.gameStatus === 'waiting' && ws && ws.readyState === WebSocket.OPEN) {
+      // Automatically start the game after restart
+      ws.send(JSON.stringify({ type: 'START_GAME' }));
+      updateStatus('🔄 Starting game after restart...');
+    } else if (gameState.gameStatus === 'gameEnd') {
+      updateStatus(`🏆 Game ended! Winner: ${data.gameState.tournament?.winner || 'Nobody'}`);
     }
   }
+}
 
   function sendPaddleMovement() {
-    if (!ws || ws.readyState !== WebSocket.OPEN || !isConnectedToBackend) {
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
       // If not connected to backend, do nothing
       return;
     }
@@ -269,15 +275,15 @@ export default function (root: HTMLElement) {
       lastTime = currentTime;
       
       // Send paddle movements continuously while connected
-      if (isConnectedToBackend) {
+     
         sendPaddleMovement();
-      }
+      
       
       // Always render the current game state
       drawGame();
       
       // Continue the loop if still connected or game is active
-      if (isConnectedToBackend || gameState.gameStatus === 'playing') {
+      if ( gameState.gameStatus === 'playing') {
         gameLoop = requestAnimationFrame(updateNetworkGame);
       }
     };
@@ -285,87 +291,185 @@ export default function (root: HTMLElement) {
     gameLoop = requestAnimationFrame(updateNetworkGame);
   }
 
-  function drawGame() {
-    if (!ctx || !canvas) return;
+//   function drawGame() {
+//     if (!ctx || !canvas) return;
     
-    // Clear canvas
-    ctx.fillStyle = '#000000';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+//     // Clear canvas
+//     ctx.fillStyle = '#000000';
+//     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
-    // Draw center line
-    ctx.setLineDash([10, 10]);
-    ctx.beginPath();
-    ctx.moveTo(canvas.width / 2, 0);
-    ctx.lineTo(canvas.width / 2, canvas.height);
-    ctx.strokeStyle = isConnectedToBackend ? '#00ff00' : '#888888';
-    ctx.lineWidth = 2;
-    ctx.stroke();
-    ctx.setLineDash([]);
+//     // Draw center line
+//     ctx.setLineDash([10, 10]);
+//     ctx.beginPath();
+//     ctx.moveTo(canvas.width / 2, 0);
+//     ctx.lineTo(canvas.width / 2, canvas.height);
+//     ctx.strokeStyle = '#888888';
+//     ctx.lineWidth = 2;
+//     ctx.stroke();
+//     ctx.setLineDash([]);
     
-    // Convert coordinates
-    const scaleX = canvas.width / 200;
-    const scaleY = canvas.height / 200;
-    const offsetX = canvas.width / 2;
-    const offsetY = canvas.height / 2;
+//     // Convert coordinates
+//     const scaleX = canvas.width / 100;
+//     const scaleY = canvas.height / 200;
+//     const offsetX = canvas.width / 2;
+//     const offsetY = canvas.height / 2;
     
-    function toCanvasX(gameX: number) { return offsetX + (gameX * scaleX); }
-    function toCanvasY(gameY: number) { return offsetY - (gameY * scaleY); }
+//     function toCanvasX(gameX: number) { return offsetX + (gameX * scaleX); }
+//     function toCanvasY(gameY: number) { return offsetY - (gameY * scaleY); }
     
-    // Draw paddles
-    ctx.fillStyle = isConnectedToBackend ? '#00ff00' : '#ffffff';
-    const paddleWidth = 12;
-    const paddleHeight = 60;
+//     // Draw paddles
+//     ctx.fillStyle = '#00ff00';
+//     const paddleWidth = 20;
+//     const paddleHeight = 100;
     
-    // Left paddle
-    const leftPaddleX = toCanvasX(-90);
-    const leftPaddleY = toCanvasY(gameState.paddles.player1) - paddleHeight / 2;
-    ctx.fillRect(leftPaddleX - paddleWidth/2, leftPaddleY, paddleWidth, paddleHeight);
+//     // Left paddle
+//     const leftPaddleX = toCanvasX(-50);
+//     const leftPaddleY = toCanvasY(gameState.paddles.player1) - paddleHeight / 2;
+//     ctx.fillRect(leftPaddleX - paddleWidth/2, leftPaddleY, paddleWidth, paddleHeight);
     
-    // Right paddle
-    const rightPaddleX = toCanvasX(90);
-    const rightPaddleY = toCanvasY(gameState.paddles.player2) - paddleHeight / 2;
-    ctx.fillRect(rightPaddleX - paddleWidth/2, rightPaddleY, paddleWidth, paddleHeight);
+//     // Right paddle
+//     const rightPaddleX = toCanvasX(50);
+//     const rightPaddleY = toCanvasY(gameState.paddles.player2) - paddleHeight / 2;
+//     ctx.fillRect(rightPaddleX - paddleWidth/2, rightPaddleY, paddleWidth, paddleHeight);
     
-    // Draw ball
-    const ballX = toCanvasX(gameState.ball.x);
-    const ballY = toCanvasY(gameState.ball.y);
+//     // Draw ball
+//     const ballX = toCanvasX(gameState.ball.x);
+//     const ballY = toCanvasY(gameState.ball.y);
     
-    ctx.shadowColor = isConnectedToBackend ? '#00ff00' : '#ffff00';
-    ctx.shadowBlur = 15;
-    ctx.beginPath();
-    ctx.arc(ballX, ballY, 8, 0, Math.PI * 2);
-    ctx.fillStyle = isConnectedToBackend ? '#00ff00' : '#ffff00';
-    ctx.fill();
-    ctx.shadowBlur = 0;
+//     ctx.shadowColor = '#ffff00';
+//     ctx.shadowBlur = 15;
+//     ctx.beginPath();
+//     ctx.arc(ballX, ballY, 8, 0, Math.PI * 2);
+//     ctx.fillStyle =  '#ffff00';
+//     ctx.fill();
+//     ctx.shadowBlur = 0;
     
-    // Draw score
-    ctx.font = 'bold 36px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillStyle = '#ffffff';
-    ctx.fillText(
-      `${gameState.score.player1} - ${gameState.score.player2}`,
-      canvas.width / 2,
-      50
-    );
+//     // Draw score
+//     ctx.font = 'bold 36px Arial';
+//     ctx.textAlign = 'center';
+//     ctx.fillStyle = '#ffffff';
+//     ctx.fillText(
+//       `${gameState.score.player1} - ${gameState.score.player2}`,
+//       canvas.width / 2,
+//       50
+//     );
     
-    // Draw connection indicator
-    ctx.font = '14px Arial';
-    ctx.fillStyle = isConnectedToBackend ? '#00ff00' : '#ff8800';
-    ctx.textAlign = 'center';
-    ctx.fillText(
-      isConnectedToBackend ? '🌐 NETWORK MODE' : '🔧 LOCAL MODE',
-      canvas.width / 2,
-      canvas.height - 40
-    );
+//     // Draw connection indicator
+//     ctx.font = '14px Arial';
+//     ctx.fillStyle = '#ff8800';
+//     ctx.textAlign = 'center';
+//     ctx.fillText(
+//       '🔧 LOCAL MODE',
+//       canvas.width / 2,
+//       canvas.height - 40
+//     );
     
-    // Draw player labels
-    ctx.font = '16px Arial';
-    ctx.fillStyle = '#888888';
-    ctx.textAlign = 'left';
-    ctx.fillText('Player 1 (W/S)', 20, canvas.height - 20);
-    ctx.textAlign = 'right';
-    ctx.fillText('Player 2 (↑/↓)', canvas.width - 20, canvas.height - 20);
-  }
+//     // Draw player labels
+//     ctx.font = '16px Arial';
+//     ctx.fillStyle = '#888888';
+//     ctx.textAlign = 'left';
+//     ctx.fillText('Player 1 (W/S)', 20, canvas.height - 20);
+//     ctx.textAlign = 'right';
+//     ctx.fillText('Player 2 (↑/↓)', canvas.width - 20, canvas.height - 20);
+//   }
+
+function drawGame() {
+  if (!ctx || !canvas || !gameState) return;
+
+  // Clear canvas
+  ctx.fillStyle = '#000000';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Draw center line
+  ctx.setLineDash([10, 10]);
+  ctx.beginPath();
+  ctx.moveTo(canvas.width / 2, 0);
+  ctx.lineTo(canvas.width / 2, canvas.height);
+  ctx.strokeStyle = '#00ff00';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Scaling
+  const scaleX = canvas.width / 100;   // x: -50 to +50 (100 units)
+  const scaleY = canvas.height / 200;  // y: -100 to +100 (200 units)
+
+  // Helper to convert game coordinates to canvas
+  function toCanvasX(gameX: number) { return (gameX + 50) * scaleX; }
+function toCanvasY(gameY: number) { return (100 - gameY) * scaleY; }
+
+  // Paddle size in game units
+  const paddleWidth = 2;
+  const paddleHeight = 40;
+
+  // Draw paddles
+  ctx.fillStyle = '#00ff00';
+
+  // Left paddle (Player 1)
+  const leftPaddleX = -50;
+const leftPaddleY = gameState.paddles.player1 + paddleHeight / 2;
+ctx.fillRect(
+  toCanvasX(leftPaddleX),
+  toCanvasY(leftPaddleY),
+  paddleWidth * scaleX,
+  paddleHeight * scaleY
+);
+
+const rightPaddleX = 50 - paddleWidth; 
+const rightPaddleY = gameState.paddles.player2 + paddleHeight / 2;
+ctx.fillRect(
+  toCanvasX(rightPaddleX),
+  toCanvasY(rightPaddleY),
+  paddleWidth * scaleX,
+  paddleHeight * scaleY
+);
+
+
+
+  // Draw ball
+  const ballRadius = 1; // game units
+  ctx.shadowColor = '#ffff00';
+  ctx.shadowBlur = 15;
+  ctx.beginPath();
+  ctx.arc(
+    toCanvasX(gameState.ball.x),
+    toCanvasY(gameState.ball.y),
+    ballRadius * scaleX,
+    0,
+    Math.PI * 2
+  );
+  ctx.fillStyle = '#ffff00';
+  ctx.fill();
+  ctx.shadowBlur = 0;
+
+  // Draw score
+  ctx.font = 'bold 36px Arial';
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#ffffff';
+  ctx.fillText(
+    `${gameState.score.player1} - ${gameState.score.player2}`,
+    canvas.width / 2,
+    50
+  );
+
+  // Draw connection indicator
+  ctx.font = '14px Arial';
+  ctx.fillStyle = '#00ff00';
+  ctx.textAlign = 'center';
+  ctx.fillText(
+    '🌐 NETWORK MODE',
+    canvas.width / 2,
+    canvas.height - 40
+  );
+
+  // Draw player labels
+  ctx.font = '16px Arial';
+  ctx.fillStyle = '#888888';
+  ctx.textAlign = 'left';
+  ctx.fillText('Player 1 (W/S)', 20, canvas.height - 20);
+  ctx.textAlign = 'right';
+  ctx.fillText('Player 2 (↑/↓)', canvas.width - 20, canvas.height - 20);
+}
 
   function setupKeyboardControls() {
     document.addEventListener('keydown', (e) => {
@@ -405,7 +509,7 @@ export default function (root: HTMLElement) {
     updateStatus('🔄 Starting network game...');
     
     try {
-      const newGameId = await createDemoGame();
+      const newGameId = await createLocalGame();
       if (newGameId) {
         console.log(`✅ Game created with ID: ${newGameId}`);
         gameId = newGameId;
