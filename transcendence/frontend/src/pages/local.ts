@@ -23,39 +23,39 @@ export default function (root: HTMLElement) {
   let connectionAttempts = 0;
   const maxConnectionAttempts = 3;
 
-  root.innerHTML = `
-    <section class="py-6 md:py-8 lg:py-10 space-y-8">
-      <header class="space-y-2">
-        <h1 class="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold">🏓 Local Pong Game</h1>
-        
+root.innerHTML = `
+	<section class="py-10 px-4 min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-indigo-900 via-blue-900 to-gray-900"><section class="py-10 px-4 min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-blue-900 via-blue-700 to-blue-500">
+       <header class="mb-8 text-center">
+        <h1 class="text-5xl font-extrabold text-white drop-shadow-lg">🏓 Pong Legends</h1>
+        <p class="mt-2 text-lg text-indigo-200">Challenge your reflexes in a classic pong duel!</p>
       </header>
-
-      <div class="flex gap-4 justify-center">
-        <button id="startBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold">
-          Start Local Game
+      <div class="flex gap-6 mb-8">
+        <button id="startBtn" class="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-indigo-600 hover:to-blue-500 text-white px-8 py-3 rounded-xl font-bold shadow-lg transition-all duration-200">
+          <span class="mr-2">🚀</span>Start Game
         </button>
-        <button id="restartBtn" class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold" disabled>
-          Restart Game
+        <button id="restartBtn" class="bg-gradient-to-r from-green-500 to-teal-500 hover:from-teal-500 hover:to-green-500 text-white px-8 py-3 rounded-xl font-bold shadow-lg transition-all duration-200" disabled>
+          <span class="mr-2">🔄</span>Restart
         </button>
-        <button id="lobbyBtn" class="bg-gray-600 hover:bg-gray-700 text-white px-6 py-3 rounded-lg font-semibold">
-          Back to Lobby
+        <button id="lobbyBtn" class="bg-gradient-to-r from-yellow-700 to-gray-900 hover:from-gray-900 hover:to-gray-700 text-white px-8 py-3 rounded-xl font-bold shadow-lg transition-all duration-200">
+          <span class="mr-2">🏠</span>Lobby
         </button>
       </div>
-
-      <div id="gameStatus" class="text-center text-lg font-medium">
-        🌐 Click "Start Local Game" to connect to backend
+      <div id="gameStatus" class="mb-4 text-xl font-semibold text-indigo-100 text-center drop-shadow">
+        🌐 Click "Start Game" to connect to backend
       </div>
-
-      <div class="flex justify-center">
-        <div class="bg-gray-900 p-4 rounded-lg shadow-lg">
-          <canvas id="gameCanvas" width="800" height="400" class="border border-gray-700 bg-black"></canvas>
+      <div class="flex justify-center mb-6">
+        <div class="rounded-2xl shadow-2xl bg-gradient-to-br from-gray-800 via-indigo-900 to-blue-900 p-6">
+          <canvas id="gameCanvas" width="800" height="400" class="rounded-xl border-4 border-indigo-500 shadow-lg bg-black"></canvas>
         </div>
       </div>
-
-      <div class="text-center text-gray-500 text-sm space-y-1">
-       <p id="connectionStatus">🔄 Ready to connect to backend game service</p>
-        <p>🏆 First to 5 points wins round, player wins 2 rounds is the final winner!</p>
+      <div class="text-center text-indigo-200 text-base space-y-2 mb-2">
+        <p id="connectionStatus">🔄 Ready to connect to backend game service</p>
+        <p>🏆 First to 3 points wins a round. Win 2 rounds from 3 rounds to become the champion!</p>
+        <p class="text-xs text-gray-400">Controls: Player 1 (W/S), Player 2 (↑/↓)</p>
       </div>
+      <footer class="mt-8 text-gray-500 text-xs text-center">
+        <span>Made with <span class="text-pink-400">♥</span> for Pong fans</span>
+      </footer>
     </section>
   `;
 
