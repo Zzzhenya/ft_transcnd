@@ -5,8 +5,7 @@ on:
     branches:
       - user-service
       - main
-      - integration-gateway-pong-front
-      - log-service
+      - dev-environ-node-gateway
 
     # No paths restriction for push - always run when pushing to these branches
   pull_request:
