@@ -194,6 +194,56 @@ flowchart TD
     class LoginError,NoGame error
 ```
 
+## Starting the Project
+
+### Basic Services Only (No Monitoring)
+```bash
+docker compose up -d
+```
+
+This starts:
+- Gateway
+- User Service
+- Game Service  
+- Tournament Service
+- Frontend
+- Log Service (but without ELK stack to send logs to)
+- Database
+
+### With Full Monitoring (Recommended for Development)
+```bash
+docker compose --profile monitoring up -d
+```
+
+This starts everything above PLUS:
+- Elasticsearch
+- Logstash
+- Kibana
+- Kibana Setup (auto-imports dashboards)
+
+### Access Points
+
+| Service | URL | Notes |
+|---------|-----|-------|
+| Frontend | http://localhost:3004 | Main application |
+| Gateway | http://localhost:3000 | API Gateway |
+| Kibana | http://localhost:5601 | Log visualization (monitoring profile only) |
+| Logstash | http://localhost:5044 | Send logs here (port 5044→5000, monitoring profile only) |
+
+**Note**: Logstash uses port 5044 externally because macOS reserves port 5000 for AirPlay Receiver.
+
+## Stopping Services
+```bash
+# Stop all services but keep data
+docker compose down
+
+# Stop and remove all data (including logs!)
+docker compose down -v
+
+# Stop only monitoring services
+docker compose --profile monitoring down
+```
+
 ## Architecture Goals
 
 ### Service Boundaries
