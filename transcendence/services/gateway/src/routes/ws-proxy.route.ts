@@ -124,6 +124,18 @@ const wsProxyRoute: FastifyPluginAsync = async (fastify) => {
   fastify.get<{Params: GameParams;}>('/pong/game-ws/:gameId', { websocket: true }, async (connection, req) => {
     const clientSocket = connection
 
+    fastify.log.info("Check sessionID")
+    const cookies = req.cookies;
+    // Safely access a specific cookie - check for session id
+    const sessionId = cookies?.sessionId;
+    if (sessionId) {
+      console.log('Cookie found', sessionId)
+    } else {
+      console.error('No sessionId cookie found');
+      clientSocket.close();
+      return;
+    }
+
     fastify.log.info("Extract gameId")
 
     // Extract gameId from URL path since req.params may not work in WebSocket handlers
@@ -190,16 +202,35 @@ const wsProxyRoute: FastifyPluginAsync = async (fastify) => {
 // demo
 
   fastify.get('/pong/demo', async (request , reply) => {
+    var haveSesionId = false;
     try
     {
         fastify.log.error("Gateway received GET request for /ws/pong/demo")
+        const cookies = request.cookies;
+        // Safely access a specific cookie - check for session id
+        const sessionId = cookies?.sessionId;
+        if (sessionId) {
+          haveSesionId = true;
+          console.log('Cookie found', sessionId)
+        } else {
+          console.log('No sessionId cookie found');
+        }
         const response = await fetch('http://game-service:3002/ws/pong/demo', {
         method: 'GET',
         headers: {
         'Authorization': request.headers['authorization'] || '',
       }})
     const data = await response.json();
-    reply.status(response.status).send(data);
+    reply.status(response.status);
+    if (!haveSesionId){
+      // add abc123 as session id
+      reply.setCookie('sessionId', 'abc123', {
+      path: '/',
+      httpOnly: true,
+      sameSite: 'lax',
+    })
+    }
+    reply.send(data);
     }
     catch (error) {
       fastify.log.error(error)
