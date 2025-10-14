@@ -65,7 +65,11 @@ const start = async () => {
 }
 
 const setupcors = async () => {
-  await Fastify.register(cors, {  });
+  await Fastify.register(cors, {
+  // origin: 'http://localhost:3004', // <-- your frontend origin // actual frontend
+  origin: ['null'], // to test fetch with a file/ demo
+  credentials: true                   // <-- allow sending cookies cross-origin
+    });
   console.log('here\n');
 }
 

@@ -305,6 +305,7 @@
                 const response = await fetch(`http://localhost:3000/ws/pong/demo`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include', 
                     body: JSON.stringify({}) // Send empty JSON object
                 });
                 const data = await response.json();
