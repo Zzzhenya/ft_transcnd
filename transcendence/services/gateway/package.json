@@ -4,6 +4,7 @@
   "description": "ft_transcendence gateway",
   "main": "dist/index.js",
   "scripts": {
+    "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "start": "node dist/index.js",
     "build": "tsc",
     "oldoldstart": "tsc -w & nodemon dist/index.js",
