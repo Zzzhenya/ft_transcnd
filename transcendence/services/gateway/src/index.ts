@@ -16,9 +16,14 @@ import healthRoute from './routes/health.route.js'
 import wsRoute from './routes/ws-proxy.route.js'
 import statsRoute from './routes/stats.route.js'
 import userRoute from './routes/user.route.js'
+import cookie from '@fastify/cookie'
 // console.log(services.users);
 
 const Fastify = fastify({logger:true});
+
+Fastify.register(cookie, {
+  // secret: 'my-secret-key', // optional, for signed cookies
+});
 
 const PORT = 3000
 // const PORT = services.port;
