@@ -141,7 +141,7 @@ test:
 		-H "Content-Type: application/json" \
 		-d '{ \
 			"level": "info", \
-			"message": "Test log from Makefile at '$$(date)'", \
+			"message": "Test log from Makefile", \
 			"service": "makefile-test", \
 			"metadata": { \
 				"source": "makefile", \
