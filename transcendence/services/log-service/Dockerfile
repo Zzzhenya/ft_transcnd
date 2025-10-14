@@ -2,17 +2,11 @@ FROM node:18-alpine
 
 WORKDIR /app
 
-# Copy package files
 COPY package*.json ./
+RUN npm install --production
 
-# Install dependencies
-RUN npm ci --only=production
+COPY src ./src
 
-# Copy source code
-COPY . .
+EXPOSE 3000
 
-# Expose the log service port
-EXPOSE 3005
-
-# Start the service
 CMD ["npm", "start"]
