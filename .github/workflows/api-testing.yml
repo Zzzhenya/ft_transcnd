@@ -6,7 +6,7 @@ on:
       - user-service
       - microservices-refactor
       - main
-      # - dev-environ-node-gateway
+      - dev-environ-node-gateway
     # No paths restriction for push - always run when pushing to these branches
   pull_request:
     branches:

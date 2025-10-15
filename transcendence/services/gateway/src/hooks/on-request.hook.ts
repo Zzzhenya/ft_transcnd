@@ -8,17 +8,17 @@ import type { FastifyInstance, FastifyPluginOptions, FastifyRequest, FastifyRepl
 
 // src/middleware/sessionId.middleware.ts
 // import { FastifyPluginCallback } from 'fastify';
-// import { v4 as uuidv4 } from 'uuid';
+import { v4 as uuidv4 } from 'uuid';
 
 const onRequestHook: FastifyPluginCallback = (fastify: FastifyInstance, opts: FastifyPluginOptions, done) => {
   fastify.addHook('onRequest', async (request, reply) => {
     const existingSessionId = request.cookies.sessionId;
     
     if (!existingSessionId) {
-    //   const newSessionId = uuidv4();
-        const newSessionId = '1233312';
+        const newSessionId = uuidv4();
+        // const newSessionId = '1233312';
 
-        reply.setCookie('sessionId', sessionId, {
+        reply.setCookie('sessionId', newSessionId, {
             path: '/',           // cookie available on all routes
             httpOnly: true,      // not accessible via client-side JS
             secure: false,        // true send only over HTTPS
@@ -33,10 +33,11 @@ const onRequestHook: FastifyPluginCallback = (fastify: FastifyInstance, opts: Fa
         //     secure: process.env.NODE_ENV === 'production',
         //     maxAge: 60 * 60 * 24 * 7, // 7 days
         // });
-
-      (request as any).sessionId = newSessionId;
+        fastify.log.info('newSessionId: '+ newSessionId)
+    //   (request as any).sessionId = newSessionId;
     } else {
-      (request as any).sessionId = existingSessionId;
+        fastify.log.info('existingSessionId: '+ existingSessionId)
+    //   (request as any).sessionId = existingSessionId;
     }
   });
 
