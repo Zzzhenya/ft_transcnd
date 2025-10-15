@@ -8,7 +8,7 @@ on:
       - api-gateway-basics
       - main
       - health-check-via-compose
-      - dev-environ-node-gateway
+      # - dev-environ-node-gateway
 
   pull_request:
     branches:

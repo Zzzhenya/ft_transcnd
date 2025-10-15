@@ -124,17 +124,17 @@ const wsProxyRoute: FastifyPluginAsync = async (fastify) => {
   fastify.get<{Params: GameParams;}>('/pong/game-ws/:gameId', { websocket: true }, async (connection, req) => {
     const clientSocket = connection
 
-    fastify.log.info("Check sessionID")
-    const cookies = req.cookies;
-    // Safely access a specific cookie - check for session id
-    const sessionId = cookies?.sessionId;
-    if (sessionId) {
-      console.log('Cookie found', sessionId)
-    } else {
-      console.error('No sessionId cookie found');
-      clientSocket.close();
-      return;
-    }
+    // fastify.log.info("Check sessionID")
+    // const cookies = req.cookies;
+    // // Safely access a specific cookie - check for session id
+    // const sessionId = cookies?.sessionId;
+    // if (sessionId) {
+    //   console.log('Cookie found', sessionId)
+    // } else {
+    //   console.error('No sessionId cookie found');
+    //   clientSocket.close();
+    //   return;
+    // }
 
     fastify.log.info("Extract gameId")
 
@@ -206,17 +206,17 @@ const wsProxyRoute: FastifyPluginAsync = async (fastify) => {
     try
     {
         fastify.log.info("Gateway received GET request for /ws/pong/demo")
-        const cookies = request.cookies;
+        // const cookies = request.cookies;
         // Safely access a specific cookie - check for session id
-        if (!cookies)
-          haveSesionId= false;
-        const sessionId = cookies?.sessionId;
-        if (cookies && sessionId) {
-          haveSesionId = true;
-          console.log('Cookie found', sessionId)
-        } else {
-          console.log('No sessionId cookie found');
-        }
+        // if (!cookies)
+        //   haveSesionId= false;
+        // const sessionId = cookies?.sessionId;
+        // if (cookies && sessionId) {
+        //   haveSesionId = true;
+        //   console.log('Cookie found', sessionId)
+        // } else {
+        //   console.log('No sessionId cookie found');
+        // }
         const response = await fetch('http://game-service:3002/ws/pong/demo', {
         method: 'GET',
         headers: {
@@ -224,20 +224,20 @@ const wsProxyRoute: FastifyPluginAsync = async (fastify) => {
       }})
     const data = await response.json();
     reply.status(response.status);
-    if (!haveSesionId){
+    // if (!haveSesionId){
       // add abc123 as session id
-      const sessionId = 'abc123'
+      // const sessionId = 'abc123'
       // Set the cookie
-      reply
-      .setCookie('sessionId', sessionId, {
-        path: '/',           // cookie available on all routes
-        httpOnly: true,      // not accessible via client-side JS
-        secure: false,        // true send only over HTTPS
-        sameSite: 'none',   // none for HTTPS
-        // sameSite: 'Strict',  // CSRF protection
-        maxAge: 3600         // 1 hour
-      })
-    }
+      // reply
+      // .setCookie('sessionId', sessionId, {
+      //   path: '/',           // cookie available on all routes
+      //   httpOnly: true,      // not accessible via client-side JS
+      //   secure: false,        // true send only over HTTPS
+      //   sameSite: 'none',   // none for HTTPS
+      //   // sameSite: 'Strict',  // CSRF protection
+      //   maxAge: 3600         // 1 hour
+      // })
+    // }
     reply.send(data);
     }
     catch (error) {
