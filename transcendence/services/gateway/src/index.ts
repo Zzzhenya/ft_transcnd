@@ -23,12 +23,16 @@ import { v4 as uuidv4 } from 'uuid';
 // import cookie from '@fastify/cookie'
 // console.log(services.users);
 
+const FRONT_END_URL = String(process.env.FRONT_END_URL);
+
 const Fastify = fastify({logger:true});
 
 // Fastify.register(cookie, {
 //   // secret: 'my-secret-key', // optional, for signed cookies
 // });
 
+// Fastify.log.info('🎯'+ process.env);
+// console.log(process.env)
 const PORT = 3000
 // const PORT = services.port;
 // const PORT = 5000
@@ -45,6 +49,8 @@ const PORT = 3000
 //     .send({ 'hello': 'Hello World!' })
 // 	// reply.send({ greeting: 'Hello!' })
 // })
+
+// console.log(process.env.GAME_SERVICE_URL + '/abc')
 
 
 const setupWebSocket = async () => {
@@ -72,7 +78,8 @@ const setupcors = async () => {
   await Fastify.register(cors, {
   // Fastify.register(cors, {
   // origin: ['null'], // to test fetch with a file/ demo
-  origin: 'http://localhost:8080', // <-- your frontend origin 
+  origin: FRONT_END_URL, // <-- your frontend origin 
+  // origin: 'http://localhost:3004', // <-- your frontend origin 
   credentials: true,                   // <-- allow sending cookies cross-origin
     });
   console.log('here\n');
