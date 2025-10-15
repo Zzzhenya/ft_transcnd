@@ -89,11 +89,18 @@ services:
     volumes:
       - shared-data:/shared
 
+  testdb:
+    build: ./service/testdb-service
+    ports:
+      - "3010:"  # Docker internal port for testdb
+    volumes:
+      - shared-data:/shared
+
   health-checker:
     image: curlimages/curl
     volumes:
       - ./health-check.sh:/health-check.sh
-    entrypoint: ["sh", "/health-check.sh"]
+    entrypoint: ["sh", "/health-check.sh"]  
 
 volumes:
   shared-data:
