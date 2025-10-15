@@ -15,6 +15,7 @@ services:
       - USER_SERVICE_URL=http://user-service:3001
       - GAME_SERVICE_URL=http://game-service:3002
       - LOG_SERVICE_URL=http://log-service:3003
+      - FRONT_END_URL=http://localhost:3004
     depends_on:
       - user-service
       - game-service
@@ -80,7 +81,7 @@ services:
       - "3004:3004"  # Docker frontend on port 3004
     environment:
       - NODE_ENV=development
-      #- REACT_APP_API_URL=http://localhost:3000 // We don't use REACT
+      # - REACT_APP_API_URL=http://localhost:3000 // We don't use REACT
 
   database:
     image: alpine:latest
