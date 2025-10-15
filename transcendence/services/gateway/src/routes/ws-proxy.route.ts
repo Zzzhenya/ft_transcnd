@@ -202,7 +202,7 @@ const wsProxyRoute: FastifyPluginAsync = async (fastify) => {
 // demo
 
   fastify.get('/pong/demo', async (request , reply) => {
-    var haveSesionId = false;
+    // var haveSesionId = false;
     try
     {
         fastify.log.info("Gateway received GET request for /ws/pong/demo")
@@ -247,21 +247,21 @@ const wsProxyRoute: FastifyPluginAsync = async (fastify) => {
   })
 
   fastify.post('/pong/demo', async (request , reply) => {
-    var haveSesionId = false
+    // var haveSesionId = false
     try
     {
         fastify.log.error("Gateway received POST request for /ws/pong/demo")
-        const cookies = request.cookies;
+        // const cookies = request.cookies;
         // Safely access a specific cookie - check for session id
-        if (!cookies)
-          haveSesionId= false;
-        const sessionId = cookies?.sessionId;
-        if (sessionId) {
-          haveSesionId = true;
-          console.log('Cookie found', sessionId)
-        } else {
-          console.log('No sessionId cookie found');
-        }
+        // if (!cookies)
+        //   haveSesionId= false;
+        // const sessionId = cookies?.sessionId;
+        // if (sessionId) {
+        //   haveSesionId = true;
+        //   console.log('Cookie found', sessionId)
+        // } else {
+        //   console.log('No sessionId cookie found');
+        // }
         const response = await fetch('http://game-service:3002/ws/pong/demo', {
         method: 'POST',
         headers: {
@@ -273,21 +273,21 @@ const wsProxyRoute: FastifyPluginAsync = async (fastify) => {
     const data = await response.json();
     // reply.status(response.status).send(data);
     reply.status(response.status);
-    if (!haveSesionId){
-      // add abc123 as session id - Should get one from AUTH server and store it?
-      const d = new Date()
-      const sessionId = d.toString()
-      // Set the cookie
-      reply
-      .setCookie('sessionId', sessionId, {
-        path: '/',           // cookie available on all routes
-        httpOnly: true,      // not accessible via client-side JS
-        secure: true,        // send only over HTTPS
-        // sameSite: 'Strict',  // CSRF protection
-        sameSite: false, // for demo
-        // maxAge: 3600         // 1 hour // without maxAge browser automatically expires the cookie when tab or browser is closed - only on frontend not file
-      })
-    }
+    // if (!haveSesionId){
+    //   // add abc123 as session id - Should get one from AUTH server and store it?
+    //   const d = new Date()
+    //   const sessionId = d.toString()
+    //   // Set the cookie
+    //   reply
+    //   .setCookie('sessionId', sessionId, {
+    //     path: '/',           // cookie available on all routes
+    //     httpOnly: true,      // not accessible via client-side JS
+    //     secure: true,        // send only over HTTPS
+    //     // sameSite: 'Strict',  // CSRF protection
+    //     sameSite: false, // for demo
+    //     // maxAge: 3600         // 1 hour // without maxAge browser automatically expires the cookie when tab or browser is closed - only on frontend not file
+    //   })
+    // }
     reply.send(data);
     }
     catch (error) {
