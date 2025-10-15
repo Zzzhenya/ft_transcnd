@@ -275,7 +275,7 @@
         
         async function checkHealth() {
             try {
-                const response = await fetch(`${API_BASE}/health`, {credentials: 'include'});
+                const response = await fetch(`${API_BASE}/health`);
                 const data = await response.json();
                 document.getElementById('serviceStatus').className = 'status connected';
                 document.getElementById('serviceStatus').textContent = `✅ Service Online - ${data.service} (uptime: ${data.uptime}s)`;
@@ -289,7 +289,7 @@
         
         async function getStats() {
             try {
-                const response = await fetch(`http://localhost:3000/user-service/stats`, {credentials: 'include'});
+                const response = await fetch(`http://localhost:3000/user-service/stats`);
                 const data = await response.json();
                 log(`📊 Stats: ${data.totalGames} total games, Next IDs: Game=${data.counters.nextGameId}, Player=${data.counters.nextPlayerId}`, 'info');
             } catch (error) {
@@ -303,7 +303,6 @@
                 const response = await fetch(`http://localhost:3000/ws/pong/local`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include', 
                     body: JSON.stringify({}) // Send empty JSON object
                 });
                 const data = await response.json();
@@ -326,7 +325,7 @@
         
         async function listDemoGames() {
             try {
-                const response = await fetch(`http://localhost:3000/ws/pong/demo`, {credentials: 'include'});
+                const response = await fetch(`http://localhost:3000/ws/pong/demo`);
                 const data = await response.json();
                 
                 // Handle different response formats
@@ -357,7 +356,6 @@
                 
                 const response = await fetch(`http://localhost:3000/ws/pong/demo`, {
                     method: 'DELETE',
-                    credentials: 'include',
                 });
                 const data = await response.json();
                 
@@ -384,7 +382,6 @@
                 const response = await fetch(`http://localhost:3000/ws/pong/game`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
                     body: JSON.stringify({
                         player1_id: Math.floor(Math.random() * 1000),
                         player2_id: Math.floor(Math.random() * 1000),
@@ -413,7 +410,7 @@
         
         async function listNormalGames() {
             try {
-                const response = await fetch(`${API_BASE}/ws/pong/game`, {credentials: 'include'});
+                const response = await fetch(`${API_BASE}/ws/pong/game`);
                 const data = await response.json();
                 
                 if (data.length === 0) {
