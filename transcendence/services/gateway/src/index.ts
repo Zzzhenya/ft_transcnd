@@ -16,6 +16,7 @@ import healthRoute from './routes/health.route.js'
 import wsRoute from './routes/ws-proxy.route.js'
 import statsRoute from './routes/stats.route.js'
 import userRoute from './routes/user.route.js'
+import onRequestHook from './hooks/on-request.hook';
 import cookie from '@fastify/cookie'
 // console.log(services.users);
 
@@ -76,6 +77,7 @@ const setupcors = async () => {
 setupcors();
 setupWebSocket();
 console.log("port: " + PORT);
+Fastify.register(onRequestHook);
 Fastify.register(firstRoute);
 Fastify.register(healthRoute);
 Fastify.register(statsRoute);
