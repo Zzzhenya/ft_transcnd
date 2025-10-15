@@ -123,7 +123,12 @@ interface GameParams {
 const wsProxyRoute: FastifyPluginAsync = async (fastify) => {
   fastify.get<{Params: GameParams;}>('/pong/game-ws/:gameId', { websocket: true }, async (connection, req) => {
     const clientSocket = connection
-
+    if (req.cookies)
+    {
+      const existingSessionId = req.cookies.sessionId;
+      if (existingSessionId)
+        fastify.log.info('✅' + existingSessionId)
+    }
     // fastify.log.info("Check sessionID")
     // const cookies = req.cookies;
     // // Safely access a specific cookie - check for session id
@@ -202,6 +207,9 @@ const wsProxyRoute: FastifyPluginAsync = async (fastify) => {
 // demo
 
   fastify.get('/pong/demo', async (request , reply) => {
+    const existingSessionId = request.cookies.sessionId;
+    if (existingSessionId)
+      fastify.log.info('✅'+existingSessionId)
     // var haveSesionId = false;
     try
     {
