@@ -16,15 +16,18 @@ import healthRoute from './routes/health.route.js'
 import wsRoute from './routes/ws-proxy.route.js'
 import statsRoute from './routes/stats.route.js'
 import userRoute from './routes/user.route.js'
-import onRequestHook from './hooks/on-request.hook.js';
-import cookie from '@fastify/cookie'
+// import cookiePlugin from './plugins/cookie.plugin.js';
+// import onRequestHook from './hooks/on-request.hook.js';
+import cookie from '@fastify/cookie';
+import { v4 as uuidv4 } from 'uuid';
+// import cookie from '@fastify/cookie'
 // console.log(services.users);
 
 const Fastify = fastify({logger:true});
 
-Fastify.register(cookie, {
-  // secret: 'my-secret-key', // optional, for signed cookies
-});
+// Fastify.register(cookie, {
+//   // secret: 'my-secret-key', // optional, for signed cookies
+// });
 
 const PORT = 3000
 // const PORT = services.port;
@@ -67,17 +70,47 @@ const start = async () => {
 
 const setupcors = async () => {
   await Fastify.register(cors, {
-  // origin: 'http://localhost:3004', // <-- your frontend origin // actual frontend
-  origin: ['null'], // to test fetch with a file/ demo
-  credentials: true                   // <-- allow sending cookies cross-origin
+  // Fastify.register(cors, {
+  // origin: ['null'], // to test fetch with a file/ demo
+  origin: 'http://localhost:8080', // <-- your frontend origin 
+  credentials: true,                   // <-- allow sending cookies cross-origin
     });
   console.log('here\n');
 }
 
+
 setupcors();
+
+Fastify.register(cookie, {
+  // secret: 'my-secret-key', // Optional (for signed cookies)
+});
+
+// Fastify.register(cookiePlugin);
+
+// await Fastify.ready();
+
+Fastify.addHook('onRequest', async (request, reply) => {
+  // Check if session cookie exists
+  const cookies = request.cookies || {};
+  const sessionId = cookies.sessionId;
+  if (!sessionId) {
+    const newSessionId = uuidv4();
+    // const newSessionId = 'abcd'
+    reply.setCookie('sessionId', newSessionId, {
+      path: '/',
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: false
+    });
+    Fastify.log.info(`🆕 New sessionId created: ${newSessionId}`);
+  } else {
+    Fastify.log.info(`✅ Existing sessionId: ${sessionId}`);
+  }
+});
+
+// Fastify.register(onRequestHook);
 setupWebSocket();
 console.log("port: " + PORT);
-Fastify.register(onRequestHook);
 Fastify.register(firstRoute);
 Fastify.register(healthRoute);
 Fastify.register(statsRoute);
@@ -85,4 +118,4 @@ Fastify.register(wsRoute, { prefix: '/ws' })
 Fastify.register(userRoute, { prefix: '/user-service' })
 // Fastify.register(wsRoute)
 Fastify.log.info('Something important happened!');
-start();
+await start();
