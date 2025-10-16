@@ -209,7 +209,7 @@ services:
       - "3004:3004"
     environment:
       - NODE_ENV=development
-      - REACT_APP_API_URL=http://localhost:3000
+      #- REACT_APP_API_URL=http://localhost:3000 // We don't use REACT
 
   database:
     image: alpine:latest
