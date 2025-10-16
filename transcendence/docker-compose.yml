@@ -1,12 +1,12 @@
 services:
   gateway:
     #Original
-    #build: ./services/gateway
+    build: ./services/gateway
     ## Add from this line
-    build:
-      context: ./services/gateway
-      target: production
-    command: ["npm","start"] # Not dev but start for executing
+    #build:
+    #  context: ./services/gateway
+    #  target: production
+    #command: ["npm","start"] # Not dev but start for executing
     ## to thin line
     ports:
       - "3000:3000"
@@ -60,7 +60,7 @@ services:
       - NODE_ENV=development
       - DATABASE_URL=sqlite:/app/shared/database/transcendence.db
       - ELASTICSEARCH_URL=http://elasticsearch:9200
-      - LOGSTASH_URL=http://logstash:5001  # Internal Logstash port
+      - LOGSTASH_URL=http://logstash:5000  # Internal Logstash port
     volumes:
       - shared-data:/app/shared
       - ./monitoring:/app/monitoring
