@@ -85,7 +85,7 @@ export function registerSingleGameRoutes(fastify, games, counters, broadcastStat
         playersReady: { player1: false, player2: false },
         // Game rules
         maxRounds: 3,
-        scoreLimit: 5
+        scoreLimit: 3
       };
 
       games.set(gameId, game);
