@@ -32,8 +32,8 @@ export function registerDemoRoutes(fastify, games, counters, broadcastState) {
       const demoPlayer2Id = counters.nextPlayerId++;
       
       // Generate demo player names with 'd' prefix
-      const demoPlayer1Name = `d${demoPlayer1Id}`;
-      const demoPlayer2Name = `d${demoPlayer2Id}`;
+      const demoPlayer1Name = `player${demoPlayer1Id}`;
+      const demoPlayer2Name = `player${demoPlayer2Id}`;
 
       const gameId = counters.nextGameId++;
       const state = initialGameState();
