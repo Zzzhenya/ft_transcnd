@@ -74,7 +74,7 @@ export function registerWebSocketRoutes(fastify, games, broadcastState) {
         `[WS] Client disconnected from ${gameTypeLabel} game ${gameId}. Remaining: ${clients.size}. Code: ${code}, Reason: ${reason}`
       );
       
-      // Optionally pause game if no clients are connected
+      // Game continues running even if no clients are connected
       if (clients.size === 0) {
         console.log(`[WS] No clients remaining in game ${gameId}, game continues running`);
       }
@@ -223,8 +223,12 @@ function handleWebSocketMessage(message, gameState, gameId, broadcastState, game
       break;
 
     case 'START_GAME':
-      startGame(gameState);
-      
+       if (gameState.tournament.gameStatus !== 'playing') {
+          startGame(gameState);
+      }
+
+      //startGame(gameState);
+
       // Restart game loop if it was cleared (e.g., after restart)
       if (game && !gameState.gameLoopInterval) {
         console.log(`[WS] Restarting game loop for game ${gameId}`);
@@ -238,18 +242,6 @@ function handleWebSocketMessage(message, gameState, gameId, broadcastState, game
       console.log(`[WS] Game ${gameId} started`);
       break;
     
-    case 'pause_game':
-      gameState.isPaused = true;
-      broadcastState(gameId);
-      console.log(`[WS] Game ${gameId} paused`);
-      break;
-
-    case 'unpause_game':
-      gameState.isPaused = false;
-      broadcastState(gameId);
-      console.log(`[WS] Game ${gameId} unpaused`);
-      break;
-
     case 'health_check':
       // Respond to health check messages
       console.log(`[WS] Health check received in game ${gameId}`);
