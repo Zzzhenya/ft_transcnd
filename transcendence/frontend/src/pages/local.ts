@@ -6,6 +6,23 @@ export default function (root: HTMLElement) {
   let player1Keys = { up: false, down: false }; // WASD keys for left paddle
   let player2Keys = { up: false, down: false }; // Arrow keys for right paddle
 
+export default function (root: HTMLElement) {
+  root.innerHTML = `
+    <section class="py-10 flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-100 text-gray-800">
+      <div class="w-full max-w-md bg-white shadow-lg rounded-2xl p-6 space-y-6 border border-gray-200">
+        <h2 class="text-2xl font-bold text-center text-blue-700">Local Gateway Game</h2>
+        <div class="space-y-4">
+          <button id="createDemoGame" class="px-5 py-2.5 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 transition">
+            Create Demo Game (via Gateway)
+          </button>
+          <button id="connectGame" class="px-5 py-2.5 rounded-lg bg-emerald-600 text-white font-medium hover:bg-emerald-700 transition" disabled>
+            Connect WebSocket
+          </button>
+        </div>
+        <pre id="output" class="bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm overflow-auto max-h-40 text-gray-700"></pre>
+      </div>
+    </section>
+  `;
 
   let gameState: any = {
   ball: { x: 0, y: 0 },
