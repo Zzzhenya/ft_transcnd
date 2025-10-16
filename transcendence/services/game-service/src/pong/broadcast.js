@@ -32,7 +32,7 @@ export function broadcastState(gameId, games) {
     player2_name: game.player2_name, // include player2_name
     gameType: game.gameType || 'normal', // include game type
     tournamentId: game.tournamentId || null, // include tournament ID if applicable
-    isDemo: game.isDemo || false, // include demo status
+    isLocal: game.isLocal || false, // include local status
     isRegistered: game.isRegistered || false, // include registered status
     gameState: cleanGameState,
     winner_id: game.winner_id || null,
@@ -41,7 +41,7 @@ export function broadcastState(gameId, games) {
     finished_at: game.finished_at || null
   });
 
-  const gameTypeLabel = game.isDemo ? 'DEMO' : (game.gameType === 'tournament' ? 'TOURNAMENT' : 'NORMAL');
+  const gameTypeLabel = game.isLocal ? 'LOCAL' : (game.gameType === 'tournament' ? 'TOURNAMENT' : 'NORMAL');
   console.log(
     `[Broadcast] Sending state to ${game.clients.size} clients in ${gameTypeLabel} game ${gameId}`
   );

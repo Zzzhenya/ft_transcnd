@@ -187,13 +187,13 @@ const wsProxyRoute: FastifyPluginAsync = async (fastify) => {
     }
   })
 
-// demo
+// local (replaces previous demo endpoints)
 
-  fastify.get('/pong/demo', async (request , reply) => {
+  fastify.get('/pong/local', async (request , reply) => {
     try
     {
-        fastify.log.error("Gateway received GET request for /ws/pong/demo")
-        const response = await fetch('http://game-service:3002/ws/pong/demo', {
+        fastify.log.error("Gateway received GET request for /ws/pong/local")
+        const response = await fetch('http://game-service:3002/ws/pong/local', {
         method: 'GET',
         headers: {
         'Authorization': request.headers['authorization'] || '',
@@ -207,11 +207,11 @@ const wsProxyRoute: FastifyPluginAsync = async (fastify) => {
     }
   })
 
-  fastify.post('/pong/demo', async (request , reply) => {
+  fastify.post('/pong/local', async (request , reply) => {
     try
     {
-        fastify.log.error("Gateway received POST request for /ws/pong/demo")
-        const response = await fetch('http://game-service:3002/ws/pong/demo', {
+        fastify.log.error("Gateway received POST request for /ws/pong/local")
+        const response = await fetch('http://game-service:3002/ws/pong/local', {
         method: 'POST',
         headers: {
         'Content-Type': 'application/json',
@@ -227,11 +227,11 @@ const wsProxyRoute: FastifyPluginAsync = async (fastify) => {
     }
   })
 
-  fastify.delete('/pong/demo/:gameId', async (request , reply) => {
+  fastify.delete('/pong/local/:gameId', async (request , reply) => {
     try
     {
-        fastify.log.error("Gateway received DELETE request for /ws/pong/demo/:gameId")
-        const response = await fetch('http://game-service:3002/ws/pong/demo/:gameId', {
+        fastify.log.error("Gateway received DELETE request for /ws/pong/local/:gameId")
+        const response = await fetch('http://game-service:3002/ws/pong/local/:gameId', {
         method: 'DELETE',
         headers: {
         'Authorization': request.headers['authorization'] || '',
@@ -245,11 +245,11 @@ const wsProxyRoute: FastifyPluginAsync = async (fastify) => {
     }
   })
 
-  fastify.delete('/pong/demo', async (request , reply) => {
+  fastify.delete('/pong/local', async (request , reply) => {
     try
     {
-        fastify.log.error("Gateway received DELETE request for /ws/pong/demo")
-        const response = await fetch('http://game-service:3002/ws/pong/demo', {
+        fastify.log.error("Gateway received DELETE request for /ws/pong/local")
+        const response = await fetch('http://game-service:3002/ws/pong/local', {
         method: 'DELETE',
         headers: {
         'Authorization': request.headers['authorization'] || '',
@@ -263,11 +263,11 @@ const wsProxyRoute: FastifyPluginAsync = async (fastify) => {
     }
   })
 
-  fastify.post('/pong/demo/:gameId/move', async (request , reply) => {
+  fastify.post('/pong/local/:gameId/move', async (request , reply) => {
     try
     {
-        fastify.log.error("Gateway received POST request for /ws/pong/demo/:gameId/move")
-        const response = await fetch('http://game-service:3002/ws/pong/demo/:gameId/move', {
+        fastify.log.error("Gateway received POST request for /ws/pong/local/:gameId/move")
+        const response = await fetch('http://game-service:3002/ws/pong/local/:gameId/move', {
         method: 'POST',
         headers: {
         'Content-Type': 'application/json',

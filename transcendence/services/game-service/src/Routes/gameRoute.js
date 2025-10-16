@@ -75,7 +75,7 @@ export function registerSingleGameRoutes(fastify, games, counters, broadcastStat
         player1_name: player1_name.trim(),
         player2_name: player2_name ? player2_name.trim() : null,
         status: player2_id ? 'ready' : 'waiting_for_player',
-        isDemo: false,
+        isLocal: false,
         isRegistered: true,
         createdAt: new Date(),
         startedAt: null,
@@ -149,8 +149,8 @@ export function registerSingleGameRoutes(fastify, games, counters, broadcastStat
         return reply.code(404).send({ error: 'Game not found' });
       }
 
-      if (game.isDemo) {
-        return reply.code(400).send({ error: 'Cannot join demo games' });
+      if (game.isLocal) {
+        return reply.code(400).send({ error: 'Cannot join local games' });
       }
 
       if (game.status !== 'waiting_for_player') {
@@ -219,7 +219,7 @@ export function registerSingleGameRoutes(fastify, games, counters, broadcastStat
       const singleGames = [];
       
       for (const [gameId, game] of games.entries()) {
-        if (game.isRegistered && !game.isDemo) {
+        if (game.isRegistered && !game.isLocal) {
           singleGames.push({
             id: gameId,
             player1_id: game.player1_id,
@@ -266,8 +266,8 @@ export function registerSingleGameRoutes(fastify, games, counters, broadcastStat
         return reply.code(404).send({ error: 'Game not found' });
       }
 
-      if (game.isDemo) {
-        return reply.code(400).send({ error: 'This is a demo game, not a single game' });
+      if (game.isLocal) {
+        return reply.code(400).send({ error: 'This is a local game, not a single game' });
       }
 
       return reply.send({
@@ -418,7 +418,7 @@ export function addMovementEndpoint(fastify, games, broadcastState) {
         return reply.code(404).send({ error: 'Game not found' });
       }
 
-      if (game.isDemo) {
+      if (game.isLocal) {
         return reply.code(400).send({ error: 'This endpoint is for normal games only' });
       }
 

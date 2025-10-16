@@ -1,6 +1,6 @@
 /**
  * WebSocket Module - Handles real-time game communication
- * Supports all game types: demo, normal, tournament
+ * Supports all game types: local,  tournament
  */
 
 import { movePaddle, restartGame, startGame, startGameLoop, moveBall } from '../pong/gameLogic.js';
@@ -39,8 +39,8 @@ export function registerWebSocketRoutes(fastify, games, broadcastState) {
     console.log("🆔add client to ws: ")
     // Determine game type for logging
     let gameTypeLabel = 'NORMAL';
-    if (game.isDemo) {
-      gameTypeLabel = 'DEMO';
+    if (game.isLocal) {
+      gameTypeLabel = 'LOCAL';
     } else if (game.gameType === 'tournament') {
       gameTypeLabel = 'TOURNAMENT';
     }
@@ -87,60 +87,9 @@ export function registerWebSocketRoutes(fastify, games, broadcastState) {
     });
   });
 
-  /**
-   * WebSocket route for demo games (alternative endpoint)
-   * GET /demo-ws/:gameId (WebSocket upgrade)
-   */
-  fastify.get('/ws/pong/demo-ws/:gameId', { websocket: true }, (connection, request) => {
-    const gameId = parseInt(request.params.gameId, 10);
-    const game = games.get(gameId);
-
-    if (!game || !game.isDemo) {
-      console.warn(`[Demo-WS] Connection attempt to invalid demo game ID: ${gameId}`);
-      connection.socket.close(1000, 'Demo game not found');
-      return;
-    }
-
-    // Redirect to main WebSocket handler with demo flag
-    console.log(`[Demo-WS] Redirecting demo game ${gameId} to main WebSocket handler`);
-    
-    // Use the same logic as the main WebSocket route
-
-    const ws = connection.socket;
-    const gameState = game.state;
-    const clients = game.clients;
-    clients.add(ws);
-
-    console.log(`[Demo-WS] Client connected to DEMO game ${gameId} (${game.player1_name} vs ${game.player2_name}). Total clients: ${clients.size}`);
-
-    // Send initial state
-    ws.send(createInitialStateMessage(game, gameId));
-
-    // Handle messages
-    ws.on('message', (rawMessage) => {
-      try {
-        const message = JSON.parse(rawMessage.toString());
-        handleWebSocketMessage(message, gameState, gameId, broadcastState, games);
-      } catch (error) {
-        console.error(`[Demo-WS] Message parse error in demo game ${gameId}:`, error);
-        ws.send(JSON.stringify({
-          type: 'ERROR',
-          message: 'Invalid message format'
-        }));
-      }
-    });
-
-    // Handle disconnection
-    ws.on('close', (code, reason) => {
-      clients.delete(ws);
-      console.log(`[Demo-WS] Client disconnected from DEMO game ${gameId}. Remaining: ${clients.size}`);
-    });
-
-    ws.on('error', (error) => {
-      console.error(`[Demo-WS] Socket error in demo game ${gameId}:`, error);
-      clients.delete(ws);
-    });
-  });
+  // Note: local-ws route removed to keep a single WebSocket join endpoint.
+  // Clients should connect to `/ws/pong/game-ws/:gameId` for all game types.
+  // If local-specific behavior is needed later, re-add a dedicated handler here.
 }
 
 /**
@@ -183,7 +132,7 @@ function createInitialStateMessage(game, gameId) {
     playersReady: game.playersReady || { player1: false, player2: false },
     gameType: game.gameType || 'normal',
     tournamentId: game.tournamentId || null,
-    isDemo: game.isDemo || false,
+    isLocal: game.isLocal || false,
     isRegistered: game.isRegistered || false,
     round: game.round || null,
     matchNumber: game.matchNumber || null,
@@ -268,8 +217,8 @@ function handleWebSocketMessage(message, gameState, gameId, broadcastState, game
 function handlePlayerReady(message, game, gameId, broadcastState) {
   const { player_id } = message;
 
-  if (!game || game.isDemo) {
-    console.warn(`[WS] PLAYER_READY message ignored for demo game ${gameId}`);
+  if (!game || game.isLocal) {
+    console.warn(`[WS] PLAYER_READY message ignored for local game ${gameId}`);
     return;
   }
 

@@ -13,7 +13,7 @@ export function registerStatsRoutes(fastify, games) {
 
 fastify.get('/stats', async () => {
   const allGames = Array.from(games.values());
-  const demoGames = allGames.filter(game => game.isDemo);
+  const localGames = allGames.filter(game => game.isLocal);
   const registeredGames = allGames.filter(game => game.isRegistered);
   const tournamentGames = allGames.filter(game => game.gameType === 'tournament');
   const normalGames = allGames.filter(game => game.gameType === 'normal' || !game.gameType);
@@ -23,7 +23,7 @@ fastify.get('/stats', async () => {
     totalGames: games.size,
     activeGames: activeGames.length,
     gameTypes: {
-      demo: demoGames.length,
+      local: localGames.length,
       registered: registeredGames.length,
       tournament: tournamentGames.length,
       normal: normalGames.length

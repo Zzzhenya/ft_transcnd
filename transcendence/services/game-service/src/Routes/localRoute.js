@@ -1,5 +1,5 @@
 /**
- * Demo Route - Handles demo game sessions
+ * Local Route - Handles local game sessions
  * Creates temporary games with auto-generated players
  */
 
@@ -13,27 +13,27 @@ import {
 } from '../pong/gameLogic.js';
 
 /**
- * Register demo routes with the Fastify instance
+ * Register local routes with the Fastify instance
  * @param {Object} fastify - Fastify instance
  * @param {Map} games - Games storage map
  * @param {Object} counters - Object containing nextGameId and nextPlayerId
  * @param {Function} broadcastState - Function to broadcast game state
  */
-export function registerDemoRoutes(fastify, games, counters, broadcastState) {
+export function registerLocalRoutes(fastify, games, counters, broadcastState) {
   
   /**
-   * Create a demo game session with temporary players
-   * POST /ws/pong/demo
+   * Create a local game session with temporary players
+   * POST /ws/pong/local
    */
-  fastify.post('/ws/pong/demo', async (request, reply) => {
+  fastify.post('/ws/pong/local', async (request, reply) => {
     try {
       // Generate temporary player IDs
-      const demoPlayer1Id = counters.nextPlayerId++;
-      const demoPlayer2Id = counters.nextPlayerId++;
+      const localPlayer1Id = counters.nextPlayerId++;
+      const localPlayer2Id = counters.nextPlayerId++;
       
-      // Generate demo player names with 'd' prefix
-      const demoPlayer1Name = `player${demoPlayer1Id}`;
-      const demoPlayer2Name = `player${demoPlayer2Id}`;
+      // Generate local player names with 'local' prefix
+      const localPlayer1Name = `localPlayer${localPlayer1Id}`;
+      const localPlayer2Name = `localPlayer${localPlayer2Id}`;
 
       const gameId = counters.nextGameId++;
       const state = initialGameState();
@@ -49,48 +49,48 @@ export function registerDemoRoutes(fastify, games, counters, broadcastState) {
         state,
         clients,
         loop,
-        player1_id: demoPlayer1Id,
-        player2_id: demoPlayer2Id,
-        player1_name: demoPlayer1Name,
-        player2_name: demoPlayer2Name,
-        status: 'demo',
-        isDemo: true,
+        player1_id: localPlayer1Id,
+        player2_id: localPlayer2Id,
+        player1_name: localPlayer1Name,
+        player2_name: localPlayer2Name,
+        status: 'local',
+        isLocal: true,
         createdAt: new Date()
       };
 
       games.set(gameId, game);
 
-      console.log(`[Demo] Created demo game ${gameId} with players ${demoPlayer1Name} vs ${demoPlayer2Name}`);
+      console.log(`[Local] Created local game ${gameId} with players ${localPlayer1Name} vs ${localPlayer2Name}`);
 
       return reply.code(201).send({
         id: gameId,
-        player1_id: demoPlayer1Id,
-        player2_id: demoPlayer2Id,
-        player1_name: demoPlayer1Name,
-        player2_name: demoPlayer2Name,
-        status: 'demo',
-        isDemo: true,
-        message: 'Demo game created with temporary players',
+        player1_id: localPlayer1Id,
+        player2_id: localPlayer2Id,
+        player1_name: localPlayer1Name,
+        player2_name: localPlayer2Name,
+        status: 'local',
+        isLocal: true,
+        message: 'Local game created with temporary players',
         websocketUrl: `ws://localhost:3002/ws/pong/game-ws/${gameId}`
       });
 
     } catch (error) {
-      console.error('[Demo] Error creating demo game:', error);
-      return reply.code(500).send({ error: 'Failed to create demo game' });
+      console.error('[Local] Error creating local game:', error);
+      return reply.code(500).send({ error: 'Failed to create local game' });
     }
   });
 
   /**
-   * Get all demo games
-   * GET /ws/pong/demo
+   * Get all local games
+   * GET /ws/pong/local
    */
-  fastify.get('/ws/pong/demo', async (request, reply) => {
+  fastify.get('/ws/pong/local', async (request, reply) => {
     try {
-      const demoGames = [];
+      const localGames = [];
       
       for (const [gameId, game] of games.entries()) {
-        if (game.isDemo) {
-          demoGames.push({
+        if (game.isLocal) {
+          localGames.push({
             id: gameId,
             player1_id: game.player1_id,
             player2_id: game.player2_id,
@@ -104,32 +104,32 @@ export function registerDemoRoutes(fastify, games, counters, broadcastState) {
       }
 
       return reply.send({
-        demoGames,
-        total: demoGames.length,
-        message: `Found ${demoGames.length} demo games`
+        localGames,
+        total: localGames.length,
+        message: `Found ${localGames.length} local games`
       });
 
     } catch (error) {
-      console.error('[Demo] Error fetching demo games:', error);
-      return reply.code(500).send({ error: 'Failed to fetch demo games' });
+      console.error('[Local] Error fetching local games:', error);
+      return reply.code(500).send({ error: 'Failed to fetch local games' });
     }
   });
 
   /**
-   * Delete a demo game
-   * DELETE /ws/pong/demo/:gameId
+   * Delete a local game
+   * DELETE /ws/pong/local/:gameId
    */
-  fastify.delete('/ws/pong/demo/:gameId', async (request, reply) => {
+  fastify.delete('/ws/pong/local/:gameId', async (request, reply) => {
     try {
       const gameId = parseInt(request.params.gameId, 10);
       const game = games.get(gameId);
 
       if (!game) {
-        return reply.code(404).send({ error: 'Demo game not found' });
+        return reply.code(404).send({ error: 'Local game not found' });
       }
 
-      if (!game.isDemo) {
-        return reply.code(400).send({ error: 'Game is not a demo game' });
+      if (!game.isLocal) {
+        return reply.code(400).send({ error: 'Game is not a local game' });
       }
 
       // Stop the game loop and clean up all intervals
@@ -143,17 +143,17 @@ export function registerDemoRoutes(fastify, games, counters, broadcastState) {
       // Close all WebSocket connections
       for (const ws of game.clients) {
         if (ws.readyState === 1) {
-          ws.close(1000, 'Demo game ended');
+          ws.close(1000, 'Local game ended');
         }
       }
 
       // Remove the game
       games.delete(gameId);
 
-      console.log(`[Demo] Deleted demo game ${gameId} (${game.player1_name} vs ${game.player2_name})`);
+      console.log(`[Local] Deleted local game ${gameId} (${game.player1_name} vs ${game.player2_name})`);
 
       return reply.send({
-        message: `Demo game ${gameId} deleted successfully`,
+        message: `Local game ${gameId} deleted successfully`,
         deletedGame: {
           id: gameId,
           player1_name: game.player1_name,
@@ -162,28 +162,28 @@ export function registerDemoRoutes(fastify, games, counters, broadcastState) {
       });
 
     } catch (error) {
-      console.error('[Demo] Error deleting demo game:', error);
-      return reply.code(500).send({ error: 'Failed to delete demo game' });
+      console.error('[Local] Error deleting local game:', error);
+      return reply.code(500).send({ error: 'Failed to delete local game' });
     }
   });
 
   /**
-   * Delete all demo games
-   * DELETE /games/demo
+   * Delete all local games
+   * DELETE /games/local
    */
-  fastify.delete('/ws/pong/demo', async (request, reply) => {
+  fastify.delete('/ws/pong/local', async (request, reply) => {
     try {
       const deletedGames = [];
       const gamesToDelete = [];
 
-      // Find all demo games
+      // Find all local games
       for (const [gameId, game] of games.entries()) {
-        if (game.isDemo) {
+        if (game.isLocal) {
           gamesToDelete.push({ gameId, game });
         }
       }
 
-      // Delete each demo game
+      // Delete each local game
       for (const { gameId, game } of gamesToDelete) {
         // Stop the game loop and clean up all intervals
         if (game.loop) {
@@ -196,7 +196,7 @@ export function registerDemoRoutes(fastify, games, counters, broadcastState) {
         // Close all WebSocket connections
         for (const ws of game.clients) {
           if (ws.readyState === 1) {
-            ws.close(1000, 'Demo games cleanup');
+            ws.close(1000, 'Local games cleanup');
           }
         }
 
@@ -208,24 +208,24 @@ export function registerDemoRoutes(fastify, games, counters, broadcastState) {
         });
       }
 
-      console.log(`[Demo] Deleted ${deletedGames.length} demo games`);
+      console.log(`[Local] Deleted ${deletedGames.length} local games`);
 
       return reply.send({
-        message: `${deletedGames.length} demo games deleted successfully`,
+        message: `${deletedGames.length} local games deleted successfully`,
         deletedGames
       });
 
     } catch (error) {
-      console.error('[Demo] Error deleting demo games:', error);
-      return reply.code(500).send({ error: 'Failed to delete demo games' });
+      console.error('[Local] Error deleting local games:', error);
+      return reply.code(500).send({ error: 'Failed to delete local games' });
     }
   });
 
   /**
-   * POST /ws/pong/demo/:gameId/move
-   * Move player paddle in demo game
+   * POST /ws/pong/local/:gameId/move
+   * Move player paddle in local game
    */
-  fastify.post('/ws/pong/demo/:gameId/move', async (request, reply) => {
+  fastify.post('/ws/pong/local/:gameId/move', async (request, reply) => {
     try {
       const { gameId } = request.params;
       const { player, direction } = request.body;
@@ -254,8 +254,8 @@ export function registerDemoRoutes(fastify, games, counters, broadcastState) {
         return reply.code(404).send({ error: 'Game not found' });
       }
 
-      if (!game.isDemo) {
-        return reply.code(400).send({ error: 'This endpoint is for demo games only' });
+      if (!game.isLocal) {
+        return reply.code(400).send({ error: 'This endpoint is for local games only' });
       }
 
       // Move the paddle
@@ -276,7 +276,7 @@ export function registerDemoRoutes(fastify, games, counters, broadcastState) {
       });
 
     } catch (error) {
-      console.error('[Demo] Error moving paddle:', error);
+      console.error('[Local] Error moving paddle:', error);
       return reply.code(500).send({ error: 'Failed to move paddle' });
     }
   });

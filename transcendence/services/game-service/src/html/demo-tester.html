@@ -136,8 +136,8 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>🏓 Demo Game Tester</h1>
-            <p>Test your ping-pong demo games</p>
+            <h1>🏓 Local Game Tester</h1>
+            <p>Test your ping-pong local games</p>
         </div>
         
         <div class="content">
@@ -155,9 +155,9 @@
             <div class="section">
                 <h2>🎮 Demo Game Management</h2>
                 <div class="controls">
-                    <button class="btn success" onclick="createDemoGame()">Create Demo Game</button>
-                    <button class="btn" onclick="listDemoGames()">List Demo Games</button>
-                    <button class="btn danger" onclick="deleteAllDemoGames()">Delete All Demo Games</button>
+                    <button class="btn success" onclick="createDemoGame()">Create Local Game</button>
+                    <button class="btn" onclick="listDemoGames()">List Local Games</button>
+                    <button class="btn danger" onclick="deleteAllDemoGames()">Delete All Local Games</button>
                 </div>
                 <div id="demoStatus">No demo games created yet</div>
             </div>
@@ -300,7 +300,7 @@
         async function createDemoGame() {
             try {
                 log('🎮 Creating demo game...', 'info');
-                const response = await fetch(`http://localhost:3000/ws/pong/demo`, {
+                const response = await fetch(`http://localhost:3000/ws/pong/local`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({}) // Send empty JSON object
@@ -325,7 +325,7 @@
         
         async function listDemoGames() {
             try {
-                const response = await fetch(`http://localhost:3000/ws/pong/demo`);
+                const response = await fetch(`http://localhost:3000/ws/pong/local`);
                 const data = await response.json();
                 
                 // Handle different response formats
@@ -354,7 +354,7 @@
             try {
                 if (!confirm('Delete all demo games?')) return;
                 
-                const response = await fetch(`http://localhost:3000/ws/pong/demo`, {
+                const response = await fetch(`http://localhost:3000/ws/pong/local`, {
                     method: 'DELETE'
                 });
                 const data = await response.json();

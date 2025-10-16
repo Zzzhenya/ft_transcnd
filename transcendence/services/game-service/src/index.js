@@ -4,7 +4,7 @@ import websocket from '@fastify/websocket';
 import cors from '@fastify/cors';
 import { registerSingleGameRoutes } from './Routes/gameRoute.js';
 import { registerWebSocketRoutes } from './websocket/websocket.js';
-import { registerDemoRoutes } from './Routes/demoRoute.js';
+import { registerLocalRoutes } from './Routes/localRoute.js';
 import { registerStatsRoutes } from './Routes/statsRoute.js';
 import { healthCheck } from './Routes/healthRoute.js';
 import { broadcastState } from './pong/broadcast.js';
@@ -27,8 +27,8 @@ const wrappedBroadcastState = (gameId) => broadcastState(gameId, games);
 // Register single game routes for registered/tournament users
 registerSingleGameRoutes(fastify, games, counters, wrappedBroadcastState);
 
-// Register demo routes for temporary games
-registerDemoRoutes(fastify, games, counters, wrappedBroadcastState);
+// Register local routes for temporary games
+registerLocalRoutes(fastify, games, counters, wrappedBroadcastState);
 
 // Register WebSocket routes for real-time game communication
 registerWebSocketRoutes(fastify, games, wrappedBroadcastState);

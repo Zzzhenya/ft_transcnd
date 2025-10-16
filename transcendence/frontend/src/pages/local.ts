@@ -79,7 +79,7 @@ root.innerHTML = `
       updateStatus('🔄 Creating local game...');
       updateConnectionStatus('📡 Connecting to gateway...');
       
-      const response = await fetch('http://localhost:3000/ws/pong/demo', {
+      const response = await fetch('http://localhost:3000/ws/pong/local', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({})
