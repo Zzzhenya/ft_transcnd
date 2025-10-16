@@ -11,6 +11,7 @@ import { broadcastState } from './pong/broadcast.js';
 import { games, counters } from './pong/createGame.js';
 import logger from './utils/logger.js'; // log-service
 
+
 const fastify = Fastify({ logger: true });
 await fastify.register(websocket);
 // fastify.register(websocket);
