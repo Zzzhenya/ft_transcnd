@@ -1,6 +1,13 @@
 services:
   gateway:
-    build: ./services/gateway
+    #Original
+    #build: ./services/gateway
+    ## Add from this line
+    build:
+      context: ./services/gateway
+      target: production
+    command: ["npm","start"] # Not dev but start for executing
+    ## to thin line
     ports:
       - "3000:3000"
     environment:
@@ -60,7 +67,7 @@ services:
     environment:
       - NODE_ENV=development
       - DATABASE_URL=sqlite:/app/shared/database/transcendence.db
-      - USER_SERVICE_URL=http://user-service:3005
+      - USER_SERVICE_URL=http://user-service:3001 # ERROR fixed: 3005 -> 3001
       - GAME_SERVICE_URL=http://game-service:3002
     depends_on:
       - database
@@ -73,7 +80,7 @@ services:
       - "3004:3004"  # Docker frontend on port 3004
     environment:
       - NODE_ENV=development
-      - REACT_APP_API_URL=http://localhost:3000
+      #- REACT_APP_API_URL=http://localhost:3000 // We don't use REACT
 
   database:
     image: alpine:latest
