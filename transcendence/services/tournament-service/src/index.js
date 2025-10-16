@@ -1,4 +1,5 @@
 import Fastify from 'fastify';
+import logger from './utils/logger.js';
 const fastify = Fastify({ logger: true });
 
 import fetch from 'node-fetch'; // or axios
