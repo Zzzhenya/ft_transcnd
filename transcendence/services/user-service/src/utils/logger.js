@@ -1,6 +1,4 @@
 // Logger for user-service
-// This logger sends logs to the log-service or falls back to console
-
 const axios = require('axios');
 
 const LOG_SERVICE_URL = process.env.LOG_SERVICE_URL || 'http://log-service:3003';
@@ -16,10 +14,9 @@ class Logger {
 				metadata
 			}, {
 				timeout: 1000,
-				validateStatus: () => true // No lanzar error en cualquier status
+				validateStatus: () => true
 			});
 		} catch (error) {
-			// Fallback a console si log-service no está disponible
 			console.log(`[${level.toUpperCase()}] [${SERVICE_NAME}]`, message, metadata);
 		}
 	}
