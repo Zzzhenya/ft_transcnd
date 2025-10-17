@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@fastify/websocket": "^8.3.1",
+    "axios": "^1.12.2",
     "fastify": "^4.15.0",
     "node-fetch": "^3.3.2"
   },

@@ -21,6 +21,7 @@ import userRoute from './routes/user.route.js'
 import cookie from '@fastify/cookie';
 import { v4 as uuidv4 } from 'uuid';
 // import cookie from '@fastify/cookie'
+import logger from './utils/logger.js'; // log-service
 // console.log(services.users);
 
 const FRONT_END_URL = String(process.env.FRONT_END_URL);
@@ -55,24 +56,34 @@ const PORT = 3000
 
 const setupWebSocket = async () => {
   await Fastify.register(websocket);
-  console.log('WebSocket plugin registered');
+  logger.info('WebSocket plugin registered');
 }
 
 function listening(){
     console.log(`App server is up and running on localhost: port 3000`);
 };
 
-const start = async () => { 
-	try {
-    console.log('here\n');
-		await Fastify.listen({port:PORT, host: '0.0.0.0'})
-	}
-	catch (error) {
-		Fastify.log.error(error)
-		process.exit(1)
-	}
-
+const start = async () => {
+  try {
+    logger.info('Starting gateway', { port: PORT });
+    await Fastify.listen({ port: PORT, host: '0.0.0.0' })
+    logger.info('Gateway listening', { port: PORT });
+  }
+  catch (error: any) {
+    // Just stringify the whole error object
+    logger.error('Failed to start gateway', { error: JSON.stringify(error) });
+    Fastify.log.error(error)
+    process.exit(1)
+  }
 }
+
+Fastify.addHook('onRequest', async (request, reply) => {
+  logger.info('Request received', {
+    method: request.method,
+    url: request.url,
+    ip: request.ip
+  });
+});
 
 const setupcors = async () => {
   await Fastify.register(cors, {
@@ -82,7 +93,7 @@ const setupcors = async () => {
   // origin: 'http://localhost:3004', // <-- your frontend origin 
   credentials: true,                   // <-- allow sending cookies cross-origin
     });
-  console.log('here\n');
+  logger.info('here\n');
 }
 
 
@@ -107,7 +118,8 @@ Fastify.addHook('onRequest', async (request, reply) => {
       path: '/',
       httpOnly: true,
       sameSite: 'lax',
-      secure: false
+      secure: false,
+      maxAge: 3600 // 1 hour
     });
     Fastify.log.info(`🆕 New sessionId created: ${newSessionId}`);
   } else {
@@ -117,12 +129,12 @@ Fastify.addHook('onRequest', async (request, reply) => {
 
 // Fastify.register(onRequestHook);
 setupWebSocket();
-console.log("port: " + PORT);
+logger.info("port: " + PORT);
 Fastify.register(firstRoute);
 Fastify.register(healthRoute);
 Fastify.register(statsRoute);
 Fastify.register(wsRoute, { prefix: '/ws' })
 Fastify.register(userRoute, { prefix: '/user-service' })
 // Fastify.register(wsRoute)
-Fastify.log.info('Something important happened!');
-await start();
+logger.info('Something important happened!');
+start(); // await start() ?
