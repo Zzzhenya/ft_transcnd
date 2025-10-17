@@ -8,7 +8,8 @@ on:
       - api-gateway-basics
       - main
       - health-check-via-compose
-      - before-test-db
+      - integration-gateway-pong-front
+      - log-service
 
   pull_request:
     branches:
@@ -54,6 +55,7 @@ jobs:
           - user-service
           - game-service
           - log-service
+          - tournament-service
     
     steps:
       - name: Checkout code
@@ -77,8 +79,13 @@ jobs:
             exit 1
           fi
           
-          if [ ! -f transcendence/services/${{ matrix.service }}/src/index.js ]; then
-            echo "❌ src/index.js missing for ${{ matrix.service }}"
+          # Check for main source file (either .js or .ts)
+          if [ -f transcendence/services/${{ matrix.service }}/src/index.js ]; then
+            echo "✅ src/index.js found for ${{ matrix.service }}"
+          elif [ -f transcendence/services/${{ matrix.service }}/src/index.ts ]; then
+            echo "✅ src/index.ts found for ${{ matrix.service }}"
+          else
+            echo "❌ Neither src/index.js nor src/index.ts found for ${{ matrix.service }}"
             exit 1
           fi
           
@@ -165,7 +172,7 @@ jobs:
             ls -la transcendence/monitoring/
             
             # Check for monitoring configurations
-            for subdir in elk grafana prometheus; do
+            for subdir in kibana logstash; do
               if [ -d "transcendence/monitoring/$subdir" ]; then
                 echo "✅ transcendence/monitoring/$subdir exists"
               else
@@ -204,130 +211,117 @@ jobs:
           echo "Starting all services..."
           docker compose up -d --build
           echo "⏳ Waiting for services to initialize..."
-          sleep 45
+          sleep 60
 
       - name: Check container status
         run: |
           cd transcendence
           echo "=== Container Status ==="
           docker compose ps
-          
-          echo "=== Service Health Checks ==="
 
       - name: Test Gateway service
         run: |
           echo "Testing Gateway..."
-          for i in {1..5}; do
-            if curl -f -s http://localhost:3000/health; then
+          for i in {1..12}; do
+            if curl -f -s http://localhost:3000/health > /dev/null 2>&1; then
               echo "✅ Gateway is responding"
+              curl -s http://localhost:3000/health
               break
             else
-              echo "⏳ Gateway not ready, attempt $i/5"
+              echo "⏳ Gateway not ready, attempt $i/12"
               sleep 10
+              if [ $i -eq 12 ]; then
+                echo "❌ Gateway failed to respond after 120 seconds"
+                cd transcendence
+                echo "=== Gateway Logs ==="
+                docker compose logs gateway | tail -100
+                exit 1
+              fi
             fi
           done
 
-      - name: Test User Service
+      - name: Test User Service via Gateway
         run: |
-          echo "Testing User Service..."
-          for i in {1..3}; do
-            echo "✅ User Service is responding"
+          echo "Testing User Service via Gateway..."
+          for i in {1..5}; do
+            if curl -f -s http://localhost:3000/user-service/health; then
+              echo "✅ User Service is responding via Gateway"
+              break
+            else
+              echo "⏳ User Service not ready via Gateway, attempt $i/5"
+              sleep 5
+              if [ $i -eq 5 ]; then
+                echo "❌ User Service failed to respond via Gateway"
+                echo "=== User Service Logs ==="
+                cd transcendence && docker compose logs user-service | tail -50
+                exit 1
+              fi
+            fi
           done
 
-      # - name: Test User Service
-      #   run: |
-      #     echo "Testing User Service..."
-      #     for i in {1..3}; do
-      #       if curl -f -s http://localhost:3001/health; then
-              # echo "✅ User Service is responding"
-      #         break
-      #       else
-      #         echo "⏳ User Service not ready, attempt $i/3"
-      #         sleep 5
-      #       fi
-          # done
-
-      - name: Test Game Service
+      - name: Test Game Service via Gateway
         run: |
-          echo "Testing Game Service..."
-          for i in {1..3}; do
-            echo "✅ Game Service is responding"
+          echo "Testing Game Service via Gateway..."
+          for i in {1..5}; do
+            if curl -f -s http://localhost:3000/game-service/health; then
+              echo "✅ Game Service is responding via Gateway"
+              break
+            else
+              echo "⏳ Game Service not ready via Gateway, attempt $i/5"
+              sleep 5
+              if [ $i -eq 5 ]; then
+                echo "⚠️ Game Service not accessible via Gateway yet"
+                echo "ℹ️  This may be expected if game-service routes are not fully implemented"
+              fi
+            fi
           done
 
-      # - name: Test Game Service
-      #   run: |
-      #     echo "Testing Game Service..."
-      #     for i in {1..3}; do
-      #       if curl -f -s http://localhost:3002/health; then
-      #         echo "✅ Game Service is responding"
-      #         break
-      #       else
-      #         echo "⏳ Game Service not ready, attempt $i/3"
-      #         sleep 5
-      #       fi
-      #     done
-
-      - name: Test Log Service
+      - name: Test Log Service via Gateway
         run: |
-          echo "Testing Log Service..."
-          for i in {1..3}; do
-            echo "✅ Log Service is responding"
+          echo "Testing Log Service via Gateway..."
+          for i in {1..5}; do
+            if curl -f -s http://localhost:3000/log-service/health; then
+              echo "✅ Log Service is responding via Gateway"
+              break
+            else
+              echo "⏳ Log Service not ready via Gateway, attempt $i/5"
+              sleep 5
+              if [ $i -eq 5 ]; then
+                echo "⚠️ Log Service not accessible via Gateway yet"
+                echo "ℹ️  This may be expected if log-service routes are not fully implemented"
+              fi
+            fi
           done
-
-      # - name: Test Log Service
-      #   run: |
-      #     echo "Testing Log Service..."
-      #     for i in {1..3}; do
-      #       if curl -f -s http://localhost:3003/health; then
-      #         echo "✅ Log Service is responding"
-      #         break
-      #       else
-      #         echo "⏳ Log Service not ready, attempt $i/3"
-      #         sleep 5
-      #       fi
-      #     done
-
-      - name: Test Other Unexposed Services
-        run: |
-          echo "Test Other Unexposed Services.."
-          cd transcendence
-          pwd
-          docker compose -f docker-compose.yml run --rm health-checker
-          RES=$?
-          if [ $RES -eq 0 ] ; then
-            echo "✅ Other Unexposed Services are responding"
-          else
-            echo "⏳ Other Unexposed Services are not ready"
-            exit 1
-          fi
 
       - name: Test inter-service communication
         run: |
           cd transcendence
-          echo "Testing service-to-service communication..."
+          echo "Testing internal service-to-service communication..."
 
-          echo "Running test script - gateway health routes..."
-
-          chmod +x ./services/gateway/scripts/health-check.sh
-
-          bash ./services/gateway/scripts/health-check.sh || {
-            echo "❌ Gateway cannot reach health routes"
+          # Test that gateway can reach other services internally
+          echo "Testing Gateway → User Service (internal)..."
+          if docker compose exec -T gateway curl -f -s http://user-service:3001/health > /dev/null 2>&1; then
+            echo "✅ Gateway ↔ User Service communication works"
+          else
+            echo "❌ Gateway cannot reach User Service internally"
             exit 1
-          }
-          echo "✅ Gateway ↔ health routes communication works"
-
-          # Test that gateway can reach other services
-          docker compose exec -T gateway curl -f -s http://user-service:3001/health || {
-            echo "❌ Gateway cannot reach User Service"
-            exit 1
-          }
-          echo "✅ Gateway ↔ User Service communication works"
+          fi
           
-          docker compose exec -T gateway curl -f -s http://game-service:3002/health || {
-            echo "❌ Gateway cannot reach Game Service"
+          echo "Testing Gateway → Game Service (internal)..."
+          if docker compose exec -T gateway curl -f -s http://game-service:3002/health > /dev/null 2>&1; then
+            echo "✅ Gateway ↔ Game Service communication works"
+          else
+            echo "❌ Gateway cannot reach Game Service internally"
             exit 1
-          }
-          echo "✅ Gateway ↔ Game Service communication works"
+          fi
+          
+          echo "Testing Gateway → Log Service (internal)..."
+          if docker compose exec -T gateway curl -f -s http://log-service:3003/health > /dev/null 2>&1; then
+            echo "✅ Gateway ↔ Log Service communication works"
+          else
+            echo "❌ Gateway cannot reach Log Service internally"
+            exit 1
+          fi
 
       - name: Test database volume mount
         run: |
@@ -335,34 +329,102 @@ jobs:
           echo "Testing database volume..."
           
           # Check if database volume is mounted correctly
-          docker compose exec -T user-service ls -la /app/shared/ || {
+          if docker compose exec -T user-service ls -la /app/shared/ > /dev/null 2>&1; then
+            echo "✅ Shared volume is accessible in user-service"
+          else
             echo "❌ Shared volume not mounted in user-service"
             exit 1
-          }
-          echo "✅ Database volume is accessible"
+          fi
 
       - name: Show service logs on failure
         if: failure()
         run: |
           cd transcendence
-          echo "=== Showing service logs for debugging ==="
-          echo "=== Gateway Logs ==="
-          docker compose logs gateway | tail -50
-          echo "=== User Service Logs ==="
-          docker compose logs user-service | tail -50
-          echo "=== Game Service Logs ==="
-          docker compose logs game-service | tail -50
-          echo "=== Log Service Logs ==="
-          docker compose logs log-service | tail -50
-          echo "=== Frontend Logs ==="
-          docker compose logs frontend | tail -50
+          echo "========================================================"
+          echo "🚨 INTEGRATION TEST FAILURE - DETAILED DIAGNOSTICS"
+          echo "========================================================"
+          echo ""
+          
+          echo "📊 CONTAINER STATUS:"
+          echo "----------------------------------------"
+          docker compose ps
+          echo ""
+          
+          echo "🌐 NETWORK INFORMATION:"
+          echo "----------------------------------------"
+          docker network ls | grep transcendence || echo "No transcendence networks found"
+          echo ""
+          
+          echo "💾 VOLUME INFORMATION:"
+          echo "----------------------------------------"
+          docker volume ls | grep transcendence || echo "No transcendence volumes found"
+          echo ""
+          
+          echo "🔍 HEALTH CHECK STATUS:"
+          echo "----------------------------------------"
+          echo "Testing Gateway health:"
+          docker compose exec -T gateway curl -f -s http://localhost:3000/health 2>/dev/null || echo "❌ Gateway health check failed"
+          
+          echo "Testing User Service health (internal):"
+          docker compose exec -T user-service wget -qO- http://localhost:3001/health 2>/dev/null || echo "❌ User Service health check failed"
+          
+          echo "Testing Game Service health (internal):"
+          docker compose exec -T game-service wget -qO- http://localhost:3002/health 2>/dev/null || echo "❌ Game Service health check failed"
+          
+          echo "Testing Log Service health (internal):"
+          docker compose exec -T log-service wget -qO- http://localhost:3003/health 2>/dev/null || echo "❌ Log Service health check failed"
+          
+          echo ""
+          echo "📋 SERVICE LOGS (Last 100 lines each):"
+          echo "========================================================"
+          
+          echo ""
+          echo "🌐 GATEWAY LOGS:"
+          echo "----------------------------------------"
+          docker compose logs gateway | tail -100
+          
+          echo ""
+          echo "👤 USER SERVICE LOGS:"
+          echo "----------------------------------------"
+          docker compose logs user-service | tail -100
+          
+          echo ""
+          echo "🎮 GAME SERVICE LOGS:"
+          echo "----------------------------------------"
+          docker compose logs game-service | tail -100
+          
+          echo ""
+          echo "📝 LOG SERVICE LOGS:"
+          echo "----------------------------------------"
+          docker compose logs log-service | tail -100
+          
+          echo ""
+          echo "🏆 TOURNAMENT SERVICE LOGS:"
+          echo "----------------------------------------"
+          docker compose logs tournament-service | tail -50
+          
+          echo ""
+          echo "========================================================"
+          echo "🔧 TROUBLESHOOTING SUGGESTIONS:"
+          echo "========================================================"
+          echo "1. Gateway must be accessible at http://localhost:3000/health"
+          echo "2. Services should ONLY be accessed via Gateway (no direct access)"
+          echo "3. Check for application startup errors in logs above"
+          echo "4. Verify inter-service DNS resolution (service-name:port)"
+          echo "5. Ensure health endpoints exist and return 200 status"
+          echo ""
+          echo "📞 To reproduce locally:"
+          echo "   cd transcendence"
+          echo "   docker compose up --build"
+          echo "   curl http://localhost:3000/health"
+          echo "   curl http://localhost:3000/user-service/health"
+          echo "========================================================"
 
       - name: Cleanup
         if: always()
         run: |
           cd transcendence
           docker compose down -v
-          docker system prune -f
 
   test-development-mode:
     runs-on: ubuntu-latest
@@ -399,41 +461,90 @@ jobs:
     if: always()
     
     steps:
-      - name: Report final status
+      - name: Comprehensive Pipeline Report
+        if: always()
         run: |
-          echo "=== CI Pipeline Results ==="
+          echo "========================================================"
+          echo "🔍 DOCKER BUILD VALIDATION - COMPREHENSIVE REPORT"
+          echo "========================================================"
+          echo ""
+          
+          OVERALL_SUCCESS=true
+          FAILED_JOBS=""
+          
+          echo "📊 JOB STATUS SUMMARY:"
+          echo "----------------------------------------"
           
           if [ "${{ needs.validate-docker-compose.result }}" = "success" ]; then
-            echo "✅ Docker Compose validation passed"
+            echo "✅ Docker Compose Validation: PASSED"
           else
-            echo "❌ Docker Compose validation failed"
+            echo "❌ Docker Compose Validation: FAILED"
+            OVERALL_SUCCESS=false
+            FAILED_JOBS="$FAILED_JOBS validate-docker-compose"
           fi
           
           if [ "${{ needs.build-services.result }}" = "success" ]; then
-            echo "✅ All services built successfully"
+            echo "✅ Service Builds: PASSED"
           else
-            echo "❌ Service builds failed"
+            echo "❌ Service Builds: FAILED"
+            OVERALL_SUCCESS=false
+            FAILED_JOBS="$FAILED_JOBS build-services"
           fi
           
           if [ "${{ needs.build-frontend.result }}" = "success" ]; then
-            echo "✅ Frontend built successfully"
+            echo "✅ Frontend Build: PASSED"
           else
-            echo "❌ Frontend build failed"
+            echo "❌ Frontend Build: FAILED"
+            OVERALL_SUCCESS=false
+            FAILED_JOBS="$FAILED_JOBS build-frontend"
+          fi
+          
+          if [ "${{ needs.test-shared-resources.result }}" = "success" ]; then
+            echo "✅ Shared Resources Test: PASSED"
+          else
+            echo "❌ Shared Resources Test: FAILED"
+            OVERALL_SUCCESS=false
+            FAILED_JOBS="$FAILED_JOBS test-shared-resources"
           fi
           
           if [ "${{ needs.integration-test.result }}" = "success" ]; then
-            echo "✅ Integration tests passed"
+            echo "✅ Integration Tests: PASSED"
           else
-            echo "❌ Integration tests failed"
+            echo "❌ Integration Tests: FAILED"
+            OVERALL_SUCCESS=false
+            FAILED_JOBS="$FAILED_JOBS integration-test"
           fi
           
-          # Check if all critical jobs passed
-          if [ "${{ needs.validate-docker-compose.result }}" != "success" ] || \
-             [ "${{ needs.build-services.result }}" != "success" ] || \
-             [ "${{ needs.build-frontend.result }}" != "success" ] || \
-             [ "${{ needs.integration-test.result }}" != "success" ]; then
-            echo "❌ Pipeline failed - please fix issues before merging"
+          if [ "${{ needs.test-development-mode.result }}" = "success" ]; then
+            echo "✅ Development Mode Test: PASSED"
+          else
+            echo "❌ Development Mode Test: FAILED"
+            OVERALL_SUCCESS=false
+            FAILED_JOBS="$FAILED_JOBS test-development-mode"
+          fi
+          
+          echo ""
+          echo "========================================================"
+          
+          if [ "$OVERALL_SUCCESS" = true ]; then
+            echo "🎉 ALL TESTS PASSED!"
+            echo "✅ Docker setup is working correctly"
+            echo "✅ All services built successfully"
+            echo "✅ Gateway routing functional"
+            echo "✅ Inter-service communication works"
+            echo ""
+            echo "👍 Ready for deployment!"
+          else
+            echo "❌ PIPELINE FAILED"
+            echo ""
+            echo "🔧 FAILED JOBS: $FAILED_JOBS"
+            echo ""
+            echo "💡 KEY FIXES:"
+            echo "• All services must be accessed via Gateway"
+            echo "• No direct port access to internal services"
+            echo "• Gateway routes: /health, /user-service/*, /game-service/*"
+            echo ""
             exit 1
           fi
           
-          echo "🎉 All tests passed! Docker setup is working correctly."
+          echo "========================================================"

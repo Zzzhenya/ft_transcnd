@@ -1,9 +1,21 @@
-# Microservices Architecture Implementation
+# ft_transcendence - Microservices Pong Platform
 
-## Branch: `microservices-refactor`
+> **Current Status**: ✅ Core services implemented, ✅ ELK Stack integrated, ⚠️ Active development
 
-## Overview
-This branch implements the "Designing the Backend as Microservices" major module for ft_transcendence. We are restructuring the application from a monolithic architecture to a distributed microservices system.
+## Quick Overview
+
+**ft_transcendence** is a multiplayer Pong gaming platform built with microservices architecture. Currently includes:
+
+- 🎮 **2D Frontend** (TypeScript + Tailwind CSS)
+- 🚪 **API Gateway** with routing and WebSocket
+- 👤 **User Service** (Auth + JWT + SQLite)
+- 🏓 **Game Service** (Server-side Pong logic)
+- 📊 **Log Service** (Complete ELK Stack)
+- 🏆 **Tournament Service** (Competition management)
+
+**Status**: Base Infrastructure ✅ | ELK Integration ✅ | Game Logic 🚧 | Frontend 🚧
+
+# Microservices Architecture
 
 ## Diagram
 
@@ -194,6 +206,56 @@ flowchart TD
     class LoginError,NoGame error
 ```
 
+## Starting the Project
+
+### Basic Services Only (No Monitoring)
+```bash
+docker compose up -d
+```
+
+This starts:
+- Gateway
+- User Service
+- Game Service  
+- Tournament Service
+- Frontend
+- Log Service (but without ELK stack to send logs to)
+- Database
+
+### With Full Monitoring (Recommended for Development)
+```bash
+docker compose --profile monitoring up -d
+```
+
+This starts everything above PLUS:
+- Elasticsearch
+- Logstash
+- Kibana
+- Kibana Setup (auto-imports dashboards)
+
+### Access Points
+
+| Service | URL | Notes |
+|---------|-----|-------|
+| Frontend | http://localhost:3004 | Main application |
+| Gateway | http://localhost:3000 | API Gateway |
+| Kibana | http://localhost:5601 | Log visualization (monitoring profile only) |
+| Logstash | http://localhost:5044 | Send logs here (port 5044→5000, monitoring profile only) |
+
+**Note**: Logstash uses port 5044 externally because macOS reserves port 5000 for AirPlay Receiver.
+
+## Stopping Services
+```bash
+# Stop all services but keep data
+docker compose down
+
+# Stop and remove all data (including logs!)
+docker compose down -v
+
+# Stop only monitoring services
+docker compose --profile monitoring down
+```
+
 ## Architecture Goals
 
 ### Service Boundaries
@@ -208,12 +270,12 @@ flowchart TD
 #### Database Strategy
 - [x] **Decision**: Shared database vs database per service
 - [ ] **Rationale**: Document why we chose this approach
-- [ ] **Implementation**: How services will access data
+- [x] **Implementation**: How services will access data
 
 #### Inter-Service Communication
-- [ ] **Synchronous**: HTTP REST APIs between services
-- [ ] **Asynchronous**: Message queues/event system for real-time features
-- [ ] **Real-time**: WebSocket handling across services
+- [x] **Synchronous**: HTTP REST APIs between services
+- [x] **Asynchronous**: Message queues/event system for real-time features
+- [x] **Real-time**: WebSocket handling across services
 
 #### Authentication Flow
 - [ ] **JWT Token Management**: Where tokens are validated
@@ -224,35 +286,35 @@ flowchart TD
 
 ### Phase 1: Foundation (Week 1)
 #### Infrastructure Setup
-- [ ] Create Docker Compose configuration for all services
-- [ ] Set up API Gateway with basic routing
-- [ ] Configure service discovery mechanism
-- [ ] Set up shared logging and monitoring
+- [x] Create Docker Compose configuration for all services
+- [x] Set up API Gateway with basic routing
+- [x] Configure service discovery mechanism
+- [x] Set up shared logging and monitoring
 
 #### Service Scaffolding
-- [ ] Create basic service containers (Node.js + Fastify)
-- [ ] Implement health check endpoints for all services
-- [ ] Set up inter-service communication protocols
-- [ ] Create service-to-service authentication
+- [x] Create basic service containers (Node.js + Fastify)
+- [x] Implement health check endpoints for all services
+- [x] Set up inter-service communication protocols
+- [x] Create service-to-service authentication
 
 ### Phase 2: Core Services (Week 2)
 #### API Gateway
-- [ ] Request routing to appropriate services
-- [ ] Authentication middleware
+- [x] Request routing to appropriate services
+- [x] Authentication middleware
 - [ ] Rate limiting and security headers
 - [ ] Load balancing configuration
 
 #### Service Integration Points
-- [ ] Define API contracts between services
-- [ ] Implement service discovery
+- [ ] Define API contracts between services - halfway
+- [x] Implement service discovery
 - [ ] Set up distributed transaction handling
-- [ ] Create error handling and circuit breaker patterns
+- [ ] Create error handling and circuit breaker patterns - halfway
 
 ### Phase 3: Advanced Features (Week 3+)
 #### Scalability & Reliability
 - [ ] Implement circuit breaker pattern
 - [ ] Add service redundancy and failover
-- [ ] Set up distributed logging (ELK stack integration)
+- [x] Set up distributed logging (ELK stack integration)
 - [ ] Performance monitoring and metrics
 
 #### Integration Testing
@@ -281,7 +343,7 @@ Game Service → Chat Service: game_ended event
 
 ## Directory Structure
 ```
-ft_transcendence_microservices/
+transcendence/
 ├── docker-compose.yml
 ├── docker-compose.dev.yml
 ├── README.md
@@ -382,14 +444,9 @@ docker-compose up api-gateway user-service
 - Service redundancy for critical components
 
 ## Success Criteria
-- [ ] All services can start independently via Docker
-- [ ] API Gateway successfully routes requests to appropriate services
+- [x] All services can start independently via Docker
+- [x] API Gateway successfully routes requests to appropriate services
 - [ ] User authentication works across all services
 - [ ] Real-time gaming functions through service architecture
-- [ ] System handles individual service failures gracefully
-- [ ] Performance is acceptable compared to monolithic approach
-
-## Notes and Decisions Log
-- **Date**: Decision made and rationale
-- **Date**: Architecture changes and impact
-- **Date**: Integration challenges and solutions
+- [x] System handles individual service failures gracefully
+- [x] Performance is acceptable compared to monolithic approach

@@ -1,6 +1,5 @@
 import Fastify from 'fastify';
 const fastify = Fastify({ logger: true });
-
 import fetch from 'node-fetch'; // or axios
 const GAME_SERVER_URL = process.env.GAME_SERVER_URL || 'http://localhost:3002';
 
@@ -8,6 +7,7 @@ import { generateBracket, advanceWinner } from './tournamentLogic.js';
 import websocket from '@fastify/websocket';
 import { readFileSync } from 'fs';
 import path from 'path';
+import logger from './utils/logger.js';
 
 await fastify.register(websocket);
 
