@@ -5,6 +5,7 @@ COPY package*.json ./
 
 FROM base AS development
 RUN npm install
+RUN npm install -g ts-node
 COPY . .
 CMD ["npm", "run", "dev"]
 
