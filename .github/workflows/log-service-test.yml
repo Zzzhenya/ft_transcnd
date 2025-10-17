@@ -273,7 +273,7 @@ jobs:
           
           # Send log with unique identifier using gateway container
           unique_id="test-$(date +%s)"
-          docker exec transcendence-gateway-1 curl -s -X POST http://log-service:3003/api/logs \
+          docker exec $GATEWAY_CONTAINER curl -s -X POST http://log-service:3003/api/logs \
             -H "Content-Type: application/json" \
             -d "{
               \"level\": \"info\",
@@ -284,7 +284,7 @@ jobs:
           # Wait and search for it
           sleep 5
           
-          found=$(docker exec transcendence-elasticsearch curl -s \
+          found=$(docker exec $ELASTICSEARCH_CONTAINER curl -s \
             "http://elasticsearch:9200/transcendence-logs-*/_search?q=$unique_id" | grep -c "$unique_id" || echo "0")
           
           if [ "$found" -gt 0 ]; then
