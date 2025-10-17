@@ -1,8 +1,6 @@
 /**
  * Create a new game
  */
-import { startGameLoop, initialGameState } from '../pong/gameLogic.js';
-
 // Shared game storage and counters
 const games = new Map();
 let nextGameId = 1;
