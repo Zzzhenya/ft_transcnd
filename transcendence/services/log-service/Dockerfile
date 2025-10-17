@@ -1,12 +1,45 @@
-FROM node:18-alpine
+# Development stage
+FROM node:18-alpine AS development
 
 WORKDIR /app
 
+# Copy package files
 COPY package*.json ./
-RUN npm install --production
 
+# Install all dependencies (including dev dependencies for development)
+RUN npm install
+
+# Copy source code
 COPY src ./src
 
-EXPOSE 3000
+# Install nodemon globally for development hot reloading
+RUN npm install -g nodemon
 
+# Expose the port
+EXPOSE 3003
+
+# Development command (will be overridden by docker-compose.dev.yml)
+CMD ["npm", "run", "dev"]
+
+# Production stage
+FROM node:18-alpine AS production
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install only production dependencies
+RUN npm install --production
+
+# Copy source code
+COPY src ./src
+
+# Expose the port
+EXPOSE 3003
+
+# Production command
 CMD ["npm", "start"]
+
+# Default to production if no target is specified
+FROM production
