@@ -3,8 +3,8 @@ FROM node:18-alpine AS base
 
 WORKDIR /app
 
-# Install build dependencies for native modules
-RUN apk add --no-cache python3 make g++
+# Install build dependencies for native modules and curl for health checks
+RUN apk add --no-cache python3 make g++ curl wget
 
 # Copy package files
 COPY package*.json ./
@@ -34,10 +34,10 @@ FROM base AS production
 # Install only production dependencies
 RUN npm install --production
 
-# Copy application code PRIMERO
+# Copy application code
 COPY . .
 
-# LUEGO crear directorios (esto ya copia todo lo que necesitas)
+# Create directories
 RUN mkdir -p /app/data
 RUN mkdir -p /app/shared/database
 

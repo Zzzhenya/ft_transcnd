@@ -1,20 +1,13 @@
 services:
   gateway:
-    #Original
     build: ./services/gateway
-    ## Add from this line
-    #build:
-    #  context: ./services/gateway
-    #  target: production
-    #command: ["npm","start"] # Not dev but start for executing
-    ## to thin line
     ports:
       - "3000:3000"
     environment:
       - NODE_ENV=development
       - USER_SERVICE_URL=http://user-service:3001
       - GAME_SERVICE_URL=http://game-service:3002
-      - LOG_SERVICE_URL=http://log-service:3003  # Internal communication
+      - LOG_SERVICE_URL=http://log-service:3003
     depends_on:
       - user-service
       - game-service
@@ -24,9 +17,16 @@ services:
       - shared-data:/app/shared
     networks:
       - transcendence-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   user-service:
     build: ./services/user-service
+    # Port NOT exposed - only accessible via gateway
     environment:
       - NODE_ENV=development
       - DATABASE_URL=sqlite:/app/shared/database/transcendence.db
@@ -38,9 +38,16 @@ services:
       - shared-data:/app/shared
     networks:
       - transcendence-network
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
   game-service:
     build: ./services/game-service
+    # Port NOT exposed - only accessible via gateway
     environment:
       - NODE_ENV=development
       - DATABASE_URL=sqlite:/app/shared/database/transcendence.db
@@ -52,20 +59,34 @@ services:
       - shared-data:/app/shared
     networks:
       - transcendence-network
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3002/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
   log-service:
     build: ./services/log-service
-    # Port 3003 NOT exposed - internal use only
+    # Port NOT exposed - internal use only
     environment:
       - NODE_ENV=development
       - DATABASE_URL=sqlite:/app/shared/database/transcendence.db
       - ELASTICSEARCH_URL=http://elasticsearch:9200
-      - LOGSTASH_URL=http://logstash:5000  # Internal Logstash port
+      - LOGSTASH_URL=http://logstash:5000
+    depends_on:
+      - database
     volumes:
       - shared-data:/app/shared
       - ./monitoring:/app/monitoring
     networks:
       - transcendence-network
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3003/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
@@ -79,7 +100,7 @@ services:
       - cluster.routing.allocation.disk.threshold_enabled=false
     volumes:
       - elasticsearch-data:/usr/share/elasticsearch/data
-    # Port 9200 NOT exposed - internal use only
+    # Port NOT exposed - internal use only
     ulimits:
       memlock:
         soft: -1
@@ -101,7 +122,7 @@ services:
       - "LS_JAVA_OPTS=-Xms256m -Xmx256m"
       - ENVIRONMENT=development
     ports:
-      - "5044:5000"  # For other services to send logs directly
+      - "5044:5000"  # EXPOSED - For external log testing
     volumes:
       - ./monitoring/logstash/logstash.conf:/usr/share/logstash/pipeline/logstash.conf:ro
       - ./monitoring/logs:/usr/share/logstash/logs:ro
@@ -190,10 +211,11 @@ services:
 
   tournament-service:
     build: ./services/tournament-service
+    # Port NOT exposed - only accessible via gateway
     environment:
       - NODE_ENV=development
       - DATABASE_URL=sqlite:/app/shared/database/transcendence.db
-      - USER_SERVICE_URL=http://user-service:3001 # ERROR fixed: 3001 -> 3001
+      - USER_SERVICE_URL=http://user-service:3001
       - GAME_SERVICE_URL=http://game-service:3002
       - LOG_SERVICE_URL=http://log-service:3003
     depends_on:
@@ -202,14 +224,22 @@ services:
       - shared-data:/app/shared
     networks:
       - transcendence-network
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3005/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
   frontend:
     build: ./frontend
     ports:
-      - "3004:3004"
+      - "3004:3004"  # EXPOSED - Web UI
     environment:
       - NODE_ENV=development
-      #- REACT_APP_API_URL=http://localhost:3000 // We don't use REACT
+      - VITE_API_URL=http://localhost:3000
+    networks:
+      - transcendence-network
 
   database:
     image: alpine:latest
@@ -226,6 +256,10 @@ services:
     entrypoint: ["sh", "/health-check.sh"]
     networks:
       - transcendence-network
+    depends_on:
+      - gateway
+      - user-service
+      - game-service
 
 volumes:
   shared-data:
