@@ -7,6 +7,7 @@ on:
       - microservices-refactor
       - main
       - integration-gateway-pong-front
+      - log-service
     # No paths restriction for push - always run when pushing to these branches
   pull_request:
     branches:

@@ -9,6 +9,7 @@ on:
       - main
       - health-check-via-compose
       - integration-gateway-pong-front
+      - log-service
 
   pull_request:
     branches:
