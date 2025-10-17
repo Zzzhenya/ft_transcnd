@@ -2,7 +2,7 @@ import requests
 
 OWNER = "Zzzhenya"      # change this
 REPO = "ft_transcnd"   # change this
-BRANCH = "user-service"        # change this if your repo uses 'master' or another branch
+BRANCH = "log-service"        # change this if your repo uses 'master' or another branch
 
 API_URL = f"https://api.github.com/repos/{OWNER}/{REPO}/git/trees/{BRANCH}?recursive=1"
 RAW_BASE = f"https://raw.githubusercontent.com/{OWNER}/{REPO}/{BRANCH}/"

@@ -7,6 +7,8 @@ on:
       - microservices-refactor
       - main
       # - dev-environ-node-gateway
+      - integration-gateway-pong-front
+      - log-service
     # No paths restriction for push - always run when pushing to these branches
   pull_request:
     branches:
@@ -200,21 +202,44 @@ jobs:
           
           # Wait for the user service to be ready (internal network)
           echo "📡 Testing User Service internal health check..."
+          
           for i in {1..15}; do
-            if docker run --rm --network transcendence-network alpine/curl:latest curl -f -s http://user-service:3001/health > /dev/null 2>&1; then
-              echo "✅ User Service is ready and responding internally"
+            # Method 1: Try docker compose exec (most reliable) - works inside the container
+            if docker compose exec -T user-service wget -qO- http://localhost:3001/health > /dev/null 2>&1; then
+              echo "✅ User Service is ready and responding internally (exec method)"
               break
-            else
-              echo "⏳ Waiting for User Service... attempt $i/15"
-              sleep 10
-              if [ $i -eq 15 ]; then
-                echo "❌ User Service failed to respond after 150 seconds"
-                echo "=== Container Status ==="
-                docker compose ps
-                echo "=== User Service Logs ==="
-                docker compose logs user-service
-                exit 1
+            # Method 2: Check if user-service container is actually running and healthy
+            elif docker compose ps user-service | grep -q "running\|Up"; then
+              echo "Container is running, trying network connection..."
+              # Get the actual network name dynamically
+              USER_CONTAINER_ID=$(docker compose ps -q user-service | head -1)
+              if [ ! -z "$USER_CONTAINER_ID" ]; then
+                ACTUAL_NETWORK=$(docker inspect "$USER_CONTAINER_ID" --format '{{range $k, $v := .NetworkSettings.Networks}}{{$k}}{{end}}' 2>/dev/null | head -1)
+                echo "Detected network: $ACTUAL_NETWORK"
+                if [ ! -z "$ACTUAL_NETWORK" ] && docker run --rm --network "$ACTUAL_NETWORK" curlimages/curl:latest curl -f -s http://user-service:3001/health > /dev/null 2>&1; then
+                  echo "✅ User Service is ready and responding internally (network: $ACTUAL_NETWORK)"
+                  break
+                fi
               fi
+            fi
+            
+            echo "⏳ Waiting for User Service... attempt $i/15"
+            sleep 10
+            if [ $i -eq 15 ]; then
+              echo "❌ User Service failed to respond after 150 seconds"
+              echo "=== Container Status ==="
+              docker compose ps
+              echo "=== Network Info ==="
+              docker network ls
+              echo "=== User Service Container Details ==="
+              USER_CONTAINER_ID=$(docker compose ps -q user-service | head -1)
+              if [ ! -z "$USER_CONTAINER_ID" ]; then
+                echo "Container ID: $USER_CONTAINER_ID"
+                docker inspect "$USER_CONTAINER_ID" --format '{{range $k, $v := .NetworkSettings.Networks}}Network: {{$k}}, IP: {{$v.IPAddress}}{{"\n"}}{{end}}' 2>/dev/null || echo "Could not inspect container networks"
+              fi
+              echo "=== User Service Logs ==="
+              docker compose logs user-service
+              exit 1
             fi
           done
           
@@ -284,14 +309,39 @@ jobs:
           
           # Test User Service Health Check directly via internal network (using docker)
           echo "4. 🔍 Testing User Service Health Check (internal network)"
-          INTERNAL_HEALTH=$(docker run --rm --network transcendence-network curlimages/curl:latest curl -s -w "%{http_code}" -o /dev/stdout http://user-service:3001/health | tail -c 3)
-          if [ "$INTERNAL_HEALTH" = "200" ]; then
-            echo "✅ User Service health check (internal) passed"
-            # Get the actual response body
-            docker run --rm --network transcendence-network curlimages/curl:latest curl -s http://user-service:3001/health
+          
+          # Try exec method first (most reliable)
+          if docker compose exec -T user-service wget -qO- http://localhost:3001/health > /tmp/internal_health.json 2>/dev/null; then
+            echo "✅ User Service health check (internal exec) passed"
+            cat /tmp/internal_health.json
           else
-            echo "❌ User Service health check (internal) failed with status: $INTERNAL_HEALTH"
-            exit 1
+            # Fallback: try with default network name
+            INTERNAL_HEALTH=$(docker run --rm --network transcendence_default curlimages/curl:latest curl -s -w "%{http_code}" -o /dev/stdout http://user-service:3001/health 2>/dev/null | tail -c 3)
+            if [ "$INTERNAL_HEALTH" = "200" ]; then
+              echo "✅ User Service health check (internal network) passed"
+              # Get the actual response body
+              docker run --rm --network transcendence_default curlimages/curl:latest curl -s http://user-service:3001/health 2>/dev/null
+            else
+              # Try to detect actual network and use it
+              CONTAINER_NETWORK=$(docker compose ps -q user-service | head -1 | xargs docker inspect --format '{{range $k, $v := .NetworkSettings.Networks}}{{$k}}{{end}}' 2>/dev/null || echo "")
+              if [ ! -z "$CONTAINER_NETWORK" ]; then
+                echo "Trying detected network: $CONTAINER_NETWORK"
+                INTERNAL_HEALTH=$(docker run --rm --network "$CONTAINER_NETWORK" curlimages/curl:latest curl -s -w "%{http_code}" -o /dev/stdout http://user-service:3001/health 2>/dev/null | tail -c 3)
+                if [ "$INTERNAL_HEALTH" = "200" ]; then
+                  echo "✅ User Service health check (detected network) passed"
+                  docker run --rm --network "$CONTAINER_NETWORK" curlimages/curl:latest curl -s http://user-service:3001/health 2>/dev/null
+                else
+                  echo "❌ User Service health check (internal) failed with status: $INTERNAL_HEALTH"
+                  echo "Tried networks: transcendence_default, $CONTAINER_NETWORK"
+                  echo "Available networks:"
+                  docker network ls
+                  exit 1
+                fi
+              else
+                echo "❌ Could not detect container network and default failed"
+                exit 1
+              fi
+            fi
           fi
 
       - name: Test User Service Endpoints via Gateway
