@@ -10,7 +10,6 @@ on:
       - health-check-via-compose
       - integration-gateway-pong-front
       - log-service
-      - before-test-db
 
   pull_request:
     branches:
