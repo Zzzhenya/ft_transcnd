@@ -5,7 +5,8 @@ on:
     branches:
       - user-service
       - main
-      - before-test-db
+      - integration-gateway-pong-front
+      - log-service
 
     # No paths restriction for push - always run when pushing to these branches
   pull_request:
@@ -151,82 +152,50 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Create test environment
-        run: |
-          cd transcendence
-          
-          # Create test environment file
-          cat > .env << EOF
-          NODE_ENV=test
-          DATABASE_URL=sqlite:/app/shared/database/test.db
-          JWT_SECRET=test-secret-for-ci-only
-          EOF
-          
-          echo "✅ Test environment created"
-
       - name: Start test services
         run: |
           cd transcendence
           echo "🚀 Starting services for testing..."
           
-          # Start only essential services
-          docker compose up -d database user-service gateway
+          # Start services via gateway
+          docker compose up -d database user-service log-service gateway
           
           echo "⏳ Waiting for services to initialize..."
-          sleep 30
+          sleep 45
 
       - name: Wait for services to be ready
         run: |
           cd transcendence
-          echo "🔍 Waiting for user-service to be ready..."
+          echo "🔍 Waiting for services to be ready..."
           
-          # Check container status
-          docker compose ps
-          
-          # Wait for health endpoint
-          timeout=120
+          timeout=90
           elapsed=0
           
           while [ $elapsed -lt $timeout ]; do
-            # More verbose debugging
-            echo "⏳ Waiting... ($elapsed/$timeout seconds)"
-            echo "=== Checking service logs ==="
-            docker compose logs --tail=5 user-service
-            echo "=== Testing connection ==="
-            
-            # Test health check from within Docker network
-            if docker run --rm --network transcendence-network alpine/curl:latest curl -f -s http://user-service:3001/health > /tmp/health_check.json 2>/tmp/curl_error.log; then
-              echo "✅ User service is ready!"
-              cat /tmp/health_check.json
-              break
-            else
-              echo "❌ Health check failed. Curl error:"
-              cat /tmp/curl_error.log 2>/dev/null || echo "No curl error log"
+            # Check gateway health
+            if curl -f -s http://localhost:3000/health > /dev/null 2>&1; then
+              echo "✅ Gateway is ready!"
               
-              # Also try from user-service container itself
-              echo "=== Testing from within user-service container ==="
-              if docker compose exec -T user-service wget -q --spider http://127.0.0.1:3001/health; then
-                echo "✅ Service is responding on 127.0.0.1 within container"
-              else
-                echo "❌ Service not responding even within its own container"
+              # Check user-service through gateway
+              if curl -f -s http://localhost:3000/user-service/health > /dev/null 2>&1; then
+                echo "✅ User service accessible via gateway!"
+                break
               fi
-              
-              sleep 5
-              elapsed=$((elapsed + 5))
             fi
+            
+            echo "⏳ Waiting... ($elapsed/$timeout seconds)"
+            sleep 5
+            elapsed=$((elapsed + 5))
           done
           
           if [ $elapsed -ge $timeout ]; then
-            echo "❌ Service failed to start within $timeout seconds"
-            echo "=== Final debugging information ==="
+            echo "❌ Services failed to start"
+            echo "=== Gateway logs ==="
+            docker compose logs gateway | tail -50
+            echo "=== User-service logs ==="
+            docker compose logs user-service | tail -50
             echo "=== Container status ==="
             docker compose ps
-            echo "=== Container logs (last 50 lines) ==="
-            docker compose logs --tail=50 user-service
-            echo "=== Network information ==="
-            docker network ls
-            echo "=== Checking if port is open ==="
-            docker compose exec user-service netstat -tlnp 2>/dev/null || echo "netstat not available"
             exit 1
           fi
 
@@ -234,12 +203,14 @@ jobs:
         run: |
           echo "🧪 Running API integration tests..."
           
-          # BASE_URL="http://localhost:3001"
           BASE_URL="http://localhost:3000/user-service"
           
           # Test 1: Health Check
           echo "1. Testing health endpoint..."
-          if curl -f -s "$BASE_URL/health"; then
+          HEALTH_RESPONSE=$(curl -s "$BASE_URL/health")
+          echo "Response: $HEALTH_RESPONSE"
+          
+          if echo "$HEALTH_RESPONSE" | grep -q "healthy"; then
             echo "✅ Health check passed"
           else
             echo "❌ Health check failed"
@@ -249,66 +220,78 @@ jobs:
           # Test 2: User Registration
           echo "2. Testing user registration..."
           UNIQUE_ID=$(date +%s)
-          REGISTER_DATA="{
-            \"username\": \"testuser$UNIQUE_ID\",
-            \"email\": \"test$UNIQUE_ID@example.com\",
-            \"password\": \"TestPassword123\"
-          }"
           
-          REGISTER_RESPONSE=$(curl -s -w "%{http_code}" -o /tmp/register.json \
+          REGISTER_RESPONSE=$(curl -s -w "\n%{http_code}" \
             -X POST "$BASE_URL/auth/register" \
             -H "Content-Type: application/json" \
-            -d "$REGISTER_DATA")
+            -d "{
+              \"username\": \"testuser$UNIQUE_ID\",
+              \"email\": \"test$UNIQUE_ID@example.com\",
+              \"password\": \"TestPassword123\"
+            }")
           
-          if [ "$REGISTER_RESPONSE" = "201" ] ; then
-            echo "✅ User registration successful status: $REGISTER_RESPONSE"
-            cat /tmp/register.json | jq .
+          HTTP_CODE=$(echo "$REGISTER_RESPONSE" | tail -n1)
+          RESPONSE_BODY=$(echo "$REGISTER_RESPONSE" | sed '$d')
+          
+          echo "HTTP Code: $HTTP_CODE"
+          echo "Response: $RESPONSE_BODY"
+          
+          if [ "$HTTP_CODE" = "201" ]; then
+            echo "✅ User registration successful"
           else
-            echo "❌ User registration failed with status: $REGISTER_RESPONSE"
-            cat /tmp/register.json
+            echo "❌ User registration failed"
             exit 1
           fi
           
-          # Extract token for further tests
-          TOKEN=$(cat /tmp/register.json | jq -r '.token // empty')
+          # Extract token
+          TOKEN=$(echo "$RESPONSE_BODY" | jq -r '.token // empty')
           
           # Test 3: User Login
           echo "3. Testing user login..."
-          LOGIN_DATA="{
-            \"email\": \"test$UNIQUE_ID@example.com\",
-            \"password\": \"TestPassword123\"
-          }"
           
-          LOGIN_RESPONSE=$(curl -s -w "%{http_code}" -o /tmp/login.json \
+          LOGIN_RESPONSE=$(curl -s -w "\n%{http_code}" \
             -X POST "$BASE_URL/auth/login" \
             -H "Content-Type: application/json" \
-            -d "$LOGIN_DATA")
+            -d "{
+              \"email\": \"test$UNIQUE_ID@example.com\",
+              \"password\": \"TestPassword123\"
+            }")
           
-          if [ "$LOGIN_RESPONSE" = "200" ]; then
+          HTTP_CODE=$(echo "$LOGIN_RESPONSE" | tail -n1)
+          RESPONSE_BODY=$(echo "$LOGIN_RESPONSE" | sed '$d')
+          
+          echo "HTTP Code: $HTTP_CODE"
+          echo "Response: $RESPONSE_BODY"
+          
+          if [ "$HTTP_CODE" = "200" ]; then
             echo "✅ User login successful"
-            cat /tmp/login.json | jq .
           else
-            echo "❌ User login failed with status: $LOGIN_RESPONSE"
-            cat /tmp/login.json
+            echo "❌ User login failed"
             exit 1
           fi
           
-          # Test 4: Protected endpoint (if token available)
+          # Test 4: Protected endpoint
           if [ ! -z "$TOKEN" ]; then
             echo "4. Testing protected profile endpoint..."
-            PROFILE_RESPONSE=$(curl -s -w "%{http_code}" -o /tmp/profile.json \
+            
+            PROFILE_RESPONSE=$(curl -s -w "\n%{http_code}" \
               -X GET "$BASE_URL/auth/profile" \
               -H "Authorization: Bearer $TOKEN")
             
-            if [ "$PROFILE_RESPONSE" = "200" ]; then
+            HTTP_CODE=$(echo "$PROFILE_RESPONSE" | tail -n1)
+            RESPONSE_BODY=$(echo "$PROFILE_RESPONSE" | sed '$d')
+            
+            echo "HTTP Code: $HTTP_CODE"
+            
+            if [ "$HTTP_CODE" = "200" ]; then
               echo "✅ Profile access successful"
-              cat /tmp/profile.json | jq .
+              echo "$RESPONSE_BODY" | jq . || echo "$RESPONSE_BODY"
             else
-              echo "⚠️ Profile access failed with status: $PROFILE_RESPONSE"
-              cat /tmp/profile.json
+              echo "⚠️  Profile access failed (HTTP $HTTP_CODE)"
             fi
           fi
           
+          echo ""
           echo "🎉 All API tests completed successfully!"
 
       - name: Test error handling
@@ -319,39 +302,45 @@ jobs:
           
           # Test invalid registration
           echo "Testing invalid registration data..."
-          INVALID_RESPONSE=$(curl -s -w "%{http_code}" -o /tmp/invalid.json \
+          RESPONSE=$(curl -s -w "\n%{http_code}" \
             -X POST "$BASE_URL/auth/register" \
             -H "Content-Type: application/json" \
             -d '{"username": "test"}')
           
-          if [ "$INVALID_RESPONSE" = "400" ]; then
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          
+          if [ "$HTTP_CODE" = "400" ]; then
             echo "✅ Invalid data properly rejected"
           else
-            echo "⚠️ Expected 400 but got: $INVALID_RESPONSE"
+            echo "⚠️  Expected 400 but got: $HTTP_CODE"
           fi
           
           # Test invalid login
           echo "Testing invalid login credentials..."
-          INVALID_LOGIN=$(curl -s -w "%{http_code}" -o /tmp/invalid_login.json \
+          RESPONSE=$(curl -s -w "\n%{http_code}" \
             -X POST "$BASE_URL/auth/login" \
             -H "Content-Type: application/json" \
             -d '{"email": "nonexistent@example.com", "password": "wrong"}')
           
-          if [ "$INVALID_LOGIN" = "401" ]; then
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          
+          if [ "$HTTP_CODE" = "401" ]; then
             echo "✅ Invalid credentials properly rejected"
           else
-            echo "⚠️ Expected 401 but got: $INVALID_LOGIN"
+            echo "⚠️  Expected 401 but got: $HTTP_CODE"
           fi
           
           # Test protected endpoint without token
           echo "Testing protected endpoint without authentication..."
-          NO_AUTH_RESPONSE=$(curl -s -w "%{http_code}" -o /tmp/no_auth.json \
+          RESPONSE=$(curl -s -w "\n%{http_code}" \
             -X GET "$BASE_URL/auth/profile")
           
-          if [ "$NO_AUTH_RESPONSE" = "401" ]; then
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          
+          if [ "$HTTP_CODE" = "401" ]; then
             echo "✅ Unauthorized access properly blocked"
           else
-            echo "⚠️ Expected 401 but got: $NO_AUTH_RESPONSE"
+            echo "⚠️  Expected 401 but got: $HTTP_CODE"
           fi
           
           echo "✅ Error handling tests completed!"
@@ -360,8 +349,11 @@ jobs:
         if: failure()
         run: |
           cd transcendence
-          echo "=== Service Logs for Debugging ==="
+          echo "=== User Service Logs ==="
           docker compose logs user-service | tail -100
+          
+          echo "=== Gateway Logs ==="
+          docker compose logs gateway | tail -100
           
           echo "=== Container Status ==="
           docker compose ps
@@ -372,7 +364,6 @@ jobs:
           cd transcendence
           echo "🧹 Cleaning up test environment..."
           docker compose down -v
-          docker system prune -f
 
   security-scan:
     runs-on: ubuntu-latest

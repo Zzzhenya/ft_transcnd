@@ -1,0 +1,321 @@
+name: Log Service Tests
+
+on:
+  push:
+    branches: [ main, log-service ]
+    paths:
+      - 'transcendence/services/log-service/**'
+      - 'transcendence/services/*/src/utils/logger.js'
+      - 'transcendence/monitoring/**'
+      - 'transcendence/docker-compose.yml'
+      - '.github/workflows/log-service-test.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'transcendence/services/log-service/**'
+      - 'transcendence/monitoring/**'
+
+jobs:
+  test-logging-infrastructure:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Start services with monitoring
+        run: |
+          cd transcendence
+          docker compose --profile monitoring up -d
+          echo "✅ Services starting..."
+
+      - name: Wait for services to be healthy
+        run: |
+          cd transcendence
+          echo "Waiting for services to start..."
+          
+          # Get container names dynamically
+          echo "🔍 Discovering container names..."
+          LOG_SERVICE_CONTAINER=$(docker compose ps -q log-service)
+          GATEWAY_CONTAINER=$(docker compose ps -q gateway)
+          ELASTICSEARCH_CONTAINER=$(docker compose ps -q elasticsearch)
+          
+          echo "Log Service Container: $LOG_SERVICE_CONTAINER"
+          echo "Gateway Container: $GATEWAY_CONTAINER"
+          echo "Elasticsearch Container: $ELASTICSEARCH_CONTAINER"
+          
+          # Wait for log-service (max 60 seconds)
+          for i in {1..30}; do
+            if docker compose ps log-service | grep -q "running"; then
+              echo "✅ Log-service is running"
+              break
+            fi
+            echo "Waiting for log-service... ($i/30)"
+            sleep 2
+          done
+          
+          # Wait for Elasticsearch (max 120 seconds)
+          for i in {1..60}; do
+            if docker compose ps elasticsearch | grep -q "healthy"; then
+              echo "✅ Elasticsearch is healthy"
+              break
+            fi
+            echo "Waiting for Elasticsearch... ($i/60)"
+            sleep 2
+          done
+          
+          # Wait for Kibana (max 90 seconds)
+          for i in {1..45}; do
+            if docker compose ps kibana | grep -q "running"; then
+              echo "✅ Kibana is running"
+              break
+            fi
+            echo "Waiting for Kibana... ($i/45)"
+            sleep 2
+          done
+          
+          # Export container names for later steps
+          echo "LOG_SERVICE_CONTAINER=$LOG_SERVICE_CONTAINER" >> $GITHUB_ENV
+          echo "GATEWAY_CONTAINER=$GATEWAY_CONTAINER" >> $GITHUB_ENV
+          echo "ELASTICSEARCH_CONTAINER=$ELASTICSEARCH_CONTAINER" >> $GITHUB_ENV
+          
+          # Final status check
+          docker compose ps
+
+      - name: Test 1 - Log Service Health Check
+        run: |
+          cd transcendence
+          echo "Testing log-service health endpoint..."
+          
+          response=$(docker exec $LOG_SERVICE_CONTAINER wget -qO- http://log-service:3003/health)
+          echo "Response: $response"
+          
+          if echo "$response" | grep -q "healthy"; then
+            echo "✅ Log-service health check passed"
+          else
+            echo "❌ Log-service health check failed"
+            exit 1
+          fi
+
+      - name: Test 2 - Send Test Log
+        run: |
+          cd transcendence
+          echo "Sending test log to log-service..."
+          
+          # Use gateway container which has curl for POST requests
+          response=$(docker exec $GATEWAY_CONTAINER curl -s -w "\n%{http_code}" -X POST http://log-service:3003/api/logs \
+            -H "Content-Type: application/json" \
+            -d '{
+              "level": "info",
+              "message": "GitHub Actions test log",
+              "service": "ci-test",
+              "metadata": {
+                "test": true,
+                "workflow": "log-service-test"
+              }
+            }')
+          
+          http_code=$(echo "$response" | tail -n1)
+          echo "HTTP Code: $http_code"
+          
+          if [ "$http_code" = "200" ]; then
+            echo "✅ Test log sent successfully"
+          else
+            echo "❌ Failed to send test log"
+            echo "Response: $response"
+            exit 1
+          fi
+
+      - name: Test 3 - Verify Gateway Logging
+        run: |
+          cd transcendence
+          echo "Testing gateway logging..."
+          
+          # Make request to gateway using container network
+          docker exec $GATEWAY_CONTAINER curl -s http://gateway:3000/health > /dev/null
+          
+          # Wait for log to be processed
+          sleep 5
+          
+          # Check if gateway logs exist in log-service
+          gateway_logs=$(docker compose logs log-service | grep -c "gateway" || echo "0")
+          echo "Found $gateway_logs gateway log entries"
+          
+          if [ "$gateway_logs" -gt 0 ]; then
+            echo "✅ Gateway logging is working"
+          else
+            echo "⚠️  No gateway logs found (may not be configured yet)"
+          fi
+
+      - name: Test 4 - Check Elasticsearch Integration
+        run: |
+          cd transcendence
+          echo "Waiting for logs to reach Elasticsearch (10 seconds)..."
+          sleep 10
+          
+          echo "Checking Elasticsearch for logs..."
+          
+          # Check if transcendence indices exist
+          indices=$(docker exec $ELASTICSEARCH_CONTAINER curl -s \
+            "http://elasticsearch:9200/_cat/indices?v" | grep transcendence || echo "")
+          
+          if [ -n "$indices" ]; then
+            echo "✅ Found transcendence indices in Elasticsearch:"
+            echo "$indices"
+          else
+            echo "❌ No transcendence indices found in Elasticsearch"
+            docker compose logs elasticsearch | tail -50
+            exit 1
+          fi
+          
+          # Count logs
+          log_count=$(docker exec $ELASTICSEARCH_CONTAINER curl -s \
+            "http://elasticsearch:9200/transcendence-logs-*/_count" | grep -o '"count":[0-9]*' | cut -d: -f2)
+          
+          echo "Total logs in Elasticsearch: $log_count"
+          
+          if [ "$log_count" -gt 0 ]; then
+            echo "✅ Logs are being stored in Elasticsearch"
+          else
+            echo "❌ No logs found in Elasticsearch"
+            exit 1
+          fi
+
+      - name: Test 5 - Verify Logstash Connection
+        run: |
+          cd transcendence
+          echo "Checking Logstash connectivity..."
+          
+          # Check if log-service can reach Logstash
+          logstash_errors=$(docker compose logs log-service | grep -c "Logstash unavailable" || echo "0")
+          
+          if [ "$logstash_errors" = "0" ]; then
+            echo "✅ Log-service successfully connecting to Logstash"
+          else
+            echo "⚠️  Found $logstash_errors Logstash connection errors"
+            echo "This may be normal if Logstash is still starting up"
+          fi
+          
+          # Check Logstash health
+          logstash_health=$(docker compose logs logstash | grep -c "Successfully started Logstash" || echo "0")
+          if [ "$logstash_health" -gt 0 ]; then
+            echo "✅ Logstash is running"
+          else
+            echo "⚠️  Logstash may still be starting"
+          fi
+
+      - name: Test 6 - Batch Logging Test
+        run: |
+          cd transcendence
+          echo "Testing batch logging endpoint..."
+          
+          # Use gateway container which has curl for POST requests
+          response=$(docker exec $GATEWAY_CONTAINER curl -s -w "\n%{http_code}" -X POST http://log-service:3003/api/logs/batch \
+            -H "Content-Type: application/json" \
+            -d '{
+              "logs": [
+                {
+                  "level": "info",
+                  "message": "Batch test log 1",
+                  "service": "ci-test"
+                },
+                {
+                  "level": "warn",
+                  "message": "Batch test log 2",
+                  "service": "ci-test"
+                },
+                {
+                  "level": "error",
+                  "message": "Batch test log 3",
+                  "service": "ci-test"
+                }
+              ]
+            }')
+          
+          http_code=$(echo "$response" | tail -n1)
+          
+          if [ "$http_code" = "200" ]; then
+            echo "✅ Batch logging test passed"
+          else
+            echo "❌ Batch logging test failed"
+            exit 1
+          fi
+
+      - name: Test 7 - Service Logger Integration Test
+        run: |
+          cd transcendence
+          echo "Testing individual service loggers..."
+          
+          # Test user-service logger
+          user_service_logs=$(docker compose logs user-service | grep -c "running on port" || echo "0")
+          if [ "$user_service_logs" -gt 0 ]; then
+            echo "✅ User-service is logging"
+          else
+            echo "⚠️  User-service logs not found"
+          fi
+          
+          # Test gateway logger
+          gateway_logs=$(docker compose logs gateway | grep -c "Gateway" || echo "0")
+          if [ "$gateway_logs" -gt 0 ]; then
+            echo "✅ Gateway is logging"
+          else
+            echo "⚠️  Gateway logs not found"
+          fi
+
+      - name: Test 8 - Check Log Persistence
+        run: |
+          cd transcendence
+          echo "Testing log persistence..."
+          
+          # Send log with unique identifier using gateway container
+          unique_id="test-$(date +%s)"
+          docker exec $GATEWAY_CONTAINER curl -s -X POST http://log-service:3003/api/logs \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"level\": \"info\",
+              \"message\": \"Persistence test $unique_id\",
+              \"service\": \"ci-test\"
+            }" > /dev/null
+          
+          # Wait and search for it
+          sleep 5
+          
+          found=$(docker exec $ELASTICSEARCH_CONTAINER curl -s \
+            "http://elasticsearch:9200/transcendence-logs-*/_search?q=$unique_id" | grep -c "$unique_id" || echo "0")
+          
+          if [ "$found" -gt 0 ]; then
+            echo "✅ Log persistence verified"
+          else
+            echo "❌ Log not found in Elasticsearch after 5 seconds"
+            exit 1
+          fi
+
+      - name: Show Service Logs on Failure
+        if: failure()
+        run: |
+          cd transcendence
+          echo "=== Log Service Logs ==="
+          docker compose logs log-service | tail -100
+          
+          echo "=== Elasticsearch Logs ==="
+          docker compose logs elasticsearch | tail -100
+          
+          echo "=== Logstash Logs ==="
+          docker compose logs logstash | tail -100
+          
+          echo "=== Gateway Logs ==="
+          docker compose logs gateway | tail -50
+          
+          echo "=== Container Status ==="
+          docker compose ps
+
+      - name: Cleanup
+        if: always()
+        run: |
+          cd transcendence
+          docker compose --profile monitoring down -v
+          docker system prune -af --volumes
