@@ -7,6 +7,7 @@ on:
       - main
       - integration-gateway-pong-front
       - log-service
+      - before-test-db
 
     # No paths restriction for push - always run when pushing to these branches
   pull_request:
