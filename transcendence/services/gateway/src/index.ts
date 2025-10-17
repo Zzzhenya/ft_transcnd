@@ -117,7 +117,8 @@ Fastify.addHook('onRequest', async (request, reply) => {
       path: '/',
       httpOnly: true,
       sameSite: 'lax',
-      secure: false
+      secure: false,
+      maxAge: 3600 // 1 hour
     });
     Fastify.log.info(`🆕 New sessionId created: ${newSessionId}`);
   } else {
