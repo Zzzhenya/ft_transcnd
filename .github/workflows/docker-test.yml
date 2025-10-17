@@ -404,17 +404,101 @@ jobs:
         if: failure()
         run: |
           cd transcendence
-          echo "=== Showing service logs for debugging ==="
-          echo "=== Gateway Logs ==="
+          echo "========================================================"
+          echo "🚨 INTEGRATION TEST FAILURE - DETAILED DIAGNOSTICS"
+          echo "========================================================"
+          echo ""
+          
+          echo "📊 CONTAINER STATUS:"
+          echo "----------------------------------------"
+          docker compose ps
+          echo ""
+          
+          echo "🌐 NETWORK INFORMATION:"
+          echo "----------------------------------------"
+          docker network ls | grep transcendence || echo "No transcendence networks found"
+          echo ""
+          
+          echo "💾 VOLUME INFORMATION:"
+          echo "----------------------------------------"
+          docker volume ls | grep transcendence || echo "No transcendence volumes found"
+          echo ""
+          
+          echo "🔍 HEALTH CHECK STATUS:"
+          echo "----------------------------------------"
+          echo "Checking individual service health status..."
+          
+          # Test individual services internally
+          echo "Testing Gateway health:"
+          docker compose exec -T gateway curl -f -s http://localhost:3000/health 2>/dev/null || echo "❌ Gateway health check failed"
+          
+          echo "Testing User Service health:"
+          docker compose exec -T user-service wget -qO- http://localhost:3001/health 2>/dev/null || echo "❌ User Service health check failed"
+          
+          echo "Testing Game Service health:"
+          docker compose exec -T game-service wget -qO- http://localhost:3002/health 2>/dev/null || echo "❌ Game Service health check failed"
+          
+          echo "Testing Log Service health:"
+          docker compose exec -T log-service wget -qO- http://localhost:3003/health 2>/dev/null || echo "❌ Log Service health check failed"
+          
+          echo "Testing Tournament Service health:"
+          docker compose exec -T tournament-service wget -qO- http://localhost:3005/health 2>/dev/null || echo "❌ Tournament Service health check failed"
+          
+          echo ""
+          echo "📋 SERVICE LOGS (Last 50 lines each):"
+          echo "========================================================"
+          
+          echo ""
+          echo "🌐 GATEWAY LOGS:"
+          echo "----------------------------------------"
           docker compose logs gateway | tail -50
-          echo "=== User Service Logs ==="
+          
+          echo ""
+          echo "👤 USER SERVICE LOGS:"
+          echo "----------------------------------------"
           docker compose logs user-service | tail -50
-          echo "=== Game Service Logs ==="
+          
+          echo ""
+          echo "🎮 GAME SERVICE LOGS:"
+          echo "----------------------------------------"
           docker compose logs game-service | tail -50
-          echo "=== Log Service Logs ==="
+          
+          echo ""
+          echo "📝 LOG SERVICE LOGS:"
+          echo "----------------------------------------"
           docker compose logs log-service | tail -50
-          echo "=== Frontend Logs ==="
+          
+          echo ""
+          echo "🏆 TOURNAMENT SERVICE LOGS:"
+          echo "----------------------------------------"
+          docker compose logs tournament-service | tail -50
+          
+          echo ""
+          echo "🖥️  FRONTEND LOGS:"
+          echo "----------------------------------------"
           docker compose logs frontend | tail -50
+          
+          echo ""
+          echo "🗄️  DATABASE LOGS:"
+          echo "----------------------------------------"
+          docker compose logs database | tail -20
+          
+          echo ""
+          echo "========================================================"
+          echo "🔧 TROUBLESHOOTING SUGGESTIONS:"
+          echo "========================================================"
+          echo "1. Check if services are binding to the correct ports"
+          echo "2. Verify that health endpoints return 200 status codes"
+          echo "3. Check for application startup errors in logs above"
+          echo "4. Ensure all required environment variables are set"
+          echo "5. Verify database connections and shared volumes"
+          echo "6. Check for port conflicts or networking issues"
+          echo ""
+          echo "📞 To reproduce locally:"
+          echo "   cd transcendence"
+          echo "   docker compose up --build"
+          echo "   curl http://localhost:3000/health"
+          echo "========================================================"
 
       - name: Cleanup
         if: always()
@@ -458,41 +542,163 @@ jobs:
     if: always()
     
     steps:
-      - name: Report final status
+      - name: Checkout code (for logs access)
+        uses: actions/checkout@v4
+        if: always()
+
+      - name: Comprehensive Pipeline Report
+        if: always()
         run: |
-          echo "=== CI Pipeline Results ==="
+          echo "========================================================"
+          echo "🔍 DOCKER BUILD VALIDATION - COMPREHENSIVE REPORT"
+          echo "========================================================"
+          echo ""
           
+          # Track overall success
+          OVERALL_SUCCESS=true
+          FAILED_JOBS=""
+          
+          echo "📊 JOB STATUS SUMMARY:"
+          echo "----------------------------------------"
+          
+          # Validate Docker Compose
           if [ "${{ needs.validate-docker-compose.result }}" = "success" ]; then
-            echo "✅ Docker Compose validation passed"
+            echo "✅ Docker Compose Validation: PASSED"
           else
-            echo "❌ Docker Compose validation failed"
+            echo "❌ Docker Compose Validation: FAILED"
+            OVERALL_SUCCESS=false
+            FAILED_JOBS="$FAILED_JOBS validate-docker-compose"
           fi
           
+          # Build Services
           if [ "${{ needs.build-services.result }}" = "success" ]; then
-            echo "✅ All services built successfully"
+            echo "✅ Service Builds: PASSED (All services built successfully)"
           else
-            echo "❌ Service builds failed"
+            echo "❌ Service Builds: FAILED"
+            OVERALL_SUCCESS=false
+            FAILED_JOBS="$FAILED_JOBS build-services"
           fi
           
+          # Build Frontend
           if [ "${{ needs.build-frontend.result }}" = "success" ]; then
-            echo "✅ Frontend built successfully"
+            echo "✅ Frontend Build: PASSED"
           else
-            echo "❌ Frontend build failed"
+            echo "❌ Frontend Build: FAILED"
+            OVERALL_SUCCESS=false
+            FAILED_JOBS="$FAILED_JOBS build-frontend"
           fi
           
+          # Shared Resources
+          if [ "${{ needs.test-shared-resources.result }}" = "success" ]; then
+            echo "✅ Shared Resources Test: PASSED"
+          else
+            echo "❌ Shared Resources Test: FAILED"
+            OVERALL_SUCCESS=false
+            FAILED_JOBS="$FAILED_JOBS test-shared-resources"
+          fi
+          
+          # Integration Test
           if [ "${{ needs.integration-test.result }}" = "success" ]; then
-            echo "✅ Integration tests passed"
+            echo "✅ Integration Tests: PASSED"
           else
-            echo "❌ Integration tests failed"
+            echo "❌ Integration Tests: FAILED"
+            OVERALL_SUCCESS=false
+            FAILED_JOBS="$FAILED_JOBS integration-test"
           fi
           
-          # Check if all critical jobs passed
-          if [ "${{ needs.validate-docker-compose.result }}" != "success" ] || \
-             [ "${{ needs.build-services.result }}" != "success" ] || \
-             [ "${{ needs.build-frontend.result }}" != "success" ] || \
-             [ "${{ needs.integration-test.result }}" != "success" ]; then
-            echo "❌ Pipeline failed - please fix issues before merging"
+          # Development Mode Test
+          if [ "${{ needs.test-development-mode.result }}" = "success" ]; then
+            echo "✅ Development Mode Test: PASSED"
+          else
+            echo "❌ Development Mode Test: FAILED"
+            OVERALL_SUCCESS=false
+            FAILED_JOBS="$FAILED_JOBS test-development-mode"
+          fi
+          
+          echo ""
+          echo "========================================================"
+          
+          if [ "$OVERALL_SUCCESS" = true ]; then
+            echo "🎉 ALL TESTS PASSED!"
+            echo "✅ Docker setup is working correctly"
+            echo "✅ All services can be built and deployed"
+            echo "✅ Inter-service communication is functional"
+            echo ""
+            echo "👍 Ready for deployment!"
+          else
+            echo "❌ PIPELINE FAILED"
+            echo ""
+            echo "🔧 FAILED JOBS: $FAILED_JOBS"
+            echo ""
+            echo "📋 FAILURE ANALYSIS:"
+            echo "----------------------------------------"
+            
+            # Detailed failure analysis
+            for job in $FAILED_JOBS; do
+              case $job in
+                "validate-docker-compose")
+                  echo "❌ Docker Compose Validation Failed:"
+                  echo "   • Check docker-compose.yml syntax"
+                  echo "   • Verify all service configurations"
+                  echo "   • Ensure all required files exist"
+                  ;;
+                "build-services")
+                  echo "❌ Service Builds Failed:"
+                  echo "   • One or more services failed to build"
+                  echo "   • Check Dockerfiles for syntax errors"
+                  echo "   • Verify package.json and dependencies"
+                  echo "   • Check for missing source files (index.js/index.ts)"
+                  echo "   • Services tested: gateway, user-service, game-service, log-service, tournament-service"
+                  ;;
+                "build-frontend")
+                  echo "❌ Frontend Build Failed:"
+                  echo "   • Check frontend Dockerfile"
+                  echo "   • Verify frontend package.json"
+                  echo "   • Check for Node.js/Vite build errors"
+                  ;;
+                "test-shared-resources")
+                  echo "❌ Shared Resources Test Failed:"
+                  echo "   • Check shared directory structure"
+                  echo "   • Verify monitoring configurations"
+                  echo "   • Ensure ELK stack configs are present"
+                  ;;
+                "integration-test")
+                  echo "❌ Integration Tests Failed:"
+                  echo "   • Services failed to start properly"
+                  echo "   • Health check endpoints not responding"
+                  echo "   • Inter-service communication broken"
+                  echo "   • Common issues:"
+                  echo "     - Gateway not routing correctly"
+                  echo "     - Services not listening on expected ports"
+                  echo "     - Network connectivity problems"
+                  echo "     - Missing or misconfigured health endpoints"
+                  ;;
+                "test-development-mode")
+                  echo "❌ Development Mode Test Failed:"
+                  echo "   • Development docker-compose configuration issues"
+                  echo "   • Check docker-compose.dev.yml if it exists"
+                  ;;
+              esac
+              echo ""
+            done
+            
+            echo "🔍 DEBUGGING TIPS:"
+            echo "----------------------------------------"
+            echo "1. Check the specific job logs above for detailed error messages"
+            echo "2. For build failures: Review Dockerfile and package.json"
+            echo "3. For integration failures: Check service health endpoints"
+            echo "4. For network issues: Verify docker-compose.yml networking"
+            echo "5. Run locally: docker compose up --build to replicate issues"
+            echo ""
+            echo "📁 KEY FILES TO CHECK:"
+            echo "• transcendence/docker-compose.yml"
+            echo "• transcendence/services/*/Dockerfile"
+            echo "• transcendence/services/*/package.json"
+            echo "• transcendence/services/*/src/index.js or index.ts"
+            echo ""
+            
+            # Exit with failure
             exit 1
           fi
           
-          echo "🎉 All tests passed! Docker setup is working correctly."
+          echo "========================================================"
