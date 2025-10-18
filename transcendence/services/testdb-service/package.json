@@ -13,12 +13,14 @@
   "license": "MIT",
   "type": "commonjs",
   "dependencies": {
+    "@fastify/cors": "^11.1.0",
     "better-sqlite3": "^12.4.1",
     "fastify": "^5.6.1"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^24.8.1",
+    "cors": "^2.8.5",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3"
   }

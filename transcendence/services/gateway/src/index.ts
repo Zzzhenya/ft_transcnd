@@ -113,6 +113,16 @@ Fastify.addHook('onRequest', async (request, reply) => {
   const sessionId = cookies.sessionId;
   if (!sessionId) {
     const newSessionId = uuidv4();
+    // call your own POST /sessions route internally
+    const res = await fetch(`http://testdb:3010/session`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        sessionId: newSessionId, 
+        time: new Date().toString(),
+        status: 1 })
+    });
+
     // const newSessionId = 'abcd'
     reply.setCookie('sessionId', newSessionId, {
       path: '/',
