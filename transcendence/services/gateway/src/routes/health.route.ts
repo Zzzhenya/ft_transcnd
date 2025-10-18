@@ -5,6 +5,7 @@ import type { FastifyHttpOptions, FastifyInstance, FastifyServerOptions, Fastify
 const healthRoutes: FastifyPluginAsync = async (fastify) => {
 
 	fastify.get('/health', async (request, reply) => {
+
 	  return { service: 'gateway', status: 'healthy', timestamp: new Date() };
 	});
 
@@ -27,7 +28,7 @@ const healthRoutes: FastifyPluginAsync = async (fastify) => {
     }
     // reply.code(200).header('Content-Type', 'application/json; charset=utf-8')
     // return { hello: 'Users' }
-  })
+  });
 
 // route:/game-service for game-service
     fastify.get('/log-service/health', async (request , reply) => {
@@ -35,6 +36,26 @@ const healthRoutes: FastifyPluginAsync = async (fastify) => {
         {
             fastify.log.error("Gateway received GET request for /log-service")
             const response = await fetch('http://log-service:3003/health', {
+            method: 'GET',
+            headers: {
+            'Authorization': request.headers['authorization'] || '',
+        }})
+        const data = await response.json();
+        reply.status(response.status).send(data);
+        }
+        catch (error) {
+            fastify.log.error(error)
+            reply.status(404);
+    }
+    // reply.code(200).header('Content-Type', 'application/json; charset=utf-8')
+    // return { hello: 'Users' }
+  })
+
+    fastify.get('/test-db/health', async (request , reply) => {
+        try
+        {
+            fastify.log.error("Gateway received GET request for /log-service")
+            const response = await fetch('http://testdb:3010/health', {
             method: 'GET',
             headers: {
             'Authorization': request.headers['authorization'] || '',

@@ -32,6 +32,8 @@
 # ---- Base image ----
 FROM node:20-slim AS base
 
+EXPOSE 3010
+
 # Create the shared directory for the SQLite DB
 RUN mkdir -p /shared/test-db
 

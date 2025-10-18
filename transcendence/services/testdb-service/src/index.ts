@@ -1,9 +1,15 @@
 // server.js
 import Fastify, {FastifyRequest, FastifyReply}  from 'fastify';
 import { initDB } from './setupDatabase.js';
+import cors from '@fastify/cors';
 
 const fastify = Fastify({ logger: true });
 const db = initDB();
+
+fastify.register(cors, {
+  origin: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']
+});
 
 // Example table
 db.prepare(`
@@ -16,17 +22,25 @@ db.prepare(`
   )
 `).run();
 
+fastify.get('/health', async (request, reply) => {
+  return {
+    service: 'testdb-service',
+    status: 'healthy',
+    timestamp: new Date(),
+  };
+});
+
 // Simple endpoint to record match result
 fastify.post('/session', async (req, reply) => {
   const { sessionId, time, status } = req.body as {
     sessionId: string;
     time: string;
-    status: number;
+    status: string;
   };
-
+  fastify.log.info(req.body);
   try {
     const stmt = db.prepare(`
-      INSERT INTO sessions (sessionId, time, status)
+      INSERT INTO sessions (sessionId, lastActive, status)
       VALUES (?, ?, ?)
     `);
     stmt.run(sessionId, time, status);
@@ -44,4 +58,4 @@ fastify.get('/sessions', async (req, reply) => {
   return rows;
 });
 
-fastify.listen({ port: 3010 });
+fastify.listen({ port: 3010, host: '0.0.0.0' });
