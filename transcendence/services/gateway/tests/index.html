@@ -240,6 +240,8 @@
                 <h2>🎯 Game Controls</h2>
                 <div class="controls">
                     <button class="btn" onclick="sendGameMessage('START_GAME')">Start Game</button>
+                    <button class="btn warning" onclick="sendGameMessage('ws/pong/game-ws_game')">Pause Game</button>
+                    <button class="btn success" onclick="sendGameMessage('unws/pong/game-ws_game')">Unws/pong/game-ws Game</button>
                     <button class="btn" onclick="sendGameMessage('RESTART_GAME')">Restart Game</button>
                     <button class="btn" onclick="sendGameMessage('health_check')">WS Health Check</button>
                     <button class="btn" onclick="sendGameMessage('stats')">WS Stats</button>
@@ -355,7 +357,7 @@
                 if (!confirm('Delete all demo games?')) return;
                 
                 const response = await fetch(`http://localhost:3000/ws/pong/demo`, {
-                    method: 'DELETE',
+                    method: 'DELETE'
                 });
                 const data = await response.json();
                 
