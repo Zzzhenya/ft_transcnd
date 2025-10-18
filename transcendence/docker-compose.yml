@@ -251,9 +251,9 @@ services:
       - transcendence-network
 
   testdb:
-    build: ./service/testdb-service
-    ports:
-      - "3010:"  # Docker internal port for testdb
+    build: ./services/testdb-service
+    # ports:
+    #   - "3010:"  # Docker internal port for testdb
     volumes:
       - shared-data:/shared
 
