@@ -68,17 +68,13 @@ services:
 
   log-service:
     build: ./services/log-service
-    # Port NOT exposed - internal use only
     environment:
       - NODE_ENV=development
-      - DATABASE_URL=sqlite:/app/shared/database/transcendence.db
-      - ELASTICSEARCH_URL=http://elasticsearch:9200
       - LOGSTASH_URL=http://logstash:5000
     depends_on:
       - database
     volumes:
       - shared-data:/app/shared
-      - ./monitoring:/app/monitoring
     networks:
       - transcendence-network
     healthcheck:
@@ -86,7 +82,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 20s
+      start_period: 30s  # Give more time for startup
 
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
