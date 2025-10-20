@@ -3,6 +3,9 @@ FROM node:18-alpine AS development
 
 WORKDIR /app
 
+# Install wget for health checks
+RUN apk add --no-cache wget
+
 # Copy package files
 COPY package*.json ./
 
@@ -25,6 +28,8 @@ CMD ["npm", "run", "dev"]
 FROM node:18-alpine AS production
 
 WORKDIR /app
+
+RUN apk add --no-cache wget
 
 # Copy package files
 COPY package*.json ./
