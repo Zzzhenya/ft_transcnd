@@ -1,13 +1,36 @@
 #!/bin/bash
 
-echo "Setting up Index Lifecycle Management..."
-
-# Wait for Elasticsearch
+echo "⏳ Waiting for Elasticsearch to be ready..."
 sleep 30
 
-# Create ILM policy
-curl -X PUT "http://localhost:9200/_ilm/policy/transcendence-logs-policy" \
-  -H 'Content-Type: application/json' \
-  -d @/usr/share/elasticsearch/config/ilm-policy.json
+echo "📋 Applying ILM policy for transcendence logs..."
 
-echo "✅ ILM policy created - logs will be deleted after 30 days"
+# Create ILM policy for log retention
+curl -X PUT "http://elasticsearch:9200/_ilm/policy/transcendence-logs-policy" \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "policy": {
+      "phases": {
+        "hot": {
+          "min_age": "0ms",
+          "actions": {
+            "rollover": {
+              "max_size": "50gb",
+              "max_age": "7d"
+            }
+          }
+        },
+        "delete": {
+          "min_age": "30d",
+          "actions": {
+            "delete": {}
+          }
+        }
+      }
+    }
+  }'
+
+echo ""
+echo "✅ ILM policy created successfully!"
+echo "   - Logs will be deleted after 30 days"
+echo "   - Indices roll over every 7 days or 50GB"
