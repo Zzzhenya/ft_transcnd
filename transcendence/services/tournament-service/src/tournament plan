@@ -315,3 +315,14 @@ Frontend button:
 ⚠️ Remove before production
 
 ✅ Option 3: Simulate using Scripts (Automated)
+
+🚀 Development Plan (Best Practice)
+| Step | Frontend (Tailwind UI)                            | Backend                                           |
+| ---- | ------------------------------------------------- | ------------------------------------------------- |
+| 1    | Simple Tournament Selection Page (4 or 8 players) | Create Tournament API + Join Tournament           |
+| 2    | Tournament Lobby UI with Player List              | Tournament WebSocket room + player list broadcast |
+| 3    | Matchmaking Page UI                               | Game pairing logic                                |
+| 4    | Game Ready Page UI                                | Match start WebSocket                             |
+| 5    | Tournament Bracket UI (Tailwind grid)             | Match progress update                             |
+| 6    | Game Screen Integration                           | Real-time gameplay                                |
+| 7    | Tournament Final UI                               | Declare winner                                    |
