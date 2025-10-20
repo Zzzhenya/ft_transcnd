@@ -69,17 +69,13 @@ services:
 
   log-service:
     build: ./services/log-service
-    # Port NOT exposed - internal use only
     environment:
       - NODE_ENV=development
-      - DATABASE_URL=sqlite:/app/shared/database/transcendence.db
-      - ELASTICSEARCH_URL=http://elasticsearch:9200
       - LOGSTASH_URL=http://logstash:5000
     depends_on:
       - database
     volumes:
       - shared-data:/app/shared
-      - ./monitoring:/app/monitoring
     networks:
       - transcendence-network
     healthcheck:
@@ -87,7 +83,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 20s
+      start_period: 30s  # Give more time for startup
 
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
@@ -114,6 +110,26 @@ services:
       timeout: 15s
       retries: 8
       start_period: 60s
+
+  elasticsearch-setup:
+    image: curlimages/curl:8.5.0
+    profiles: ["monitoring", "full"]
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    volumes:
+      - ./monitoring/elasticsearch:/config:ro
+    command: >
+      sh -c '
+        echo "Configuring Elasticsearch ILM...";
+        sleep 30;
+        curl -X PUT "http://elasticsearch:9200/_ilm/policy/transcendence-logs-policy" \
+          -H "Content-Type: application/json" \
+          -d @/config/ilm-policy.json;
+        echo "✅ Data retention policy set to 30 days"
+      '
+    networks:
+      - transcendence-network
 
   logstash:
     image: docker.elastic.co/logstash/logstash:8.11.0
@@ -233,14 +249,22 @@ services:
       start_period: 20s
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      target: development  # Use development for hot reload
     ports:
-      - "3004:3004"  # EXPOSED - Web UI
+      - "3004:3004"
     environment:
       - NODE_ENV=development
-      - VITE_API_URL=http://localhost:3000
+      - VITE_API_BASE=http://localhost:3000/user-service
+      - VITE_GATEWAY_BASE=http://localhost:3000
+      - VITE_WS_BASE=ws://localhost:3000
+    volumes:
+      - ./frontend/src:/app/src:ro  # Hot reload for development
     networks:
       - transcendence-network
+    depends_on:
+      - gateway
 
   database:
     image: alpine:latest
