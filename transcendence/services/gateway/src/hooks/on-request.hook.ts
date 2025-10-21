@@ -1,4 +1,4 @@
-// hooks/on-request.hook.ts
+/*// hooks/on-request.hook.ts
 import type { FastifyInstance, FastifyPluginOptions, FastifyRequest, FastifyReply, FastifyPluginCallback } from 'fastify';
 
 // export async function onRequestHook(req: FastifyRequest, reply: FastifyReply) {
@@ -39,7 +39,7 @@ const onRequestHook: FastifyPluginCallback = (fastify: FastifyInstance, opts: Fa
   // });
   // done();
 };
-
+*/
 
 /*
 
@@ -63,4 +63,4 @@ const onRequestHook: FastifyPluginCallback = (fastify: FastifyInstance, opts: Fa
 
 */
 
-export default onRequestHook;
+//export default onRequestHook;
