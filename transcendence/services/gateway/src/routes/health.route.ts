@@ -1,19 +1,22 @@
 // src/routes/health.route.ts
-// import { FastifyPluginAsync } from 'fastify'
+
 import type { FastifyHttpOptions, FastifyInstance, FastifyServerOptions, FastifyPluginAsync } from "fastify"
+import { gatewayError } from './utils/gatewayError';
+
 
 const healthRoutes: FastifyPluginAsync = async (fastify) => {
 
-	fastify.get('/health', async (request, reply) => {
-
-	  return { service: 'gateway', status: 'healthy', timestamp: new Date() };
+// health route for gateway
+    fastify.get('/health', async (request, reply) => {
+        logger.info('[[Gateway]] GET request for /health');
+        return { service: 'gateway', status: 'healthy', timestamp: new Date() };
 	});
 
-// route:/game-service for game-service
+// health route for game-service
     fastify.get('/game-service/health', async (request , reply) => {
+        logger.info('[[Gateway]] GET request for /game-service/health');
         try
         {
-            fastify.log.error("Gateway received GET request for /game-service")
             const response = await fetch('http://game-service:3002/health', {
             method: 'GET',
             headers: {
@@ -22,15 +25,14 @@ const healthRoutes: FastifyPluginAsync = async (fastify) => {
         const data = await response.json();
         reply.status(response.status).send(data);
         }
-        catch (error) {
-            fastify.log.error(error)
-            reply.status(404);
-    }
-    // reply.code(200).header('Content-Type', 'application/json; charset=utf-8')
-    // return { hello: 'Users' }
+        catch (error: any) {
+            logger.error('[[Gateway]] GET request for /game-service/health failed', error);
+            fastify.log.error(error);
+            return gatewayError( reply, 503 );
+        }
   });
 
-// route:/game-service for game-service
+// health route for log-service
     fastify.get('/log-service/health', async (request , reply) => {
         try
         {
@@ -43,14 +45,14 @@ const healthRoutes: FastifyPluginAsync = async (fastify) => {
         const data = await response.json();
         reply.status(response.status).send(data);
         }
-        catch (error) {
-            fastify.log.error(error)
-            reply.status(404);
-    }
-    // reply.code(200).header('Content-Type', 'application/json; charset=utf-8')
-    // return { hello: 'Users' }
-  })
+        catch (error: any) {
+            logger.error('[[Gateway]] GET request for /log-service/health failed', error);
+            fastify.log.error(error);
+            return gatewayError( reply, 503 );
+        }
+  });
 
+// health route for test-db
     fastify.get('/test-db/health', async (request , reply) => {
         try
         {
@@ -63,16 +65,13 @@ const healthRoutes: FastifyPluginAsync = async (fastify) => {
         const data = await response.json();
         reply.status(response.status).send(data);
         }
-        catch (error) {
-            fastify.log.error(error)
-            reply.status(404);
-    }
-    // reply.code(200).header('Content-Type', 'application/json; charset=utf-8')
-    // return { hello: 'Users' }
-  })
+        catch (error: any) {
+            logger.error('[[Gateway]] GET request for /test-db/health failed', error);
+            fastify.log.error(error);
+            return gatewayError( reply, 503 );
+        }
+  });
 
-
-}
-
+};
 
 export default healthRoutes
