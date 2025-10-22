@@ -96,3 +96,8 @@ export function setMyMatchStatus(status: MatchStatus) {
 	state.myMatch.status = status;
 	emit();
 }
+
+export function clearAlias() {
+  localStorage.removeItem("alias");
+  emit();
+}
