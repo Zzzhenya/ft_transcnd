@@ -87,10 +87,12 @@ catch (error: any){
   logger.error('[[Gateway]] error occured while registering cors settings: ', error);
 }
 
+logger.info('[[Gateway]] registering cookie plugin');
 Fastify.register(cookie, {
   // secret: 'my-secret-key', // Optional (for signed cookies)
-  logger.info('[[Gateway]] cookie registered');
+
 });
+logger.info('[[Gateway]] cookie registered');
 
 Fastify.addHook('onRequest', async (request, reply) => {
   // Check if session cookie exists
