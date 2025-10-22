@@ -14,7 +14,7 @@ services:
       - log-service
       - database
     volumes:
-      - ./shared:/app/shared
+      - shared-data:/app/shared
 
   user-service:
     build: ./services/user-service
@@ -27,7 +27,7 @@ services:
     depends_on:
       - database
     volumes:
-      - ./shared:/app/shared
+      - shared-data:/app/shared
 
   game-service:
     build: ./services/game-service
@@ -40,7 +40,7 @@ services:
     depends_on:
       - database
     volumes:
-      - ./shared:/app/shared
+      - shared-data:/app/shared
 
   log-service:
     build: ./services/log-service
@@ -50,7 +50,7 @@ services:
       - NODE_ENV=development
       - DATABASE_URL=sqlite:/app/shared/database/transcendence.db
     volumes:
-      - ./shared:/app/shared
+      - shared-data:/app/shared
       - ./monitoring:/app/monitoring
 
   tournament-service:
@@ -65,7 +65,7 @@ services:
     depends_on:
       - database
     volumes:
-      - ./shared:/app/shared
+      - shared-data:/app/shared
 
   frontend:
     build: ./frontend
@@ -91,26 +91,11 @@ services:
   #     - NODE_ENV=development
 
   database:
-    image: node:18-alpine
-    working_dir: /app/shared
-    command: >
-      sh -c "
-      echo '🔧 Setting up database permissions...' &&
-      mkdir -p database &&
-      chmod 777 database &&
-      echo '📦 Installing dependencies...' &&
-      npm install &&
-      echo '🗄️ Initializing database...' &&
-      npm run db:init &&
-      echo '✅ Setting final permissions...' &&
-      chmod 666 database/transcendence.db 2>/dev/null || true &&
-      chmod 666 database/transcendence.db-journal 2>/dev/null || true &&
-      echo '📊 Final permissions:' &&
-      ls -la database/ &&
-      tail -f /dev/null
-      "
+    build:
+      context: .  # ← Root context
+      dockerfile: ./services/database/Dockerfile
     volumes:
-      - ./shared:/app/shared
+      - shared-data:/app/shared
     environment:
       - NODE_ENV=development
 
@@ -127,15 +112,15 @@ services:
     ports:
       - "8082:8080"
     volumes:
-      - ./shared:/app/shared
+      - shared-data:/app/shared
     command: ["sqlite_web", "/app/shared/database/transcendence.db", "--host", "0.0.0.0", "--port", "8080"]
     depends_on:
       - database
     labels:
       - "com.transcendence.description=SQLite Web Admin Interface"
 
-# volumes:
-#   shared-data:
+volumes:
+  shared-data:
 
 networks:
   default:
