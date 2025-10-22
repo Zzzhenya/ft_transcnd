@@ -1,14 +1,13 @@
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 
-// Database path - works in Docker and locally
-const DB_PATH = process.env.DATABASE_URL 
-  ? process.env.DATABASE_URL.replace('sqlite:', '') 
-  : path.join(__dirname, '../../../shared/database/transcendence.db');
+// Database connection
+const DB_PATH = process.env.DATABASE_URL ? 
+  process.env.DATABASE_URL.replace('sqlite:', '') : 
+  '/app/shared/database/transcendence.db';
 
 console.log('📍 User.js connecting to database at:', DB_PATH);
 
-// Create connection
 const db = new sqlite3.Database(DB_PATH, (err) => {
   if (err) {
     console.error('❌ Database connection error:', err);
