@@ -51,14 +51,14 @@ function initDatabase() {
 function insertTestData(db) {
   console.log('📝 Inserting test data...');
   
-  const testUsers = `
-    INSERT INTO Users (username, email, password_hash, display_name, is_guest)
-    VALUES 
-      ('alice', 'alice@example.com', '$2b$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW', 'Alice', 0),
-      ('bob', 'bob@example.com', '$2b$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW', 'Bob', 0),
-      ('charlie', 'charlie@example.com', '$2b$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW', 'Charlie', 0),
-      ('david', 'david@example.com', '$2b$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW', 'David', 0);
-  `;
+  // const testUsers = `
+  //   INSERT INTO Users (username, email, password_hash, display_name, is_guest)
+  //   VALUES 
+  //     ('alice', 'alice@example.com', '$2b$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW', 'Alice', 0),
+  //     ('bob', 'bob@example.com', '$2b$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW', 'Bob', 0),
+  //     ('charlie', 'charlie@example.com', '$2b$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW', 'Charlie', 0),
+  //     ('david', 'david@example.com', '$2b$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW', 'David', 0);
+  // `;
   
   db.exec(testUsers, (err) => {
     if (err) {
@@ -90,7 +90,7 @@ function insertTestData(db) {
           const stats = fs.statSync(DB_PATH);
           console.log('📊 Final file permissions:', (stats.mode & parseInt('777', 8)).toString(8));
         } catch (chmodErr) {
-          console.error('⚠️  Could not change permissions:', chmodErr.message);
+          console.error('⚠️  Could not c$2b$10$u75P8Zyn1lAb3miGKYPe5.ydJsc.MKrTlrjOfKWr24s ...hange permissions:', chmodErr.message);
           console.error('    This will cause write errors in other services!');
         }
         // ════════════════════════════════════════════════════════════
