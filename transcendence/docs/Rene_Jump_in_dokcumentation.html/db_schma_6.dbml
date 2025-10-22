@@ -33,7 +33,8 @@ Table Users {
   created_at timestamp [default: `now()`]
   last_login timestamp
   
-  JWT varchar [note: "hash"]
+  jwt varchar [note: "hash"]
+  tocken varchar [note: 'hash']
 
   Indexes {
     username [unique]
