@@ -1,15 +1,36 @@
 export function movePaddle(gameState, player, direction) {
   const paddleSpeed = 15;
-  const paddleHeight = 40;
-  const topBoundary = -100 + paddleHeight / 2;
-  const bottomBoundary = 100 - paddleHeight / 2;
+  const paddleHeight = 60;
+  const topBoundary = -70;   
+  const bottomBoundary = 70;  
 
-  let dir = direction;
-  if (direction === 'up') dir = 1;     // up moves paddle up (positive Y)
-  if (direction === 'down') dir = -1;  // down moves paddle down (negative Y)
-  
-  gameState.paddles[player] += dir * paddleSpeed;
-  gameState.paddles[player] = Math.max(topBoundary, Math.min(bottomBoundary, gameState.paddles[player]));
+  // Obtener posición actual
+  let currentPosition = gameState.paddles[player];
+
+  // Si por alguna razón es NaN, resetear a 0
+  if (isNaN(currentPosition)) {
+    console.error(`[Paddle] ERROR: ${player} position was NaN, resetting to 0`);
+    currentPosition = 0;
+    gameState.paddles[player] = 0;
+  }
+
+  // Calcular nueva posición
+  let newPosition = currentPosition;
+
+  if (direction === 'up') {
+    newPosition = currentPosition + paddleSpeed;
+  } else if (direction === 'down') {
+    newPosition = currentPosition - paddleSpeed;
+  }
+  // Si es 'stop', no cambia (newPosition = currentPosition)
+
+  // Limitar
+  newPosition = Math.max(topBoundary, Math.min(bottomBoundary, newPosition));
+
+  // Aplicar
+  gameState.paddles[player] = newPosition;
+
+  console.log(`[Paddle] ${player} moved ${direction}: ${currentPosition.toFixed(2)} -> ${newPosition.toFixed(2)}`);
 
   return gameState;
 }
