@@ -2,6 +2,7 @@
 import { canEnterGame } from "./guards";
 import { getAuth } from "@/app/auth";
 
+
 type Cleanup = () => void;
 type Ctx = { params?: Record<string, string>; url: URL };
 type PageModule = { default: (root: HTMLElement, ctx: Ctx) => Cleanup | void };
@@ -16,8 +17,9 @@ const routes: [RegExp, Importer][] = [
 	[/^\/init$/,                () => import("../pages/init") as Promise<PageModule>],
 	[/^\/local$/,               () => import("../pages/local") as Promise<PageModule>],
 	[/^\/tournaments$/,         () => import("../pages/tournaments") as Promise<PageModule>],
-	[/^\/tournaments\/([^/]+)$/,() => import("../pages/tournamentWaitingRoom") as Promise<PageModule>],
-	[/^\/tournament\/next$/,    () => import("../pages/tournament-next") as Promise<PageModule>],
+	[/^\/tournaments\/match$/,   () => import("../pages/tournamentMatch") as Promise<PageModule>],
+	[/^\/tournaments\/([^/]+)$/, () => import("../pages/tournamentWaitingRoom") as Promise<PageModule>],
+	//[/^\/tournaments\/next$/,    () => import("../pages/tournament-next") as Promise<PageModule>],
 	[/^\/game\/([^/]+)$/,       () => import("../pages/game") as Promise<PageModule>],
 	[/^\/auth$/,                () => import("../pages/auth") as Promise<PageModule>],
 	[/^\/profile$/,             () => import("../pages/profile") as Promise<PageModule>],
