@@ -75,11 +75,21 @@ services:
       - NODE_ENV=development
       - REACT_APP_API_URL=http://localhost:3000
 
+  # database:
+  #   image: alpine:latest
+  #   command: sh -c "mkdir -p /shared/database && touch /shared/database/transcendence.db && tail -f /dev/null"
+  #   volumes:
+  #     - shared-data:/shared
+
   database:
-    image: alpine:latest
-    command: sh -c "mkdir -p /shared/database && touch /shared/database/transcendence.db && tail -f /dev/null"
+    image: node:18-alpine
+    working_dir: /app/shared
+    command: sh -c "npm install && npm run db:init && tail -f /dev/null"
     volumes:
-      - shared-data:/shared
+      - shared-data:/app/shared
+      - ./shared:/app/shared
+    environment:
+      - NODE_ENV=development
 
   health-checker:
     image: curlimages/curl

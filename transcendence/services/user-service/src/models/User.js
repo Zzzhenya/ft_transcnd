@@ -1,229 +1,193 @@
-// Temporarily use direct sqlite3 until shared database is properly mounted
-const sqlite3 = require('sqlite3').verbose();
-const path = require('path');
+// ============================================
+// User Model - Updated for new schema
+// ============================================
 
-// Create database connection
-const DB_PATH = process.env.DATABASE_URL ? 
-  process.env.DATABASE_URL.replace('sqlite:', '') : 
-  '/app/shared/database/transcendence.db';
-
-const db = new sqlite3.Database(DB_PATH, (err) => {
-  if (err) {
-    console.error('❌ Database connection error:', err);
-  } else {
-    console.log('✅ Connected to SQLite database at:', DB_PATH);
-    db.run('PRAGMA foreign_keys = ON');
-    
-    // Create users table if it doesn't exist
-    db.run(`
-      CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        username VARCHAR(50) UNIQUE NOT NULL,
-        email VARCHAR(100) UNIQUE NOT NULL,
-        password VARCHAR(255) NOT NULL,
-        bio TEXT,
-        avatar VARCHAR(255),
-        is_two_factor_auth_enabled BOOLEAN DEFAULT FALSE,
-        two_factor_auth_secret VARCHAR(255),
-        forty_two_id VARCHAR(255),
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )
-    `, (err) => {
-      if (err) {
-        console.error('❌ Error creating users table:', err);
-      } else {
-        console.log('✅ Users table ready');
-      }
-    });
-  }
-});
-
-// Promisify database methods
-const dbRun = (sql, params = []) => {
-  return new Promise((resolve, reject) => {
-    db.run(sql, params, function (err) {
-      if (err) reject(err);
-      else resolve({ lastID: this.lastID, changes: this.changes });
-    });
-  });
-};
-
-const dbGet = (sql, params = []) => {
-  return new Promise((resolve, reject) => {
-    db.get(sql, params, (err, row) => {
-      if (err) reject(err);
-      else resolve(row);
-    });
-  });
-};
-
-const dbAll = (sql, params = []) => {
-  return new Promise((resolve, reject) => {
-    db.all(sql, params, (err, rows) => {
-      if (err) reject(err);
-      else resolve(rows);
-    });
-  });
-};
+const db = require('../../../shared/config/database');
 
 class User {
   constructor(data) {
     this.id = data.id;
     this.username = data.username;
     this.email = data.email;
-    this.password = data.password;
-    this.bio = data.bio;
+    this.password_hash = data.password_hash;
+    this.display_name = data.display_name;
     this.avatar = data.avatar;
-    this.is_two_factor_auth_enabled = data.is_two_factor_auth_enabled;
-    this.two_factor_auth_secret = data.two_factor_auth_secret;
-    this.forty_two_id = data.forty_two_id;
+    this.bio = data.bio;
+    this.is_guest = data.is_guest;
+    this.status = data.status;
+    this.intra_id = data.intra_id;
+    this.oauth_provider = data.oauth_provider;
     this.created_at = data.created_at;
-    this.updated_at = data.updated_at;
+    this.last_login = data.last_login;
   }
 
+  // ==================== CREATE ====================
   static async create(userData) {
-    const { username, email, password } = userData;
-
     try {
-      const result = await dbRun(
-        `INSERT INTO users (username, email, password) 
-                 VALUES (?, ?, ?)`,
-        [username, email, password]
+      const result = await db.run(
+        `INSERT INTO Users (
+          username, 
+          email, 
+          password_hash, 
+          display_name, 
+          is_guest,
+          intra_id,
+          oauth_provider
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [
+          userData.username,
+          userData.email,
+          userData.password_hash || userData.password, // Support old field name
+          userData.display_name || userData.username,
+          userData.is_guest || 0,
+          userData.intra_id || null,
+          userData.oauth_provider || null
+        ]
       );
 
-      // Fetch the created user
-      const user = await dbGet(
-        'SELECT * FROM users WHERE id = ?',
-        [result.lastID]
-      );
-
-      return new User(user);
+      console.log('✅ User created with ID:', result.id);
+      return await User.findById(result.id);
     } catch (error) {
-      console.error('Error creating user:', error);
+      console.error('❌ Error creating user:', error);
       throw error;
     }
   }
 
+  // ==================== READ ====================
   static async findById(id) {
     try {
-      const user = await dbGet(
-        'SELECT * FROM users WHERE id = ?',
-        [id]
-      );
-
-      return user ? new User(user) : null;
+      const row = await db.get('SELECT * FROM Users WHERE id = ?', [id]);
+      return row ? new User(row) : null;
     } catch (error) {
-      console.error('Error finding user by id:', error);
-      throw error;
-    }
-  }
-
-  static async findByEmail(email) {
-    try {
-      const user = await dbGet(
-        'SELECT * FROM users WHERE email = ?',
-        [email]
-      );
-
-      return user ? new User(user) : null;
-    } catch (error) {
-      console.error('Error finding user by email:', error);
+      console.error('❌ Error finding user by ID:', error);
       throw error;
     }
   }
 
   static async findByUsername(username) {
     try {
-      const user = await dbGet(
-        'SELECT * FROM users WHERE username = ?',
-        [username]
-      );
-
-      return user ? new User(user) : null;
+      const row = await db.get('SELECT * FROM Users WHERE username = ?', [username]);
+      return row ? new User(row) : null;
     } catch (error) {
-      console.error('Error finding user by username:', error);
+      console.error('❌ Error finding user by username:', error);
       throw error;
     }
   }
 
-  static async update(id, updateData) {
-    const fields = Object.keys(updateData);
-    const values = Object.values(updateData);
-
-    const setClause = fields.map(field => `${field} = ?`).join(', ');
-
+  static async findByEmail(email) {
     try {
-      await dbRun(
-        `UPDATE users 
-                 SET ${setClause}, updated_at = CURRENT_TIMESTAMP
-                 WHERE id = ?`,
-        [...values, id]
-      );
-
-      return await User.findById(id);
+      const row = await db.get('SELECT * FROM Users WHERE email = ?', [email]);
+      return row ? new User(row) : null;
     } catch (error) {
-      console.error('Error updating user:', error);
+      console.error('❌ Error finding user by email:', error);
       throw error;
     }
   }
 
-  static async delete(id) {
+  static async findByIntraId(intraId) {
     try {
-      const userToDelete = await User.findById(id);
-
-      if (!userToDelete) {
-        throw new Error('User not found');
-      }
-
-      await dbRun('DELETE FROM users WHERE id = ?', [id]);
-
-      return userToDelete;
+      const row = await db.get('SELECT * FROM Users WHERE intra_id = ?', [intraId]);
+      return row ? new User(row) : null;
     } catch (error) {
-      console.error('Error deleting user:', error);
-      throw error;
-    }
-  }
-
-  static async getUserCount() {
-    try {
-      const result = await dbGet('SELECT COUNT(*) as count FROM users');
-      return result.count;
-    } catch (error) {
-      console.error('Error getting user count:', error);
+      console.error('❌ Error finding user by intra_id:', error);
       throw error;
     }
   }
 
   static async getAllUsers(limit = 50, offset = 0) {
     try {
-      const users = await dbAll(
-        `SELECT id, username, email, avatar, bio, created_at, updated_at, is_two_factor_auth_enabled 
-                 FROM users 
-                 ORDER BY created_at DESC 
-                 LIMIT ? OFFSET ?`,
+      const rows = await db.all(
+        `SELECT 
+          id, username, email, display_name, avatar, bio, 
+          status, is_guest, created_at 
+         FROM Users 
+         ORDER BY created_at DESC 
+         LIMIT ? OFFSET ?`,
         [limit, offset]
       );
 
-      return users.map(row => new User(row));
+      return rows.map(row => new User(row));
     } catch (error) {
-      console.error('Error getting all users:', error);
+      console.error('❌ Error getting all users:', error);
+      throw error;
+    }
+  }
+
+  // ==================== UPDATE ====================
+  static async update(id, updateData) {
+    try {
+      // Remove undefined values
+      const cleanData = Object.entries(updateData)
+        .filter(([_, value]) => value !== undefined)
+        .reduce((obj, [key, value]) => ({ ...obj, [key]: value }), {});
+
+      const fields = Object.keys(cleanData);
+      const values = Object.values(cleanData);
+
+      if (fields.length === 0) {
+        throw new Error('No fields to update');
+      }
+
+      const setClause = fields.map(field => `${field} = ?`).join(', ');
+
+      await db.run(
+        `UPDATE Users SET ${setClause} WHERE id = ?`,
+        [...values, id]
+      );
+
+      console.log('✅ User updated:', id);
+      return await User.findById(id);
+    } catch (error) {
+      console.error('❌ Error updating user:', error);
+      throw error;
+    }
+  }
+
+  // ==================== DELETE ====================
+  static async delete(id) {
+    try {
+      const user = await User.findById(id);
+      
+      if (!user) {
+        throw new Error('User not found');
+      }
+
+      await db.run('DELETE FROM Users WHERE id = ?', [id]);
+      
+      console.log('✅ User deleted:', id);
+      return user;
+    } catch (error) {
+      console.error('❌ Error deleting user:', error);
+      throw error;
+    }
+  }
+
+  // ==================== UTILITY ====================
+  static async getUserCount() {
+    try {
+      const result = await db.get('SELECT COUNT(*) as count FROM Users');
+      return result.count;
+    } catch (error) {
+      console.error('❌ Error getting user count:', error);
       throw error;
     }
   }
 
   static async exists(id) {
     try {
-      const user = await dbGet(
-        'SELECT 1 FROM users WHERE id = ? LIMIT 1',
-        [id]
-      );
-
-      return !!user;
+      const row = await db.get('SELECT 1 FROM Users WHERE id = ? LIMIT 1', [id]);
+      return !!row;
     } catch (error) {
-      console.error('Error checking if user exists:', error);
+      console.error('❌ Error checking if user exists:', error);
       throw error;
     }
+  }
+
+  // Helper: Remove password_hash from object (for API responses)
+  toJSON() {
+    const user = { ...this };
+    delete user.password_hash;
+    return user;
   }
 }
 
