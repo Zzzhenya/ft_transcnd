@@ -81,10 +81,19 @@ services:
   #   volumes:
   #     - shared-data:/shared
 
+  # database:
+  #   image: node:18-alpine
+  #   working_dir: /app/shared
+  #   command: sh -c "npm install && npm run db:init && tail -f /dev/null"
+  #   volumes:
+  #     - ./shared:/app/shared
+  #   environment:
+  #     - NODE_ENV=development
+
   database:
     image: node:18-alpine
     working_dir: /app/shared
-    command: sh -c "npm install && npm run db:init && tail -f /dev/null"
+    command: sh -c "chmod -R 777 /app/shared/database 2>/dev/null || true && npm install && npm run db:init && tail -f /dev/null"
     volumes:
       - ./shared:/app/shared
     environment:
