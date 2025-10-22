@@ -1,13 +1,14 @@
-import { FastifyReply } from 'fastify';
+import type { FastifyReply } from 'fastify';
 
 interface GatewayErrorPayload {
   service: string;
   statusCode: number;
+  error: string;
   message: string;
   timestamp?: string;
 }
 
-export function gatewayError(
+export default function gatewayError(
   reply: FastifyReply,
   statusCode: number
 ) {
