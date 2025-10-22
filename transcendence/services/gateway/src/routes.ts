@@ -1,4 +1,6 @@
 import type { FastifyHttpOptions, FastifyInstance, FastifyServerOptions } from "fastify"
+import gatewayError from '@utils/gatewayError.js';
+import logger from '@utils/logger.js'; // log-service
 
 async function routes (fastify: FastifyInstance, options: FastifyServerOptions) {
 
