@@ -2,7 +2,7 @@ const sqlite3 = require('sqlite3').verbose();
 const fs = require('fs');
 const path = require('path');
 
-const DB_PATH = path.join(__dirname, 'database.sqlite');
+const DB_PATH = path.join(__dirname, 'transcendence.db');
 const SCHEMA_PATH = path.join(__dirname, 'schema.sql');
 
 function initDatabase() {
