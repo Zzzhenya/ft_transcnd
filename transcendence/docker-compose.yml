@@ -93,7 +93,22 @@ services:
   database:
     image: node:18-alpine
     working_dir: /app/shared
-    command: sh -c "chmod -R 777 /app/shared/database 2>/dev/null || true && npm install && npm run db:init && tail -f /dev/null"
+    command: >
+      sh -c "
+      echo '🔧 Setting up database permissions...' &&
+      mkdir -p database &&
+      chmod 777 database &&
+      echo '📦 Installing dependencies...' &&
+      npm install &&
+      echo '🗄️ Initializing database...' &&
+      npm run db:init &&
+      echo '✅ Setting final permissions...' &&
+      chmod 666 database/transcendence.db 2>/dev/null || true &&
+      chmod 666 database/transcendence.db-journal 2>/dev/null || true &&
+      echo '📊 Final permissions:' &&
+      ls -la database/ &&
+      tail -f /dev/null
+      "
     volumes:
       - ./shared:/app/shared
     environment:
