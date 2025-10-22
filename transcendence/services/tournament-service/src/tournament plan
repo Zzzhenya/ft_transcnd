@@ -181,7 +181,7 @@ src/
 
 
 <Route path="/tournament" element={<TournamentModeSelect />} />
-<Route path="/tournament/lobby" element={<TournamentLobby />} />
+<Route path="/tournament/lobby" element={<tournamentWaitingRoom />} />
 <Route path="/tournament/waiting/:id" element={<TournamentWaitingRoom />} />
 <Route path="/tournament/game/:matchId" element={<GamePage />} />
 <Route path="/tournament/result" element={<MatchResult />} />
