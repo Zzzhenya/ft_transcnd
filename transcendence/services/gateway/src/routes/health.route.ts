@@ -2,6 +2,9 @@
 // import { FastifyPluginAsync } from 'fastify'
 import type { FastifyHttpOptions, FastifyInstance, FastifyServerOptions, FastifyPluginAsync } from "fastify"
 
+const GAME_SERVICE_URL = process.env.GAME_SERVICE_URL || 'http://game-service:3002';
+const LOG_SERVICE_URL = process.env.LOG_SERVICE_URL || 'http://log-service:3003';
+
 const healthRoutes: FastifyPluginAsync = async (fastify) => {
 
 	fastify.get('/health', async (request, reply) => {
@@ -13,7 +16,7 @@ const healthRoutes: FastifyPluginAsync = async (fastify) => {
         try
         {
             fastify.log.error("Gateway received GET request for /game-service")
-            const response = await fetch('http://game-service:3002/health', {
+            const response = await fetch(`${GAME_SERVICE_URL}/health`, {
             method: 'GET',
             headers: {
             'Authorization': request.headers['authorization'] || '',
@@ -34,7 +37,7 @@ const healthRoutes: FastifyPluginAsync = async (fastify) => {
         try
         {
             fastify.log.error("Gateway received GET request for /log-service")
-            const response = await fetch('http://log-service:3003/health', {
+            const response = await fetch(`${LOG_SERVICE_URL}/health`, {
             method: 'GET',
             headers: {
             'Authorization': request.headers['authorization'] || '',
