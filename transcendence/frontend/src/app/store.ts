@@ -96,3 +96,12 @@ export function setMyMatchStatus(status: MatchStatus) {
 	state.myMatch.status = status;
 	emit();
 }
+
+export function clearAlias() {
+  // Remove from state
+  state.session.alias = undefined;
+  // Remove from storage
+  localStorage.removeItem("alias");
+  sessionStorage.removeItem("alias");
+  emit();
+}
