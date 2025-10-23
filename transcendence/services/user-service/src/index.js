@@ -90,6 +90,75 @@ fastify.post('/auth/login', async (request, reply) => {
   }
 });
 
+
+// ════════════════════════════════════════════════════════
+// GUEST LOGIN ENDPOINT
+// ════════════════════════════════════════════════════════
+fastify.post('/auth/guest', async (request, reply) => {
+  console.log('🎮 Guest login request received');
+  console.log('Body:', request.body);
+  
+  try {
+    const { alias } = request.body || {};
+    
+    // Generate unique guest ID
+    const timestamp = Date.now().toString(36);
+    const random = Math.random().toString(36).substring(2, 6);
+    const guestId = `${timestamp}${random}`;
+    
+    // Use provided alias or generate username
+    const username = alias || `Guest_${guestId.substring(0, 8)}`;
+    const email = `${guestId}@guest.local`;
+    
+    console.log('📝 Creating guest:', username);
+
+    // Hash a random password
+    const password_hash = await bcrypt.hash(guestId, 10);
+
+    // Create guest user
+    const guestUser = await User.create({
+      username,
+      email,
+      password_hash,
+      is_guest: 1
+    });
+
+    console.log('✅ Guest created with ID:', guestUser.id);
+
+    // Generate token
+    const token = jwt.sign(
+      { 
+        userId: guestUser.id, 
+        username: guestUser.username,
+        isGuest: true 
+      },
+      JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+
+    return reply.code(201).send({
+      success: true,
+      message: 'Guest user created',
+      user: {
+        id: guestUser.id,
+        username: guestUser.username,
+        email: guestUser.email,
+        is_guest: true
+      },
+      token
+    });
+  } catch (error) {
+    console.error('❌ Guest login error:', error.message);
+    
+    return reply.code(500).send({ 
+      success: false,
+      message: 'Failed to create guest user', 
+      error: error.message
+    });
+  }
+});
+
+
 // Get profile endpoint (protected)
 fastify.get('/auth/profile', {
   preHandler: fastify.authenticate
