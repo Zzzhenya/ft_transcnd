@@ -2,6 +2,8 @@
 
 import type { FastifyHttpOptions, FastifyInstance, FastifyServerOptions, FastifyPluginAsync } from "fastify"
 
+const USER_SERVICE_URL = process.env.USER_SERVICE_URL || 'http://user-service:3001';
+
 const userRoutes: FastifyPluginAsync = async (fastify) => {
 
 // route:/user-service/health for user-service
@@ -9,7 +11,7 @@ const userRoutes: FastifyPluginAsync = async (fastify) => {
 	    try
 	    {
 	        fastify.log.error("Gateway received GET request for /users")
-	        const response = await fetch('http://user-service:3001/health', {
+	        const response = await fetch(`${USER_SERVICE_URL}/health`, {
 	        method: 'GET',
 	        headers: {
 	        'Authorization': request.headers['authorization'] || '',
@@ -30,7 +32,7 @@ const userRoutes: FastifyPluginAsync = async (fastify) => {
 		{
 			fastify.log.info("Gateway received POST request for /register")
 			fastify.log.info({ body: request.body }, "Request body")
-			const response = await fetch('http://user-service:3001/auth/register', {
+			const response = await fetch(`${USER_SERVICE_URL}/auth/register`, {
 			method: 'POST',
 			headers: {
 			'Content-Type': 'application/json',
@@ -50,7 +52,7 @@ const userRoutes: FastifyPluginAsync = async (fastify) => {
 		try
 		{
 			fastify.log.error("Gateway received POST request for /login")
-			const response = await fetch('http://user-service:3001/auth/login', {
+			const response = await fetch(`${USER_SERVICE_URL}/auth/login`, {
 			method: 'POST',
 			headers: {
 			'Content-Type': 'application/json',
@@ -70,7 +72,7 @@ const userRoutes: FastifyPluginAsync = async (fastify) => {
 		try
 		{
 			fastify.log.error("Gateway received GET request for /profile")
-			const response = await fetch('http://user-service:3001/auth/profile', {
+			const response = await fetch(`${USER_SERVICE_URL}/auth/profile`, {
 			method: 'GET',
 			headers: {
 			'Authorization': request.headers['authorization'] || '',
