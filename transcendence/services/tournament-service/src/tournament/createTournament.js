@@ -44,7 +44,7 @@ fastify.post('/tournaments/:id/join', async (request, reply) => {
 });
 
 export function startServer() {
-fastify.listen({ port: 3000 }, (err, address) => {
+fastify.listen({ port: 3005 }, (err, address) => {
   if (err) {
     fastify.log.error(err);
     process.exit(1);
