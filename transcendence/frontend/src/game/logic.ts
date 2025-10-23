@@ -1,5 +1,6 @@
 import { DefaultConfig, createBall } from "./state";
 import type { GameConfig, GameState, PlayerSide } from "./state";
+import { courtRect } from "./system";
 
 // Helpters for [f]:serveBall()
 // Generate random number to choose which players start the game first with service.
@@ -84,14 +85,11 @@ export function serveBall(
 	if (to === "left")	// to: left means send the ball right to left. need (-1) direction.
 		direction = -1;
 
-	// Find the center point(x, y) of court.
-	const centerX = config.court.width / 2;
-	const centerY = config.court.height / 2;
-
 	// Place the ball in the middle of the court.
-	state.ball.pos.x = centerX;
-	state.ball.pos.y = centerY;
-	
+	const r = courtRect(config);
+	state.ball.pos.x = r.x + r.w / 2;
+	state.ball.pos.y = r.y + r.h / 2;
+
 	// Calculate velocity vector of the ball (vx, vy): formula.
 	state.ball.vel.x = Math.cos(angleRad) * speed * direction;
 	state.ball.vel.y = Math.sin(angleRad) * speed;
@@ -101,9 +99,15 @@ export function serveBall(
 }
 
 export function resetRound(state: GameState, config: GameConfig = DefaultConfig): void {
+	const r = courtRect(config);
+
+	// Put paddle's X position back in each outline of court.
+	state.leftPaddle.posX  = r.x + config.court.gutter;
+	state.rightPaddle.posX = r.right - config.court.gutter - config.paddle.width;
+	
 	// Put both paddle's Y position back in the middle of the court.
-	state.leftPaddle.posY = (config.court.height - config.paddle.height) / 2;
-	state.rightPaddle.posY = (config.court.height - config.paddle.height) / 2;
+	state.leftPaddle.posY  = r.y + (r.h - config.paddle.height) / 2;
+	state.rightPaddle.posY = r.y + (r.h - config.paddle.height) / 2;
 
 	// Put both paddle's vy back to 0. init
 	state.leftPaddle.vy = 0;

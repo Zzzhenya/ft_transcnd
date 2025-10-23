@@ -12,9 +12,6 @@ export default function (
 				Game <span class="text-sm font-normal text-gray-500">(id: ${matchId})</span>
 			</h1>
 
-			<!-- BEFORE: Canvas placeholder -->
-			<!-- <canvas id="gameCanvas" width="800" height="450" class="w-full max-w-full border rounded"></canvas> -->
-
 			<div id="game-root" class="w-full"></div>
 
 			<!-- HUD slots placeholder -->
@@ -24,7 +21,11 @@ export default function (
 			</div>
     	</section>`;
 
-  const host = root.querySelector<HTMLDivElement>("#game-root")!;
-  const cleanup = mountGame(host); // mount.ts does createCanvas, loop, listner.
-  return () => cleanup();
+	const host = root.querySelector<HTMLDivElement>("#game-root")!;
+
+	// mount.ts does createCanvas, loop, listener.
+	const cleanup = mountGame(host);
+	return () => {
+		cleanup();
+	};
 }

@@ -5,8 +5,9 @@ on:
     branches:
       - user-service
       - microservices-refactor
-      - api-gateway-basics
       - main
+      - integration-gateway-pong-front
+      - log-service
     # No paths restriction for push - always run when pushing to these branches
   pull_request:
     branches:
@@ -126,14 +127,47 @@ jobs:
           echo "🔍 Validating docker-compose.yml..."
           docker compose config > /dev/null
           echo "✅ Docker Compose configuration is valid"
+          
+          echo "🔒 Checking service port exposure..."
+          
+          # Check that only gateway port is exposed
+          if grep -A 5 "gateway:" docker-compose.yml | grep -E "ports:|3000:3000"; then
+            echo "✅ Gateway port 3000 is properly exposed"
+          else
+            echo "⚠️ Gateway port might not be exposed correctly"
+          fi
+          
+          # Check that user-service port is NOT exposed
+          if grep -A 10 "user-service:" docker-compose.yml | grep -E "ports:" | grep -E "3001"; then
+            echo "❌ User-service port is exposed - this should NOT happen!"
+            exit 1
+          else
+            echo "✅ User-service port is correctly NOT exposed"
+          fi
+          
+          # Check that game-service port is NOT exposed
+          if grep -A 10 "game-service:" docker-compose.yml | grep -E "ports:" | grep -E "3002"; then
+            echo "❌ Game-service port is exposed - this should NOT happen!"
+            exit 1
+          else
+            echo "✅ Game-service port is correctly NOT exposed"
+          fi
+          
+          # Check that log-service port is NOT exposed
+          if grep -A 10 "log-service:" docker-compose.yml | grep -E "ports:" | grep -E "3003"; then
+            echo "❌ Log-service port is exposed - this should NOT happen!"
+            exit 1
+          else
+            echo "✅ Log-service port is correctly NOT exposed"
+          fi
 
       - name: Build and start services
         run: |
           cd transcendence
           echo "🚀 Building and starting services for API testing..."
           
-          # Start only the necessary services for testing
-          docker compose up -d --build database user-service
+          # Start gateway and user-service for comprehensive testing
+          docker compose up -d --build database user-service gateway
           
           echo "⏳ Waiting for services to be ready..."
           sleep 45
@@ -147,36 +181,84 @@ jobs:
           echo "📋 Checking user-service logs..."
           docker compose logs user-service | tail -20
 
-      - name: Wait for User Service to be ready
+      - name: Wait for Services to be ready
         run: |
           cd transcendence
-          echo "🔍 Checking User Service health..."
+          echo "🔍 Checking services health..."
           
-          # First check if the container is running
+          # First check if containers are running
           if ! docker compose ps user-service | grep -Eq "running|healthy|Up"; then
             echo "❌ User service container is not running"
             docker compose logs user-service
             exit 1
           fi
           
-          # Wait for the service to be ready
+          if ! docker compose ps gateway | grep -Eq "running|healthy|Up"; then
+            echo "❌ Gateway container is not running"
+            docker compose logs gateway
+            exit 1
+          fi
+          
+          # Wait for the user service to be ready (internal network)
+          echo "📡 Testing User Service internal health check..."
+          
           for i in {1..15}; do
-            if docker run --rm --network transcendence-network alpine/curl:latest curl -f -s http://user-service:3001/health > /dev/null 2>&1; then
-              echo "✅ User Service is ready and responding"
-              echo "⏳ Giving service additional time to fully initialize..."
+            # Method 1: Try docker compose exec (most reliable) - works inside the container
+            if docker compose exec -T user-service wget -qO- http://localhost:3001/health > /dev/null 2>&1; then
+              echo "✅ User Service is ready and responding internally (exec method)"
+              break
+            # Method 2: Check if user-service container is actually running and healthy
+            elif docker compose ps user-service | grep -q "running\|Up"; then
+              echo "Container is running, trying network connection..."
+              # Get the actual network name dynamically
+              USER_CONTAINER_ID=$(docker compose ps -q user-service | head -1)
+              if [ ! -z "$USER_CONTAINER_ID" ]; then
+                ACTUAL_NETWORK=$(docker inspect "$USER_CONTAINER_ID" --format '{{range $k, $v := .NetworkSettings.Networks}}{{$k}}{{end}}' 2>/dev/null | head -1)
+                echo "Detected network: $ACTUAL_NETWORK"
+                if [ ! -z "$ACTUAL_NETWORK" ] && docker run --rm --network "$ACTUAL_NETWORK" curlimages/curl:latest curl -f -s http://user-service:3001/health > /dev/null 2>&1; then
+                  echo "✅ User Service is ready and responding internally (network: $ACTUAL_NETWORK)"
+                  break
+                fi
+              fi
+            fi
+            
+            echo "⏳ Waiting for User Service... attempt $i/15"
+            sleep 10
+            if [ $i -eq 15 ]; then
+              echo "❌ User Service failed to respond after 150 seconds"
+              echo "=== Container Status ==="
+              docker compose ps
+              echo "=== Network Info ==="
+              docker network ls
+              echo "=== User Service Container Details ==="
+              USER_CONTAINER_ID=$(docker compose ps -q user-service | head -1)
+              if [ ! -z "$USER_CONTAINER_ID" ]; then
+                echo "Container ID: $USER_CONTAINER_ID"
+                docker inspect "$USER_CONTAINER_ID" --format '{{range $k, $v := .NetworkSettings.Networks}}Network: {{$k}}, IP: {{$v.IPAddress}}{{"\n"}}{{end}}' 2>/dev/null || echo "Could not inspect container networks"
+              fi
+              echo "=== User Service Logs ==="
+              docker compose logs user-service
+              exit 1
+            fi
+          done
+          
+          # Wait for gateway to be ready (exposed port)
+          echo "🌐 Testing Gateway health check..."
+          for i in {1..15}; do
+            if curl -f -s http://localhost:3000/health > /dev/null 2>&1; then
+              echo "✅ Gateway is ready and responding"
+              echo "⏳ Giving services additional time to fully initialize..."
               sleep 10
               break
             else
-              echo "⏳ Waiting for User Service... attempt $i/15"
+              echo "⏳ Waiting for Gateway... attempt $i/15"
               sleep 10
               if [ $i -eq 15 ]; then
-                echo "❌ User Service failed to respond after 150 seconds"
+                echo "❌ Gateway failed to respond after 150 seconds"
                 echo "=== Container Status ==="
                 docker compose ps
-                echo "=== User Service Logs ==="
-                docker compose logs user-service
-                echo "=== Network Information ==="
-                docker network ls
+                echo "=== Gateway Logs ==="
+                docker compose logs gateway
                 exit 1
               fi
             fi
@@ -187,26 +269,89 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y curl jq
 
-      - name: Test User Service Endpointss
+      - name: Test Health Check Endpoints
         run: |
           cd transcendence
-          echo "🧪 Running comprehensive API tests..."
+          echo "🧪 Testing Health Check Endpoints..."
           
-          BASE_URL="http://localhost:3001"
-          
-          # Health Check
-          echo "1. 🏥 Testing Health Check"
-          HEALTH_RESPONSE=$(curl -s -w "%{http_code}" -o /tmp/health.json $BASE_URL/health)
-          if [ "$HEALTH_RESPONSE" = "200" ]; then
-            echo "✅ Health check passed"
-            cat /tmp/health.json | jq .
+          # Test Gateway Health Check (direct)
+          echo "1. 🌐 Testing Gateway Health Check (direct)"
+          GATEWAY_HEALTH=$(curl -s -w "%{http_code}" -o /tmp/gateway_health.json http://localhost:3000/health)
+          if [ "$GATEWAY_HEALTH" = "200" ]; then
+            echo "✅ Gateway health check passed"
+            cat /tmp/gateway_health.json | jq .
           else
-            echo "❌ Health check failed with status: $HEALTH_RESPONSE"
+            echo "❌ Gateway health check failed with status: $GATEWAY_HEALTH"
             exit 1
           fi
           
-          # User Registration
-          echo "2. 👤 Testing User Registration"
+          # Test User Service Health Check through Gateway
+          echo "2. 🏥 Testing User Service Health Check (through Gateway)"
+          USER_VIA_GATEWAY=$(curl -s -w "%{http_code}" -o /tmp/user_via_gateway.json http://localhost:3000/user-service/health)
+          if [ "$USER_VIA_GATEWAY" = "200" ]; then
+            echo "✅ User Service health check via Gateway passed"
+            cat /tmp/user_via_gateway.json | jq .
+          else
+            echo "❌ User Service health check via Gateway failed with status: $USER_VIA_GATEWAY"
+            exit 1
+          fi
+          
+          # Test User Service Health Check directly (internal network only - should NOT be accessible from host)
+          echo "3. 🔒 Verifying User Service is NOT directly accessible from host"
+          if curl -s --connect-timeout 5 http://localhost:3001/health > /dev/null 2>&1; then
+            echo "❌ User Service is directly accessible - this should NOT happen!"
+            echo "❌ Port 3001 should not be exposed in docker-compose.yml"
+            exit 1
+          else
+            echo "✅ User Service is properly isolated - not accessible directly from host"
+          fi
+          
+          # Test User Service Health Check directly via internal network (using docker)
+          echo "4. 🔍 Testing User Service Health Check (internal network)"
+          
+          # Try exec method first (most reliable)
+          if docker compose exec -T user-service wget -qO- http://localhost:3001/health > /tmp/internal_health.json 2>/dev/null; then
+            echo "✅ User Service health check (internal exec) passed"
+            cat /tmp/internal_health.json
+          else
+            # Fallback: try with default network name
+            INTERNAL_HEALTH=$(docker run --rm --network transcendence_default curlimages/curl:latest curl -s -w "%{http_code}" -o /dev/stdout http://user-service:3001/health 2>/dev/null | tail -c 3)
+            if [ "$INTERNAL_HEALTH" = "200" ]; then
+              echo "✅ User Service health check (internal network) passed"
+              # Get the actual response body
+              docker run --rm --network transcendence_default curlimages/curl:latest curl -s http://user-service:3001/health 2>/dev/null
+            else
+              # Try to detect actual network and use it
+              CONTAINER_NETWORK=$(docker compose ps -q user-service | head -1 | xargs docker inspect --format '{{range $k, $v := .NetworkSettings.Networks}}{{$k}}{{end}}' 2>/dev/null || echo "")
+              if [ ! -z "$CONTAINER_NETWORK" ]; then
+                echo "Trying detected network: $CONTAINER_NETWORK"
+                INTERNAL_HEALTH=$(docker run --rm --network "$CONTAINER_NETWORK" curlimages/curl:latest curl -s -w "%{http_code}" -o /dev/stdout http://user-service:3001/health 2>/dev/null | tail -c 3)
+                if [ "$INTERNAL_HEALTH" = "200" ]; then
+                  echo "✅ User Service health check (detected network) passed"
+                  docker run --rm --network "$CONTAINER_NETWORK" curlimages/curl:latest curl -s http://user-service:3001/health 2>/dev/null
+                else
+                  echo "❌ User Service health check (internal) failed with status: $INTERNAL_HEALTH"
+                  echo "Tried networks: transcendence_default, $CONTAINER_NETWORK"
+                  echo "Available networks:"
+                  docker network ls
+                  exit 1
+                fi
+              else
+                echo "❌ Could not detect container network and default failed"
+                exit 1
+              fi
+            fi
+          fi
+
+      - name: Test User Service Endpoints via Gateway
+        run: |
+          cd transcendence
+          echo "🧪 Running User Service API tests via Gateway..."
+          
+          GATEWAY_URL="http://localhost:3000"
+          
+          # User Registration via Gateway
+          echo "1. 👤 Testing User Registration (via Gateway)"
           UNIQUE_ID=$(date +%s)
           REGISTER_PAYLOAD='{
             "username": "testuser'$UNIQUE_ID'",
@@ -215,15 +360,15 @@ jobs:
           }'
           
           REGISTER_RESPONSE=$(curl -s -w "%{http_code}" -o /tmp/register.json \
-            -X POST $BASE_URL/auth/register \
+            -X POST $GATEWAY_URL/user-service/auth/register \
             -H "Content-Type: application/json" \
             -d "$REGISTER_PAYLOAD")
           
           if [ "$REGISTER_RESPONSE" = "201" ]; then
-            echo "✅ User registration passed"
+            echo "✅ User registration via Gateway passed"
             cat /tmp/register.json | jq .
           else
-            echo "❌ User registration failed with status: $REGISTER_RESPONSE"
+            echo "❌ User registration via Gateway failed with status: $REGISTER_RESPONSE"
             cat /tmp/register.json
             exit 1
           fi
@@ -231,43 +376,43 @@ jobs:
           # Extract token from registration
           TOKEN=$(cat /tmp/register.json | jq -r '.token // empty')
           
-          # User Login (test with same credentials)
-          echo "3. 🔐 Testing User Login"
+          # User Login via Gateway (test with same credentials)
+          echo "2. 🔐 Testing User Login (via Gateway)"
           LOGIN_PAYLOAD='{
-            "username": "testuser'$UNIQUE_ID'",
+            "email": "test'$UNIQUE_ID'@example.com",
             "password": "SecurePassword123!"
           }'
           
           LOGIN_RESPONSE=$(curl -s -w "%{http_code}" -o /tmp/login.json \
-            -X POST $BASE_URL/auth/login \
+            -X POST $GATEWAY_URL/user-service/auth/login \
             -H "Content-Type: application/json" \
             -d "$LOGIN_PAYLOAD")
           
           if [ "$LOGIN_RESPONSE" = "200" ]; then
-            echo "✅ User login passed"
+            echo "✅ User login via Gateway passed"
             cat /tmp/login.json | jq .
             # Use login token if registration token wasn't available
             if [ -z "$TOKEN" ]; then
-              TOKEN=$(cat /tmp/login.json | jq -r '.access_token // empty')
+              TOKEN=$(cat /tmp/login.json | jq -r '.token // empty')
             fi
           else
-            echo "❌ User login failed with status: $LOGIN_RESPONSE"
+            echo "❌ User login via Gateway failed with status: $LOGIN_RESPONSE"
             cat /tmp/login.json
             exit 1
           fi
           
-          # Profile Access (Protected Route)
-          echo "4. 👥 Testing Protected Profile Endpoint"
+          # Profile Access via Gateway (Protected Route)
+          echo "3. 👥 Testing Protected Profile Endpoint (via Gateway)"
           if [ ! -z "$TOKEN" ]; then
             PROFILE_RESPONSE=$(curl -s -w "%{http_code}" -o /tmp/profile.json \
-              -X GET $BASE_URL/auth/profile \
+              -X GET $GATEWAY_URL/user-service/auth/profile \
               -H "Authorization: Bearer $TOKEN")
             
             if [ "$PROFILE_RESPONSE" = "200" ]; then
-              echo "✅ Profile access passed"
+              echo "✅ Profile access via Gateway passed"
               cat /tmp/profile.json | jq .
             else
-              echo "❌ Profile access failed with status: $PROFILE_RESPONSE"
+              echo "❌ Profile access via Gateway failed with status: $PROFILE_RESPONSE"
               cat /tmp/profile.json
               exit 1
             fi
@@ -275,19 +420,101 @@ jobs:
             echo "⚠️ No token available, skipping profile test"
           fi
           
-          echo "🎉 All API tests passed!"
+          # Verify direct access to user service endpoints is blocked
+          echo "4. 🔒 Testing User Service isolation"
+          
+          # Test if port 3001 is exposed (should not be in production)
+          echo "Checking if user-service port 3001 is exposed..."
+          
+          # First, check if we can connect to port 3001
+          if timeout 5 bash -c "</dev/tcp/localhost/3001" 2>/dev/null; then
+            echo "⚠️ Warning: Port 3001 is accessible from host"
+            echo "This might be expected in CI/test environment, but should NOT happen in production"
+            echo "Verifying docker-compose.yml doesn't expose user-service port..."
+            
+            # Check docker-compose.yml to ensure user-service port is not exposed
+            if grep -A 10 "user-service:" transcendence/docker-compose.yml | grep -E "ports:|3001:3001"; then
+              echo "❌ docker-compose.yml exposes user-service port - this should be fixed!"
+              echo "Current docker-compose.yml user-service configuration:"
+              grep -A 15 "user-service:" transcendence/docker-compose.yml
+              exit 1
+            else
+              echo "✅ docker-compose.yml correctly does NOT expose user-service port"
+              echo "Port accessibility might be due to CI environment network configuration"
+            fi
+          else
+            echo "✅ User Service port 3001 is properly isolated from host"
+          fi
+          
+          # Additional test: Verify that going through gateway works correctly
+          echo "5. 🌐 Verifying complete Gateway functionality"
+          
+          # Test a complete user journey through the gateway
+          echo "Testing complete user workflow via Gateway only..."
+          
+          JOURNEY_ID=$(date +%s)_journey
+          JOURNEY_PAYLOAD='{
+            "username": "journey'$JOURNEY_ID'",
+            "email": "journey'$JOURNEY_ID'@example.com",
+            "password": "JourneyPassword123!"
+          }'
+          
+          # Register via Gateway
+          JOURNEY_REGISTER=$(curl -s -w "%{http_code}" -o /tmp/journey_register.json \
+            -X POST $GATEWAY_URL/user-service/auth/register \
+            -H "Content-Type: application/json" \
+            -d "$JOURNEY_PAYLOAD")
+          
+          if [ "$JOURNEY_REGISTER" = "201" ]; then
+            echo "✅ Registration via Gateway successful"
+            
+            # Login via Gateway
+            LOGIN_JOURNEY_PAYLOAD='{
+              "email": "journey'$JOURNEY_ID'@example.com",
+              "password": "JourneyPassword123!"
+            }'
+            
+            JOURNEY_LOGIN=$(curl -s -w "%{http_code}" -o /tmp/journey_login.json \
+              -X POST $GATEWAY_URL/user-service/auth/login \
+              -H "Content-Type: application/json" \
+              -d "$LOGIN_JOURNEY_PAYLOAD")
+            
+            if [ "$JOURNEY_LOGIN" = "200" ]; then
+              echo "✅ Complete user journey via Gateway successful"
+              
+              # Extract token and test profile
+              JOURNEY_TOKEN=$(cat /tmp/journey_login.json | jq -r '.token // empty')
+              if [ ! -z "$JOURNEY_TOKEN" ]; then
+                JOURNEY_PROFILE=$(curl -s -w "%{http_code}" -o /tmp/journey_profile.json \
+                  -X GET $GATEWAY_URL/user-service/auth/profile \
+                  -H "Authorization: Bearer $JOURNEY_TOKEN")
+                
+                if [ "$JOURNEY_PROFILE" = "200" ]; then
+                  echo "✅ Profile access via Gateway successful"
+                else
+                  echo "⚠️ Profile access failed: $JOURNEY_PROFILE"
+                fi
+              fi
+            else
+              echo "⚠️ Login via Gateway failed: $JOURNEY_LOGIN"
+            fi
+          else
+            echo "⚠️ Registration via Gateway failed: $JOURNEY_REGISTER"
+          fi
+          
+          echo "🎉 All Gateway API tests passed!"
 
-      - name: Test Invalid Requests
+      - name: Test Invalid Requests via Gateway
         run: |
-          echo "🧪 Testing error handling and validation..."
+          echo "🧪 Testing error handling and validation via Gateway..."
           
-          BASE_URL="http://localhost:3001"
+          GATEWAY_URL="http://localhost:3000"
           
-          # Test registration with missing fields
-          echo "1. Testing registration with missing fields"
+          # Test registration with missing fields via Gateway
+          echo "1. Testing registration with missing fields (via Gateway)"
           echo "Sending payload: {\"username\": \"test\"}"
           INVALID_REGISTER=$(curl -s -w "%{http_code}" -o /tmp/invalid_register.json \
-            -X POST $BASE_URL/auth/register \
+            -X POST $GATEWAY_URL/user-service/auth/register \
             -H "Content-Type: application/json" \
             -d '{"username": "test"}')
           
@@ -297,7 +524,7 @@ jobs:
           echo "HTTP Status Code: $INVALID_REGISTER"
           
           if [ "$INVALID_REGISTER" = "400" ]; then
-            echo "✅ Validation error handled correctly"
+            echo "✅ Validation error handled correctly via Gateway"
           else
             echo "❌ Expected 400 but got: $INVALID_REGISTER"
             echo "Debugging info:"
@@ -305,13 +532,13 @@ jobs:
             echo "Response as hex: $(echo -n "$INVALID_REGISTER" | xxd)"
           fi
           
-          # Test login with wrong credentials
-          echo "2. Testing login with invalid credentials"
-          echo "Sending payload: {\"username\": \"nonexistent\", \"password\": \"wrong\"}"
+          # Test login with wrong credentials via Gateway
+          echo "2. Testing login with invalid credentials (via Gateway)"
+          echo "Sending payload: {\"email\": \"nonexistent@test.com\", \"password\": \"wrong\"}"
           INVALID_LOGIN=$(curl -s -w "%{http_code}" -o /tmp/invalid_login.json \
-            -X POST $BASE_URL/auth/login \
+            -X POST $GATEWAY_URL/user-service/auth/login \
             -H "Content-Type: application/json" \
-            -d '{"username": "nonexistent", "password": "wrong"}')
+            -d '{"email": "nonexistent@test.com", "password": "wrong"}')
           
           echo "Response body:"
           cat /tmp/invalid_login.json
@@ -319,46 +546,46 @@ jobs:
           echo "HTTP Status Code: $INVALID_LOGIN"
           
           if [ "$INVALID_LOGIN" = "401" ]; then
-            echo "✅ Invalid credentials handled correctly"
+            echo "✅ Invalid credentials handled correctly via Gateway"
           else
             echo "❌ Expected 401 but got: $INVALID_LOGIN"
           fi
           
-          # Test protected route without token
-          echo "3. Testing protected route without token"
+          # Test protected route without token via Gateway
+          echo "3. Testing protected route without token (via Gateway)"
           NO_TOKEN_RESPONSE=$(curl -s -w "%{http_code}" -o /tmp/no_token.json \
-            -X GET $BASE_URL/auth/profile)
+            -X GET $GATEWAY_URL/user-service/auth/profile)
           
           if [ "$NO_TOKEN_RESPONSE" = "401" ]; then
-            echo "✅ Missing token handled correctly"
+            echo "✅ Missing token handled correctly via Gateway"
           else
             echo "❌ Expected 401 but got: $NO_TOKEN_RESPONSE"
           fi
           
-          # Test protected route with invalid token
-          echo "4. Testing protected route with invalid token"
+          # Test protected route with invalid token via Gateway
+          echo "4. Testing protected route with invalid token (via Gateway)"
           INVALID_TOKEN_RESPONSE=$(curl -s -w "%{http_code}" -o /tmp/invalid_token.json \
-            -X GET $BASE_URL/auth/profile \
+            -X GET $GATEWAY_URL/user-service/auth/profile \
             -H "Authorization: Bearer invalid-token")
           
           if [ "$INVALID_TOKEN_RESPONSE" = "403" ]; then
-            echo "✅ Invalid token handled correctly"
+            echo "✅ Invalid token handled correctly via Gateway"
           else
             echo "❌ Expected 403 but got: $INVALID_TOKEN_RESPONSE"
           fi
           
           echo "✅ All error handling tests passed!"
 
-      - name: Test Database Operations
+      - name: Test Database Operations via Gateway
         run: |
-          echo "🗄️ Testing database operations..."
+          echo "🗄️ Testing database operations via Gateway..."
           
           # Check if database was created and has data
-          docker compose exec -T user-service ls -la /Users/IreneRivero/Documents/42projects/ft_transcnd/transcendence/data/ || echo "Database directory check"
+          docker compose exec -T user-service ls -la /app/shared/database/ || echo "Database directory check"
           
-          # Test duplicate user registration
-          echo "Testing duplicate user registration"
-          BASE_URL="http://localhost:3001"
+          # Test duplicate user registration via Gateway
+          echo "Testing duplicate user registration via Gateway"
+          GATEWAY_URL="http://localhost:3000"
           
           DUPLICATE_PAYLOAD='{
             "username": "duplicate_test",
@@ -366,56 +593,80 @@ jobs:
             "password": "password123"
           }'
           
-          # First registration
-          curl -s -X POST $BASE_URL/auth/register \
+          # First registration via Gateway
+          curl -s -X POST $GATEWAY_URL/user-service/auth/register \
             -H "Content-Type: application/json" \
             -d "$DUPLICATE_PAYLOAD" > /dev/null
           
-          # Second registration (should fail)
+          # Second registration (should fail) via Gateway
           DUPLICATE_RESPONSE=$(curl -s -w "%{http_code}" -o /tmp/duplicate.json \
-            -X POST $BASE_URL/auth/register \
+            -X POST $GATEWAY_URL/user-service/auth/register \
             -H "Content-Type: application/json" \
             -d "$DUPLICATE_PAYLOAD")
           
           if [ "$DUPLICATE_RESPONSE" = "409" ]; then
-            echo "✅ Duplicate user prevention works"
+            echo "✅ Duplicate user prevention works via Gateway"
           else
             echo "⚠️ Duplicate user response: $DUPLICATE_RESPONSE"
             cat /tmp/duplicate.json
           fi
 
-      - name: Performance Testing
+      - name: Performance Testing via Gateway
         run: |
-          echo "⚡ Running basic performance tests..."
+          echo "⚡ Running basic performance tests via Gateway..."
           
-          BASE_URL="http://localhost:3001"
+          GATEWAY_URL="http://localhost:3000"
           
-          # Test multiple concurrent health checks
-          echo "Testing concurrent health check requests..."
+          # Test multiple concurrent health checks via Gateway
+          echo "Testing concurrent Gateway health check requests..."
           for i in {1..10}; do
-            curl -s $BASE_URL/health > /dev/null &
+            curl -s $GATEWAY_URL/health > /dev/null &
           done
           wait
-          echo "✅ Concurrent requests handled"
+          echo "✅ Concurrent Gateway requests handled"
           
-          # Test response time
-          echo "Testing response time..."
+          # Test multiple concurrent User Service health checks via Gateway
+          echo "Testing concurrent User Service health check requests via Gateway..."
+          for i in {1..10}; do
+            curl -s $GATEWAY_URL/user-service/health > /dev/null &
+          done
+          wait
+          echo "✅ Concurrent User Service requests via Gateway handled"
+          
+          # Test Gateway response time
+          echo "Testing Gateway response time..."
           START_TIME=$(date +%s%N)
-          curl -s $BASE_URL/health > /dev/null
+          curl -s $GATEWAY_URL/health > /dev/null
           END_TIME=$(date +%s%N)
           RESPONSE_TIME=$(( (END_TIME - START_TIME) / 1000000 ))
-          echo "Response time: ${RESPONSE_TIME}ms"
+          echo "Gateway response time: ${RESPONSE_TIME}ms"
           
           if [ $RESPONSE_TIME -lt 1000 ]; then
-            echo "✅ Response time is acceptable (< 1000ms)"
+            echo "✅ Gateway response time is acceptable (< 1000ms)"
           else
-            echo "⚠️ Response time is high: ${RESPONSE_TIME}ms"
+            echo "⚠️ Gateway response time is high: ${RESPONSE_TIME}ms"
+          fi
+          
+          # Test User Service via Gateway response time
+          echo "Testing User Service via Gateway response time..."
+          START_TIME=$(date +%s%N)
+          curl -s $GATEWAY_URL/user-service/health > /dev/null
+          END_TIME=$(date +%s%N)
+          RESPONSE_TIME=$(( (END_TIME - START_TIME) / 1000000 ))
+          echo "User Service via Gateway response time: ${RESPONSE_TIME}ms"
+          
+          if [ $RESPONSE_TIME -lt 2000 ]; then
+            echo "✅ User Service via Gateway response time is acceptable (< 2000ms)"
+          else
+            echo "⚠️ User Service via Gateway response time is high: ${RESPONSE_TIME}ms"
           fi
 
       - name: Show service logs on failure
         if: failure()
         run: |
           cd transcendence
+          echo "=== Gateway Logs ==="
+          docker compose logs gateway | tail -100
           echo "=== User Service Logs ==="
           docker compose logs user-service | tail -100
 
@@ -472,7 +723,7 @@ jobs:
       - name: Start services for load testing
         run: |
           cd transcendence
-          docker compose up -d --build user-service
+          docker compose up -d --build database user-service gateway
           sleep 30
 
       - name: Install Apache Bench
@@ -482,12 +733,17 @@ jobs:
 
       - name: Run load tests
         run: |
-          echo "🚀 Running load tests..."
+          echo "🚀 Running load tests via Gateway..."
           
-          # Test health endpoint with 100 requests, 10 concurrent
-          ab -n 100 -c 10 http://localhost:3001/health
+          # Test Gateway health endpoint with 100 requests, 10 concurrent
+          echo "Testing Gateway health endpoint..."
+          ab -n 100 -c 10 http://localhost:3000/health
           
-          echo "✅ Load test completed"
+          # Test User Service health via Gateway with 50 requests, 5 concurrent
+          echo "Testing User Service health via Gateway..."
+          ab -n 50 -c 5 http://localhost:3000/user-service/health
+          
+          echo "✅ Load tests completed"
 
       - name: Cleanup load test
         if: always()

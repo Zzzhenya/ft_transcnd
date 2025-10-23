@@ -1,4 +1,5 @@
 import type { GameConfig, GameState } from "./state";
+import { courtRect } from "./system";
 
 export function applyInput(
 	state: GameState,
@@ -13,9 +14,15 @@ export function applyInput(
 	L.vy = (input.state.upLeft ? -1 : 0) + (input.state.dwLeft ? 1 : 0);
 	R.vy = (input.state.upRight ? -1 : 0) + (input.state.dwRight ? 1 : 0);
 
-	const maxY = cfg.court.height - cfg.paddle.height;
-	L.posY = Math.max(0, Math.min(maxY, L.posY + L.vy * sp * dt));
-	R.posY = Math.max(0, Math.min(maxY, R.posY + R.vy * sp * dt));
+	L.posY += L.vy * sp * dt;
+	R.posY += R.vy * sp * dt;
+
+	const r = courtRect(cfg);
+	const minY = r.top;
+	const maxY = r.bottom - cfg.paddle.height;
+
+	L.posY = Math.max(minY, Math.min(maxY, L.posY));
+	R.posY = Math.max(minY, Math.min(maxY, R.posY));
 }
 
 /*
@@ -31,20 +38,23 @@ export function stepPhysics(
 	dt: number
 ): "left" | "right" | null {
 
-	if (state.status !== "playing") return null;
+	if (state.status !== "playing")
+		return null;
 
-	const b = state.ball, r = b.radius, w = cfg.court.width, h = cfg.court.height;
+	const b = state.ball;
+	const r = b.radius;
+	const rec = courtRect(cfg);
 
 	b.pos.x += b.vel.x * dt;
 	b.pos.y += b.vel.y * dt;
 
 	// Top / Bottom wall
-	if (b.pos.y - r <= 0 && b.vel.y < 0) {
-		b.pos.y = r;
+	if (b.pos.y - r <= rec.top && b.vel.y < 0) {
+		b.pos.y = r + rec.top;
 		b.vel.y *= -1;
 	}
-	if (b.pos.y + r >= h && b.vel.y > 0) {
-		b.pos.y = h - r;
+	if (b.pos.y + r >= rec.bottom && b.vel.y > 0) {
+		b.pos.y = rec.bottom - r;
 		b.vel.y *= -1;
 	}
 		
@@ -54,6 +64,7 @@ export function stepPhysics(
     
 		if (!inY)
 			return;
+
 		if (dir === "L") {
       		const cond = b.pos.x - r <= p.posX + p.width && b.vel.x < 0 && b.pos.x > p.posX;
       		if (cond) {
@@ -79,9 +90,9 @@ export function stepPhysics(
 	hit(state.rightPaddle, "R");
 
 	// When getting goal (score)
-	if (b.pos.x + r < 0)
+	if (b.pos.x + r < rec.left)
 		return "right";
-	if (b.pos.x - r > w)
+	if (b.pos.x - r > rec.right)
 		return "left";
 
 	return null;
