@@ -1,6 +1,6 @@
 import { signIn, signOut, getAuth, register } from "@/app/auth";
 import { navigate } from "@/app/router";
-import { setAlias } from "@/app/store";
+import { setAlias, clearAlias} from "@/app/store"; // Make sure clearAlias exists in your store
 
 export default function (root: HTMLElement, ctx: { url: URL }) {
   const next = ctx.url.searchParams.get("next") || "/profile";
@@ -30,6 +30,7 @@ export default function (root: HTMLElement, ctx: { url: URL }) {
               </button>
             </form>
             <p class="text-xs text-gray-500">Your alias is how others will see you in the game</p>
+            <button id="clear-guest" class="mt-2 px-3 py-1 rounded bg-gray-300 text-gray-700">Clear Guest</button>
           </div>
 
           <div class="text-center py-2">
@@ -114,12 +115,19 @@ export default function (root: HTMLElement, ctx: { url: URL }) {
     }
     
     // Navigate directly to lobby for guest play
-    navigate("/");
+    history.back();
+  });
+
+  // Clear guest alias handler
+  root.querySelector<HTMLButtonElement>("#clear-guest")?.addEventListener("click", () => {
+    clearAlias();
+    location.reload();
   });
 
   // Logout button handler
   root.querySelector<HTMLButtonElement>("#logout")?.addEventListener("click", async () => {
     await signOut();
+    clearAlias();
     navigate(`/auth?next=${encodeURIComponent(next)}`);
   });
 }
