@@ -2,6 +2,7 @@ const fastify = require('fastify')({ logger: true });
 const AuthService = require('./services/authService');
 const User = require('./models/User');
 const jwt = require('jsonwebtoken');
+const bcrypt = require('bcrypt'); 
 
 const PORT = process.env.PORT || 3001;
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-this';
