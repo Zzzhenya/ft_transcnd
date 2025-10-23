@@ -124,6 +124,43 @@ interface GameParams {
 
 
 const wsProxyRoute: FastifyPluginAsync = async (fastify) => {
+  
+  // WebSocket route for remote players
+  fastify.get('/remote', { websocket: true }, async (connection, req) => {
+    const clientSocket = connection
+    
+    // Extract query parameters from URL
+    let roomId = null, playerId = null, username = null
+    if (req.url) {
+      const url = new URL(req.url, `http://${req.headers.host}`)
+      roomId = url.searchParams.get('roomId')
+      playerId = url.searchParams.get('playerId')
+      username = url.searchParams.get('username')
+    }
+    
+    if (!roomId || !playerId) {
+      fastify.log.error('Missing roomId or playerId in WebSocket connection')
+      if (clientSocket && typeof clientSocket.close === 'function') {
+        clientSocket.close()
+      }
+      return
+    }
+    
+    // Create backend WebSocket URL with query parameters
+    const backendUrl = `ws://game-service:3002/ws/remote?roomId=${roomId}&playerId=${playerId}&username=${encodeURIComponent(username || 'Anonymous')}`
+    
+    try {
+      const backendSocket = await createBackendSocket(backendUrl)
+      fastify.log.info(`Remote WebSocket proxy connected: ${roomId}`)
+      forwardMessages(clientSocket, backendSocket)
+    } catch (err) {
+      fastify.log.error('Failed to connect to backend for remote play')
+      if (clientSocket && typeof clientSocket.close === 'function') {
+        clientSocket.close()
+      }
+    }
+  })
+
   fastify.get<{Params: GameParams;}>('/pong/game-ws/:gameId', { websocket: true }, async (connection, req) => {
     const clientSocket = connection
     if (req.cookies)
