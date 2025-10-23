@@ -1,4 +1,4 @@
-import { signIn, signOut, getAuth, register } from "@/app/auth";
+import { signIn, signOut, getAuth, register, guestLogin } from "@/app/auth";
 import { navigate } from "@/app/router";
 import { setAlias } from "@/app/store";
 
@@ -99,22 +99,38 @@ export default function (root: HTMLElement, ctx: { url: URL }) {
     }
   });
 
-  // Play as guest form handler
-  root.querySelector<HTMLFormElement>("#guest-form")?.addEventListener("submit", (e) => {
+  // // Play as guest form handler
+  // root.querySelector<HTMLFormElement>("#guest-form")?.addEventListener("submit", (e) => {
+  //   e.preventDefault();
+  //   const alias = (root.querySelector<HTMLInputElement>("#guest-alias")?.value || "").trim();
+    
+  //   // Set the alias in the global store
+  //   if (alias) {
+  //     setAlias(alias);
+  //   } else {
+  //     // Generate a random guest name if no alias provided
+  //     const randomId = Math.floor(Math.random() * 1000);
+  //     setAlias(`Guest${randomId}`);
+  //   }
+    
+  //   // Navigate directly to lobby for guest play
+  //   navigate("/");
+  // });
+
+  root.querySelector<HTMLFormElement>("#guest-form")?.addEventListener("submit", async (e) => {
     e.preventDefault();
-    const alias = (root.querySelector<HTMLInputElement>("#guest-alias")?.value || "").trim();
+    const aliasInput = root.querySelector<HTMLInputElement>("#guest-alias");
+    const alias = (aliasInput?.value || "").trim();
     
-    // Set the alias in the global store
-    if (alias) {
-      setAlias(alias);
+    const result = await guestLogin(alias || undefined);
+    
+    if (result.success) {
+      const user = getAuth();
+      if (user) setAlias(user.username);
+      navigate("/");
     } else {
-      // Generate a random guest name if no alias provided
-      const randomId = Math.floor(Math.random() * 1000);
-      setAlias(`Guest${randomId}`);
+      alert(result.error || 'Failed to create guest user');
     }
-    
-    // Navigate directly to lobby for guest play
-    navigate("/");
   });
 
   // Logout button handler
