@@ -1,6 +1,6 @@
 export function movePaddle(gameState, player, direction) {
-  const paddleSpeed = 20;
-  const paddleHeight = 40;
+  const paddleSpeed = 15;
+  const paddleHeight = 60;
   // Game area is -100 to +100, paddle height is 40
   // So paddle center must be between -80 and +80 to keep paddle fully visible
   const topBoundary = -100 + paddleHeight / 2;    // -100 + 20 = -80
@@ -20,12 +20,12 @@ export function movePaddle(gameState, player, direction) {
 }
 
 export function moveBall(gameState) {
-  // Don't move ball if game/round is ended, waiting to start, or paused
+  // Don't move ball if game/round is ended or waiting to start
   if (gameState.tournament.gameStatus !== 'playing') {
     return gameState;
   }
 
-  const paddleHeight = 40;
+  const paddleHeight = 60;
   const paddleX = 50;       // Paddles are at the boundaries: x = ±50 (same as scoring line)
   const speedIncrement = 0.1;
   const ballspeed = 1.2; // Base ball speed
@@ -218,7 +218,6 @@ function restartGame(gameState) {
   gameState.tournament.winner = null;
   gameState.tournament.lastPointWinner = null;
   gameState.tournament.nextRoundCountdown = 0;
-  gameState.isPaused = false;  // Reset pause state
   resetBall(gameState);
 }
 
@@ -253,7 +252,7 @@ function startGameLoop(gameState, broadcastState, moveBall, getClientCount) {
   const gameLoopInterval = setInterval(() => {
     const clientCount = getClientCount ? getClientCount() : 1;
     
-    // Pause game when no clients connected to save CPU
+    // Optimize CPU usage when no clients connected
     if (clientCount === 0 && gameState.tournament.gameStatus === 'playing') {
       inactiveFrames++;
       // Only check every 10 frames when no clients (save CPU)
@@ -264,8 +263,8 @@ function startGameLoop(gameState, broadcastState, moveBall, getClientCount) {
       inactiveFrames = 0;
     }
     
-        // Only process ball movement if game is actively playing, not paused, and has clients
-    if (gameState.tournament.gameStatus === 'playing' && !gameState.isPaused && clientCount > 0) {
+        // Only process ball movement if game is actively playing and has clients
+    if (gameState.tournament.gameStatus === 'playing' && clientCount > 0) {
       moveBall(gameState);
     }
 
@@ -309,7 +308,7 @@ function initialGameState() {
     tournament: {
       currentRound: 1,
       maxRounds: 3,
-      scoreLimit: 5,
+      scoreLimit: 3,
       roundsWon: { player1: 0, player2: 0 },
       gameStatus: 'waiting', // 'waiting', 'playing', 'roundEnd', 'gameEnd', 'roundCountdown'
       winner: null,
@@ -318,8 +317,7 @@ function initialGameState() {
       nextRoundNumber: 1,
       countdownInterval: null
     },
-    gameLoopInterval: null,
-    isPaused: false
+    gameLoopInterval: null
   };
 }
 

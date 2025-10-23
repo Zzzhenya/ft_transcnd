@@ -1,6 +1,6 @@
 // Only orchestration.
 // MVP: No engine, local only.
-import { DefaultConfig, createState } from "./state";
+import { DefaultConfig, createState, PlayerSide } from "./state";
 import { serveBall, resetRound } from "./logic";
 import { createInput } from "./input";
 import { drawFrame } from "../renderers/draw";
@@ -19,22 +19,60 @@ export function mountGame(root: HTMLElement) {
 	root.appendChild(canvas);
 	const ctx = canvas.getContext("2d")!;
 
-	// Dialog
+	// Dialog (Next round doesn't use rounting)
 	const dialog = createResultDialog(root, {
 		lobby: "/lobby",
-		next: "/tournament/next",
+		next: "#",
+	});
+
+	// Next round: Not routing(converting)
+	function startNextRound() {
+		// Increase round count
+		state.round += 1;
+
+		// Reset round score
+		state.score.left = 0;
+		state.score.right = 0;
+		state.roundWinner = null;
+
+		// Rest court, ball and start next service
+		resetRound(state, cfg);
+		serveBall(state, cfg);
+	}
+
+	// Get customEvent (Next-round)
+	dialog.el.addEventListener("next-round", (e) => {
+		e.preventDefault();
+		e.stopPropagation();
+		if (state.status === "ended") // If match is already finished, ignore.
+			return;
+		startNextRound();
+		dialog.hide();
 	});
 
 	// Listeners
 	const detach = input.attach(window);
 
 	// OnScore
-	function onScore(scored: "left" | "right") {
+	function onScore(scored: PlayerSide) {
 		state.score[scored] += 1;
 
+		// If round ends
 		if (state.score[scored] >= cfg.winScore) {
-			state.status = "ended";
-			state.winner = scored;
+			state.roundWinner = scored;
+			state.roundWins[scored] += 1;
+
+			// if match ends ex) 2 win first
+			if (state.roundWins[scored] >= state.roundsToWin) {
+				state.matchWinner = scored;
+				state.winner = scored;
+				state.status = "ended";
+				dialog.show(scored);
+				return;
+			}
+			
+			//
+			state.status = "ready";
 			dialog.show(scored);
 			return;
 		}
@@ -49,7 +87,7 @@ export function mountGame(root: HTMLElement) {
 
 	function frame(t: number) {
 		raf = requestAnimationFrame(frame);
-		const dt = Math.min(0.033, (t - prev) / 1000); // ??
+		const dt = Math.min(0.033, (t - prev) / 1000);
 		prev = t;
 
 		// Available reset regardless of pause
@@ -59,6 +97,10 @@ export function mountGame(root: HTMLElement) {
 			input.state.reset = false;
 		}
 
+		// Always apply input (status: ready, playing, ended can work)
+		applyInput(state, cfg, input, dt);
+
+		// Update info when playing.
 		if (!input.state.pause && state.status === "playing") {
 			applyInput(state, cfg, input, dt);
 
@@ -66,10 +108,11 @@ export function mountGame(root: HTMLElement) {
 			if (scored)
 				onScore(scored);
 		}
+
 		drawFrame(ctx, state, cfg);
 	}
 
-	// start
+	// Start to play game.
 	resetRound(state, cfg);
 	serveBall(state, cfg);
 	requestAnimationFrame((t)=>{ prev=t; frame(t); });

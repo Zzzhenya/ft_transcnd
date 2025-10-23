@@ -9,9 +9,12 @@ import { registerStatsRoutes } from './Routes/statsRoute.js';
 import { healthCheck } from './Routes/healthRoute.js';
 import { broadcastState } from './pong/broadcast.js';
 import { games, counters } from './pong/createGame.js';
+import logger from './utils/logger.js'; // log-service
+
 
 const fastify = Fastify({ logger: true });
 await fastify.register(websocket);
+// fastify.register(websocket);
 
 //CORS used to development and test with frontend
 // In production, configure CORS properly or remove it if not needed

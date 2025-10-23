@@ -11,6 +11,8 @@ import { movePaddle, restartGame, startGame, startGameLoop, moveBall } from '../
  * @param {Map} games - Games storage map
  * @param {Function} broadcastState - Function to broadcast game state
  */
+
+
 export function registerWebSocketRoutes(fastify, games, broadcastState) {
   
   /**
@@ -21,6 +23,8 @@ export function registerWebSocketRoutes(fastify, games, broadcastState) {
     const gameId = parseInt(request.params.gameId, 10);
     const game = games.get(gameId);
 
+    console.log("🆔gameId= ", gameId)
+
     if (!game) {
       console.warn(`[WS] Connection attempt to invalid game ID: ${gameId}`);
       connection.socket.close(1000, 'Game not found');
@@ -28,10 +32,11 @@ export function registerWebSocketRoutes(fastify, games, broadcastState) {
     }
 
     const ws = connection.socket;
+
     const gameState = game.state;
     const clients = game.clients;
     clients.add(ws);
-
+    console.log("🆔add client to ws: ")
     // Determine game type for logging
     let gameTypeLabel = 'NORMAL';
     if (game.isDemo) {
@@ -51,6 +56,7 @@ export function registerWebSocketRoutes(fastify, games, broadcastState) {
     ws.on('message', (rawMessage) => {
       try {
         const message = JSON.parse(rawMessage.toString());
+        console.log(message)
         handleWebSocketMessage(message, gameState, gameId, broadcastState, games);
       } catch (error) {
         console.error(`[WS] Message parse error in game ${gameId}:`, error);
@@ -68,7 +74,7 @@ export function registerWebSocketRoutes(fastify, games, broadcastState) {
         `[WS] Client disconnected from ${gameTypeLabel} game ${gameId}. Remaining: ${clients.size}. Code: ${code}, Reason: ${reason}`
       );
       
-      // Optionally pause game if no clients are connected
+      // Game continues running even if no clients are connected
       if (clients.size === 0) {
         console.log(`[WS] No clients remaining in game ${gameId}, game continues running`);
       }
@@ -99,6 +105,7 @@ export function registerWebSocketRoutes(fastify, games, broadcastState) {
     console.log(`[Demo-WS] Redirecting demo game ${gameId} to main WebSocket handler`);
     
     // Use the same logic as the main WebSocket route
+
     const ws = connection.socket;
     const gameState = game.state;
     const clients = game.clients;
@@ -163,6 +170,8 @@ function createInitialStateMessage(game, gameId) {
     // Exclude gameLoopInterval - it's not serializable
   };
 
+  console.log(cleanGameState);
+
   return JSON.stringify({
     type: 'STATE_UPDATE',
     gameId,
@@ -214,8 +223,12 @@ function handleWebSocketMessage(message, gameState, gameId, broadcastState, game
       break;
 
     case 'START_GAME':
-      startGame(gameState);
-      
+       if (gameState.tournament.gameStatus !== 'playing') {
+          startGame(gameState);
+      }
+
+      //startGame(gameState);
+
       // Restart game loop if it was cleared (e.g., after restart)
       if (game && !gameState.gameLoopInterval) {
         console.log(`[WS] Restarting game loop for game ${gameId}`);
@@ -229,25 +242,15 @@ function handleWebSocketMessage(message, gameState, gameId, broadcastState, game
       console.log(`[WS] Game ${gameId} started`);
       break;
     
-    case 'pause_game':
-      gameState.isPaused = true;
-      broadcastState(gameId);
-      console.log(`[WS] Game ${gameId} paused`);
-      break;
-
-    case 'unpause_game':
-      gameState.isPaused = false;
-      broadcastState(gameId);
-      console.log(`[WS] Game ${gameId} unpaused`);
-      break;
-
     case 'health_check':
       // Respond to health check messages
       console.log(`[WS] Health check received in game ${gameId}`);
       break;
 
     case 'stats':
-      getStats(gameState);
+      broadcastState(gameId);
+      // I don't know what to do here but there is no function named getStats()
+      // getStats(gameState);
       break;
 
     default:
