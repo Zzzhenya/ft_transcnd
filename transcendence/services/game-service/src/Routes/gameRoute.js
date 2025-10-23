@@ -106,7 +106,7 @@ export function registerSingleGameRoutes(fastify, games, counters, broadcastStat
         createdAt: game.createdAt,
         maxRounds: game.maxRounds,
         scoreLimit: game.scoreLimit,
-        websocketUrl: `ws://localhost:3002/ws/pong/game-ws/${gameId}`,
+        websocketUrl: `ws://${process.env.GAME_SERVICE_HOST || 'localhost'}:${process.env.GAME_SERVICE_PORT || '3002'}/ws/pong/game-ws/${gameId}`,
         message: 'Single game created successfully (3 rounds, score limit: 5)'
       };
 
@@ -199,7 +199,7 @@ export function registerSingleGameRoutes(fastify, games, counters, broadcastStat
         player2_name: game.player2_name,
         status: game.status,
         message: 'Successfully joined the game',
-        websocketUrl: `ws://localhost:3002/ws/pong/game-ws/${gameId}`
+        websocketUrl: `ws://${process.env.GAME_SERVICE_HOST || 'localhost'}:${process.env.GAME_SERVICE_PORT || '3002'}/ws/pong/game-ws/${gameId}`
       };
 
       return reply.code(200).send(response);
