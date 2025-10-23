@@ -1,15 +1,18 @@
+
 import { getAuth, signOut } from "@/app/auth";
 import { getState } from "@/app/store";
 import { navigate } from "@/app/router";
+
 export default function (root: HTMLElement) {
-    let tournaments = [
-        { id: 1201, players: 2, max: 4 },
-        { id: 1202, players: 3, max: 4 },
-        { id: 1301, players: 1, max: 8 },
-    ];
+    let tournaments: any[] = [];
     let filter: number | "all" = "all";
 
-    function render() {
+    async function fetchTournaments() {
+        const res = await fetch("http://localhost:3000/tournaments");
+        tournaments = await res.json();
+    }
+
+    async function render() {
         const user = getAuth();
         const state = getState();
         const signedIn = !!user;
@@ -35,14 +38,14 @@ export default function (root: HTMLElement) {
                 <h2 class="font-semibold text-lg mb-2">Available Tournaments:</h2>
                 <div class="space-y-2">
                     ${
-                        tournaments.filter(t => filter === "all" || t.max === filter).length > 0
+                        tournaments.filter(t => filter === "all" || t.size === filter).length > 0
                         ? tournaments
-                            .filter(t => filter === "all" || t.max === filter)
+                            .filter(t => filter === "all" || t.size === filter)
                             .map(t => `
                                 <div class="flex items-center justify-between border rounded p-3">
                                     <span class="font-mono">#${t.id}</span>
-                                    <span class="text-gray-600">Players: ${t.players}/${t.max}</span>
-                                    <a href="/tournaments/${t.id}" class="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 transition ${(!signedIn && !isGuest) ? "opacity-50 pointer-events-none" : ""}">Join</a>
+                                    <span class="text-gray-600">Players: ${t.playerSet ? Array.from(t.playerSet).length : (t.players || 0)}/${t.size || t.max}</span>
+                                    <a href="/tournaments/waitingroom/${t.id}" class="join-btn px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 transition ${(!signedIn && !isGuest) ? "opacity-50 pointer-events-none" : ""}">Join</a>
                                 </div>
                             `).join('')
                         : `<div class="text-gray-500 text-center">(No tournament available?)</div>`
@@ -103,22 +106,25 @@ export default function (root: HTMLElement) {
             authNav.querySelector<HTMLButtonElement>("#logout")?.addEventListener("click", async (e) => {
                  e.preventDefault();
                  await signOut();
+                 await fetchTournaments();
                  render();// Re-render nav to show "Sign In" button
             });
         }
         renderAuthNav();
 
         // Listen for auth changes
-        const onAuthChanged = () => {
+        const onAuthChanged = async () => {
+            await fetchTournaments();
             render();
         };
         window.addEventListener("auth:changed", onAuthChanged);
 
         // Filter buttons (always enabled)
         root.querySelectorAll<HTMLButtonElement>('.filter-btn').forEach(btn => {
-            btn.onclick = () => {
+            btn.onclick = async () => {
                 const val = btn.getAttribute('data-filter');
                 filter = val === "all" ? "all" : Number(val);
+                await fetchTournaments();
                 render();
             };
         });
@@ -127,21 +133,40 @@ export default function (root: HTMLElement) {
         if (signedIn || isGuest) {
             const create4Btn = root.querySelector<HTMLButtonElement>("#create4Btn");
             if (create4Btn) {
-                create4Btn.onclick = () => {
-                    const newId = Math.max(0, ...tournaments.map(t => t.id)) + 1;
-                    tournaments.push({ id: newId, players: 1, max: 4 });
+                create4Btn.onclick = async () => {
+                    const creator = user ? user.name : state.session.alias;
+                    await fetch("http://localhost:3000/tournaments", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ creator, size: 4 })
+                    });
+                    await fetchTournaments();
                     render();
                 };
             }
             const create8Btn = root.querySelector<HTMLButtonElement>("#create8Btn");
             if (create8Btn) {
-                create8Btn.onclick = () => {
-                    const newId = Math.max(0, ...tournaments.map(t => t.id)) + 1;
-                    tournaments.push({ id: newId, players: 1, max: 8 });
+                create8Btn.onclick = async () => {
+                    const creator = user ? user.name : state.session.alias;
+                    await fetch("http://localhost:3000/tournaments", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ creator, size: 8 })
+                    });
+                    await fetchTournaments();
                     render();
                 };
             }
         }
+
+        // Join button navigation (SPA-style)
+        root.querySelectorAll<HTMLAnchorElement>('a.join-btn').forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const href = link.getAttribute('href');
+                if (href) navigate(href);
+            });
+        });
 
         // Add event listener for the back button
         const lobbyBtn = root.querySelector<HTMLButtonElement>("#backBtn");
@@ -158,5 +183,6 @@ export default function (root: HTMLElement) {
         };
     }
 
-    render();
+    // Initial load
+    fetchTournaments().then(render);
 }
