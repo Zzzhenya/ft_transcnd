@@ -1,6 +1,9 @@
 // src/routes/ws-proxy.route.ts
 import type { FastifyHttpOptions, FastifyInstance, FastifyServerOptions, FastifyPluginAsync } from "fastify"
 
+import gatewayError from '@utils/gatewayError.js';
+import logger from '@utils/logger.js'; // log-service
+
 import type {  } from '@fastify/websocket'
 
 import WebSocket from 'ws'
@@ -209,7 +212,7 @@ const wsProxyRoute: FastifyPluginAsync = async (fastify) => {
   fastify.get('/pong/demo', async (request , reply) => {
     const existingSessionId = request.cookies.sessionId;
     if (existingSessionId)
-      fastify.log.info('✅'+existingSessionId)
+      fastify.log.info('✅'+ existingSessionId)
     // var haveSesionId = false;
     try
     {
@@ -248,9 +251,10 @@ const wsProxyRoute: FastifyPluginAsync = async (fastify) => {
     // }
     reply.send(data);
     }
-    catch (error) {
-      fastify.log.error(error)
-      reply.status(404);
+    catch (error: any) {
+        logger.error('[[Gateway]] GET request for /pong/demo failed', error);
+        fastify.log.error(error);
+        return gatewayError( reply, 503 );
     }
   })
 
@@ -298,9 +302,10 @@ const wsProxyRoute: FastifyPluginAsync = async (fastify) => {
     // }
     reply.send(data);
     }
-    catch (error) {
-      fastify.log.error(error)
-      reply.status(404);
+    catch (error: any) {
+        logger.error('[[Gateway]] POST request for /pong/demo failed', error);
+        fastify.log.error(error);
+        return gatewayError( reply, 503 );
     }
   })
 
@@ -316,9 +321,10 @@ const wsProxyRoute: FastifyPluginAsync = async (fastify) => {
     const data = await response.json();
     reply.status(response.status).send(data);
     }
-    catch (error) {
-      fastify.log.error(error)
-      reply.status(404);
+    catch (error: any) {
+        logger.error('[[Gateway]] DELETE request for /pong/demo/:gameId failed', error);
+        fastify.log.error(error);
+        return gatewayError( reply, 503 );
     }
   })
 
@@ -334,9 +340,10 @@ const wsProxyRoute: FastifyPluginAsync = async (fastify) => {
     const data = await response.json();
     reply.status(response.status).send(data);
     }
-    catch (error) {
-      fastify.log.error(error)
-      reply.status(404);
+    catch (error: any) {
+        logger.error('[[Gateway]] DELETE request for /pong/demo failed', error);
+        fastify.log.error(error);
+        return gatewayError( reply, 503 );
     }
   })
 
@@ -354,9 +361,10 @@ const wsProxyRoute: FastifyPluginAsync = async (fastify) => {
     const data = await response.json();
     reply.status(response.status).send(data);
     }
-    catch (error) {
-      fastify.log.error(error)
-      reply.status(404);
+    catch (error: any) {
+        logger.error('[[Gateway]] POST request for /pong/demo/:gameId/move failed', error);
+        fastify.log.error(error);
+        return gatewayError( reply, 503 );
     }
   })
 
@@ -376,9 +384,10 @@ const wsProxyRoute: FastifyPluginAsync = async (fastify) => {
     const data = await response.json();
     reply.status(response.status).send(data);
     }
-    catch (error) {
-      fastify.log.error(error)
-      reply.status(404);
+    catch (error: any) {
+        logger.error('[[Gateway]] POST request for /pong/game failed', error);
+        fastify.log.error(error);
+        return gatewayError( reply, 503 );
     }
   })
 
@@ -394,9 +403,10 @@ const wsProxyRoute: FastifyPluginAsync = async (fastify) => {
     const data = await response.json();
     reply.status(response.status).send(data);
     }
-    catch (error) {
-      fastify.log.error(error)
-      reply.status(404);
+    catch (error: any) {
+        logger.error('[[Gateway]] GET request for /pong/game failed', error);
+        fastify.log.error(error);
+        return gatewayError( reply, 503 );
     }
   })
 
@@ -412,9 +422,10 @@ const wsProxyRoute: FastifyPluginAsync = async (fastify) => {
     const data = await response.json();
     reply.status(response.status).send(data);
     }
-    catch (error) {
-      fastify.log.error(error)
-      reply.status(404);
+    catch (error: any) {
+        logger.error('[[Gateway]] GET request for /pong/game/:gameId failed', error);
+        fastify.log.error(error);
+        return gatewayError( reply, 503 );
     }
   })
 
@@ -432,9 +443,10 @@ const wsProxyRoute: FastifyPluginAsync = async (fastify) => {
     const data = await response.json();
     reply.status(response.status).send(data);
     }
-    catch (error) {
-      fastify.log.error(error)
-      reply.status(404);
+    catch (error: any) {
+        logger.error('[[Gateway]] GET request for /pong/game/:gameId/join failed', error);
+        fastify.log.error(error);
+        return gatewayError( reply, 503 );
     }
   })
 
@@ -452,9 +464,10 @@ const wsProxyRoute: FastifyPluginAsync = async (fastify) => {
     const data = await response.json();
     reply.status(response.status).send(data);
     }
-    catch (error) {
-      fastify.log.error(error)
-      reply.status(404);
+    catch (error: any) {
+        logger.error('[[Gateway]] GET request for /pong/game/:gameId/move failed', error);
+        fastify.log.error(error);
+        return gatewayError( reply, 503 );
     }
   })
 
@@ -470,9 +483,10 @@ const wsProxyRoute: FastifyPluginAsync = async (fastify) => {
     const data = await response.json();
     reply.status(response.status).send(data);
     }
-    catch (error) {
-      fastify.log.error(error)
-      reply.status(404);
+    catch (error: any) {
+        logger.error('[[Gateway]] GET request for /pong/game/:gameId/result failed', error);
+        fastify.log.error(error);
+        return gatewayError( reply, 503 );
     }
   })
 

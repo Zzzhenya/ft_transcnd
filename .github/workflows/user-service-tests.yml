@@ -5,6 +5,7 @@ on:
     branches:
       - user-service
       - main
+      - dev-environ-node-gateway
       - integration-gateway-pong-front
       - log-service
 

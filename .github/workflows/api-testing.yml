@@ -6,6 +6,7 @@ on:
       - user-service
       - microservices-refactor
       - main
+      # - dev-environ-node-gateway
       - integration-gateway-pong-front
       - log-service
     # No paths restriction for push - always run when pushing to these branches

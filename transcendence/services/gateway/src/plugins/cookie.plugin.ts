@@ -1,4 +1,4 @@
-import type { FastifyPluginCallback } from 'fastify';
+/*import type { FastifyPluginCallback } from 'fastify';
 import cookie from '@fastify/cookie';
 
 const cookiePlugin: FastifyPluginCallback = (fastify, opts, done) => {
@@ -8,4 +8,4 @@ const cookiePlugin: FastifyPluginCallback = (fastify, opts, done) => {
   // done();
 };
 
-export default cookiePlugin;
+export default cookiePlugin;*/

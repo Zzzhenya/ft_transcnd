@@ -8,6 +8,7 @@ on:
       - api-gateway-basics
       - main
       - health-check-via-compose
+      - dev-environ-node-gateway
       - integration-gateway-pong-front
       - log-service
 
