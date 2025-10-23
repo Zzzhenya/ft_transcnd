@@ -12,17 +12,43 @@ export default function (root: HTMLElement, ctx: any) {
   // Keep guest list persistent across renders
   let guestList: string[] = [];
 
-  function render() {
-    // Collect current players
-    let players: { name: string; type: "user" | "guest" }[] = [];
-    if (user) {
-      players.push({ name: user.name ?? "You", type: "user" });
-    } else if (isGuest) {
-      players.push({ name: state.session?.alias ?? "Guest", type: "guest" });
+  function getSavedPlayers(): string[] {
+    try {
+      return JSON.parse(sessionStorage.getItem("tournamentPlayers") || "[]");
+    } catch {
+      return [];
     }
-    guestList.forEach(alias => {
-      players.push({ name: alias, type: "guest" });
-    });
+  }
+
+  function render() {
+    // Try to restore from sessionStorage if available
+    let savedPlayers = getSavedPlayers();
+    let players: { name: string; type: "user" | "guest" }[] = [];
+
+    if (savedPlayers.length > 0) {
+      // If coming back from a match or reload, use saved list
+      players = savedPlayers.map(name => {
+        if (user && name === (user.name ?? "You")) {
+          return { name, type: "user" };
+        }
+        if (isGuest && name === (state.session?.alias ?? "Guest")) {
+          return { name, type: "guest" };
+        }
+        return { name, type: "guest" };
+      });
+      // Also update guestList for addGuest logic
+      guestList = players.filter(p => p.type === "guest" && (!user || p.name !== user.name)).map(p => p.name);
+    } else {
+      // Build from current session
+      if (user) {
+        players.push({ name: user.name ?? "You", type: "user" });
+      } else if (isGuest) {
+        players.push({ name: state.session?.alias ?? "Guest", type: "guest" });
+      }
+      guestList.forEach(alias => {
+        players.push({ name: alias, type: "guest" });
+      });
+    }
 
     // Build player list HTML
     let playerListHtml = "";
@@ -129,6 +155,7 @@ export default function (root: HTMLElement, ctx: any) {
     const lobbyBtn = root.querySelector<HTMLButtonElement>("#backBtn");
     lobbyBtn?.addEventListener("click", (e) => {
       e.preventDefault();
+      sessionStorage.removeItem("tournamentPlayers"); // Only clear if leaving tournament
       navigate("/tournaments");
     });
 
@@ -162,17 +189,17 @@ export default function (root: HTMLElement, ctx: any) {
         }, { once: true });
       });
     }
-const startBtn = root.querySelector<HTMLButtonElement>("#startTournamentBtn");
-if (startBtn) {
-  startBtn.disabled = players.length !== maxPlayers;
-  if (players.length === maxPlayers) {
-    startBtn.addEventListener("click", () => {
-      sessionStorage.setItem("tournamentPlayers", JSON.stringify(players.map(p => p.name)));
-      navigate("/tournaments/match");
-    }, { once: true });
-  }
-}
 
+    const startBtn = root.querySelector<HTMLButtonElement>("#startTournamentBtn");
+    if (startBtn) {
+      startBtn.disabled = players.length !== maxPlayers;
+      if (players.length === maxPlayers) {
+        startBtn.addEventListener("click", () => {
+          sessionStorage.setItem("tournamentPlayers", JSON.stringify(players.map(p => p.name)));
+          navigate("/tournaments/match");
+        }, { once: true });
+      }
+    }
   }
 
   render();
