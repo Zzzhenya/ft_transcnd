@@ -16,10 +16,11 @@ const statsRoutes: FastifyPluginAsync = async (fastify) => {
 	const data = await response.json();
 	reply.status(response.status).send(data);
 	}
-	catch (error) {
-	    fastify.log.error(error)
-	    reply.status(404);
-	}
+    catch (error: any) {
+        logger.error('[[Gateway]] GET request for /user-service/stats failed', error);
+        fastify.log.error(error);
+        return gatewayError( reply, 503 );
+    }
 	});
 
 };
