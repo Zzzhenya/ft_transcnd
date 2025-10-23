@@ -19,10 +19,11 @@ const userRoutes: FastifyPluginAsync = async (fastify) => {
 	    const data = await response.json();
 	    reply.status(response.status).send(data);
 	    }
-	    catch (error) {
-		    fastify.log.error(error)
-		    reply.status(404);
-	}
+        catch (error: any) {
+            logger.error('[[Gateway]] GET request for /user-service/health failed', error);
+            fastify.log.error(error);
+            return gatewayError( reply, 503 );
+        }
 	// reply.code(200).header('Content-Type', 'application/json; charset=utf-8')
 	// return { hello: 'Users' }
 	})
@@ -42,10 +43,11 @@ const userRoutes: FastifyPluginAsync = async (fastify) => {
 		const data = await response.json();
 		reply.status(response.status).send(data);
 		}
-		catch (error) {
-			fastify.log.error(error)
-			reply.status(404);
-	}
+        catch (error: any) {
+            logger.error('[[Gateway]] POST request for /user-service/auth/register failed', error);
+            fastify.log.error(error);
+            return gatewayError( reply, 503 );
+        }
 	});
 
 	fastify.post('/auth/login', async (request, reply) => {
@@ -62,10 +64,11 @@ const userRoutes: FastifyPluginAsync = async (fastify) => {
 		const data = await response.json();
 		reply.status(response.status).send(data);
 		}
-		catch (error) {
-			fastify.log.error(error)
-			reply.status(404);
-	}
+        catch (error: any) {
+            logger.error('[[Gateway]] POST request for /user-service/auth/login failed', error);
+            fastify.log.error(error);
+            return gatewayError( reply, 503 );
+        }
 	});
 
 	fastify.get('/auth/profile', async (request, reply) => {
@@ -80,10 +83,11 @@ const userRoutes: FastifyPluginAsync = async (fastify) => {
 		const data = await response.json();
 		reply.status(response.status).send(data);
 		}
-		catch (error) {
-			fastify.log.error(error)
-			reply.status(404);
-	}
+        catch (error: any) {
+            logger.error('[[Gateway]] POST request for /user-service/auth/profile failed', error);
+            fastify.log.error(error);
+            return gatewayError( reply, 503 );
+        }
 	});
 
 }
