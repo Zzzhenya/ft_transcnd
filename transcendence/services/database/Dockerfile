@@ -9,6 +9,13 @@ COPY ../../shared/config ./config
 COPY ../../shared/types ./types
 COPY ../../shared/utils ./utils
 
+# Testdata
+# COPY ../database/test_db_data.sh test_db_data.sh
+# COPY ../database/clear_db.sh clear_db.sh
+# Make scripts executable
+# RUN chmod +x test_db_data.sh && \
+#     chmod +x clear_db.sh
+
 # Install dependencies
 RUN npm install
 

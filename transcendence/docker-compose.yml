@@ -94,6 +94,7 @@ services:
     build:
       context: .  # ← Root context
       dockerfile: ./services/database/Dockerfile
+    container_name: transcendence-database
     volumes:
       - shared-data:/app/shared
     environment:
