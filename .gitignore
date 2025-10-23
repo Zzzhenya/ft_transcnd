@@ -46,7 +46,6 @@ docs/html/
 transcendence/.env
 transcendence/.env.local
 transcendence/.env.development.local
-transcendence/.env.example
 .env.development
 .env.production
 .env.*.local
