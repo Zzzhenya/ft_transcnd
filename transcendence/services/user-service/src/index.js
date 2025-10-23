@@ -48,7 +48,28 @@ fastify.post('/auth/register', async (request, reply) => {
 
     if (!username || !email || !password) {
       return reply.code(400).send({
+        success: false,
         message: 'Username, email and password are required'
+      });
+    }
+
+    //Message Username exist
+    const existingUsername = await User.findByUsername(username);
+    if (existingUsername) {
+      return reply.code(409).send({
+        success: false,
+        message: `Username "${username}" is already taken. Please choose another.`,
+        error: 'Username already exists'
+      });
+    }
+
+    //Message Email exitst 
+    const existingEmail = await User.findByEmail(email);
+    if (existingEmail) {
+      return reply.code(409).send({
+        success: false,
+        message: `Email "${email}" is already registered. Please use another email or login.`,
+        error: 'Email already exists'
       });
     }
 
@@ -91,7 +112,6 @@ fastify.post('/auth/login', async (request, reply) => {
   }
 });
 
-
 // ════════════════════════════════════════════════════════
 // GUEST LOGIN ENDPOINT
 // ════════════════════════════════════════════════════════
@@ -102,16 +122,43 @@ fastify.post('/auth/guest', async (request, reply) => {
   try {
     const { alias } = request.body || {};
     
-    // Generate unique guest ID
+    // Generate unique guest ID (für Email und fallback username)
     const timestamp = Date.now().toString(36);
     const random = Math.random().toString(36).substring(2, 6);
     const guestId = `${timestamp}${random}`;
     
-    // Use provided alias or generate username
-    const username = alias || `Guest_${guestId.substring(0, 8)}`;
-    const email = `${guestId}@guest.local`;
+    let username;
     
-    console.log('📝 Creating guest:', username);
+    // ════════════════════════════════════════════════════════
+    // Username mit "guest_" Prefix erstellen
+    // ════════════════════════════════════════════════════════
+    if (alias) {
+      // User hat einen Alias angegeben → guest_alias
+      username = `guest_${alias}`;
+      
+      // CHECK: Ist dieser Username schon vergeben?
+      const existingUser = await User.findByUsername(username);
+      
+      if (existingUser) {
+        // Username schon vergeben → FEHLER zurückgeben!
+        console.log('❌ Username already taken:', username);
+        return reply.code(409).send({
+          success: false,
+          message: `Username "${alias}" is already taken. Please choose another name.`,
+          error: 'Username already exists'
+        });
+      }
+      
+      console.log('✅ Username available:', username);
+    } else {
+      // Kein Alias angegeben → guest_xxxxxxxx (immer unique)
+      username = `guest_${guestId.substring(0, 8)}`;
+      console.log('📝 Generated username:', username);
+    }
+    
+    const email = `${guestId}@guest.local`;  // Immer unique
+    
+    console.log('📝 Creating guest with username:', username);
 
     // Hash a random password
     const password_hash = await bcrypt.hash(guestId, 10);
@@ -151,6 +198,15 @@ fastify.post('/auth/guest', async (request, reply) => {
   } catch (error) {
     console.error('❌ Guest login error:', error.message);
     
+    // Fallback: UNIQUE constraint error (sollte nicht mehr passieren)
+    if (error.message && error.message.includes('UNIQUE constraint failed')) {
+      return reply.code(409).send({ 
+        success: false,
+        message: 'Username already exists. Please choose another name.',
+        error: 'Duplicate username'
+      });
+    }
+    
     return reply.code(500).send({ 
       success: false,
       message: 'Failed to create guest user', 
@@ -158,6 +214,7 @@ fastify.post('/auth/guest', async (request, reply) => {
     });
   }
 });
+// ════════════════════════════════════════════════════════
 
 
 // Get profile endpoint (protected)
