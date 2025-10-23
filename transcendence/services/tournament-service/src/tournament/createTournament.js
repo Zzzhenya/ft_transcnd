@@ -1,6 +1,7 @@
 import fastify from 'fastify';
 import { generateBracket } from './createBracket';
 
+export function createTournamentService() {
 const tournaments = new Map();
 let nextTournamentId = 1;
 const playersSet = new Set();
@@ -42,6 +43,7 @@ fastify.post('/tournaments/:id/join', async (request, reply) => {
   }
   reply.send({ ok: true, status: t.status, bracket: t.bracket });
 });
+}
 
 export function startServer() {
 fastify.listen({ port: 3005 }, (err, address) => {
