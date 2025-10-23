@@ -12,7 +12,7 @@ async function routes (fastify: FastifyInstance, options: FastifyServerOptions) 
 // route:/ for root/index
     fastify.get('/', async (request , reply) => {
 
-    reply.code(200).header('Content-Type', 'application/json; charset=utf-8').send(message: 'Hello from API Gateway!' );
+    reply.code(200).header('Content-Type', 'application/json; charset=utf-8').send();
   })
 
 }
