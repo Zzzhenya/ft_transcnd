@@ -51,14 +51,11 @@ function initDatabase() {
 function insertTestData(db) {
   console.log('📝 Inserting test data...');
   
-  // const testUsers = `
-  //   INSERT INTO Users (username, email, password_hash, display_name, is_guest)
-  //   VALUES 
-  //     ('alice', 'alice@example.com', '$2b$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW', 'Alice', 0),
-  //     ('bob', 'bob@example.com', '$2b$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW', 'Bob', 0),
-  //     ('charlie', 'charlie@example.com', '$2b$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW', 'Charlie', 0),
-  //     ('david', 'david@example.com', '$2b$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW', 'David', 0);
-  // `;
+  const testUsers = `
+    INSERT INTO Users (username, email, password_hash, display_name, is_guest)
+    VALUES 
+      ('testuser', 'test@test.test', '$2b$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW', 'Alice', 0),;
+  `;
   
   db.exec(testUsers, (err) => {
     if (err) {

@@ -6,7 +6,7 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m'
 
-TEMP_DB="temp_transcendence.db"
+TEMP_DB="/home/rkost/Project/temp_transcendence.db"
 
 # Cleanup function - wird beim Exit aufgerufen
 cleanup() {
@@ -28,11 +28,12 @@ echo ""
 
 # Copy DB
 echo -e "${BLUE}📥 Copying database from Docker...${NC}"
-if  docker cp transcendence-database-1:/app/shared/database/transcendence.db "$TEMP_DB" 2>/dev/null; then
+if  docker cp transcendence-database:/app/shared/database/transcendence.db "$TEMP_DB" 2>/dev/null; then
     echo -e "${YELLOW}Container not running, starting...${NC}"
     docker-compose up -d database
     sleep 2
-    docker cp transcendence-database-1:/app/shared/database/transcendence.db "$TEMP_DB"
+    docker cp transcendence-database:/app/shared/database/transcendence.db "$TEMP_DB"
+    cp 
 fi
 
 if [ ! -f "$TEMP_DB" ]; then
