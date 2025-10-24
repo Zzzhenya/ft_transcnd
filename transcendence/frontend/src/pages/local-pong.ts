@@ -58,8 +58,16 @@ export default function (root: HTMLElement) {
   const restartBtn = root.querySelector('#restartBtn') as HTMLButtonElement;
   const lobbyBtn = root.querySelector('#lobbyBtn') as HTMLButtonElement;
   const gameStatus = root.querySelector('#gameStatus') as HTMLDivElement;
-  canvas = root.querySelector('#gameCanvas') as HTMLCanvasElement;
-  ctx = canvas.getContext('2d')!;
+  const el = document.getElementById('gameCanvas');
+  if (!(el instanceof HTMLCanvasElement)) {
+	throw new Error('Canvas element #gameCanvas not found or not a <canvas>');
+  }
+  canvas = el;
+  const context = canvas.getContext('2d')!;
+  if (!context) {
+	throw new Error('2D context not available');
+  }
+  ctx = context;
 
   function updateStatus(message: string) {
     gameStatus.textContent = message;
