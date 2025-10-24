@@ -12,9 +12,13 @@
 		"format": "prettier --write \"{src,public}/**/*.{ts,tsx,css,html}\""
 	},
 	"devDependencies": {
+		"@babylonjs/gui": "^6.49.0",
+		"@types/earcut": "^3.0.0",
 		"@typescript-eslint/eslint-plugin": "^8.44.1",
 		"@typescript-eslint/parser": "^8.44.1",
 		"autoprefixer": "^10.4.0",
+		"babylonjs": "^6.49.0",
+		"earcut": "^2.2.4",
 		"eslint": "^9.36.0",
 		"eslint-config-prettier": "^10.1.8",
 		"postcss": "^8.4.0",
@@ -23,5 +27,8 @@
 		"typescript": "^5.4.0",
 		"typescript-eslint": "^8.44.1",
 		"vite": "^5.4.20"
+	},
+	"dependencies": {
+		"@babylonjs/core": "^6.49.0"
 	}
 }
