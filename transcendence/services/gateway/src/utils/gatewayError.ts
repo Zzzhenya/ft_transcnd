@@ -10,13 +10,15 @@ interface GatewayErrorPayload {
 
 export default function gatewayError(
   reply: FastifyReply,
-  statusCode: number
+  statusCode: number,
+  error: string,
+  message: string
 ) {
   const payload: GatewayErrorPayload = {
     service: 'gateway',
     statusCode,
-    error: 'Service Unavailable',
-    message: 'The upstream service is currently unavailable.',
+    error,
+    message,
     timestamp: new Date().toISOString(),
   };
 

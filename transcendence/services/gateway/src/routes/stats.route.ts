@@ -19,7 +19,11 @@ const statsRoutes: FastifyPluginAsync = async (fastify) => {
     catch (error: any) {
         logger.error('[[Gateway]] GET request for /user-service/stats failed', error);
         fastify.log.error(error);
-        return gatewayError( reply, 503 );
+        return gatewayError(
+        	reply,
+        	503,
+        	'Service Unavailable',
+        	'The upstream service is currently unavailable.');
     }
 	});
 

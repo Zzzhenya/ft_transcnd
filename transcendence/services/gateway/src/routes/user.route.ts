@@ -22,7 +22,11 @@ const userRoutes: FastifyPluginAsync = async (fastify) => {
         catch (error: any) {
             logger.error('[[Gateway]] GET request for /user-service/health failed', error);
             fastify.log.error(error);
-            return gatewayError( reply, 503 );
+            return gatewayError(
+            	reply,
+            	503,
+            	'Service Unavailable',
+            	'The upstream service is currently unavailable.');
         }
 	// reply.code(200).header('Content-Type', 'application/json; charset=utf-8')
 	// return { hello: 'Users' }
@@ -46,7 +50,11 @@ const userRoutes: FastifyPluginAsync = async (fastify) => {
         catch (error: any) {
             logger.error('[[Gateway]] POST request for /user-service/auth/register failed', error);
             fastify.log.error(error);
-            return gatewayError( reply, 503 );
+            return gatewayError(
+            	reply,
+            	503,
+            	'Service Unavailable',
+            	'The upstream service is currently unavailable.');
         }
 	});
 
@@ -67,7 +75,11 @@ const userRoutes: FastifyPluginAsync = async (fastify) => {
         catch (error: any) {
             logger.error('[[Gateway]] POST request for /user-service/auth/login failed', error);
             fastify.log.error(error);
-            return gatewayError( reply, 503 );
+            return gatewayError(
+            	reply,
+            	503,
+            	'Service Unavailable',
+            	'The upstream service is currently unavailable.');
         }
 	});
 
@@ -86,7 +98,11 @@ const userRoutes: FastifyPluginAsync = async (fastify) => {
         catch (error: any) {
             logger.error('[[Gateway]] POST request for /user-service/auth/profile failed', error);
             fastify.log.error(error);
-            return gatewayError( reply, 503 );
+            return gatewayError(
+            	reply,
+            	503,
+            	'Service Unavailable',
+            	'The upstream service is currently unavailable.');
         }
 	});
 
