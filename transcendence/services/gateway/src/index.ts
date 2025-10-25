@@ -18,6 +18,7 @@ import wsRoute from './routes/ws-proxy.route.js'
 import statsRoute from './routes/stats.route.js'
 import userRoute from './routes/user.route.js'
 import tournamentRoute from './routes/tournament.route.js'
+import gameRoute from './routes/game.route.js'
 // import cookiePlugin from './plugins/cookie.plugin.js';
 // import onRequestHook from './hooks/on-request.hook.js';
 import cookie from '@fastify/cookie';
@@ -147,6 +148,8 @@ try {
   Fastify.register(statsRoute);
   logger.info('[[Gateway]] register ws routes ');
   Fastify.register(wsRoute, { prefix: '/ws' });
+  logger.info('[[Gateway]] register game routes ');
+  Fastify.register(gameRoute, { prefix: '/api' })
   logger.info('[[Gateway]] register auth routes ');
   Fastify.register(userRoute, { prefix: '/user-service' });
   logger.info('[[Gateway]] register tournament routes ');
