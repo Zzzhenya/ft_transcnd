@@ -2,6 +2,7 @@
 import type { FastifyHttpOptions, FastifyInstance, FastifyServerOptions, FastifyPluginAsync } from "fastify"
 import gatewayError from '../utils/gatewayError.js';
 import logger from '../utils/logger.js'; // log-service
+import { proxyRequest } from '../utils/proxyHandler.js';
 
 
 const healthRoutes: FastifyPluginAsync = async (fastify) => {
@@ -13,76 +14,19 @@ const healthRoutes: FastifyPluginAsync = async (fastify) => {
 	});
 
 // health route for game-service
-    fastify.get('/game-service/health', async (request , reply) => {
-        logger.info('[[Gateway]] GET request for /game-service/health');
-        try
-        {
-            const response = await fetch('http://game-service:3002/health', {
-            method: 'GET',
-            headers: {
-            'Authorization': request.headers['authorization'] || '',
-        }})
-        const data = await response.json();
-        reply.status(response.status).send(data);
-        }
-        catch (error: any) {
-            logger.error('[[Gateway]] GET request for /game-service/health failed', error);
-            fastify.log.error(error);
-            return gatewayError(
-                reply,
-                503,
-                'Service Unavailable',
-                'The upstream service is currently unavailable.');
-        }
-  });
+    fastify.get('/game-service/health', async (request, reply) => {
+        return proxyRequest(fastify, request, reply, 'http://game-service:3002/health', 'GET');
+    });
 
 // health route for log-service
-    fastify.get('/log-service/health', async (request , reply) => {
-        try
-        {
-            fastify.log.error("Gateway received GET request for /log-service")
-            const response = await fetch('http://log-service:3003/health', {
-            method: 'GET',
-            headers: {
-            'Authorization': request.headers['authorization'] || '',
-        }})
-        const data = await response.json();
-        reply.status(response.status).send(data);
-        }
-        catch (error: any) {
-            logger.error('[[Gateway]] GET request for /log-service/health failed', error);
-            fastify.log.error(error);
-            return gatewayError(
-                reply,
-                503,
-                'Service Unavailable',
-                'The upstream service is currently unavailable.');
-        }
-  });
+    fastify.get('/log-service/health', async (request, reply) => {
+        return proxyRequest(fastify, request, reply, 'http://log-service:3003/health', 'GET');
+    });
 
 // health route for test-db
-    fastify.get('/test-db/health', async (request , reply) => {
-        try
-        {
-            fastify.log.error("Gateway received GET request for /log-service")
-            const response = await fetch('http://testdb:3010/health', {
-            method: 'GET',
-            headers: {
-            'Authorization': request.headers['authorization'] || '',
-        }})
-        const data = await response.json();
-        reply.status(response.status).send(data);
-        }
-        catch (error: any) {
-            logger.error('[[Gateway]] GET request for /test-db/health failed', error);
-            fastify.log.error(error);
-            return gatewayError(
-                reply,
-                503,
-                'Service Unavailable',
-                'The upstream service is currently unavailable.');
-        }
-  });
+    fastify.get('/test-db/health', async (request, reply) => {
+        return proxyRequest(fastify, request, reply, 'http://testdb:3010/health', 'GET');
+    });
 
 };
 
