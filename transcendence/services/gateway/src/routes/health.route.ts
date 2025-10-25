@@ -28,7 +28,11 @@ const healthRoutes: FastifyPluginAsync = async (fastify) => {
         catch (error: any) {
             logger.error('[[Gateway]] GET request for /game-service/health failed', error);
             fastify.log.error(error);
-            return gatewayError( reply, 503 );
+            return gatewayError(
+                reply,
+                503,
+                'Service Unavailable',
+                'The upstream service is currently unavailable.');
         }
   });
 
@@ -48,7 +52,11 @@ const healthRoutes: FastifyPluginAsync = async (fastify) => {
         catch (error: any) {
             logger.error('[[Gateway]] GET request for /log-service/health failed', error);
             fastify.log.error(error);
-            return gatewayError( reply, 503 );
+            return gatewayError(
+                reply,
+                503,
+                'Service Unavailable',
+                'The upstream service is currently unavailable.');
         }
   });
 
@@ -68,7 +76,11 @@ const healthRoutes: FastifyPluginAsync = async (fastify) => {
         catch (error: any) {
             logger.error('[[Gateway]] GET request for /test-db/health failed', error);
             fastify.log.error(error);
-            return gatewayError( reply, 503 );
+            return gatewayError(
+                reply,
+                503,
+                'Service Unavailable',
+                'The upstream service is currently unavailable.');
         }
   });
 

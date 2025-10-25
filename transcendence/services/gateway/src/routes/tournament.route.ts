@@ -1,28 +1,14 @@
 // tournament/
 import gatewayError from '../utils/gatewayError.js';
 import logger from '../utils/logger.js'; // log-service
+import { proxyRequest } from '../utils/proxyHandler.js';
 
 import type { FastifyHttpOptions, FastifyInstance, FastifyServerOptions, FastifyPluginAsync } from "fastify"
 
 const tournamentRoute: FastifyPluginAsync = async (fastify) => {
 
 	fastify.post('/', async (request, reply) => {
-	try
-	{
-	    fastify.log.error("Gateway received GET request for /tournaments")
-	    const response = await fetch('http://tournament-service:3005/tournaments', {
-	    method: 'POST',
-	    headers: {
-	    'Authorization': request.headers['authorization'] || '',
-	}})
-	const data = await response.json();
-	reply.status(response.status).send(data);
-	}
-    catch (error: any) {
-        logger.error('[[Gateway]] POST request for /tournaments failed', error);
-        fastify.log.error(error);
-        return gatewayError( reply, 503 );
-    }
+		return proxyRequest(fastify, request, reply, 'http://tournament-service:3005/tournaments', 'POST');
 	});
 
 	fastify.get<{Params: { id: string }}>('/:id/players', async (request, reply) => {
@@ -49,8 +35,12 @@ const tournamentRoute: FastifyPluginAsync = async (fastify) => {
 	    catch (error: any) {
 	        logger.error('[[Gateway]] GET request for /tournaments/:id/players failed', error);
 	        fastify.log.error(error);
-	        return gatewayError( reply, 503 );
-	    }
+	        return gatewayError(
+	        	reply,
+	        	503,
+	        	'Service Unavailable',
+	        	'The upstream service is currently unavailable.');
+        }
 	});
 
 	fastify.get<{Params: { id: string }}>('/:id/bracket', async (request, reply) => {
@@ -74,10 +64,14 @@ const tournamentRoute: FastifyPluginAsync = async (fastify) => {
 			const data = await response.json();
 			reply.status(response.status).send(data);
 		}
-	    catch (error: any) {
-	        logger.error('[[Gateway]] GET request for /tournaments/:id/bracket failed', error);
-	        fastify.log.error(error);
-	        return gatewayError( reply, 503 );
+		catch (error: any) {
+			logger.error('[[Gateway]] GET request for /tournaments/:id/bracket failed', error);
+			fastify.log.error(error);
+			return gatewayError(
+				reply,
+				503,
+				'Service Unavailable',
+				'The upstream service is currently unavailable.');
 	    }
 	});
 
@@ -105,7 +99,11 @@ const tournamentRoute: FastifyPluginAsync = async (fastify) => {
 	    catch (error: any) {
 	        logger.error('[[Gateway]] POST request for /tournaments/:id/advance failed', error);
 	        fastify.log.error(error);
-	        return gatewayError( reply, 503 );
+	        return gatewayError(
+	        	reply,
+	        	503,
+	        	'Service Unavailable',
+	        	'The upstream service is currently unavailable.');
 	    }
 	});
 
@@ -121,10 +119,14 @@ const tournamentRoute: FastifyPluginAsync = async (fastify) => {
 	const data = await response.json();
 	reply.status(response.status).send(data);
 	}
-    catch (error: any) {
-        logger.error('[[Gateway]] GET request for /tournaments/stats failed', error);
-        fastify.log.error(error);
-        return gatewayError( reply, 503 );
+	catch (error: any) {
+		logger.error('[[Gateway]] GET request for /tournaments/stats failed', error);
+		fastify.log.error(error);
+		return gatewayError(
+			reply,
+			503,
+			'Service Unavailable',
+			'The upstream service is currently unavailable.');
     }
 	});
 
@@ -140,11 +142,15 @@ const tournamentRoute: FastifyPluginAsync = async (fastify) => {
 	const data = await response.json();
 	reply.status(response.status).send(data);
 	}
-    catch (error: any) {
-        logger.error('[[Gateway]] GET request for /tournaments/health failed', error);
-        fastify.log.error(error);
-        return gatewayError( reply, 503 );
-    }
+	catch (error: any) {
+		logger.error('[[Gateway]] GET request for /tournaments/health failed', error);
+		fastify.log.error(error);
+		return gatewayError(
+			reply,
+			503,
+			'Service Unavailable',
+			'The upstream service is currently unavailable.');
+	}
 	});
 
 

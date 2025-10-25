@@ -23,10 +23,14 @@ import tournamentRoute from './routes/tournament.route.js'
 import cookie from '@fastify/cookie';
 import { v4 as uuidv4 } from 'uuid';
 import logger from './utils/logger.js'; // log-service
+import fetchPlugin from './plugins/customFetch.plugin.js'
 
 const FRONT_END_URL = String(process.env.FRONT_END_URL);
 
 const Fastify = fastify({logger:true});
+
+// Register the fetch plugin first
+await Fastify.register(fetchPlugin)
 
 // Fastify.register(cookie, {
 //   // secret: 'my-secret-key', // optional, for signed cookies
@@ -146,7 +150,7 @@ try {
   logger.info('[[Gateway]] register auth routes ');
   Fastify.register(userRoute, { prefix: '/user-service' });
   logger.info('[[Gateway]] register tournament routes ');
-  Fastify.register(tournamentRoute, { prefix: '/tournaaments' });
+  Fastify.register(tournamentRoute, { prefix: '/tournaments' });
 }
 catch (error: any) {
   logger.error('[[Gateway]] an error occured while registering routes', error);

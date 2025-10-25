@@ -254,7 +254,11 @@ const wsProxyRoute: FastifyPluginAsync = async (fastify) => {
     catch (error: any) {
         logger.error('[[Gateway]] GET request for /pong/demo failed', error);
         fastify.log.error(error);
-        return gatewayError( reply, 503 );
+        return gatewayError(
+          reply,
+          503,
+          'Service Unavailable',
+          'The upstream service is currently unavailable.');
     }
   })
 
@@ -305,7 +309,11 @@ const wsProxyRoute: FastifyPluginAsync = async (fastify) => {
     catch (error: any) {
         logger.error('[[Gateway]] POST request for /pong/demo failed', error);
         fastify.log.error(error);
-        return gatewayError( reply, 503 );
+        return gatewayError(
+          reply,
+          503,
+          'Service Unavailable',
+          'The upstream service is currently unavailable.');
     }
   })
 
@@ -324,7 +332,11 @@ const wsProxyRoute: FastifyPluginAsync = async (fastify) => {
     catch (error: any) {
         logger.error('[[Gateway]] DELETE request for /pong/demo/:gameId failed', error);
         fastify.log.error(error);
-        return gatewayError( reply, 503 );
+        return gatewayError(
+          reply,
+          503,
+          'Service Unavailable',
+          'The upstream service is currently unavailable.');
     }
   })
 
@@ -343,7 +355,11 @@ const wsProxyRoute: FastifyPluginAsync = async (fastify) => {
     catch (error: any) {
         logger.error('[[Gateway]] DELETE request for /pong/demo failed', error);
         fastify.log.error(error);
-        return gatewayError( reply, 503 );
+        return gatewayError(
+          reply,
+          503,
+          'Service Unavailable',
+          'The upstream service is currently unavailable.');
     }
   })
 
@@ -364,7 +380,11 @@ const wsProxyRoute: FastifyPluginAsync = async (fastify) => {
     catch (error: any) {
         logger.error('[[Gateway]] POST request for /pong/demo/:gameId/move failed', error);
         fastify.log.error(error);
-        return gatewayError( reply, 503 );
+        return gatewayError(
+          reply,
+          503,
+          'Service Unavailable',
+          'The upstream service is currently unavailable.');
     }
   })
 
@@ -387,7 +407,11 @@ const wsProxyRoute: FastifyPluginAsync = async (fastify) => {
     catch (error: any) {
         logger.error('[[Gateway]] POST request for /pong/game failed', error);
         fastify.log.error(error);
-        return gatewayError( reply, 503 );
+        return gatewayError(
+          reply,
+          503,
+          'Service Unavailable',
+          'The upstream service is currently unavailable.');
     }
   })
 
@@ -406,7 +430,11 @@ const wsProxyRoute: FastifyPluginAsync = async (fastify) => {
     catch (error: any) {
         logger.error('[[Gateway]] GET request for /pong/game failed', error);
         fastify.log.error(error);
-        return gatewayError( reply, 503 );
+        return gatewayError(
+          reply,
+          503,
+          'Service Unavailable',
+          'The upstream service is currently unavailable.');
     }
   })
 
@@ -425,7 +453,11 @@ const wsProxyRoute: FastifyPluginAsync = async (fastify) => {
     catch (error: any) {
         logger.error('[[Gateway]] GET request for /pong/game/:gameId failed', error);
         fastify.log.error(error);
-        return gatewayError( reply, 503 );
+        return gatewayError(
+          reply,
+          503,
+          'Service Unavailable',
+          'The upstream service is currently unavailable.');
     }
   })
 
@@ -446,7 +478,11 @@ const wsProxyRoute: FastifyPluginAsync = async (fastify) => {
     catch (error: any) {
         logger.error('[[Gateway]] GET request for /pong/game/:gameId/join failed', error);
         fastify.log.error(error);
-        return gatewayError( reply, 503 );
+        return gatewayError(
+          reply,
+          503,
+          'Service Unavailable',
+          'The upstream service is currently unavailable.');
     }
   })
 
@@ -467,7 +503,11 @@ const wsProxyRoute: FastifyPluginAsync = async (fastify) => {
     catch (error: any) {
         logger.error('[[Gateway]] GET request for /pong/game/:gameId/move failed', error);
         fastify.log.error(error);
-        return gatewayError( reply, 503 );
+        return gatewayError(
+          reply,
+          503,
+          'Service Unavailable',
+          'The upstream service is currently unavailable.');
     }
   })
 
@@ -486,7 +526,11 @@ const wsProxyRoute: FastifyPluginAsync = async (fastify) => {
     catch (error: any) {
         logger.error('[[Gateway]] GET request for /pong/game/:gameId/result failed', error);
         fastify.log.error(error);
-        return gatewayError( reply, 503 );
+        return gatewayError(
+          reply,
+          503,
+          'Service Unavailable',
+          'The upstream service is currently unavailable.');
     }
   })
 
