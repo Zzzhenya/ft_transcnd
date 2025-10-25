@@ -13,34 +13,20 @@ const tournamentRoute: FastifyPluginAsync = async (fastify) => {
 
 	fastify.get<{Params: { id: string }}>('/:id/players', async (request, reply) => {
 		let tournId = null;
-		try
-		{
-			// Method 1: Try req.params first
-			if (request.params) {
-				var tournIdStr = request.params.id;
-				tournId = parseInt(tournIdStr.replace(/[^0-9]/g, ''),10); 
-				// tournId = req.params.id;
-				console.log('other: ', tournId)
-			}
+		if (request.params) {
+			var tournIdStr = request.params.id;
+			tournId = parseInt(tournIdStr.replace(/[^0-9]/g, ''),10); 
+			// tournId = req.params.id;
 			logger.info(`Gateway received GET request for /tournaments/${tournId}/players`)
-		    fastify.log.info("Gateway received GET request for /tournaments/:id/players")
-		    const response = await fetch(`http://tournament-service:3005/tournaments/${tournId}/players`, {
-			    method: 'GET',
-			    headers: {
-			    'Authorization': request.headers['authorization'] || '',
-			}})
-			const data = await response.json();
-			reply.status(response.status).send(data);
-		}
-	    catch (error: any) {
-	        logger.error('[[Gateway]] GET request for /tournaments/:id/players failed', error);
-	        fastify.log.error(error);
-	        return gatewayError(
+	    	fastify.log.info(`Gateway received GET request for /tournaments/${tournId}/players`)
+		} else {
+			return gatewayError(
 	        	reply,
-	        	503,
-	        	'Service Unavailable',
-	        	'The upstream service is currently unavailable.');
-        }
+	        	400,
+	        	'Bad Request',
+	        	"Required request parameter 'id' for method 'type:String' is not present");
+		}
+		return proxyRequest(fastify, request, reply, `http://tournament-service:3005/tournaments/${tournId}/players`, 'GET');
 	});
 
 	fastify.get<{Params: { id: string }}>('/:id/bracket', async (request, reply) => {
