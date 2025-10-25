@@ -1,6 +1,7 @@
 import type { FastifyHttpOptions, FastifyInstance, FastifyServerOptions, FastifyPluginAsync } from "fastify"
 import gatewayError from '../utils/gatewayError.js';
 import logger from '../utils/logger.js'; // log-service
+import { proxyRequest } from '../utils/proxyHandler.js';
 
 const statsRoutes: FastifyPluginAsync = async (fastify) => {
 

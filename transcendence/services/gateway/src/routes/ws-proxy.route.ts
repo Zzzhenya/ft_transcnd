@@ -1,5 +1,6 @@
 // src/routes/ws-proxy.route.ts
 import type { FastifyHttpOptions, FastifyInstance, FastifyServerOptions, FastifyPluginAsync } from "fastify"
+import { proxyRequest } from '../utils/proxyHandler.js';
 
 import gatewayError from '../utils/gatewayError.js';
 import logger from '../utils/logger.js'; // log-service
@@ -132,17 +133,6 @@ const wsProxyRoute: FastifyPluginAsync = async (fastify) => {
       if (existingSessionId)
         fastify.log.info('✅' + existingSessionId)
     }
-    // fastify.log.info("Check sessionID")
-    // const cookies = req.cookies;
-    // // Safely access a specific cookie - check for session id
-    // const sessionId = cookies?.sessionId;
-    // if (sessionId) {
-    //   console.log('Cookie found', sessionId)
-    // } else {
-    //   console.error('No sessionId cookie found');
-    //   clientSocket.close();
-    //   return;
-    // }
 
     fastify.log.info("Extract gameId")
 
@@ -205,334 +195,162 @@ const wsProxyRoute: FastifyPluginAsync = async (fastify) => {
         clientSocket.close();
       }
     }
-  })
+  });
 
 // demo
 
-  fastify.get('/pong/demo', async (request , reply) => {
+  fastify.get('/pong/demo', async (request, reply) => {
     const existingSessionId = request.cookies.sessionId;
     if (existingSessionId)
       fastify.log.info('✅'+ existingSessionId)
-    // var haveSesionId = false;
-    try
-    {
-        fastify.log.info("Gateway received GET request for /ws/pong/demo")
-        // const cookies = request.cookies;
-        // Safely access a specific cookie - check for session id
-        // if (!cookies)
-        //   haveSesionId= false;
-        // const sessionId = cookies?.sessionId;
-        // if (cookies && sessionId) {
-        //   haveSesionId = true;
-        //   console.log('Cookie found', sessionId)
-        // } else {
-        //   console.log('No sessionId cookie found');
-        // }
-        const response = await fetch('http://game-service:3002/ws/pong/demo', {
-        method: 'GET',
-        headers: {
-        'Authorization': request.headers['authorization'] || '',
-      }})
-    const data = await response.json();
-    reply.status(response.status);
-    // if (!haveSesionId){
-      // add abc123 as session id
-      // const sessionId = 'abc123'
-      // Set the cookie
-      // reply
-      // .setCookie('sessionId', sessionId, {
-      //   path: '/',           // cookie available on all routes
-      //   httpOnly: true,      // not accessible via client-side JS
-      //   secure: false,        // true send only over HTTPS
-      //   sameSite: 'none',   // none for HTTPS
-      //   // sameSite: 'Strict',  // CSRF protection
-      //   maxAge: 3600         // 1 hour
-      // })
-    // }
-    reply.send(data);
-    }
-    catch (error: any) {
-        logger.error('[[Gateway]] GET request for /pong/demo failed', error);
-        fastify.log.error(error);
-        return gatewayError(
-          reply,
-          503,
-          'Service Unavailable',
-          'The upstream service is currently unavailable.');
-    }
-  })
+    return proxyRequest(fastify, request, reply, 'http://game-service:3002/ws/pong/demo', 'GET');
+  });
 
-  fastify.post('/pong/demo', async (request , reply) => {
-    // var haveSesionId = false
-    try
-    {
-        fastify.log.error("Gateway received POST request for /ws/pong/demo")
-        // const cookies = request.cookies;
-        // Safely access a specific cookie - check for session id
-        // if (!cookies)
-        //   haveSesionId= false;
-        // const sessionId = cookies?.sessionId;
-        // if (sessionId) {
-        //   haveSesionId = true;
-        //   console.log('Cookie found', sessionId)
-        // } else {
-        //   console.log('No sessionId cookie found');
-        // }
-        const response = await fetch('http://game-service:3002/ws/pong/demo', {
-        method: 'POST',
-        headers: {
-        'Content-Type': 'application/json',
-        'Authorization': request.headers['authorization'] || '',},
-         // 'Authorization': request.headers['authorization'] || '',},
-        body:JSON.stringify(request.body),
-      })
-    const data = await response.json();
-    // reply.status(response.status).send(data);
-    reply.status(response.status);
-    // if (!haveSesionId){
-    //   // add abc123 as session id - Should get one from AUTH server and store it?
-    //   const d = new Date()
-    //   const sessionId = d.toString()
-    //   // Set the cookie
-    //   reply
-    //   .setCookie('sessionId', sessionId, {
-    //     path: '/',           // cookie available on all routes
-    //     httpOnly: true,      // not accessible via client-side JS
-    //     secure: true,        // send only over HTTPS
-    //     // sameSite: 'Strict',  // CSRF protection
-    //     sameSite: false, // for demo
-    //     // maxAge: 3600         // 1 hour // without maxAge browser automatically expires the cookie when tab or browser is closed - only on frontend not file
-    //   })
-    // }
-    reply.send(data);
-    }
-    catch (error: any) {
-        logger.error('[[Gateway]] POST request for /pong/demo failed', error);
-        fastify.log.error(error);
-        return gatewayError(
-          reply,
-          503,
-          'Service Unavailable',
-          'The upstream service is currently unavailable.');
-    }
-  })
+  fastify.post('/pong/demo', async (request, reply) => {
+    const existingSessionId = request.cookies.sessionId;
+    if (existingSessionId)
+      fastify.log.info('✅'+ existingSessionId)
+    return proxyRequest(fastify, request, reply, 'http://game-service:3002/ws/pong/demo', 'POST');
+  });
 
-  fastify.delete('/pong/demo/:gameId', async (request , reply) => {
-    try
-    {
-        fastify.log.error("Gateway received DELETE request for /ws/pong/demo/:gameId")
-        const response = await fetch('http://game-service:3002/ws/pong/demo/:gameId', {
-        method: 'DELETE',
-        headers: {
-        'Authorization': request.headers['authorization'] || '',
-      }})
-    const data = await response.json();
-    reply.status(response.status).send(data);
-    }
-    catch (error: any) {
-        logger.error('[[Gateway]] DELETE request for /pong/demo/:gameId failed', error);
-        fastify.log.error(error);
-        return gatewayError(
-          reply,
-          503,
-          'Service Unavailable',
-          'The upstream service is currently unavailable.');
-    }
-  })
 
-  fastify.delete('/pong/demo', async (request , reply) => {
-    try
+  fastify.delete<{Params: GameParams;}>('/pong/demo/:gameId', async (request, reply) => {
+    let gameId = null;
+    if (request.params)
     {
-        fastify.log.error("Gateway received DELETE request for /ws/pong/demo")
-        const response = await fetch('http://game-service:3002/ws/pong/demo', {
-        method: 'DELETE',
-        headers: {
-        'Authorization': request.headers['authorization'] || '',
-      }})
-    const data = await response.json();
-    reply.status(response.status).send(data);
+      var gameIdStr = request.params.gameId;
+      gameId = parseInt(gameIdStr.replace(/[^0-9]/g, ''),10); 
+      logger.info(`[[Gateway]] Gateway received DELETE request for /pong/demo/${gameId}`)
+      fastify.log.info(`[[Gateway]] Gateway received DELETE request for /pong/demo/${gameId}`)
+    } else {
+      logger.info(`[[Gateway]] 400 :Bad Request at /pong/demo/:gameId :Required request parameter is missing`)
+      fastify.log.info(`[[Gateway]] 400 :Bad Request at /pong/demo/:gameId :Required request parameter is missing`)
+      return gatewayError(
+            reply,
+            400,
+            'Bad Request',
+            "Required request parameter 'id' for method 'type:String' is not present");
     }
-    catch (error: any) {
-        logger.error('[[Gateway]] DELETE request for /pong/demo failed', error);
-        fastify.log.error(error);
-        return gatewayError(
-          reply,
-          503,
-          'Service Unavailable',
-          'The upstream service is currently unavailable.');
-    }
-  })
+    return proxyRequest(fastify, request, reply, `http://game-service:3002/ws/pong/demo/${gameId}`, 'DELETE');
+  });
 
-  fastify.post('/pong/demo/:gameId/move', async (request , reply) => {
-    try
+
+  fastify.delete('/pong/demo', async (request, reply) => {
+    return proxyRequest(fastify, request, reply, 'http://game-service:3002/ws/pong/demo', 'DELETE');
+  });
+
+
+  fastify.post<{Params: GameParams;}>('/pong/demo/:gameId/move', async (request, reply) => {
+    let gameId = null;
+    if (request.params)
     {
-        fastify.log.error("Gateway received POST request for /ws/pong/demo/:gameId/move")
-        const response = await fetch('http://game-service:3002/ws/pong/demo/:gameId/move', {
-        method: 'POST',
-        headers: {
-        'Content-Type': 'application/json',
-        'Authorization': request.headers['authorization'] || '',},
-        body:JSON.stringify(request.body),
-      })
-    const data = await response.json();
-    reply.status(response.status).send(data);
+      var gameIdStr = request.params.gameId;
+      gameId = parseInt(gameIdStr.replace(/[^0-9]/g, ''),10); 
+      logger.info(`[[Gateway]] Gateway received POST request for /pong/demo/${gameId}/move`)
+      fastify.log.info(`[[Gateway]] Gateway received POST request for /pong/demo/${gameId}/move`)
+    } else {
+      logger.info(`[[Gateway]] 400 :Bad Request at /pong/demo/:gameId/move :Required request parameter is missing`)
+      fastify.log.info(`[[Gateway]] 400 :Bad Request at /pong/demo/:gameId/move :Required request parameter is missing`)
+      return gatewayError(
+            reply,
+            400,
+            'Bad Request',
+            "Required request parameter 'id' for method 'type:String' is not present");
     }
-    catch (error: any) {
-        logger.error('[[Gateway]] POST request for /pong/demo/:gameId/move failed', error);
-        fastify.log.error(error);
-        return gatewayError(
-          reply,
-          503,
-          'Service Unavailable',
-          'The upstream service is currently unavailable.');
-    }
-  })
+    return proxyRequest(fastify, request, reply, `http://game-service:3002/ws/pong/demo/${gameId}/move`, 'POST');
+  });
 
 // game
 
-  fastify.post('/pong/game', async (request , reply) => {
-    try
-    {
-        fastify.log.error("Gateway received POST request for /ws/pong/game")
-        const response = await fetch('http://game-service:3002/ws/pong/game', {
-        method: 'POST',
-        headers: {
-        'Content-Type': 'application/json',
-        'Authorization': request.headers['authorization'] || '',},
-        body:JSON.stringify(request.body),
-      })
-    const data = await response.json();
-    reply.status(response.status).send(data);
-    }
-    catch (error: any) {
-        logger.error('[[Gateway]] POST request for /pong/game failed', error);
-        fastify.log.error(error);
-        return gatewayError(
-          reply,
-          503,
-          'Service Unavailable',
-          'The upstream service is currently unavailable.');
-    }
-  })
+  fastify.post('/pong/game', async (request, reply) => {
+    return proxyRequest(fastify, request, reply, 'http://game-service:3002/ws/pong/game', 'POST');
+  });
 
-  fastify.get('/pong/game', async (request , reply) => {
-    try
-    {
-        fastify.log.error("Gateway received GET request for /ws/pong/game")
-        const response = await fetch('http://game-service:3002/ws/pong/game', {
-        method: 'GET',
-        headers: {
-        'Authorization': request.headers['authorization'] || '',
-      }})
-    const data = await response.json();
-    reply.status(response.status).send(data);
-    }
-    catch (error: any) {
-        logger.error('[[Gateway]] GET request for /pong/game failed', error);
-        fastify.log.error(error);
-        return gatewayError(
-          reply,
-          503,
-          'Service Unavailable',
-          'The upstream service is currently unavailable.');
-    }
-  })
+  fastify.get('/pong/game', async (request, reply) => {
+    return proxyRequest(fastify, request, reply, 'http://game-service:3002/ws/pong/game', 'GET');
+  });
 
-  fastify.get('/pong/game/:gameId', async (request , reply) => {
-    try
+  fastify.get<{Params: GameParams;}>('/pong/game/:gameId', async (request, reply) => {
+    let gameId = null;
+    if (request.params)
     {
-        fastify.log.error("Gateway received GET request for /ws/pong/game/:gameId")
-        const response = await fetch('http://game-service:3002/ws/pong/game/:gameId', {
-        method: 'GET',
-        headers: {
-        'Authorization': request.headers['authorization'] || '',
-      }})
-    const data = await response.json();
-    reply.status(response.status).send(data);
+      var gameIdStr = request.params.gameId;
+      gameId = parseInt(gameIdStr.replace(/[^0-9]/g, ''),10); 
+      logger.info(`[[Gateway]] Gateway received GET request for /pong/game/${gameId}`)
+      fastify.log.info(`[[Gateway]] Gateway received GET request for /pong/game/${gameId}`)
+    } else {
+      logger.info(`[[Gateway]] 400 :Bad Request at /pong/game/:gameId :Required request parameter is missing`)
+      fastify.log.info(`[[Gateway]] 400 :Bad Request at /pong/game/:gameId :Required request parameter is missing`)
+      return gatewayError(
+            reply,
+            400,
+            'Bad Request',
+            "Required request parameter 'id' for method 'type:String' is not present");
     }
-    catch (error: any) {
-        logger.error('[[Gateway]] GET request for /pong/game/:gameId failed', error);
-        fastify.log.error(error);
-        return gatewayError(
-          reply,
-          503,
-          'Service Unavailable',
-          'The upstream service is currently unavailable.');
-    }
-  })
+    return proxyRequest(fastify, request, reply, `http://game-service:3002/ws/pong/game/${gameId}`, 'GET');
+  });
 
-  fastify.post('/pong/game/:gameId/join', async (request , reply) => {
-    try
-    {
-        fastify.log.error("Gateway received POST request for /ws/pong/game/:gameId/join")
-        const response = await fetch('http://game-service:3002/ws/pong/game/:gameId/join', {
-        method: 'POST',
-        headers: {
-        'Content-Type': 'application/json',
-        'Authorization': request.headers['authorization'] || '',},
-        body:JSON.stringify(request.body),
-      })
-    const data = await response.json();
-    reply.status(response.status).send(data);
-    }
-    catch (error: any) {
-        logger.error('[[Gateway]] GET request for /pong/game/:gameId/join failed', error);
-        fastify.log.error(error);
-        return gatewayError(
-          reply,
-          503,
-          'Service Unavailable',
-          'The upstream service is currently unavailable.');
-    }
-  })
 
-  fastify.post('/pong/game/:gameId/move', async (request , reply) => {
-    try
+  fastify.post<{Params: GameParams;}>('/pong/game/:gameId/join', async (request, reply) => {
+    let gameId = null;
+    if (request.params)
     {
-        fastify.log.error("Gateway received POST request for /ws/pong/game/:gameId/move")
-        const response = await fetch('http://game-service:3002/ws/pong/game/:gameId/move', {
-        method: 'POST',
-        headers: {
-        'Content-Type': 'application/json',
-        'Authorization': request.headers['authorization'] || '',},
-        body:JSON.stringify(request.body),
-      })
-    const data = await response.json();
-    reply.status(response.status).send(data);
+      var gameIdStr = request.params.gameId;
+      gameId = parseInt(gameIdStr.replace(/[^0-9]/g, ''),10); 
+      logger.info(`[[Gateway]] Gateway received POST request for /pong/game/${gameId}/join`)
+      fastify.log.info(`[[Gateway]] Gateway received POST request for /pong/game/${gameId}/join`)
+    } else {
+      logger.info(`[[Gateway]] 400 :Bad Request at /pong/game/:gameId/join :Required request parameter is missing`)
+      fastify.log.info(`[[Gateway]] 400 :Bad Request at /pong/game/:gameId/join :Required request parameter is missing`)
+      return gatewayError(
+            reply,
+            400,
+            'Bad Request',
+            "Required request parameter 'id' for method 'type:String' is not present");
     }
-    catch (error: any) {
-        logger.error('[[Gateway]] GET request for /pong/game/:gameId/move failed', error);
-        fastify.log.error(error);
-        return gatewayError(
-          reply,
-          503,
-          'Service Unavailable',
-          'The upstream service is currently unavailable.');
-    }
-  })
+    return proxyRequest(fastify, request, reply, `http://game-service:3002/ws/pong/game/${gameId}/join`, 'POST');
+  });
 
-  fastify.put('/pong/game/:gameId/result', async (request , reply) => {
-    try
+  fastify.post<{Params: GameParams;}>('/pong/game/:gameId/move', async (request, reply) => {
+    let gameId = null;
+    if (request.params)
     {
-        fastify.log.error("Gateway received PUT request for /ws/pong/game/:gameId/result")
-        const response = await fetch('http://game-service:3002/ws/pong/game/:gameId/result', {
-        method: 'PUT',
-        headers: {
-        'Authorization': request.headers['authorization'] || '',
-      }})
-    const data = await response.json();
-    reply.status(response.status).send(data);
+      var gameIdStr = request.params.gameId;
+      gameId = parseInt(gameIdStr.replace(/[^0-9]/g, ''),10); 
+      logger.info(`[[Gateway]] Gateway received POST request for /pong/game/${gameId}/move`)
+      fastify.log.info(`[[Gateway]] Gateway received POST request for /pong/game/${gameId}/move`)
+    } else {
+      logger.info(`[[Gateway]] 400 :Bad Request at /pong/game/:gameId/move :Required request parameter is missing`)
+      fastify.log.info(`[[Gateway]] 400 :Bad Request at /pong/game/:gameId/move :Required request parameter is missing`)
+      return gatewayError(
+            reply,
+            400,
+            'Bad Request',
+            "Required request parameter 'id' for method 'type:String' is not present");
     }
-    catch (error: any) {
-        logger.error('[[Gateway]] GET request for /pong/game/:gameId/result failed', error);
-        fastify.log.error(error);
-        return gatewayError(
-          reply,
-          503,
-          'Service Unavailable',
-          'The upstream service is currently unavailable.');
+    return proxyRequest(fastify, request, reply, `http://game-service:3002/ws/pong/game/${gameId}/move`, 'POST');
+  });
+
+
+  fastify.put<{Params: GameParams;}>('/pong/game/:gameId/result', async (request, reply) => {
+    let gameId = null;
+    if (request.params)
+    {
+      var gameIdStr = request.params.gameId;
+      gameId = parseInt(gameIdStr.replace(/[^0-9]/g, ''),10); 
+      logger.info(`[[Gateway]] Gateway received PUT request for /pong/game/${gameId}/result`)
+      fastify.log.info(`[[Gateway]] Gateway received PUT request for /pong/game/${gameId}/result`)
+    } else {
+      logger.info(`[[Gateway]] 400 :Bad Request at /pong/game/:gameId/result :Required request parameter is missing`)
+      fastify.log.info(`[[Gateway]] 400 :Bad Request at /pong/game/:gameId/result :Required request parameter is missing`)
+      return gatewayError(
+            reply,
+            400,
+            'Bad Request',
+            "Required request parameter 'id' for method 'type:String' is not present");
     }
-  })
+    return proxyRequest(fastify, request, reply, `http://game-service:3002/ws/pong/game/${gameId}/result`, 'PUT');
+  });
 
 }
 
