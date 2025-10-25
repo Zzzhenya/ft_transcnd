@@ -108,8 +108,6 @@ services:
       - shared-data:/app/shared
     environment:
       - NODE_ENV=production
-    networks:
-      - transcendence-network
 
   health-checker:
     image: curlimages/curl
