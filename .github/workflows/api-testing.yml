@@ -9,6 +9,7 @@ on:
       # - dev-environ-node-gateway
       - integration-gateway-pong-front
       - log-service
+      - upstream_timeouts
     # No paths restriction for push - always run when pushing to these branches
   pull_request:
     branches:
