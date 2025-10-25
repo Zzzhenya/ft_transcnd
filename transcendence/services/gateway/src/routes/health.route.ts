@@ -1,7 +1,7 @@
 // src/routes/health.route.ts
 import type { FastifyHttpOptions, FastifyInstance, FastifyServerOptions, FastifyPluginAsync } from "fastify"
-import gatewayError from '@utils/gatewayError.js';
-import logger from '@utils/logger.js'; // log-service
+import gatewayError from '../utils/gatewayError.js';
+import logger from '../utils/logger.js'; // log-service
 
 
 const healthRoutes: FastifyPluginAsync = async (fastify) => {

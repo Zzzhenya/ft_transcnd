@@ -18,10 +18,10 @@
     "baseUrl": "./",
     "moduleResolution": "Bundler",
 
-    "paths": {
-      "@utils/*": ["src/utils/*"],
-      "@routes/*": ["src/routes/*"],
-    },
+    // "paths": {
+    //   "@utils/*": ["src/utils/*"],
+    //   "@routes/*": ["src/routes/*"],
+    // },
 
     //interOP
     "esModuleInterop": true,
