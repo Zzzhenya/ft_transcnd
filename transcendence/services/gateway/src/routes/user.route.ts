@@ -1,6 +1,6 @@
 // user-service/
-import gatewayError from '@utils/gatewayError.js';
-import logger from '@utils/logger.js'; // log-service
+import gatewayError from '../utils/gatewayError.js';
+import logger from '../utils/logger.js'; // log-service
 
 import type { FastifyHttpOptions, FastifyInstance, FastifyServerOptions, FastifyPluginAsync } from "fastify"
 

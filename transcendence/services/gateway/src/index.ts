@@ -13,16 +13,16 @@ import fastify, { type FastifyReply, type FastifyRequest } from 'fastify'
 import cors from '@fastify/cors'
 import websocket from '@fastify/websocket'
 import firstRoute from './routes.js'
-import healthRoute from '@routes/health.route.js'
-import wsRoute from '@routes/ws-proxy.route.js'
-import statsRoute from '@routes/stats.route.js'
-import userRoute from '@routes/user.route.js'
-import tournamentRoute from '@routes/tournament.route.js'
+import healthRoute from './routes/health.route.js'
+import wsRoute from './routes/ws-proxy.route.js'
+import statsRoute from './routes/stats.route.js'
+import userRoute from './routes/user.route.js'
+import tournamentRoute from './routes/tournament.route.js'
 // import cookiePlugin from './plugins/cookie.plugin.js';
 // import onRequestHook from './hooks/on-request.hook.js';
 import cookie from '@fastify/cookie';
 import { v4 as uuidv4 } from 'uuid';
-import logger from '@utils/logger.js'; // log-service
+import logger from './utils/logger.js'; // log-service
 
 const FRONT_END_URL = String(process.env.FRONT_END_URL);
 
