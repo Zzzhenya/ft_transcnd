@@ -144,6 +144,8 @@ const wsProxyRoute: FastifyPluginAsync = async (fastify) => {
       if (clientSocket && typeof clientSocket.close === 'function') {
         clientSocket.close()
       }
+      // throw 400 Bad Request
+      throw fastify.httpErrors.badRequest('Missing required parameter: id');
       return
     }
     
@@ -216,6 +218,8 @@ const wsProxyRoute: FastifyPluginAsync = async (fastify) => {
       if (clientSocket && typeof clientSocket.close === 'function') {
         clientSocket.close();
       }
+      // throw 400 Bad Request
+      throw fastify.httpErrors.badRequest('Missing required parameter: id');
       return;
     }
     console.log(gameId)
@@ -262,11 +266,8 @@ const wsProxyRoute: FastifyPluginAsync = async (fastify) => {
     } else {
       logger.info(`[[Gateway]] 400 :Bad Request at /pong/demo/:gameId :Required request parameter is missing`)
       fastify.log.info(`[[Gateway]] 400 :Bad Request at /pong/demo/:gameId :Required request parameter is missing`)
-      return gatewayError(
-            reply,
-            400,
-            'Bad Request',
-            "Required request parameter 'id' for method 'type:String' is not present");
+      // throw 400 Bad Request
+      throw fastify.httpErrors.badRequest('Missing required parameter: id');
     }
     return proxyRequest(fastify, request, reply, `http://game-service:3002/ws/pong/demo/${gameId}`, 'DELETE');
   });
@@ -288,11 +289,8 @@ const wsProxyRoute: FastifyPluginAsync = async (fastify) => {
     } else {
       logger.info(`[[Gateway]] 400 :Bad Request at /pong/demo/:gameId/move :Required request parameter is missing`)
       fastify.log.info(`[[Gateway]] 400 :Bad Request at /pong/demo/:gameId/move :Required request parameter is missing`)
-      return gatewayError(
-            reply,
-            400,
-            'Bad Request',
-            "Required request parameter 'id' for method 'type:String' is not present");
+      // throw 400 Bad Request
+      throw fastify.httpErrors.badRequest('Missing required parameter: id');
     }
     return proxyRequest(fastify, request, reply, `http://game-service:3002/ws/pong/demo/${gameId}/move`, 'POST');
   });
@@ -318,11 +316,8 @@ const wsProxyRoute: FastifyPluginAsync = async (fastify) => {
     } else {
       logger.info(`[[Gateway]] 400 :Bad Request at /pong/game/:gameId :Required request parameter is missing`)
       fastify.log.info(`[[Gateway]] 400 :Bad Request at /pong/game/:gameId :Required request parameter is missing`)
-      return gatewayError(
-            reply,
-            400,
-            'Bad Request',
-            "Required request parameter 'id' for method 'type:String' is not present");
+      // throw 400 Bad Request
+      throw fastify.httpErrors.badRequest('Missing required parameter: id');
     }
     return proxyRequest(fastify, request, reply, `http://game-service:3002/ws/pong/game/${gameId}`, 'GET');
   });
@@ -339,11 +334,8 @@ const wsProxyRoute: FastifyPluginAsync = async (fastify) => {
     } else {
       logger.info(`[[Gateway]] 400 :Bad Request at /pong/game/:gameId/join :Required request parameter is missing`)
       fastify.log.info(`[[Gateway]] 400 :Bad Request at /pong/game/:gameId/join :Required request parameter is missing`)
-      return gatewayError(
-            reply,
-            400,
-            'Bad Request',
-            "Required request parameter 'id' for method 'type:String' is not present");
+      // throw 400 Bad Request
+      throw fastify.httpErrors.badRequest('Missing required parameter: id');
     }
     return proxyRequest(fastify, request, reply, `http://game-service:3002/ws/pong/game/${gameId}/join`, 'POST');
   });
@@ -359,11 +351,8 @@ const wsProxyRoute: FastifyPluginAsync = async (fastify) => {
     } else {
       logger.info(`[[Gateway]] 400 :Bad Request at /pong/game/:gameId/move :Required request parameter is missing`)
       fastify.log.info(`[[Gateway]] 400 :Bad Request at /pong/game/:gameId/move :Required request parameter is missing`)
-      return gatewayError(
-            reply,
-            400,
-            'Bad Request',
-            "Required request parameter 'id' for method 'type:String' is not present");
+      // throw 400 Bad Request
+      throw fastify.httpErrors.badRequest('Missing required parameter: id');
     }
     return proxyRequest(fastify, request, reply, `http://game-service:3002/ws/pong/game/${gameId}/move`, 'POST');
   });
@@ -380,11 +369,8 @@ const wsProxyRoute: FastifyPluginAsync = async (fastify) => {
     } else {
       logger.info(`[[Gateway]] 400 :Bad Request at /pong/game/:gameId/result :Required request parameter is missing`)
       fastify.log.info(`[[Gateway]] 400 :Bad Request at /pong/game/:gameId/result :Required request parameter is missing`)
-      return gatewayError(
-            reply,
-            400,
-            'Bad Request',
-            "Required request parameter 'id' for method 'type:String' is not present");
+      // throw 400 Bad Request
+      throw fastify.httpErrors.badRequest('Missing required parameter: id');
     }
     return proxyRequest(fastify, request, reply, `http://game-service:3002/ws/pong/game/${gameId}/result`, 'PUT');
   });

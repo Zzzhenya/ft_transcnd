@@ -36,9 +36,11 @@ export async function proxyRequest(
       const body = await response.text().catch(() => '');
 
       if (response.status >= 400 && response.status < 500) {
+        // all 4xx errors are forwarded to frontend with details - probably an issue with client call
         logger.warn(`[[Gateway]] ${upstreamUrl || ''} error : ${response.status} :  ${body}`);
         throw fastify.httpErrors.createError(response.status, `Upstream ${upstreamUrl || ''} error: ${body}`);
       } else if (response.status >= 500) {
+        // all 5xx errors from upstream -> redirect to 502 Bad gateway - frontend doesn't need to know what is wrong
         logger.warn(`[[Gateway]] ${upstreamUrl || ''} error : ${response.status} :  ${body}`);
         throw fastify.httpErrors.createError(502, `Upstream ${upstreamUrl || ''} service error`);
       }
@@ -51,6 +53,7 @@ export async function proxyRequest(
     fastify.log.error(error);
     logger.error(`[[Gateway]] ${method} request for ${upstreamUrl} failed`, error);
     if (error instanceof Error && error.name === 'AbortError') {
+      // upstream service timed out -> 504
       fastify.log.error('[[Gateway]] Upstream request timed out');
       logger.error(`[[Gateway]] Upstream request to ${upstreamUrl || ''} timed out`);
       throw fastify.httpErrors.gatewayTimeout(`${upstreamUrl  || 'Upstream'} 'The upstream service timed out. Please try again later.'`);
@@ -60,7 +63,7 @@ export async function proxyRequest(
       logger.error(`[[Gateway]] Upstream request to ${upstreamUrl || ''} failed, ${error} : ${error.cause?.code}`);
       throw fastify.httpErrors.serviceUnavailable(`The upstream service ${upstreamUrl || ''} is currently unavailable.`)
     }
-
+    // fallback case -> 502 Bad gateway
     logger.error(`Failed to fetch from ${upstreamUrl || 'upstream'}`)
     throw fastify.httpErrors.badGateway('The server received an invalid response from an upstream service. Please try again later.')
   }

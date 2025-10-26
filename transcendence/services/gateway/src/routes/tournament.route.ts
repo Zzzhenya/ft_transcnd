@@ -22,11 +22,8 @@ const tournamentRoute: FastifyPluginAsync = async (fastify) => {
 		} else {
 			logger.info(`[[Gateway]] 400 :Bad Request at /tournaments/:id/players :Required request parameter is missing`)
 			fastify.log.info(`[[Gateway]] 400 :Bad Request at /tournaments/:id/players :Required request parameter is missing`)
-			return gatewayError(
-	        	reply,
-	        	400,
-	        	'Bad Request',
-	        	"Required request parameter 'id' for method 'type:String' is not present");
+			// throw 400 Bad Request
+			throw fastify.httpErrors.badRequest('Missing required parameter: id');
 		}
 		return proxyRequest(fastify, request, reply, `http://tournament-service:3005/tournaments/${tournId}/players`, 'GET');
 	});
@@ -41,11 +38,8 @@ const tournamentRoute: FastifyPluginAsync = async (fastify) => {
 		} else {
 			logger.info(`[[Gateway]] 400 :Bad Request at /tournaments/:id/bracket :Required request parameter is missing`)
 			fastify.log.info(`[[Gateway]] 400 :Bad Request at /tournaments/:id/bracket :Required request parameter is missing`)
-			return gatewayError(
-	        	reply,
-	        	400,
-	        	'Bad Request',
-	        	"Required request parameter 'id' for method 'type:String' is not present");
+			// throw 400 Bad Request
+			throw fastify.httpErrors.badRequest('Missing required parameter: id');
 		}
 		return proxyRequest(fastify, request, reply, `http://tournament-service:3005/tournaments/${tournId}/bracket`, 'GET');
 	});
@@ -60,11 +54,8 @@ const tournamentRoute: FastifyPluginAsync = async (fastify) => {
 		} else {
 			logger.info(`[[Gateway]] 400 :Bad Request at /tournaments/:id/advance :Required request parameter is missing`)
 			fastify.log.info(`[[Gateway]] 400 :Bad Request at /tournaments/:id/advance :Required request parameter is missing`)
-			return gatewayError(
-	        	reply,
-	        	400,
-	        	'Bad Request',
-	        	"Required request parameter 'id' for method 'type:String' is not present");
+			// throw 400 Bad Request
+			throw fastify.httpErrors.badRequest('Missing required parameter: id');
 		}
 		return proxyRequest(fastify, request, reply, `http://tournament-service:3005/tournaments/${tournId}/advance`, 'POST');
 	});
