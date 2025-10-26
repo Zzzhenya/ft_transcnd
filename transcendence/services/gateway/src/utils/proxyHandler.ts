@@ -29,16 +29,19 @@ export async function proxyRequest(
     );
 
     if (!response.ok) {
-      // fastify.log.warn(`[[Gateway]]`, { status: response.status }, 'Upstream returned non-OK response');
-      // logger.warn(`[[Gateway]]`,{ status: response.status }, 'Upstream returned non-OK response');
       fastify.log.warn(`[[Gateway]] Upstream returned non-OK response`);
       logger.warn(`[[Gateway]] Upstream returned non-OK response`);
-      return gatewayError(
-        reply,
-        502,
-        'Bad Gateway',
-        'The server received an invalid response from an upstream service. Please try again later.'
-      );
+      // If the response was not successful, try to read the response body text
+      // If that fails for any reason, set body to an empty string instead of throwing an error
+      const body = await response.text().catch(() => '');
+
+      if (response.status >= 400 && response.status < 500) {
+        logger.warn(`[[Gateway]] ${upstreamUrl || ''} error : ${response.status} :  ${body}`);
+        throw fastify.httpErrors.createError(response.status, `Upstream ${upstreamUrl || ''} error: ${body}`);
+      } else if (response.status >= 500) {
+        logger.warn(`[[Gateway]] ${upstreamUrl || ''} error : ${response.status} :  ${body}`);
+        throw fastify.httpErrors.createError(502, `Upstream ${upstreamUrl || ''} service error`);
+      }
     }
 
     const data = await response.json();
@@ -49,22 +52,16 @@ export async function proxyRequest(
     logger.error(`[[Gateway]] ${method} request for ${upstreamUrl} failed`, error);
     if (error instanceof Error && error.name === 'AbortError') {
       fastify.log.error('[[Gateway]] Upstream request timed out');
-      logger.error('[[Gateway]] Upstream request timed out');
-      return gatewayError(
-        reply,
-        504,
-        'Gateway Timeout',
-        'The upstream service took too long to respond. Please try again later.'
-      );
+      logger.error(`[[Gateway]] Upstream request to ${upstreamUrl || ''} timed out`);
+      throw fastify.httpErrors.gatewayTimeout(`${upstreamUrl  || 'Upstream'} 'The upstream service timed out. Please try again later.'`);
+    }
+    else if (error.cause?.code === 'ECONNREFUSED'){
+      // fetch() failed : network error -> 503 Service unavailable
+      logger.error(`[[Gateway]] Upstream request to ${upstreamUrl || ''} failed, ${error} : ${error.cause?.code}`);
+      throw fastify.httpErrors.serviceUnavailable(`The upstream service ${upstreamUrl || ''} is currently unavailable.`)
     }
 
-    fastify.log.error('[[Gateway]] Upstream service unavailable');
-    logger.error('[[Gateway]] Upstream service unavailable');
-    return gatewayError(
-      reply,
-      503,
-      'Service Unavailable',
-      'The upstream service is currently unavailable.'
-    );
+    logger.error(`Failed to fetch from ${upstreamUrl || 'upstream'}`)
+    throw fastify.httpErrors.badGateway('The server received an invalid response from an upstream service. Please try again later.')
   }
 }

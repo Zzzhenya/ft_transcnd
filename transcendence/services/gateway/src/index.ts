@@ -24,14 +24,17 @@ import gameRoute from './routes/game.route.js'
 import cookie from '@fastify/cookie';
 import { v4 as uuidv4 } from 'uuid';
 import logger from './utils/logger.js'; // log-service
-import fetchPlugin from './plugins/customFetch.plugin.js'
+// import fetchPlugin from './plugins/customFetch.plugin.js'
+import { registerPlugins } from './utils/registerPlugins.js';
 
 const FRONT_END_URL = String(process.env.FRONT_END_URL);
 
 const Fastify = fastify({logger:true});
 
+await registerPlugins(Fastify);
+
 // Register the fetch plugin first
-await Fastify.register(fetchPlugin)
+// await Fastify.register(fetchPlugin)
 
 // Fastify.register(cookie, {
 //   // secret: 'my-secret-key', // optional, for signed cookies
