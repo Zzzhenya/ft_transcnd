@@ -24,31 +24,18 @@ import gameRoute from './routes/game.route.js'
 import cookie from '@fastify/cookie';
 import { v4 as uuidv4 } from 'uuid';
 import logger from './utils/logger.js'; // log-service
-// import fetchPlugin from './plugins/customFetch.plugin.js'
 import { registerPlugins } from './utils/registerPlugins.js';
+import { proxyRequest } from './utils/proxyHandler.js';
 
 const FRONT_END_URL = String(process.env.FRONT_END_URL);
-
 const Fastify = fastify({logger:true});
+const PORT = 3000
+
 
 await registerPlugins(Fastify);
 
-// Register the fetch plugin first
-// await Fastify.register(fetchPlugin)
-
-// Fastify.register(cookie, {
-//   // secret: 'my-secret-key', // optional, for signed cookies
-// });
-
 // Fastify.log.info('🎯'+ process.env);
 // console.log(process.env)
-const PORT = 3000
-// const PORT = services.port;
-// const PORT = 5000
-// const JWT_SECRET='supersecretkey'
-
-//route -> method, path, handler
-
 
 const setupWebSocket = async () => {
   await Fastify.register(websocket);
@@ -111,6 +98,7 @@ Fastify.addHook('onRequest', async (request, reply) => {
     if (!sessionId) {
       const newSessionId = uuidv4();
       // call your own POST /sessions route internally
+
       const res = await fetch(`http://testdb:3010/session`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -119,6 +107,10 @@ Fastify.addHook('onRequest', async (request, reply) => {
           time: new Date().toString(),
           status: 1 })
       });
+
+      // if (res.statusCode >= 400) {
+      //   Fastify.log.error(`[[Gateway]] Failed to create session: ${res.statusCode}`);
+      // }
 
       // const newSessionId = 'abcd'
       reply.setCookie('sessionId', newSessionId, {
