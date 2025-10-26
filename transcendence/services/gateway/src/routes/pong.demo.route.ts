@@ -4,6 +4,8 @@ import type { FastifyHttpOptions, FastifyInstance, FastifyServerOptions, Fastify
 import { proxyRequest } from '../utils/proxyHandler.js';
 import logger from '../utils/logger.js'; // log-service
 
+const GAME_SERVICE_URL = process.env.GAME_SERVICE_URL || 'http://game-service:3002';
+
 interface GameParams {
   gameId: string;
 }
@@ -14,14 +16,14 @@ const pongDemoRoute: FastifyPluginAsync = async (fastify) => {
     const existingSessionId = request.cookies.sessionId;
     if (existingSessionId)
       fastify.log.info('✅'+ existingSessionId)
-    return proxyRequest(fastify, request, reply, 'http://game-service:3002/pong/demo', 'GET');
+    return proxyRequest(fastify, request, reply, `${GAME_SERVICE_URL}/pong/demo`, 'GET');
   });
 
   fastify.post('/', async (request, reply) => {
     const existingSessionId = request.cookies.sessionId;
     if (existingSessionId)
       fastify.log.info('✅'+ existingSessionId)
-    return proxyRequest(fastify, request, reply, 'http://game-service:3002/pong/demo', 'POST');
+    return proxyRequest(fastify, request, reply, `${GAME_SERVICE_URL}/pong/demo`, 'POST');
   });
 
 
@@ -39,12 +41,12 @@ const pongDemoRoute: FastifyPluginAsync = async (fastify) => {
       // throw 400 Bad Request
       throw fastify.httpErrors.badRequest('Missing required parameter: id');
     }
-    return proxyRequest(fastify, request, reply, `http://game-service:3002/pong/demo/${gameId}`, 'DELETE');
+    return proxyRequest(fastify, request, reply, `${GAME_SERVICE_URL}/pong/demo/${gameId}`, 'DELETE');
   });
 
 
   fastify.delete('/', async (request, reply) => {
-    return proxyRequest(fastify, request, reply, 'http://game-service:3002/pong/demo', 'DELETE');
+    return proxyRequest(fastify, request, reply, `${GAME_SERVICE_URL}/pong/demo`, 'DELETE');
   });
 
 
@@ -62,7 +64,7 @@ const pongDemoRoute: FastifyPluginAsync = async (fastify) => {
       // throw 400 Bad Request
       throw fastify.httpErrors.badRequest('Missing required parameter: id');
     }
-    return proxyRequest(fastify, request, reply, `http://game-service:3002/pong/demo/${gameId}/move`, 'POST');
+    return proxyRequest(fastify, request, reply, `${GAME_SERVICE_URL}/pong/demo/${gameId}/move`, 'POST');
   });
 
 };

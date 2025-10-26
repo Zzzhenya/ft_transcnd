@@ -5,6 +5,9 @@ import logger from '../utils/logger.js'; // log-service
 import { proxyRequest } from '../utils/proxyHandler.js';
 
 
+const GAME_SERVICE_URL = process.env.GAME_SERVICE_URL || 'http://game-service:3002';
+const LOG_SERVICE_URL = process.env.LOG_SERVICE_URL || 'http://log-service:3003';
+
 const healthRoutes: FastifyPluginAsync = async (fastify) => {
 
 // health route for gateway
@@ -15,12 +18,12 @@ const healthRoutes: FastifyPluginAsync = async (fastify) => {
 
 // health route for game-service
     fastify.get('/game-service/health', async (request, reply) => {
-        return proxyRequest(fastify, request, reply, 'http://game-service:3002/health', 'GET');
+        return proxyRequest(fastify, request, reply, `${GAME_SERVICE_URL}/health`, 'GET');
     });
 
 // health route for log-service
     fastify.get('/log-service/health', async (request, reply) => {
-        return proxyRequest(fastify, request, reply, 'http://log-service:3003/health', 'GET');
+        return proxyRequest(fastify, request, reply, `${LOG_SERVICE_URL}/health`, 'GET');
     });
 
 // health route for test-db

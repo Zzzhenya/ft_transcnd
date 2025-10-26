@@ -2,13 +2,15 @@ services:
   gateway:
     build: ./services/gateway
     ports:
-      - "3000:3000"
+      - "${GATEWAY_PORT:-3000}:${GATEWAY_PORT:-3000}"
+    env_file:
+      - .env
     environment:
-      - NODE_ENV=development
-      - USER_SERVICE_URL=http://user-service:3001
-      - GAME_SERVICE_URL=http://game-service:3002
-      - LOG_SERVICE_URL=http://log-service:3003
-      - FRONT_END_URL=http://localhost:3004
+      - NODE_ENV=${NODE_ENV:-development}
+      - USER_SERVICE_URL=${USER_SERVICE_URL:-http://user-service:3001}
+      - GAME_SERVICE_URL=${GAME_SERVICE_URL:-http://game-service:3002}
+      - LOG_SERVICE_URL=${LOG_SERVICE_URL:-http://log-service:3003}
+      - FRONT_END_URL=${FRONT_END_URL:-http://localhost:3004}
     depends_on:
       - testdb
       - user-service
@@ -29,11 +31,13 @@ services:
   user-service:
     build: ./services/user-service
     # Port NOT exposed - only accessible via gateway
+    env_file:
+      - .env
     environment:
-      - NODE_ENV=development
-      - DATABASE_URL=sqlite:/app/shared/database/transcendence.db
-      - JWT_SECRET=your-secret-key-change-in-production
-      - LOG_SERVICE_URL=http://log-service:3003
+      - NODE_ENV=${NODE_ENV:-development}
+      - DATABASE_URL=${DATABASE_URL:-sqlite:/app/shared/database/transcendence.db}
+      - JWT_SECRET=${JWT_SECRET:-your-secret-key-change-in-production}
+      - LOG_SERVICE_URL=${LOG_SERVICE_URL:-http://log-service:3003}
     depends_on:
       - database
     volumes:
@@ -50,11 +54,15 @@ services:
   game-service:
     build: ./services/game-service
     # Port NOT exposed - only accessible via gateway
+    env_file:
+      - .env
     environment:
-      - NODE_ENV=development
-      - DATABASE_URL=sqlite:/app/shared/database/transcendence.db
-      - USER_SERVICE_URL=http://user-service:3001
-      - LOG_SERVICE_URL=http://log-service:3003
+      - NODE_ENV=${NODE_ENV:-development}
+      - DATABASE_URL=${DATABASE_URL:-sqlite:/app/shared/database/transcendence.db}
+      - USER_SERVICE_URL=${USER_SERVICE_URL:-http://user-service:3001}
+      - LOG_SERVICE_URL=${LOG_SERVICE_URL:-http://log-service:3003}
+      - GAME_SERVICE_HOST=${GAME_SERVICE_HOST:-localhost}
+      - GAME_SERVICE_PORT=${GAME_SERVICE_PORT:-3002}
     depends_on:
       - database
     volumes:
@@ -70,9 +78,11 @@ services:
 
   log-service:
     build: ./services/log-service
+    env_file:
+      - .env
     environment:
-      - NODE_ENV=development
-      - LOGSTASH_URL=http://logstash:5000
+      - NODE_ENV=${NODE_ENV:-development}
+      - LOGSTASH_URL=${LOGSTASH_URL:-http://logstash:5000}
     depends_on:
       - database
     volumes:
@@ -90,10 +100,12 @@ services:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
     container_name: transcendence-elasticsearch
     profiles: ["monitoring", "full"]
+    env_file:
+      - .env
     environment:
       - discovery.type=single-node
       - xpack.security.enabled=false
-      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - "ES_JAVA_OPTS=${ES_JAVA_OPTS:--Xms512m -Xmx512m}"
       - bootstrap.memory_lock=true
       - cluster.routing.allocation.disk.threshold_enabled=false
     volumes:
@@ -136,9 +148,11 @@ services:
     image: docker.elastic.co/logstash/logstash:8.11.0
     container_name: transcendence-logstash
     profiles: ["monitoring", "full"]
+    env_file:
+      - .env
     environment:
-      - "LS_JAVA_OPTS=-Xms256m -Xmx256m"
-      - ENVIRONMENT=development
+      - "LS_JAVA_OPTS=${LS_JAVA_OPTS:--Xms256m -Xmx256m}"
+      - ENVIRONMENT=${NODE_ENV:-development}
     ports:
       - "5044:5000"  # EXPOSED - For external log testing
     volumes:
@@ -160,9 +174,11 @@ services:
     image: docker.elastic.co/kibana/kibana:8.11.0
     container_name: transcendence-kibana
     profiles: ["monitoring", "full"]
+    env_file:
+      - .env
     environment:
-      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
-      - SERVER_PUBLICBASEURL=http://localhost:5601
+      - ELASTICSEARCH_HOSTS=${ELASTICSEARCH_URL:-http://elasticsearch:9200}
+      - SERVER_PUBLICBASEURL=${KIBANA_URL:-http://localhost:5601}
       - XPACK_SECURITY_ENABLED=false
       - XPACK_MONITORING_ENABLED=false
       - XPACK_WATCHER_ENABLED=false
@@ -230,12 +246,16 @@ services:
   tournament-service:
     build: ./services/tournament-service
     # Port NOT exposed - only accessible via gateway
+    env_file:
+      - .env
     environment:
-      - NODE_ENV=development
-      - DATABASE_URL=sqlite:/app/shared/database/transcendence.db
-      - USER_SERVICE_URL=http://user-service:3001
-      - GAME_SERVICE_URL=http://game-service:3002
-      - LOG_SERVICE_URL=http://log-service:3003
+      - NODE_ENV=${NODE_ENV:-development}
+      - DATABASE_URL=${DATABASE_URL:-sqlite:/app/shared/database/transcendence.db}
+      - USER_SERVICE_URL=${USER_SERVICE_URL:-http://user-service:3001}
+      - GAME_SERVICE_URL=${GAME_SERVICE_URL:-http://game-service:3002}
+      - LOG_SERVICE_URL=${LOG_SERVICE_URL:-http://log-service:3003}
+      - GAME_SERVICE_HOST=${GAME_SERVICE_HOST:-localhost}
+      - GAME_SERVICE_PORT=${GAME_SERVICE_PORT:-3002}
     depends_on:
       - database
     volumes:
@@ -254,12 +274,14 @@ services:
       context: ./frontend
       target: development  # Use development for hot reload
     ports:
-      - "3004:3004"
+      - "${FRONTEND_PORT:-3004}:${FRONTEND_PORT:-3004}"
+    env_file:
+      - .env
     environment:
-      - NODE_ENV=development
-      - VITE_API_BASE=http://localhost:3000/user-service
-      - VITE_GATEWAY_BASE=http://localhost:3000
-      - VITE_WS_BASE=ws://localhost:3000
+      - NODE_ENV=${NODE_ENV:-development}
+      - VITE_API_BASE=${VITE_API_BASE:-http://localhost:3000/user-service}
+      - VITE_GATEWAY_BASE=${VITE_GATEWAY_BASE:-http://localhost:3000}
+      - VITE_WS_BASE=${VITE_WS_BASE:-ws://localhost:3000}
     volumes:
       - ./frontend/src:/app/src:ro  # Hot reload for development
     networks:
