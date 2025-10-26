@@ -9,6 +9,9 @@ import type {  } from '@fastify/websocket'
 
 import WebSocket from 'ws'
 
+const GAME_SERVICE_URL = process.env.GAME_SERVICE_URL || 'http://game-service:3002';
+const GAME_SERVICE_WS_URL = GAME_SERVICE_URL.replace('http://', 'ws://');
+
 export function createBackendSocket(url: string): Promise<WebSocket> {
   return new Promise((resolve, reject) => {
     const ws = new WebSocket(url)
@@ -133,7 +136,7 @@ const wsProxyRoute: FastifyPluginAsync = async (fastify) => {
     // Extract query parameters from URL
     let roomId = null, playerId = null, username = null
     if (req.url) {
-      const url = new URL(req.url, `http://${req.headers.host}`)
+      const url = new URL(req.url,`http://${req.headers.host}`)
       roomId = url.searchParams.get('roomId')
       playerId = url.searchParams.get('playerId')
       username = url.searchParams.get('username')
@@ -150,7 +153,7 @@ const wsProxyRoute: FastifyPluginAsync = async (fastify) => {
     }
     
     // Create backend WebSocket URL with query parameters
-    const backendUrl = `ws://game-service:3002/ws/remote?roomId=${roomId}&playerId=${playerId}&username=${encodeURIComponent(username || 'Anonymous')}`
+    const backendUrl =`ws://game-service:3002/ws/remote?roomId=${roomId}&playerId=${playerId}&username=${encodeURIComponent(username || 'Anonymous')}`
     
     try {
       const backendSocket = await createBackendSocket(backendUrl)
@@ -224,7 +227,7 @@ const wsProxyRoute: FastifyPluginAsync = async (fastify) => {
     }
     console.log(gameId)
     // const backendUrl = 'ws://game-service:3002/ws/pong/game-ws'
-    const backendUrl = `ws://game-service:3002/ws/pong/game-ws/${gameId}`;
+    const backendUrl =`${GAME_SERVICE_WS_URL}/ws/pong/game-ws/${gameId}`;
     try {
       const backendSocket = await createBackendSocket(backendUrl)
       fastify.log.info('WebSocket proxy connected successfully');
@@ -374,6 +377,275 @@ const wsProxyRoute: FastifyPluginAsync = async (fastify) => {
   //   }
   //   return proxyRequest(fastify, request, reply, `http://game-service:3002/ws/pong/game/${gameId}/result`, 'PUT');
   // });
+//   fastify.get('/pong/demo', async (request , reply) => {
+//     const existingSessionId = request.cookies.sessionId;
+//     if (existingSessionId)
+//       fastify.log.info('✅'+existingSessionId)
+//     // var haveSesionId = false;
+//     try
+//     {
+//         fastify.log.info("Gateway received GET request for /ws/pong/demo")
+//         // const cookies = request.cookies;
+//         // Safely access a specific cookie - check for session id
+//         // if (!cookies)
+//         //   haveSesionId= false;
+//         // const sessionId = cookies?.sessionId;
+//         // if (cookies && sessionId) {
+//         //   haveSesionId = true;
+//         //   console.log('Cookie found', sessionId)
+//         // } else {
+//         //   console.log('No sessionId cookie found');
+//         // }
+//         const response = await fetch(`${GAME_SERVICE_URL}/ws/pong/demo`, {
+//         method: 'GET',
+//         headers: {
+//         'Authorization': request.headers['authorization'] || '',
+//       }})
+//     const data = await response.json();
+//     reply.status(response.status);
+//     // if (!haveSesionId){
+//       // add abc123 as session id
+//       // const sessionId = 'abc123'
+//       // Set the cookie
+//       // reply
+//       // .setCookie('sessionId', sessionId, {
+//       //   path: '/',           // cookie available on all routes
+//       //   httpOnly: true,      // not accessible via client-side JS
+//       //   secure: false,        // true send only over HTTPS
+//       //   sameSite: 'none',   // none for HTTPS
+//       //   // sameSite: 'Strict',  // CSRF protection
+//       //   maxAge: 3600         // 1 hour
+//       // })
+//     // }
+//     reply.send(data);
+//     }
+//     catch (error) {
+//       fastify.log.error(error)
+//       reply.status(404);
+//     }
+//   })
+
+//   fastify.post('/pong/demo', async (request , reply) => {
+//     // var haveSesionId = false
+//     try
+//     {
+//         fastify.log.error("Gateway received POST request for /ws/pong/demo")
+//         // const cookies = request.cookies;
+//         // Safely access a specific cookie - check for session id
+//         // if (!cookies)
+//         //   haveSesionId= false;
+//         // const sessionId = cookies?.sessionId;
+//         // if (sessionId) {
+//         //   haveSesionId = true;
+//         //   console.log('Cookie found', sessionId)
+//         // } else {
+//         //   console.log('No sessionId cookie found');
+//         // }
+//         const response = await fetch(`${GAME_SERVICE_URL}/ws/pong/demo`, {
+//         method: 'POST',
+//         headers: {
+//         'Content-Type': 'application/json',
+//         'Authorization': request.headers['authorization'] || '',},
+//          // 'Authorization': request.headers['authorization'] || '',},
+//         body:JSON.stringify(request.body),
+//       })
+//     const data = await response.json();
+//     // reply.status(response.status).send(data);
+//     reply.status(response.status);
+//     // if (!haveSesionId){
+//     //   // add abc123 as session id - Should get one from AUTH server and store it?
+//     //   const d = new Date()
+//     //   const sessionId = d.toString()
+//     //   // Set the cookie
+//     //   reply
+//     //   .setCookie('sessionId', sessionId, {
+//     //     path: '/',           // cookie available on all routes
+//     //     httpOnly: true,      // not accessible via client-side JS
+//     //     secure: true,        // send only over HTTPS
+//     //     // sameSite: 'Strict',  // CSRF protection
+//     //     sameSite: false, // for demo
+//     //     // maxAge: 3600         // 1 hour // without maxAge browser automatically expires the cookie when tab or browser is closed - only on frontend not file
+//     //   })
+//     // }
+//     reply.send(data);
+//     }
+//     catch (error) {
+//       fastify.log.error(error)
+//       reply.status(404);
+//     }
+//   })
+
+//   fastify.delete('/pong/demo/:gameId', async (request , reply) => {
+//     try
+//     {
+//         fastify.log.error("Gateway received DELETE request for /ws/pong/demo/:gameId")
+//         const response = await fetch(`${GAME_SERVICE_URL}/ws/pong/demo/:gameId`, {
+//         method: 'DELETE',
+//         headers: {
+//         'Authorization': request.headers['authorization'] || '',
+//       }})
+//     const data = await response.json();
+//     reply.status(response.status).send(data);
+//     }
+//     catch (error) {
+//       fastify.log.error(error)
+//       reply.status(404);
+//     }
+//   })
+
+//   fastify.delete('/pong/demo', async (request , reply) => {
+//     try
+//     {
+//         fastify.log.error("Gateway received DELETE request for /ws/pong/demo")
+//         const response = await fetch(`${GAME_SERVICE_URL}/ws/pong/demo`, {
+//         method: 'DELETE',
+//         headers: {
+//         'Authorization': request.headers['authorization'] || '',
+//       }})
+//     const data = await response.json();
+//     reply.status(response.status).send(data);
+//     }
+//     catch (error) {
+//       fastify.log.error(error)
+//       reply.status(404);
+//     }
+//   })
+
+//   fastify.post('/pong/demo/:gameId/move', async (request , reply) => {
+//     try
+//     {
+//         fastify.log.error("Gateway received POST request for /ws/pong/demo/:gameId/move")
+//         const response = await fetch(`${GAME_SERVICE_URL}/ws/pong/demo/:gameId/move`, {
+//         method: 'POST',
+//         headers: {
+//         'Content-Type': 'application/json',
+//         'Authorization': request.headers['authorization'] || '',},
+//         body:JSON.stringify(request.body),
+//       })
+//     const data = await response.json();
+//     reply.status(response.status).send(data);
+//     }
+//     catch (error) {
+//       fastify.log.error(error)
+//       reply.status(404);
+//     }
+//   })
+
+// // game
+
+//   fastify.post('/pong/game', async (request , reply) => {
+//     try
+//     {
+//         fastify.log.error("Gateway received POST request for /ws/pong/game")
+//         const response = await fetch(`${GAME_SERVICE_URL}/ws/pong/game`, {
+//         method: 'POST',
+//         headers: {
+//         'Content-Type': 'application/json',
+//         'Authorization': request.headers['authorization'] || '',},
+//         body:JSON.stringify(request.body),
+//       })
+//     const data = await response.json();
+//     reply.status(response.status).send(data);
+//     }
+//     catch (error) {
+//       fastify.log.error(error)
+//       reply.status(404);
+//     }
+//   })
+
+//   fastify.get('/pong/game', async (request , reply) => {
+//     try
+//     {
+//         fastify.log.error("Gateway received GET request for /ws/pong/game")
+//         const response = await fetch(`${GAME_SERVICE_URL}/ws/pong/game`, {
+//         method: 'GET',
+//         headers: {
+//         'Authorization': request.headers['authorization'] || '',
+//       }})
+//     const data = await response.json();
+//     reply.status(response.status).send(data);
+//     }
+//     catch (error) {
+//       fastify.log.error(error)
+//       reply.status(404);
+//     }
+//   })
+
+//   fastify.get('/pong/game/:gameId', async (request , reply) => {
+//     try
+//     {
+//         fastify.log.error("Gateway received GET request for /ws/pong/game/:gameId")
+//         const response = await fetch(`${GAME_SERVICE_URL}/ws/pong/game/:gameId`, {
+//         method: 'GET',
+//         headers: {
+//         'Authorization': request.headers['authorization'] || '',
+//       }})
+//     const data = await response.json();
+//     reply.status(response.status).send(data);
+//     }
+//     catch (error) {
+//       fastify.log.error(error)
+//       reply.status(404);
+//     }
+//   })
+
+//   fastify.post('/pong/game/:gameId/join', async (request , reply) => {
+//     try
+//     {
+//         fastify.log.error("Gateway received POST request for /ws/pong/game/:gameId/join")
+//         const response = await fetch(`${GAME_SERVICE_URL}/ws/pong/game/:gameId/join`, {
+//         method: 'POST',
+//         headers: {
+//         'Content-Type': 'application/json',
+//         'Authorization': request.headers['authorization'] || '',},
+//         body:JSON.stringify(request.body),
+//       })
+//     const data = await response.json();
+//     reply.status(response.status).send(data);
+//     }
+//     catch (error) {
+//       fastify.log.error(error)
+//       reply.status(404);
+//     }
+//   })
+
+//   fastify.post('/pong/game/:gameId/move', async (request , reply) => {
+//     try
+//     {
+//         fastify.log.error("Gateway received POST request for /ws/pong/game/:gameId/move")
+//         const response = await fetch(`${GAME_SERVICE_URL}/ws/pong/game/:gameId/move`, {
+//         method: 'POST',
+//         headers: {
+//         'Content-Type': 'application/json',
+//         'Authorization': request.headers['authorization'] || '',},
+//         body:JSON.stringify(request.body),
+//       })
+//     const data = await response.json();
+//     reply.status(response.status).send(data);
+//     }
+//     catch (error) {
+//       fastify.log.error(error)
+//       reply.status(404);
+//     }
+//   })
+
+//   fastify.put('/pong/game/:gameId/result', async (request , reply) => {
+//     try
+//     {
+//         fastify.log.error("Gateway received PUT request for /ws/pong/game/:gameId/result")
+//         const response = await fetch(`${GAME_SERVICE_URL}/ws/pong/game/:gameId/result`, {
+//         method: 'PUT',
+//         headers: {
+//         'Authorization': request.headers['authorization'] || '',
+//       }})
+//     const data = await response.json();
+//     reply.status(response.status).send(data);
+//     }
+//     catch (error) {
+//       fastify.log.error(error)
+//       reply.status(404);
+//     }
+//   })
 
 }
 

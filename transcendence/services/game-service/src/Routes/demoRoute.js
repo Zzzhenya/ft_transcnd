@@ -71,7 +71,7 @@ export function registerDemoRoutes(fastify, games, counters, broadcastState) {
         status: 'demo',
         isDemo: true,
         message: 'Demo game created with temporary players',
-        websocketUrl: `ws://localhost:3002/ws/pong/game-ws/${gameId}`
+        websocketUrl: `ws://${process.env.GAME_SERVICE_HOST || 'localhost'}:${process.env.GAME_SERVICE_PORT || '3002'}/ws/pong/game-ws/${gameId}`
       });
 
     } catch (error) {
