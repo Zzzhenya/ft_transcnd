@@ -15,6 +15,8 @@ import websocket from '@fastify/websocket'
 import firstRoute from './routes.js'
 import healthRoute from './routes/health.route.js'
 import wsRoute from './routes/ws-proxy.route.js'
+import pongGameRoute from './routes/pong.game.route.js'
+import pongDemoRoute from './routes/pong.demo.route.js'
 import statsRoute from './routes/stats.route.js'
 import userRoute from './routes/user.route.js'
 import tournamentRoute from './routes/tournament.route.js'
@@ -143,6 +145,10 @@ try {
   Fastify.register(statsRoute);
   logger.info('[[Gateway]] register ws routes ');
   Fastify.register(wsRoute, { prefix: '/ws' });
+  logger.info('[[Gateway]] register /pong/demo routes ');
+  Fastify.register(pongDemoRoute, { prefix: '/pong/demo' });
+  logger.info('[[Gateway]] register /pong/game routes ');
+  Fastify.register(pongGameRoute, { prefix: '/pong/game' });
   logger.info('[[Gateway]] register game routes ');
   Fastify.register(gameRoute, { prefix: '/api' })
   logger.info('[[Gateway]] register auth routes ');
