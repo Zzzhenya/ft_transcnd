@@ -1,5 +1,8 @@
 // src/routes/game.route.ts
 import type { FastifyPluginAsync } from 'fastify'
+import { proxyRequest } from '../utils/proxyHandler.js';
+import gatewayError from '../utils/gatewayError.js';
+import logger from '../utils/logger.js'; // log-service
 
 const GAME_SERVICE_URL = process.env.GAME_SERVICE_URL || 'http://game-service:3002'
 
@@ -8,30 +11,50 @@ const gameRoute: FastifyPluginAsync = async (fastify) => {
   // POST /api/rooms - Create new room
   fastify.post('/rooms', async (request, reply) => {
     try {
-      const response = await fetch(`${GAME_SERVICE_URL}/api/rooms`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({})
-      })
-      if (!response.ok) throw new Error(`HTTP ${response.status}`)
-      return await response.json()
+      return proxyRequest(fastify, request, reply, `${GAME_SERVICE_URL}/api/rooms`, 'POST');
     } catch (error: any) {
-      fastify.log.error('Error creating room:', error.message)
-      return reply.code(500).send({ success: false, error: 'Failed to create room' })
+      fastify.log.error('[[Gateway]] Error creating room:', error.message);
+      logger.error('[[Gateway]] Error creating room:', error.message);
+      return gatewayError(reply, 500, 'Internal Server Error', 'Failed to create room');
     }
-  })
+  });
+  
+  // fastify.post('/rooms', async (request, reply) => {
+  //   try {
+  //     const response = await fetch(`${GAME_SERVICE_URL}/api/rooms`, {
+  //       method: 'POST',
+  //       headers: { 'Content-Type': 'application/json' },
+  //       body: JSON.stringify({})
+  //     })
+  //     if (!response.ok) throw new Error(`HTTP ${response.status}`)
+  //     return await response.json()
+  //   } catch (error: any) {
+  //     fastify.log.error('Error creating room:', error.message)
+  //     return reply.code(500).send({ success: false, error: 'Failed to create room' })
+  //   }
+  // })
 
   // GET /api/rooms - List all rooms
   fastify.get('/rooms', async (request, reply) => {
     try {
-      const response = await fetch(`${GAME_SERVICE_URL}/api/rooms`)
-      if (!response.ok) throw new Error(`HTTP ${response.status}`)
-      return await response.json()
+      return proxyRequest(fastify, request, reply, `${GAME_SERVICE_URL}/api/rooms`, 'GET');
     } catch (error: any) {
-      fastify.log.error('Error listing rooms:', error.message)
-      return reply.code(500).send({ success: false, error: 'Failed to list rooms' })
+      fastify.log.error('[[Gateway]] Error listing room:', error.message);
+      logger.error('[[Gateway]] Error listing room:', error.message);
+      return gatewayError(reply, 500, 'Internal Server Error', 'Failed to list rooms');
     }
-  })
+  });
+
+  // fastify.get('/rooms', async (request, reply) => {
+  //   try {
+  //     const response = await fetch(`${GAME_SERVICE_URL}/api/rooms`)
+  //     if (!response.ok) throw new Error(`HTTP ${response.status}`)
+  //     return await response.json()
+  //   } catch (error: any) {
+  //     fastify.log.error('Error listing rooms:', error.message)
+  //     return reply.code(500).send({ success: false, error: 'Failed to list rooms' })
+  //   }
+  // })
 
   // GET /api/rooms/:roomId - Get room info
   fastify.get('/rooms/:roomId', async (request, reply) => {
