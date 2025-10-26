@@ -48,14 +48,14 @@
 import fp from 'fastify-plugin'
 import type { FastifyPluginAsync, FastifyRequest } from 'fastify'
 
-// 1️⃣ Extend FastifyRequest to include customFetch
+// Extend FastifyRequest to include customFetch
 declare module 'fastify' {
   interface FastifyRequest {
     customFetch(url: string, options?: RequestInit, timeoutMs?: number): Promise<Response>
   }
 }
 
-// 2️⃣ Create the plugin
+// Create the plugin
 const fetchPlugin: FastifyPluginAsync = async (fastify) => {
   fastify.decorateRequest('customFetch', async function (url: string, options?: RequestInit, timeoutMs?: number) {
     const controller = new AbortController();
@@ -71,6 +71,6 @@ const fetchPlugin: FastifyPluginAsync = async (fastify) => {
   });
 }
 
-// 3️⃣ Wrap with fastify-plugin to allow proper registration
+// Wrap with fastify-plugin to allow proper registration
 export default fp(fetchPlugin);
 
