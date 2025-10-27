@@ -214,7 +214,7 @@ Get game statistics and counters.
 
 ## Single Games (Registered Users)
 
-### POST /ws/pong/game
+### POST /pong/game
 Create a single game for registered users (3 rounds, score limit 5).
 
 **Request Body:**
@@ -246,7 +246,7 @@ Create a single game for registered users (3 rounds, score limit 5).
 
 ---
 
-### POST /ws/pong/game/:gameId/join
+### POST /pong/game/:gameId/join
 Join an existing game as player2.
 
 **Request Body:**
@@ -273,7 +273,7 @@ Join an existing game as player2.
 
 ---
 
-### GET /ws/pong/game
+### GET /pong/game
 Get all single games.
 
 **Response (200 OK):**
@@ -301,7 +301,7 @@ Get all single games.
 
 ---
 
-### GET /ws/pong/game/:gameId
+### GET /pong/game/:gameId
 Get specific single game details.
 
 **Response (200 OK):**
@@ -326,7 +326,7 @@ Get specific single game details.
 
 ---
 
-### POST /ws/pong/game/:gameId/move
+### POST /pong/game/:gameId/move
 Move paddle in single game.
 
 **Request Body:**
@@ -353,7 +353,7 @@ Move paddle in single game.
 
 ---
 
-### PUT /ws/pong/game/:gameId/result
+### PUT /pong/game/:gameId/result
 Update game result when completed.
 
 **Request Body:**
@@ -381,7 +381,7 @@ Update game result when completed.
 
 ## Demo Games (Temporary Players)
 
-### POST /ws/pong/demo
+### POST /pong/demo
 Create a demo game with auto-generated temporary players.
 
 **Response (201 Created):**
@@ -401,7 +401,7 @@ Create a demo game with auto-generated temporary players.
 
 ---
 
-### GET /ws/pong/demo
+### GET /pong/demo
 Get all demo games.
 
 **Response (200 OK):**
@@ -426,7 +426,7 @@ Get all demo games.
 
 ---
 
-### DELETE /ws/pong/demo/:gameId
+### DELETE /pong/demo/:gameId
 Delete a specific demo game.
 
 **Response (200 OK):**
@@ -443,7 +443,7 @@ Delete a specific demo game.
 
 ---
 
-### DELETE /ws/pong/demo
+### DELETE /pong/demo
 Delete all demo games.
 
 **Response (200 OK):**
@@ -467,7 +467,7 @@ Delete all demo games.
 
 ---
 
-### POST /ws/pong/demo/:gameId/move
+### POST /pong/demo/:gameId/move
 Move paddle in demo game.
 
 **Request Body:**
