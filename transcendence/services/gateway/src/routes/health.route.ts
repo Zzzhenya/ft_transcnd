@@ -7,6 +7,7 @@ import { proxyRequest } from '../utils/proxyHandler.js';
 
 const GAME_SERVICE_URL = process.env.GAME_SERVICE_URL || 'http://game-service:3002';
 const LOG_SERVICE_URL = process.env.LOG_SERVICE_URL || 'http://log-service:3003';
+const TESTDB_URL = process.env.TESTDB_URL || 'http://testdb:3010';
 
 const healthRoutes: FastifyPluginAsync = async (fastify) => {
 
@@ -28,7 +29,7 @@ const healthRoutes: FastifyPluginAsync = async (fastify) => {
 
 // health route for test-db
     fastify.get('/test-db/health', async (request, reply) => {
-        return proxyRequest(fastify, request, reply, 'http://testdb:3010/health', 'GET');
+        return proxyRequest(fastify, request, reply, `${TESTDB_URL}/health`, 'GET');
     });
 
 };

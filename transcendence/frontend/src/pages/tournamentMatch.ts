@@ -85,7 +85,7 @@ export default function (root: HTMLElement, ctx: any) {
     try {
       updateStatus('🔄 Creating tournament match...');
       updateConnectionStatus('📡 Connecting to gateway...');
-      const response = await fetch('http://localhost:3000/ws/pong/demo', {
+      const response = await fetch(`${import.meta.env.VITE_GATEWAY_BASE}/ws/pong/demo`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ players: [player1Name, player2Name] })
@@ -107,7 +107,7 @@ export default function (root: HTMLElement, ctx: any) {
   function connectWebSocket(gameId: string) {
     connectionAttempts++;
     try {
-      const wsUrl = `ws://localhost:3000/ws/pong/game-ws/${gameId}`;
+      const wsUrl = `${import.meta.env.VITE_WS_BASE}/ws/pong/game-ws/${gameId}`;
       ws = new WebSocket(wsUrl);
       updateStatus('🔄 Connecting to match...');
       updateConnectionStatus(`🔌 WebSocket connecting... (${connectionAttempts}/${maxConnectionAttempts})`);

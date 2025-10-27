@@ -2,6 +2,8 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import gatewayError from './gatewayError.js'; // adjust path
 import logger from './logger.js';
 
+const PROXY_REQUEST_TIMEOUT = parseInt(process.env.PROXY_REQUEST_TIMEOUT || '5000');
+
 export async function proxyRequest(
   fastify: FastifyInstance,
   request: FastifyRequest,
@@ -25,7 +27,7 @@ export async function proxyRequest(
           ? JSON.stringify(request.body)
           : null,
       },
-      5000
+      PROXY_REQUEST_TIMEOUT
     );
 
     if (!response.ok) {
