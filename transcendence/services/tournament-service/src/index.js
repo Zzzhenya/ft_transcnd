@@ -218,13 +218,13 @@ function findNextMatch(bracket) {
 // Start server
 const start = async () => {
   try {
-    await fastify.listen({ port: 3005, host: '0.0.0.0' });
+    const address = await fastify.listen({ port: 3005, host: '0.0.0.0' });
     console.log('tournament-service running on port 3005');
+    fastify.log.info(`Tournament service listening at ${address}`);
   } catch (err) {
     fastify.log.error(err);
     process.exit(1);
   }
-  fastify.log.info(`Tournament service listening at ${address}`);
-});
+};
 
-
+start();
