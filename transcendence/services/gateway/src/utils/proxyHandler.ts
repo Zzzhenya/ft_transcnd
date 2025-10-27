@@ -40,6 +40,7 @@ export async function proxyRequest(
       if (response.status >= 400 && response.status < 500) {
         // all 4xx errors are forwarded to frontend with details - probably an issue with client call
         logger.warn(`[[Gateway]] ${upstreamUrl || ''} error : ${response.status} :  ${body}`);
+        fastify.log.error('HEREEEEEEE')
         throw fastify.httpErrors.createError(response.status, `Upstream ${upstreamUrl || ''} error: ${body}`);
       } else if (response.status >= 500) {
         // all 5xx errors from upstream -> redirect to 502 Bad gateway - frontend doesn't need to know what is wrong
@@ -60,10 +61,15 @@ export async function proxyRequest(
       logger.error(`[[Gateway]] Upstream request to ${upstreamUrl || ''} timed out`);
       throw fastify.httpErrors.gatewayTimeout(`${upstreamUrl  || 'Upstream'} 'The upstream service timed out. Please try again later.'`);
     }
-    else if (error.cause?.code === 'ECONNREFUSED'){
+    if (error.cause?.code === 'ECONNREFUSED'){
       // fetch() failed : network error -> 503 Service unavailable
       logger.error(`[[Gateway]] Upstream request to ${upstreamUrl || ''} failed, ${error} : ${error.cause?.code}`);
       throw fastify.httpErrors.serviceUnavailable(`The upstream service ${upstreamUrl || ''} is currently unavailable.`)
+    }
+    if (error.statusCode >= 400 && error.statusCode < 500){
+      // 4xx
+      logger.error(`[[Gateway]] ${error}`);
+      throw error;
     }
     // fallback case -> 502 Bad gateway
     logger.error(`Failed to fetch from ${upstreamUrl || 'upstream'}`)
