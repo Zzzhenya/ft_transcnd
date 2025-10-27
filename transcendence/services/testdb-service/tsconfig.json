@@ -7,7 +7,7 @@
 
     // Environment Settings
     // See also https://aka.ms/tsconfig/module
-    "module": "CommonJS", // so Node can run it after build
+    "module": "commonjs", // so Node can run it after build
     "target": "ES2020", // Node.js V14+ natively support ES2020 features
     "types": [],
     // For nodejs:
