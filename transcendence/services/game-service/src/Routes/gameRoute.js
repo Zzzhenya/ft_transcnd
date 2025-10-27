@@ -10,6 +10,7 @@ import {
   movePaddle,
   cleanupGame
 } from '../pong/gameLogic.js';
+import logger from '../utils/logger.js';
 
 /**
  * Register single game routes with the Fastify instance
@@ -93,7 +94,7 @@ export function registerSingleGameRoutes(fastify, games, counters, broadcastStat
       const playerInfo = player2_id ? 
         `${player1_name} vs ${player2_name}` : 
         `${player1_name} (waiting for opponent)`;
-      console.log(`[Game] Created single game ${gameId} with players ${playerInfo} (3 rounds, score limit: 5)`);
+      logger.info(`[Game] Created single game ${gameId} with players ${playerInfo} (3 rounds, score limit: 5)`);
 
       const response = {
         id: gameId,
@@ -174,7 +175,7 @@ export function registerSingleGameRoutes(fastify, games, counters, broadcastStat
       game.player2_name = player2_name.trim();
       game.status = 'ready';
 
-      console.log(`[Game] Player ${player2_name} joined game ${gameId}. Status: ${game.status}`);
+      logger.info(`[Game] Player ${player2_name} joined game ${gameId}. Status: ${game.status}`);
 
       // Broadcast to connected clients that player joined
       const joinMessage = JSON.stringify({
@@ -326,7 +327,7 @@ export function registerSingleGameRoutes(fastify, games, counters, broadcastStat
     winner: winner,
     timestamp: Date.now(),
   };
-  console.log(`[Game ${game.id}] Result recorded:`, result);
+  logger.info(`[Game ${game.id}] Result recorded:`, result);
 
   games.delete(req.params.gameId);
   reply.send({ message: "Game result recorded", result });

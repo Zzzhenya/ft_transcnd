@@ -4,6 +4,7 @@
  */
 
 import { movePaddle, restartGame, startGame, startGameLoop, moveBall } from '../pong/gameLogic.js';
+import logger from '../utils/logger.js';
 
 /**
  * Register WebSocket routes with the Fastify instance
@@ -23,10 +24,10 @@ export function registerWebSocketRoutes(fastify, games, broadcastState) {
     const gameId = parseInt(request.params.gameId, 10);
     const game = games.get(gameId);
 
-    console.log("🆔gameId= ", gameId)
+    logger.info(`[WS] Connection request for gameId: ${gameId}`);
 
     if (!game) {
-      console.warn(`[WS] Connection attempt to invalid game ID: ${gameId}`);
+      logger.warn(`[WS] Connection attempt to invalid game ID: ${gameId}`);
       connection.socket.close(1000, 'Game not found');
       return;
     }
@@ -36,7 +37,7 @@ export function registerWebSocketRoutes(fastify, games, broadcastState) {
     const gameState = game.state;
     const clients = game.clients;
     clients.add(ws);
-    console.log("🆔add client to ws: ")
+    logger.info(`[WS] Client added to WebSocket connection for game ${gameId}`);
     // Determine game type for logging
     let gameTypeLabel = 'NORMAL';
     if (game.isDemo) {
@@ -45,7 +46,7 @@ export function registerWebSocketRoutes(fastify, games, broadcastState) {
       gameTypeLabel = 'TOURNAMENT';
     }
 
-    console.log(
+    logger.info(
       `[WS] Client connected to ${gameTypeLabel} game ${gameId} (${game.player1_name} vs ${game.player2_name}). Total clients: ${clients.size}`
     );
 
@@ -56,10 +57,10 @@ export function registerWebSocketRoutes(fastify, games, broadcastState) {
     ws.on('message', (rawMessage) => {
       try {
         const message = JSON.parse(rawMessage.toString());
-        console.log(message)
+        logger.info(`[WS] Message received in game ${gameId}:`, { type: message.type, data: message });
         handleWebSocketMessage(message, gameState, gameId, broadcastState, games);
       } catch (error) {
-        console.error(`[WS] Message parse error in game ${gameId}:`, error);
+        logger.error(`[WS] Message parse error in game ${gameId}:`, { error: error.message, stack: error.stack });
         ws.send(JSON.stringify({
           type: 'ERROR',
           message: 'Invalid message format'
@@ -70,19 +71,19 @@ export function registerWebSocketRoutes(fastify, games, broadcastState) {
     // Handle client disconnection
     ws.on('close', (code, reason) => {
       clients.delete(ws);
-      console.log(
+      logger.info(
         `[WS] Client disconnected from ${gameTypeLabel} game ${gameId}. Remaining: ${clients.size}. Code: ${code}, Reason: ${reason}`
       );
       
       // Game continues running even if no clients are connected
       if (clients.size === 0) {
-        console.log(`[WS] No clients remaining in game ${gameId}, game continues running`);
+        logger.info(`[WS] No clients remaining in game ${gameId}, game continues running`);
       }
     });
 
     // Handle WebSocket errors
     ws.on('error', (error) => {
-      console.error(`[WS] Socket error in ${gameTypeLabel} game ${gameId}:`, error);
+      logger.error(`[WS] Socket error in ${gameTypeLabel} game ${gameId}:`, { error: error.message, stack: error.stack });
       clients.delete(ws);
     });
   });
@@ -96,13 +97,13 @@ export function registerWebSocketRoutes(fastify, games, broadcastState) {
     const game = games.get(gameId);
 
     if (!game || !game.isDemo) {
-      console.warn(`[Demo-WS] Connection attempt to invalid demo game ID: ${gameId}`);
+      logger.warn(`[Demo-WS] Connection attempt to invalid demo game ID: ${gameId}`);
       connection.socket.close(1000, 'Demo game not found');
       return;
     }
 
     // Redirect to main WebSocket handler with demo flag
-    console.log(`[Demo-WS] Redirecting demo game ${gameId} to main WebSocket handler`);
+    logger.info(`[Demo-WS] Redirecting demo game ${gameId} to main WebSocket handler`);
     
     // Use the same logic as the main WebSocket route
 
@@ -111,7 +112,7 @@ export function registerWebSocketRoutes(fastify, games, broadcastState) {
     const clients = game.clients;
     clients.add(ws);
 
-    console.log(`[Demo-WS] Client connected to DEMO game ${gameId} (${game.player1_name} vs ${game.player2_name}). Total clients: ${clients.size}`);
+    logger.info(`[Demo-WS] Client connected to DEMO game ${gameId} (${game.player1_name} vs ${game.player2_name}). Total clients: ${clients.size}`);
 
     // Send initial state
     ws.send(createInitialStateMessage(game, gameId));
@@ -122,7 +123,7 @@ export function registerWebSocketRoutes(fastify, games, broadcastState) {
         const message = JSON.parse(rawMessage.toString());
         handleWebSocketMessage(message, gameState, gameId, broadcastState, games);
       } catch (error) {
-        console.error(`[Demo-WS] Message parse error in demo game ${gameId}:`, error);
+        logger.error(`[Demo-WS] Message parse error in demo game ${gameId}:`, { error: error.message, stack: error.stack });
         ws.send(JSON.stringify({
           type: 'ERROR',
           message: 'Invalid message format'
@@ -133,11 +134,11 @@ export function registerWebSocketRoutes(fastify, games, broadcastState) {
     // Handle disconnection
     ws.on('close', (code, reason) => {
       clients.delete(ws);
-      console.log(`[Demo-WS] Client disconnected from DEMO game ${gameId}. Remaining: ${clients.size}`);
+      logger.info(`[Demo-WS] Client disconnected from DEMO game ${gameId}. Remaining: ${clients.size}`);
     });
 
     ws.on('error', (error) => {
-      console.error(`[Demo-WS] Socket error in demo game ${gameId}:`, error);
+      logger.error(`[Demo-WS] Socket error in demo game ${gameId}:`, { error: error.message, stack: error.stack });
       clients.delete(ws);
     });
   });
@@ -170,7 +171,7 @@ function createInitialStateMessage(game, gameId) {
     // Exclude gameLoopInterval - it's not serializable
   };
 
-  console.log(cleanGameState);
+  logger.debug(`[WS] Initial state for game ${gameId}:`, cleanGameState);
 
   return JSON.stringify({
     type: 'STATE_UPDATE',
@@ -219,7 +220,7 @@ function handleWebSocketMessage(message, gameState, gameId, broadcastState, game
     case 'RESTART_GAME':
       restartGame(gameState);
       broadcastState(gameId);
-      console.log(`[WS] Game ${gameId} restarted`);
+      logger.info(`[WS] Game ${gameId} restarted`);
       break;
 
     case 'START_GAME':
@@ -231,7 +232,7 @@ function handleWebSocketMessage(message, gameState, gameId, broadcastState, game
 
       // Restart game loop if it was cleared (e.g., after restart)
       if (game && !gameState.gameLoopInterval) {
-        console.log(`[WS] Restarting game loop for game ${gameId}`);
+        logger.info(`[WS] Restarting game loop for game ${gameId}`);
         const getClientCount = () => game.clients.size;
         const newLoop = startGameLoop(gameState, () => broadcastState(gameId), moveBall, getClientCount);
         gameState.gameLoopInterval = newLoop;
@@ -239,12 +240,12 @@ function handleWebSocketMessage(message, gameState, gameId, broadcastState, game
       }
       
       broadcastState(gameId);
-      console.log(`[WS] Game ${gameId} started`);
+      logger.info(`[WS] Game ${gameId} started`);
       break;
     
     case 'health_check':
       // Respond to health check messages
-      console.log(`[WS] Health check received in game ${gameId}`);
+      logger.debug(`[WS] Health check received in game ${gameId}`);
       break;
 
     case 'stats':
@@ -295,7 +296,7 @@ function handlePlayerReady(message, game, gameId, broadcastState) {
 
   // Mark player as ready
   game.playersReady[playerSlot] = true;
-  console.log(`[WS] Player ${playerSlot} (${player_id}) is ready in game ${gameId}`);
+  logger.info(`[WS] Player ${playerSlot} (${player_id}) is ready in game ${gameId}`);
 
   // Broadcast player ready status
   broadcastToGame(game, {
@@ -308,7 +309,7 @@ function handlePlayerReady(message, game, gameId, broadcastState) {
 
   // Check if both players are ready
   if (game.playersReady.player1 && game.playersReady.player2) {
-    console.log(`[WS] Both players ready in game ${gameId}, starting countdown`);
+    logger.info(`[WS] Both players ready in game ${gameId}, starting countdown`);
     game.status = 'starting';
     
     // Start countdown
@@ -362,7 +363,7 @@ function startGameCountdown(game, gameId, broadcastState) {
       // Broadcast initial game state
       broadcastState(gameId);
       
-      console.log(`[WS] Game ${gameId} started!`);
+      logger.info(`[WS] Game ${gameId} started!`);
     }
   }, 1000);
 

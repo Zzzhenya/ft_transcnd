@@ -1,3 +1,5 @@
+import logger from '../utils/logger.js';
+
 export function movePaddle(gameState, player, direction) {
   const paddleSpeed = 15;
   const paddleHeight = 60;
@@ -14,7 +16,7 @@ export function movePaddle(gameState, player, direction) {
   gameState.paddles[player] += dir * paddleSpeed;
   gameState.paddles[player] = Math.max(topBoundary, Math.min(bottomBoundary, gameState.paddles[player]));
   
-  console.log(`[Paddle] ${player} moved ${direction}: ${oldPosition} -> ${gameState.paddles[player]} (boundaries: ${topBoundary} to ${bottomBoundary})`);
+  logger.debug(`[Paddle] ${player} moved ${direction}: ${oldPosition} -> ${gameState.paddles[player]} (boundaries: ${topBoundary} to ${bottomBoundary})`);
 
   return gameState;
 }
@@ -36,7 +38,7 @@ export function moveBall(gameState) {
 
   // Debug ball position when near boundaries
   if (Math.abs(gameState.ball.x) > 45) {
-    console.log(`[Ball] Near boundary: x=${gameState.ball.x}, y=${gameState.ball.y}, dx=${gameState.ball.dx}, dy=${gameState.ball.dy}`);
+    logger.debug(`[Ball] Near boundary: x=${gameState.ball.x}, y=${gameState.ball.y}, dx=${gameState.ball.dx}, dy=${gameState.ball.dy}`);
   }
 
   // Wall collision - top and bottom boundaries
@@ -52,7 +54,7 @@ export function moveBall(gameState) {
     const relativeY = gameState.ball.y - paddleY;
     const normalizedY = relativeY / (paddleHeight / 2);
     
-    console.log(`[Bounce] Ball speed before: dx=${gameState.ball.dx}, dy=${gameState.ball.dy}`);
+    logger.debug(`[Bounce] Ball speed before: dx=${gameState.ball.dx}, dy=${gameState.ball.dy}`);
     
     // Keep constant speed - don't increase speed on each hit
     const baseSpeed = 2; // Constant ball speed
@@ -60,7 +62,7 @@ export function moveBall(gameState) {
     gameState.ball.dx = gameState.ball.dx > 0 ? -baseSpeed : baseSpeed; // Reverse direction with constant speed
     gameState.ball.dy = normalizedY * baseSpeed; // Set Y velocity based on paddle hit position
     
-    console.log(`[Bounce] Ball speed after: dx=${gameState.ball.dx}, dy=${gameState.ball.dy}`);
+    logger.debug(`[Bounce] Ball speed after: dx=${gameState.ball.dx}, dy=${gameState.ball.dy}`);
   }
 
   // Left paddle collision - ball hits paddle at left boundary
@@ -71,7 +73,7 @@ export function moveBall(gameState) {
     gameState.ball.y >= gameState.paddles.player1 - paddleHeight / 2 &&
     gameState.ball.y <= gameState.paddles.player1 + paddleHeight / 2
   ) {
-    console.log(`[Collision] Left paddle hit! Ball: (${gameState.ball.x}, ${gameState.ball.y}), Paddle1: ${gameState.paddles.player1}`);
+    logger.debug(`[Collision] Left paddle hit! Ball: (${gameState.ball.x}, ${gameState.ball.y}), Paddle1: ${gameState.paddles.player1}`);
     gameState.ball.x = -paddleX + 3; // Position ball at outer surface of paddle (paddle at -50, ball at -47)
     bounceOffPaddle(gameState.paddles.player1);
   }
@@ -84,19 +86,19 @@ export function moveBall(gameState) {
     gameState.ball.y >= gameState.paddles.player2 - paddleHeight / 2 &&
     gameState.ball.y <= gameState.paddles.player2 + paddleHeight / 2
   ) {
-    console.log(`[Collision] Right paddle hit! Ball: (${gameState.ball.x}, ${gameState.ball.y}), Paddle2: ${gameState.paddles.player2}`);
+    logger.debug(`[Collision] Right paddle hit! Ball: (${gameState.ball.x}, ${gameState.ball.y}), Paddle2: ${gameState.paddles.player2}`);
     gameState.ball.x = paddleX - 3; // Position ball at outer surface of paddle (paddle at +50, ball at +47)
     bounceOffPaddle(gameState.paddles.player2);
   }
 
   if (gameState.ball.x < -50) {
-    console.log(`[SCORE] Ball missed left paddle! Final ball position: x=${gameState.ball.x}, y=${gameState.ball.y}`);
+    logger.info(`[SCORE] Ball missed left paddle! Final ball position: x=${gameState.ball.x}, y=${gameState.ball.y}`);
     gameState.score.player2++;
     gameState.tournament.lastPointWinner = 'player2';
     checkRoundEnd(gameState);
     resetBall(gameState, 'player1'); // Ball goes to loser (player1)
   } else if (gameState.ball.x > 50) {
-    console.log(`[SCORE] Ball missed right paddle! Final ball position: x=${gameState.ball.x}, y=${gameState.ball.y}`);
+    logger.info(`[SCORE] Ball missed right paddle! Final ball position: x=${gameState.ball.x}, y=${gameState.ball.y}`);
     gameState.score.player1++;
     gameState.tournament.lastPointWinner = 'player1';
     checkRoundEnd(gameState);
