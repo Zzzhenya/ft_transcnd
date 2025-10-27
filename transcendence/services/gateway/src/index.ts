@@ -33,7 +33,7 @@ const FRONT_END_URL = String(process.env.FRONT_END_URL);
 const TESTDB_URL = process.env.TESTDB_URL || 'http://testdb:3010';
 const COOKIE_MAX_AGE = parseInt(process.env.COOKIE_MAX_AGE || '3600');
 const Fastify = fastify({logger:true});
-const PORT = 3000
+const PORT = parseInt(process.env.GATEWAY_PORT || '3000')
 
 
 await registerPlugins(Fastify);

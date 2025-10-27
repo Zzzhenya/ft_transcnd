@@ -218,8 +218,9 @@ function findNextMatch(bracket) {
 // Start server
 const start = async () => {
   try {
-    const address = await fastify.listen({ port: 3005, host: '0.0.0.0' });
-    console.log('tournament-service running on port 3005');
+    const PORT = parseInt(process.env.TOURNAMENT_SERVICE_PORT || process.env.PORT || '3005');
+    const address = await fastify.listen({ port: PORT, host: '0.0.0.0' });
+    console.log(`tournament-service running on port ${PORT}`);
     fastify.log.info(`Tournament service listening at ${address}`);
   } catch (err) {
     fastify.log.error(err);

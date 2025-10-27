@@ -58,4 +58,5 @@ fastify.get('/sessions', async (req, reply) => {
   return rows;
 });
 
-fastify.listen({ port: 3010, host: '0.0.0.0' });
+const PORT = parseInt(process.env.TESTDB_PORT || process.env.PORT || '3010');
+fastify.listen({ port: PORT, host: '0.0.0.0' });

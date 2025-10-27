@@ -114,9 +114,10 @@ fastify.post('/api/logs/batch', async (request, reply) => {
 
 const start = async () => {
   try {
-    await fastify.listen({ port: 3003, host: '0.0.0.0' });
-    logger.info('log-service running on port 3003');
-    console.log('log-service running on port 3003');
+    const PORT = parseInt(process.env.LOG_SERVICE_PORT || process.env.PORT || '3003');
+    await fastify.listen({ port: PORT, host: '0.0.0.0' });
+    logger.info(`log-service running on port ${PORT}`);
+    console.log(`log-service running on port ${PORT}`);
     console.log('Forwarding logs to:', LOGSTASH_URL);
   } catch (err) {
     logger.error('Failed to start log-service:', err);
