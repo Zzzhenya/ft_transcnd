@@ -132,7 +132,8 @@ Fastify.addHook('onRequest', async (request, reply) => {
     }
   }
   catch (error: any){
-    logger.error(`[[Gateway]] An error occured while extracting or setting sessionId`);
+    //logger.error(`[[Gateway]] An error occured while extracting or setting sessionId: ${error.message}`, error);
+    Fastify.log.error(`[[Gateway]] SessionId error: ${error.message}`, error);
   }
 });
 

@@ -3,7 +3,7 @@
  * Creates temporary games with auto-generated players
  */
 
-import { log } from '../../../user-service/src/utils/logger.js';
+import logger from '../utils/logger.js';
 import {
   startGameLoop,
   initialGameState,
@@ -12,7 +12,6 @@ import {
   startRoundCountdown,
   cleanupGame
 } from '../pong/gameLogic.js';
-import logger from '../utils/logger.js';
 
 /**
  * Register demo routes with the Fastify instance
