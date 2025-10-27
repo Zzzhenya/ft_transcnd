@@ -302,7 +302,7 @@
         async function createDemoGame() {
             try {
                 log('🎮 Creating demo game...', 'info');
-                const response = await fetch(`http://localhost:3000/ws/pong/demo`, {
+                const response = await fetch(`http://localhost:3000/pong/demo`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({}) // Send empty JSON object
@@ -327,7 +327,7 @@
         
         async function listDemoGames() {
             try {
-                const response = await fetch(`http://localhost:3000/ws/pong/demo`);
+                const response = await fetch(`http://localhost:3000/pong/demo`);
                 const data = await response.json();
                 
                 // Handle different response formats
@@ -356,7 +356,7 @@
             try {
                 if (!confirm('Delete all demo games?')) return;
                 
-                const response = await fetch(`http://localhost:3000/ws/pong/demo`, {
+                const response = await fetch(`http://localhost:3000/pong/demo`, {
                     method: 'DELETE'
                 });
                 const data = await response.json();
@@ -381,7 +381,7 @@
                 }
                 
                 log('🏓 Creating normal game...', 'info');
-                const response = await fetch(`http://localhost:3000/ws/pong/game`, {
+                const response = await fetch(`http://localhost:3000/pong/game`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -412,7 +412,7 @@
         
         async function listNormalGames() {
             try {
-                const response = await fetch(`${API_BASE}/ws/pong/game`);
+                const response = await fetch(`${API_BASE}/pong/game`);
                 const data = await response.json();
                 
                 if (data.length === 0) {

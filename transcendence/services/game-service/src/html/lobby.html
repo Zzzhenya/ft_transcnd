@@ -462,7 +462,7 @@
             }
 
             try {
-                const response = await fetch('http://localhost:3002/ws/pong/game', {
+                const response = await fetch('http://localhost:3002/pong/game', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -489,7 +489,7 @@
         // Refresh games list
         async function refreshGames() {
             try {
-                const response = await fetch('http://localhost:3002/ws/pong/game');
+                const response = await fetch('http://localhost:3002/pong/game');
                 const result = await response.json();
 
                 const gamesList = document.getElementById('gamesList');
@@ -545,7 +545,7 @@
             }
 
             try {
-                const response = await fetch(`http://localhost:3002/ws/pong/game/${gameId}/join`, {
+                const response = await fetch(`http://localhost:3002/pong/game/${gameId}/join`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',

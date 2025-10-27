@@ -23,9 +23,9 @@ export function registerDemoRoutes(fastify, games, counters, broadcastState) {
   
   /**
    * Create a demo game session with temporary players
-   * POST /ws/pong/demo
+   * POST /pong/demo
    */
-  fastify.post('/ws/pong/demo', async (request, reply) => {
+  fastify.post('/pong/demo', async (request, reply) => {
     try {
       // Generate temporary player IDs
       const demoPlayer1Id = counters.nextPlayerId++;
@@ -82,9 +82,9 @@ export function registerDemoRoutes(fastify, games, counters, broadcastState) {
 
   /**
    * Get all demo games
-   * GET /ws/pong/demo
+   * GET /pong/demo
    */
-  fastify.get('/ws/pong/demo', async (request, reply) => {
+  fastify.get('/pong/demo', async (request, reply) => {
     try {
       const demoGames = [];
       
@@ -117,9 +117,9 @@ export function registerDemoRoutes(fastify, games, counters, broadcastState) {
 
   /**
    * Delete a demo game
-   * DELETE /ws/pong/demo/:gameId
+   * DELETE /pong/demo/:gameId
    */
-  fastify.delete('/ws/pong/demo/:gameId', async (request, reply) => {
+  fastify.delete('/pong/demo/:gameId', async (request, reply) => {
     try {
       const gameId = parseInt(request.params.gameId, 10);
       const game = games.get(gameId);
@@ -171,7 +171,7 @@ export function registerDemoRoutes(fastify, games, counters, broadcastState) {
    * Delete all demo games
    * DELETE /games/demo
    */
-  fastify.delete('/ws/pong/demo', async (request, reply) => {
+  fastify.delete('/pong/demo', async (request, reply) => {
     try {
       const deletedGames = [];
       const gamesToDelete = [];
@@ -222,10 +222,10 @@ export function registerDemoRoutes(fastify, games, counters, broadcastState) {
   });
 
   /**
-   * POST /ws/pong/demo/:gameId/move
+   * POST /pong/demo/:gameId/move
    * Move player paddle in demo game
    */
-  fastify.post('/ws/pong/demo/:gameId/move', async (request, reply) => {
+  fastify.post('/pong/demo/:gameId/move', async (request, reply) => {
     try {
       const { gameId } = request.params;
       const { player, direction } = request.body;

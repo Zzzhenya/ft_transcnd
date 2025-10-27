@@ -85,7 +85,7 @@ export default function (root: HTMLElement, ctx: any) {
     try {
       updateStatus('🔄 Creating tournament match...');
       updateConnectionStatus('📡 Connecting to gateway...');
-      const response = await fetch(`${import.meta.env.VITE_GATEWAY_BASE}/ws/pong/demo`, {
+      const response = await fetch('http://localhost:3000/pong/demo', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ players: [player1Name, player2Name] })
