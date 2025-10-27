@@ -58,7 +58,7 @@ const onRequestHook: FastifyPluginCallback = (fastify: FastifyInstance, opts: Fa
         secure: false,        // true send only over HTTPS
         sameSite: 'none',   // none for HTTPS
         // sameSite: 'Strict',  // CSRF protection
-        maxAge: 3600         // 1 hour
+        maxAge: parseInt(process.env.COOKIE_MAX_AGE || '3600')         // 1 hour
       })
 
 */

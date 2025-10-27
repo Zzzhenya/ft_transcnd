@@ -30,6 +30,8 @@ import { registerPlugins } from './utils/registerPlugins.js';
 import { proxyRequest } from './utils/proxyHandler.js';
 
 const FRONT_END_URL = String(process.env.FRONT_END_URL);
+const TESTDB_URL = process.env.TESTDB_URL || 'http://testdb:3010';
+const COOKIE_MAX_AGE = parseInt(process.env.COOKIE_MAX_AGE || '3600');
 const Fastify = fastify({logger:true});
 const PORT = 3000
 
@@ -101,7 +103,7 @@ Fastify.addHook('onRequest', async (request, reply) => {
       const newSessionId = uuidv4();
       // call your own POST /sessions route internally
 
-      const res = await fetch(`http://testdb:3010/session`, {
+      const res = await fetch(`${TESTDB_URL}/session`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -120,7 +122,7 @@ Fastify.addHook('onRequest', async (request, reply) => {
         httpOnly: true,
         sameSite: 'lax',
         secure: false,
-        maxAge: 3600 // 1 hour
+        maxAge: COOKIE_MAX_AGE // 1 hour
       });
       logger.info(`[[Gateway]] New sessionId created: ${newSessionId}`);
       Fastify.log.info(`[[Gateway]] 🆕 New sessionId created: ${newSessionId}`);
