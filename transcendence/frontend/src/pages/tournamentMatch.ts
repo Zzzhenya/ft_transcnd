@@ -9,8 +9,8 @@ export default function (root: HTMLElement, ctx: any) {
 
   let gameId: string | null = null;
   let ws: WebSocket | null = null;
-  let canvas: HTMLCanvasElement;
-  let ctx2d: CanvasRenderingContext2D;
+  let canvas: HTMLCanvasElement | null = null;
+  let ctx2d: CanvasRenderingContext2D | null = null;
   let player1Keys = { up: false, down: false };
   let player2Keys = { up: false, down: false };
 
@@ -62,8 +62,16 @@ export default function (root: HTMLElement, ctx: any) {
   const gameStatus = root.querySelector('#gameStatus') as HTMLDivElement;
   const connectionStatus = root.querySelector('#connectionStatus') as HTMLParagraphElement;
   const winnerDialog = root.querySelector('#winnerDialog') as HTMLDialogElement;
-  canvas = root.querySelector('#gameCanvas') as HTMLCanvasElement;
-  ctx2d = canvas.getContext('2d')!;
+  // Safely query the canvas element and validate its type to satisfy TypeScript
+  const canvasEl = root.querySelector('#gameCanvas');
+  if (!canvasEl || !(canvasEl instanceof HTMLCanvasElement)) {
+    console.error('Canvas element #gameCanvas not found or is not a HTMLCanvasElement');
+    updateStatus('❌ Canvas element not available');
+    // Abort initialization early to avoid runtime errors
+    return;
+  }
+  canvas = canvasEl;
+  ctx2d = canvas.getContext('2d') || null;
 
   function updateStatus(message: string) {
     gameStatus.textContent = message;
