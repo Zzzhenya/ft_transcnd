@@ -1,3 +1,5 @@
+import logger from './utils/logger.js';
+
 export function movePaddle(gameState, player, direction) {
   const paddleSpeed = 15;
   const paddleHeight = 60;
@@ -9,7 +11,7 @@ export function movePaddle(gameState, player, direction) {
 
   // Si por alguna razón es NaN, resetear a 0
   if (isNaN(currentPosition)) {
-    console.error(`[Paddle] ERROR: ${player} position was NaN, resetting to 0`);
+    logger.error(`[Paddle] ERROR: ${player} position was NaN, resetting to 0`);
     currentPosition = 0;
     gameState.paddles[player] = 0;
   }
@@ -30,7 +32,7 @@ export function movePaddle(gameState, player, direction) {
   // Aplicar
   gameState.paddles[player] = newPosition;
 
-  console.log(`[Paddle] ${player} moved ${direction}: ${currentPosition.toFixed(2)} -> ${newPosition.toFixed(2)}`);
+  logger.debug(`[Paddle] ${player} moved ${direction}: ${currentPosition.toFixed(2)} -> ${newPosition.toFixed(2)}`);
 
   return gameState;
 }
