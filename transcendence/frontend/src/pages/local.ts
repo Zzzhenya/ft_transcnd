@@ -90,7 +90,7 @@ root.innerHTML = `
       updateStatus('🔄 Creating local game...');
       updateConnectionStatus('📡 Connecting to gateway...');
       
-      const response = await fetch(`${GATEWAY_BASE}/ws/pong/demo`, {
+      const response = await fetch(`${GATEWAY_BASE}/pong/demo`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({})
