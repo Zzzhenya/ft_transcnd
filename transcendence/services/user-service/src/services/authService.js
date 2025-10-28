@@ -1,3 +1,4 @@
+// services/authService.js
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
@@ -18,17 +19,17 @@ class AuthService {
         throw new Error('Username already taken');
       }
 
-      // Hash password
+      // Passwort hashen
       const hashedPassword = await bcrypt.hash(password, 10);
 
-      // Create user
+      // Benutzer erstellen
       const newUser = await User.create({
         username,
         email,
-        password_hash: hashedPassword  // ← password_hash!
+        password: hashedPassword
       });
 
-      // Generate JWT
+      // JWT Token erstellen
       const token = jwt.sign(
         { userId: newUser.id, username: newUser.username },
         JWT_SECRET,
@@ -49,25 +50,64 @@ class AuthService {
     }
   }
 
-  static async login(usernameOrEmail, password) {
+  // FEHLENDE FUNKTION HINZUGEFÜGT: validateUser
+  static async validateUser(username, password) {
     try {
-      // Find user by username or email
-      let user = await User.findByUsername(usernameOrEmail);
+      console.log('validateUser called with:', { username, password: '***' });
+      
+      // Benutzer finden (erst nach username, dann email)
+      let user = await User.findByUsername(username);
+      
+      // Falls nicht mit username gefunden, versuche email
       if (!user) {
-        user = await User.findByEmail(usernameOrEmail);
+        user = await User.findByEmail(username);
+      }
+      
+      console.log('User found:', user ? user.username : 'null');
+      
+      if (!user) {
+        return null; // User nicht gefunden
       }
 
+      // Passwort prüfen
+      const isValidPassword = await bcrypt.compare(password, user.password);
+      console.log('Password valid:', isValidPassword);
+      
+      if (!isValidPassword) {
+        return null; // Falsches Passwort
+      }
+
+      return user; // Erfolgreiche Validierung
+    } catch (error) {
+      console.error('Error in validateUser:', error);
+      return null;
+    }
+  }
+
+  // FEHLENDE FUNKTION HINZUGEFÜGT: generateToken
+  static generateToken(user) {
+    return jwt.sign(
+      { userId: user.id, username: user.username },
+      JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+  }
+
+  static async login(email, password) {
+    try {
+      // Find user
+      const user = await User.findByEmail(email);
       if (!user) {
         throw new Error('Invalid credentials');
       }
 
       // Check password
-      const isValidPassword = await bcrypt.compare(password, user.password_hash);  // ← password_hash!
+      const isValidPassword = await bcrypt.compare(password, user.password);
       if (!isValidPassword) {
         throw new Error('Invalid credentials');
       }
 
-      // Generate JWT
+      // JWT Token erstellen
       const token = jwt.sign(
         { userId: user.id, username: user.username },
         JWT_SECRET,
@@ -94,7 +134,7 @@ class AuthService {
       const user = await User.findById(decoded.userId);
       
       if (!user) {
-        throw new Error('User not found');
+        throw new Error('Benutzer nicht gefunden');
       }
 
       return {
@@ -112,22 +152,22 @@ class AuthService {
     try {
       const user = await User.findById(userId);
       if (!user) {
-        throw new Error('User not found');
+        throw new Error('Benutzer nicht gefunden');
       }
 
-      // Check old password
-      const isValidPassword = await bcrypt.compare(oldPassword, user.password_hash);  // ← password_hash!
+      // Altes Passwort prüfen
+      const isValidPassword = await bcrypt.compare(oldPassword, user.password);
       if (!isValidPassword) {
-        throw new Error('Old password is incorrect');
+        throw new Error('Altes Passwort ist falsch');
       }
 
-      // Hash new password
+      // Neues Passwort hashen
       const hashedPassword = await bcrypt.hash(newPassword, 10);
 
-      // Update password
-      await User.update(userId, { password_hash: hashedPassword });  // ← password_hash!
+      // Passwort aktualisieren
+      await User.update(userId, { password: hashedPassword });
 
-      return { message: 'Password successfully changed' };
+      return { message: 'Passwort erfolgreich geändert' };
     } catch (error) {
       console.error('Error in updatePassword:', error);
       throw error;
