@@ -10,6 +10,7 @@ import {
   movePaddle,
   cleanupGame
 } from '../pong/gameLogic.js';
+import logger from '../utils/logger.js';
 
 /**
  * Register single game routes with the Fastify instance
@@ -22,7 +23,7 @@ export function registerSingleGameRoutes(fastify, games, counters, broadcastStat
   
   /**
    * Create a single game for players
-   * POST /ws/pong/game
+   * POST /pong/game
    * Body: { 
    *   player1_id: number, 
    *   player1_name: string,
@@ -30,7 +31,7 @@ export function registerSingleGameRoutes(fastify, games, counters, broadcastStat
    *   player2_name?: string (optional - for immediate full game creation)
    * }
    */
-  fastify.post('/ws/pong/game', async (request, reply) => {
+  fastify.post('/pong/game', async (request, reply) => {
     try {
       const { 
         player1_id, 
@@ -93,7 +94,7 @@ export function registerSingleGameRoutes(fastify, games, counters, broadcastStat
       const playerInfo = player2_id ? 
         `${player1_name} vs ${player2_name}` : 
         `${player1_name} (waiting for opponent)`;
-      console.log(`[Game] Created single game ${gameId} with players ${playerInfo} (3 rounds, score limit: 5)`);
+      logger.info(`[Game] Created single game ${gameId} with players ${playerInfo} (3 rounds, score limit: 5)`);
 
       const response = {
         id: gameId,
@@ -106,7 +107,7 @@ export function registerSingleGameRoutes(fastify, games, counters, broadcastStat
         createdAt: game.createdAt,
         maxRounds: game.maxRounds,
         scoreLimit: game.scoreLimit,
-        websocketUrl: `ws://localhost:3002/ws/pong/game-ws/${gameId}`,
+        websocketUrl: `ws://${process.env.GAME_SERVICE_HOST || 'localhost'}:${process.env.GAME_SERVICE_PORT || '3002'}/ws/pong/game-ws/${gameId}`,
         message: 'Single game created successfully (3 rounds, score limit: 5)'
       };
 
@@ -120,13 +121,13 @@ export function registerSingleGameRoutes(fastify, games, counters, broadcastStat
 
   /**
    * Join an existing game as player2
-   * POST /ws/pong/game/:gameId/join
+   * POST /pong/game/:gameId/join
    * Body: { 
    *   player2_id: number, 
    *   player2_name: string
    * }
    */
-  fastify.post('/ws/pong/game/:gameId/join', async (request, reply) => {
+  fastify.post('/pong/game/:gameId/join', async (request, reply) => {
     try {
       const gameId = parseInt(request.params.gameId, 10);
       const { player2_id, player2_name } = request.body;
@@ -174,7 +175,7 @@ export function registerSingleGameRoutes(fastify, games, counters, broadcastStat
       game.player2_name = player2_name.trim();
       game.status = 'ready';
 
-      console.log(`[Game] Player ${player2_name} joined game ${gameId}. Status: ${game.status}`);
+      logger.info(`[Game] Player ${player2_name} joined game ${gameId}. Status: ${game.status}`);
 
       // Broadcast to connected clients that player joined
       const joinMessage = JSON.stringify({
@@ -199,7 +200,7 @@ export function registerSingleGameRoutes(fastify, games, counters, broadcastStat
         player2_name: game.player2_name,
         status: game.status,
         message: 'Successfully joined the game',
-        websocketUrl: `ws://localhost:3002/ws/pong/game-ws/${gameId}`
+        websocketUrl: `ws://${process.env.GAME_SERVICE_HOST || 'localhost'}:${process.env.GAME_SERVICE_PORT || '3002'}/ws/pong/game-ws/${gameId}`
       };
 
       return reply.code(200).send(response);
@@ -212,9 +213,9 @@ export function registerSingleGameRoutes(fastify, games, counters, broadcastStat
 
   /**
    * Get all single games
-   * GET /ws/pong/game
+   * GET /pong/game
    */
-  fastify.get('/ws/pong/game', async (request, reply) => {
+  fastify.get('/pong/game', async (request, reply) => {
     try {
       const singleGames = [];
       
@@ -255,9 +256,9 @@ export function registerSingleGameRoutes(fastify, games, counters, broadcastStat
 
   /**
    * Get specific single game details
-   * GET /ws/pong/game/:gameId
+   * GET /pong/game/:gameId
    */
-  fastify.get('/ws/pong/game/:gameId', async (request, reply) => {
+  fastify.get('/pong/game/:gameId', async (request, reply) => {
     try {
       const gameId = parseInt(request.params.gameId, 10);
       const game = games.get(gameId);
@@ -298,10 +299,10 @@ export function registerSingleGameRoutes(fastify, games, counters, broadcastStat
 
   /**
    * Update game result when a game completes
-   * PUT /ws/pong/game/:gameId/result
+   * PUT /pong/game/:gameId/result
    * Body: { winner: 'player1' | 'player2', finalScore: { player1: number, player2: number }, roundsWon: { player1: number, player2: number } }
    */
-  fastify.put("/ws/pong/game/:gameId/result", async (req, reply) => {
+  fastify.put("/pong/game/:gameId/result", async (req, reply) => {
   const game = games.get(req.params.gameId);
   if (!game) return reply.code(404).send({ error: "Game not found" });
 
@@ -326,7 +327,7 @@ export function registerSingleGameRoutes(fastify, games, counters, broadcastStat
     winner: winner,
     timestamp: Date.now(),
   };
-  console.log(`[Game ${game.id}] Result recorded:`, result);
+  logger.info(`[Game ${game.id}] Result recorded:`, result);
 
   games.delete(req.params.gameId);
   reply.send({ message: "Game result recorded", result });
@@ -385,11 +386,11 @@ function validateGameCreation(body) {
 }
 
 /**
- * POST /ws/pong/game/:gameId/move
+ * POST /pong/game/:gameId/move
  * Move player paddle in normal game
  */
 export function addMovementEndpoint(fastify, games, broadcastState) {
-  fastify.post('/ws/pong/game/:gameId/move', async (request, reply) => {
+  fastify.post('/pong/game/:gameId/move', async (request, reply) => {
     try {
       const { gameId } = request.params;
       const { player, direction } = request.body;

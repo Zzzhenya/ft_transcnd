@@ -2,6 +2,7 @@
 const axios = require('axios');
 
 const LOG_SERVICE_URL = process.env.LOG_SERVICE_URL || 'http://log-service:3003';
+const LOG_REQUEST_TIMEOUT = parseInt(process.env.LOG_REQUEST_TIMEOUT || '1000');
 const SERVICE_NAME = 'user-service';
 
 class Logger {
@@ -13,7 +14,7 @@ class Logger {
 				service: SERVICE_NAME,
 				metadata
 			}, {
-				timeout: 1000,
+				timeout: LOG_REQUEST_TIMEOUT,
 				validateStatus: () => true
 			});
 		} catch (error) {

@@ -13,7 +13,10 @@ class Logger {
         service: SERVICE_NAME,
         metadata,
         timestamp: new Date().toISOString()
-      }, { timeout: 1000, validateStatus: () => true });
+      }, { 
+        timeout: parseInt(process.env.LOG_REQUEST_TIMEOUT || '1000'),
+        validateStatus: () => true
+      });
     } catch (error) {
       console.log(`[${level.toUpperCase()}] [${SERVICE_NAME}]`, message, metadata);
     }
