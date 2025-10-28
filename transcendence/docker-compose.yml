@@ -289,13 +289,23 @@ services:
     depends_on:
       - gateway
 
+  # database:
+  #   image: alpine:latest
+  #   command: sh -c "mkdir -p /shared/database && touch /shared/database/transcendence.db && tail -f /dev/null"
+  #   volumes:
+  #     - shared-data:/shared
+  #   networks:
+  #     - transcendence-network
+
   database:
-    image: alpine:latest
-    command: sh -c "mkdir -p /shared/database && touch /shared/database/transcendence.db && tail -f /dev/null"
+    build:
+      context: .  # ← Root context
+      dockerfile: ./services/database/Dockerfile
+    container_name: transcendence-database
     volumes:
-      - shared-data:/shared
-    networks:
-      - transcendence-network
+      - shared-data:/app/shared
+    environment:
+      - NODE_ENV=development
 
   sqlite-web:
     image: ghcr.io/coleifer/sqlite-web:latest

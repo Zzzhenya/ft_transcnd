@@ -1,6 +1,6 @@
-import { signIn, signOut, getAuth, register } from "@/app/auth";
+import { signIn, signOut, getAuth, register, guestLogin } from "@/app/auth";
 import { navigate } from "@/app/router";
-import { setAlias, clearAlias} from "@/app/store"; // Make sure clearAlias exists in your store
+import { setAlias } from "@/app/store";
 
 export default function (root: HTMLElement, ctx: { url: URL }) {
   const next = ctx.url.searchParams.get("next") || "/profile";
@@ -30,7 +30,6 @@ export default function (root: HTMLElement, ctx: { url: URL }) {
               </button>
             </form>
             <p class="text-xs text-gray-500">Your alias is how others will see you in the game</p>
-            <button id="clear-guest" class="mt-2 px-3 py-1 rounded bg-gray-300 text-gray-700">Clear Guest</button>
           </div>
 
           <div class="text-center py-2">
@@ -100,34 +99,43 @@ export default function (root: HTMLElement, ctx: { url: URL }) {
     }
   });
 
-  // Play as guest form handler
-  root.querySelector<HTMLFormElement>("#guest-form")?.addEventListener("submit", (e) => {
-    e.preventDefault();
-    const alias = (root.querySelector<HTMLInputElement>("#guest-alias")?.value || "").trim();
+  // // Play as guest form handler
+  // root.querySelector<HTMLFormElement>("#guest-form")?.addEventListener("submit", (e) => {
+  //   e.preventDefault();
+  //   const alias = (root.querySelector<HTMLInputElement>("#guest-alias")?.value || "").trim();
     
-    // Set the alias in the global store
-    if (alias) {
-      setAlias(alias);
-    } else {
-      // Generate a random guest name if no alias provided
-      const randomId = Math.floor(Math.random() * 1000);
-      setAlias(`Guest${randomId}`);
-    }
+  //   // Set the alias in the global store
+  //   if (alias) {
+  //     setAlias(alias);
+  //   } else {
+  //     // Generate a random guest name if no alias provided
+  //     const randomId = Math.floor(Math.random() * 1000);
+  //     setAlias(`Guest${randomId}`);
+  //   }
     
-    // Navigate directly to lobby for guest play
-    history.back();
-  });
+  //   // Navigate directly to lobby for guest play
+  //   navigate("/");
+  // });
 
-  // Clear guest alias handler
-  root.querySelector<HTMLButtonElement>("#clear-guest")?.addEventListener("click", () => {
-    clearAlias();
-    location.reload();
+  root.querySelector<HTMLFormElement>("#guest-form")?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const aliasInput = root.querySelector<HTMLInputElement>("#guest-alias");
+    const alias = (aliasInput?.value || "").trim();
+    
+    const result = await guestLogin(alias || undefined);
+    
+    if (result.success) {
+      const user = getAuth();
+      if (user) setAlias(user.username);
+      navigate("/");
+    } else {
+      alert(result.error || 'Failed to create guest user');
+    }
   });
 
   // Logout button handler
   root.querySelector<HTMLButtonElement>("#logout")?.addEventListener("click", async () => {
     await signOut();
-    clearAlias();
     navigate(`/auth?next=${encodeURIComponent(next)}`);
   });
 }

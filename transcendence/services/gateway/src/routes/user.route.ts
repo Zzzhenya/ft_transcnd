@@ -1,33 +1,115 @@
 // user-service/
-import gatewayError from '../utils/gatewayError.js';
-import logger from '../utils/logger.js'; // log-service
-import { proxyRequest } from '../utils/proxyHandler.js';
 
 import type { FastifyHttpOptions, FastifyInstance, FastifyServerOptions, FastifyPluginAsync } from "fastify"
 
-const USER_SERVICE_URL = process.env.USER_SERVICE_URL || 'http://user-service:3001';
-
 const userRoutes: FastifyPluginAsync = async (fastify) => {
 
-// route:/user-service/health for user-service
-	fastify.get('/health', async (request, reply) => {
-		return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/health`, 'GET');
-	});
+	// route:/user-service/health for user-service
+	fastify.get('/health', async (request , reply) => {
+		try
+		{
+			fastify.log.error("Gateway received GET request for /users")
+			const response = await fetch('http://user-service:3001/health', {
+				method: 'GET',
+				headers: {
+					'Authorization': request.headers['authorization'] || '',
+				}
+			})
+			const data = await response.json();
+			reply.status(response.status).send(data);
+		}
+		catch (error) {
+			fastify.log.error(error)
+			reply.status(404);
+		}
+	})
 
 	fastify.post('/auth/register', async (request, reply) => {
-		// fastify.log.info("Gateway received POST request for /register")
-		// fastify.log.info({ body: request.body }, "Request body")
-		return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/auth/register`, 'POST');
+		try
+		{
+			fastify.log.info("Gateway received POST request for /register")
+			fastify.log.info({ body: request.body }, "Request body")
+			const response = await fetch('http://user-service:3001/auth/register', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					'Authorization': request.headers['authorization'] || '',
+				},
+				body:JSON.stringify(request.body),
+			})
+			const data = await response.json();
+			reply.status(response.status).send(data);
+		}
+		catch (error) {
+			fastify.log.error(error)
+			reply.status(404);
+		}
 	});
 
 	fastify.post('/auth/login', async (request, reply) => {
-		// fastify.log.info("Gateway received POST request for /register")
-		// fastify.log.info({ body: request.body }, "Request body")
-		return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/auth/login`, 'POST');
+		try
+		{
+			fastify.log.error("Gateway received POST request for /login")
+			const response = await fetch('http://user-service:3001/auth/login', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					'Authorization': request.headers['authorization'] || '',
+				},
+				body:JSON.stringify(request.body),
+			})
+			const data = await response.json();
+			reply.status(response.status).send(data);
+		}
+		catch (error) {
+			fastify.log.error(error)
+			reply.status(404);
+		}
 	});
 
+	// ════════════════════════════════════════════════════════
+	// GUEST LOGIN ROUTE - NEU!
+	// ════════════════════════════════════════════════════════
+	fastify.post('/auth/guest', async (request, reply) => {
+		try
+		{
+			fastify.log.info("Gateway received POST request for /guest")
+			fastify.log.info({ body: request.body }, "Request body")
+			const response = await fetch('http://user-service:3001/auth/guest', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					'Authorization': request.headers['authorization'] || '',
+				},
+				body:JSON.stringify(request.body),
+			})
+			const data = await response.json();
+			reply.status(response.status).send(data);
+		}
+		catch (error) {
+			fastify.log.error(error)
+			reply.status(500);
+		}
+	});
+	// ════════════════════════════════════════════════════════
+
 	fastify.get('/auth/profile', async (request, reply) => {
-		return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/auth/profile`, 'GET');
+		try
+		{
+			fastify.log.error("Gateway received GET request for /profile")
+			const response = await fetch('http://user-service:3001/auth/profile', {
+				method: 'GET',
+				headers: {
+					'Authorization': request.headers['authorization'] || '',
+				}
+			})
+			const data = await response.json();
+			reply.status(response.status).send(data);
+		}
+		catch (error) {
+			fastify.log.error(error)
+			reply.status(404);
+		}
 	});
 
 }
