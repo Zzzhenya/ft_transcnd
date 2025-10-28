@@ -3,7 +3,7 @@ const AuthService = require('./services/authService');
 const User = require('./models/User');
 const jwt = require('jsonwebtoken');
 const logger = require('./utils/logger');
-const PORT = process.env.PORT || 3001;
+const PORT = parseInt(process.env.USER_SERVICE_PORT || process.env.PORT || '3001');
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-this';
 
 // Register CORS

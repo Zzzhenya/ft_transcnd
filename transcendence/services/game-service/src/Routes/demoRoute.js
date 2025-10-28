@@ -3,6 +3,7 @@
  * Creates temporary games with auto-generated players
  */
 
+import logger from '../utils/logger.js';
 import {
   startGameLoop,
   initialGameState,
@@ -23,9 +24,9 @@ export function registerDemoRoutes(fastify, games, counters, broadcastState) {
   
   /**
    * Create a demo game session with temporary players
-   * POST /ws/pong/demo
+   * POST /pong/demo
    */
-  fastify.post('/ws/pong/demo', async (request, reply) => {
+  fastify.post('/pong/demo', async (request, reply) => {
     try {
       // Generate temporary player IDs
       const demoPlayer1Id = counters.nextPlayerId++;
@@ -60,7 +61,7 @@ export function registerDemoRoutes(fastify, games, counters, broadcastState) {
 
       games.set(gameId, game);
 
-      console.log(`[Demo] Created demo game ${gameId} with players ${demoPlayer1Name} vs ${demoPlayer2Name}`);
+      logger.info(`[Demo] Created demo game ${gameId} with players ${demoPlayer1Name} vs ${demoPlayer2Name}`);
 
       return reply.code(201).send({
         id: gameId,
@@ -71,10 +72,11 @@ export function registerDemoRoutes(fastify, games, counters, broadcastState) {
         status: 'demo',
         isDemo: true,
         message: 'Demo game created with temporary players',
-        websocketUrl: `ws://localhost:3002/ws/pong/game-ws/${gameId}`
+        websocketUrl: `ws://${process.env.GAME_SERVICE_HOST || 'localhost'}:${process.env.GAME_SERVICE_PORT || '3002'}/ws/pong/game-ws/${gameId}`
       });
 
     } catch (error) {
+      logger.error('[Demo] Error creating demo game:', error);
       console.error('[Demo] Error creating demo game:', error);
       return reply.code(500).send({ error: 'Failed to create demo game' });
     }
@@ -82,9 +84,9 @@ export function registerDemoRoutes(fastify, games, counters, broadcastState) {
 
   /**
    * Get all demo games
-   * GET /ws/pong/demo
+   * GET /pong/demo
    */
-  fastify.get('/ws/pong/demo', async (request, reply) => {
+  fastify.get('/pong/demo', async (request, reply) => {
     try {
       const demoGames = [];
       
@@ -110,6 +112,7 @@ export function registerDemoRoutes(fastify, games, counters, broadcastState) {
       });
 
     } catch (error) {
+      logger.error('[Demo] Error fetching demo games:', error);
       console.error('[Demo] Error fetching demo games:', error);
       return reply.code(500).send({ error: 'Failed to fetch demo games' });
     }
@@ -117,9 +120,9 @@ export function registerDemoRoutes(fastify, games, counters, broadcastState) {
 
   /**
    * Delete a demo game
-   * DELETE /ws/pong/demo/:gameId
+   * DELETE /pong/demo/:gameId
    */
-  fastify.delete('/ws/pong/demo/:gameId', async (request, reply) => {
+  fastify.delete('/pong/demo/:gameId', async (request, reply) => {
     try {
       const gameId = parseInt(request.params.gameId, 10);
       const game = games.get(gameId);
@@ -150,7 +153,7 @@ export function registerDemoRoutes(fastify, games, counters, broadcastState) {
       // Remove the game
       games.delete(gameId);
 
-      console.log(`[Demo] Deleted demo game ${gameId} (${game.player1_name} vs ${game.player2_name})`);
+      logger.info(`[Demo] Deleted demo game ${gameId} (${game.player1_name} vs ${game.player2_name})`);
 
       return reply.send({
         message: `Demo game ${gameId} deleted successfully`,
@@ -162,6 +165,7 @@ export function registerDemoRoutes(fastify, games, counters, broadcastState) {
       });
 
     } catch (error) {
+      logger.error('[Demo] Error deleting demo game:', error);
       console.error('[Demo] Error deleting demo game:', error);
       return reply.code(500).send({ error: 'Failed to delete demo game' });
     }
@@ -171,7 +175,7 @@ export function registerDemoRoutes(fastify, games, counters, broadcastState) {
    * Delete all demo games
    * DELETE /games/demo
    */
-  fastify.delete('/ws/pong/demo', async (request, reply) => {
+  fastify.delete('/pong/demo', async (request, reply) => {
     try {
       const deletedGames = [];
       const gamesToDelete = [];
@@ -208,7 +212,7 @@ export function registerDemoRoutes(fastify, games, counters, broadcastState) {
         });
       }
 
-      console.log(`[Demo] Deleted ${deletedGames.length} demo games`);
+      logger.info(`[Demo] Deleted ${deletedGames.length} demo games`);
 
       return reply.send({
         message: `${deletedGames.length} demo games deleted successfully`,
@@ -216,16 +220,17 @@ export function registerDemoRoutes(fastify, games, counters, broadcastState) {
       });
 
     } catch (error) {
+      logger.error('[Demo] Error deleting demo games:', error);
       console.error('[Demo] Error deleting demo games:', error);
       return reply.code(500).send({ error: 'Failed to delete demo games' });
     }
   });
 
   /**
-   * POST /ws/pong/demo/:gameId/move
+   * POST /pong/demo/:gameId/move
    * Move player paddle in demo game
    */
-  fastify.post('/ws/pong/demo/:gameId/move', async (request, reply) => {
+  fastify.post('/pong/demo/:gameId/move', async (request, reply) => {
     try {
       const { gameId } = request.params;
       const { player, direction } = request.body;
@@ -276,6 +281,7 @@ export function registerDemoRoutes(fastify, games, counters, broadcastState) {
       });
 
     } catch (error) {
+      logger.error('[Demo] Error moving paddle:', error);
       console.error('[Demo] Error moving paddle:', error);
       return reply.code(500).send({ error: 'Failed to move paddle' });
     }

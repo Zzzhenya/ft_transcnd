@@ -1,4 +1,4 @@
-// hooks/on-request.hook.ts
+/*// hooks/on-request.hook.ts
 import type { FastifyInstance, FastifyPluginOptions, FastifyRequest, FastifyReply, FastifyPluginCallback } from 'fastify';
 
 // export async function onRequestHook(req: FastifyRequest, reply: FastifyReply) {
@@ -39,7 +39,7 @@ const onRequestHook: FastifyPluginCallback = (fastify: FastifyInstance, opts: Fa
   // });
   // done();
 };
-
+*/
 
 /*
 
@@ -58,9 +58,9 @@ const onRequestHook: FastifyPluginCallback = (fastify: FastifyInstance, opts: Fa
         secure: false,        // true send only over HTTPS
         sameSite: 'none',   // none for HTTPS
         // sameSite: 'Strict',  // CSRF protection
-        maxAge: 3600         // 1 hour
+        maxAge: parseInt(process.env.COOKIE_MAX_AGE || '3600')         // 1 hour
       })
 
 */
 
-export default onRequestHook;
+//export default onRequestHook;

@@ -138,7 +138,7 @@ setupRemoteWebSocket(fastify);
 // START SERVER
 // ========================================
 
-const PORT = process.env.PORT || 3002;
+const PORT = parseInt(process.env.GAME_SERVICE_PORT || process.env.PORT || '3002');
 const HOST = process.env.HOST || '0.0.0.0';
 
 try {

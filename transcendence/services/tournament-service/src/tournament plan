@@ -1,0 +1,328 @@
+🎮 UI1 – Tournament Size Selection
++---------------------------------------+
+|            Tournament Mode            |
++---------------------------------------+
+| Select tournament size                |
+|                                       |
+|  [ 4 Players ]    [ 8 Players ]       |
+|                                       |
+|                [ Back ]               |
++---------------------------------------+
+
+🔗 UI2 – Tournament Lobby (Create or Join)
++-----------------------------------------------+
+|                 Tournament Lobby              |
++-----------------------------------------------+
+| Select a tournament to join or create a new   |
+| one.                                          |
+|                                               |
+| Available Tournaments:                        |
+|  #1201    Players: 2/4    [ Join ]            |
+|  #1202    Players: 3/4    [ Join ]            |
+|                                               |
+|  (No tournament available?)                   |
+|          [ Create Tournament ]                |
+|                                               |
+|                    [ Back ]                   |
++-----------------------------------------------+
+
+🏁 UI3 – Tournament Waiting Room (Live Bracket)
++------------------------------------------------------+
+|              Tournament #1202 (4 Players)            |
++------------------------------------------------------+
+| Players Joined: 3 / 4                                |
+|------------------------------------------------------|
+| Player List:                                         |
+|  ✅ Alice                                             |
+|  ✅ Bob                                               |
+|  ✅ Charlie                                          |
+|  ⏳ Waiting for player...                             |
+|                                                      |
+| [ Invite Friend ]                                    |
+|------------------------------------------------------|
+| Tournament Bracket:                                  |
+|  Semi-Finals:                                        |
+|   Alice     vs     Bob             (waiting)         |
+|   Charlie   vs     TBD             (waiting)         |
+|                                                      |
+|  Final:                                              |
+|   Winner SF1 vs Winner SF2                           |
++------------------------------------------------------+
+
+
+✅ This page updates live after every match
+✅ No Ready button here (as you wanted)
+
+🏓 UI4 – Game Page
++------------------------------------------------------+
+|                   Match: Alice vs Bob               |
++------------------------------------------------------+
+
+  Alice                                   Bob
++--------+                             +--------+
+| READY  |                             | READY  |
++--------+                             +--------+
+   ✅ Waiting for both players to be ready
+
+[ Game Canvas Here – Once game starts ]
+
+(Note: Back button disabled during match)
+
+
+✅ Match starts only when both press READY
+✅ Smooth UX for online play
+
+✅ UI5 – Match Result
++--------------------------------------+
+|             Match Result             |
++--------------------------------------+
+|   Winner: Alice 🏆                    |
+|                                      |
+|   Next match starting soon...        |
+|                                      |
+|        [ Return to Tournament ]      |
++--------------------------------------+
+
+
+✅ Sends the player back to Waiting Room UI3
+✅ Bracket gets updated
+
+🏆 UI6 – Tournament Winner Page
++--------------------------------------+
+|        🏆 Tournament Finished 🏆      |
++--------------------------------------+
+|       Winner: Alice 🎉               |
+|                                      |
+| FINAL BRACKET:                       |
+|  Alice def. Bob                      |
+|  Charlie def. Daniel                 |
+|  Alice def. Charlie (Final)          |
+|                                      |
+| [ Play Again ]   [ Back to Menu ]    |
++--------------------------------------+
+
+✅ Summary – Final UI List
+#	UI Screen Name
+1	Tournament Size Selection
+2	Tournament Lobby (Create/Join)
+3	Tournament Waiting Room (Live Bracket + Invite)
+4	Game Page (Both Ready → Match Starts)
+5	Match Result
+6	Tournament Winner
+
+
+Home
+ └── Tournament Mode Selection (UI1)
+        ├── Select "4 players" → goes to Tournament Lobby (UI2)
+        └── Select "8 players" → goes to Tournament Lobby (UI2)
+
+Tournament Lobby (UI2)
+        ├── Click "Create Tournament" → Waiting Room (UI3)
+        ├── Click "Join" → Waiting Room (UI3)
+        └── Back → Home
+
+Waiting Room (UI3)
+        ├── Invite Friend → Send WebSocket invite
+        ├── Auto-redirect when bracket pair found → Game Page (UI4)
+        └── Leave Tournament → Lobby (UI2)
+
+Game Page (UI4)
+        ├── Both players press Ready → Game starts
+        ├── Game ends → Match Result (UI5)
+        └── Disconnect → treated as forfeit
+
+Match Result (UI5)
+        ├── Click "Return" → Waiting Room (UI3)
+        └── If tournament finished → Winner Page (UI6)
+
+Winner Page (UI6)
+        ├── Play Again → Tournament Mode (UI1)
+        └── Back to Menu → Home
+
+
+src/
+├── components/
+│   ├── Tournament/
+│   │   ├── TournamentModeSelect.jsx      // UI1
+│   │   ├── TournamentLobby.jsx           // UI2
+│   │   ├── TournamentWaitingRoom.jsx     // UI3
+│   │   ├── TournamentBracket.jsx         // subcomponent inside WaitingRoom
+│   │   ├── PlayerList.jsx                // subcomponent for player list
+│   │   ├── InviteFriendModal.jsx         // popup
+│   │   ├── GamePage.jsx                  // UI4
+│   │   ├── MatchResult.jsx               // UI5
+│   │   └── TournamentWinner.jsx          // UI6
+│   │
+│   ├── UI/
+│   │   ├── Button.jsx
+│   │   ├── Card.jsx
+│   │   ├── Loader.jsx
+│   │   ├── Modal.jsx
+│   │   └── Alert.jsx
+│
+├── hooks/
+│   ├── useTournamentSocket.js            // WebSocket logic
+│   ├── useGameSocket.js                  // Game WS logic
+│
+├── services/
+│   ├── api.js                            // REST API calls
+│   ├── tournamentService.js              // tournament HTTP requests
+│   ├── websocket.js                      // socket connection manager
+│
+├── context/
+│   ├── UserContext.jsx
+│   ├── TournamentContext.jsx
+│
+├── pages/
+│   ├── HomePage.jsx
+│   └── TournamentRouter.jsx              // Router for tournament paths
+│
+└── App.jsx
+
+
+<Route path="/tournament" element={<TournamentModeSelect />} />
+<Route path="/tournament/lobby" element={<tournamentWaitingRoom />} />
+<Route path="/tournament/waiting/:id" element={<TournamentWaitingRoom />} />
+<Route path="/tournament/game/:matchId" element={<GamePage />} />
+<Route path="/tournament/result" element={<MatchResult />} />
+<Route path="/tournament/winner" element={<TournamentWinner />} />
+
+
+
+backend tournament server
+🎯 Tournament Features Backend Needs
+
+✅ Create tournament (4 or 8 players)
+✅ Join tournament
+✅ Invite friends
+✅ WebSocket live updates of bracket
+✅ Match pairing
+✅ Communicate with Game Service
+✅ Detect winner + update tournament
+✅ Restart next rounds automatically
+✅ Final result
+
+
+/services/tournament-service
+│
+├── src/
+│   ├── index.js              // entry
+│   ├── routes/
+│   │   └── tournamentRoutes.js
+│   ├── controllers/
+│   │   └── tournamentController.js
+│   ├── websocket/
+│   │   └── tournamentSocket.js
+│   ├── db/
+│   │   └── tournamentModel.js
+│   ├── utils/
+│   │   └── bracket.js        // bracket pairing logic
+│
+└── package.json
+
+
+createTournament() → status = waiting
+players join → keep adding until full
+auto-generate bracket → first round match pairs
+notify players → send WS "PAIR_READY"
+start match via Game Service
+game service returns winner → update bracket
+if not final → next match
+if final → tournament finished
+broadcast winner to frontend
+
+
+| Step     | Description                              |
+| -------- | ---------------------------------------- |
+| ✅ Step 1 | Create tournament service file structure |
+| ✅ Step 2 | Add API routes for create/join/list      |
+| ✅ Step 3 | Add WebSocket server for live lobby      |
+| ✅ Step 4 | Implement bracket generation             |
+| ✅ Step 5 | Connect game start to Game Service       |
+| ✅ Step 6 | Handle match result + next round         |
+| ✅ Step 7 | Send live bracket updates                |
+| ✅ Step 8 | Final winner + leaderboard               |
+
+WebSocket Channels (Rooms)
+| Channel                  | Purpose                        |
+| ------------------------ | ------------------------------ |
+| `lobby`                  | Join available tournaments     |
+| `tournament:{id}`        | Waiting room + bracket updates |
+| `match:{id}`             | Live match communication       |
+| `notifications:{userId}` | Friend invites                 |
+
+
+🔁 WebSocket Events
+| Event Name          | Direction        | Description                         |
+| ------------------- | ---------------- | ----------------------------------- |
+| `tournament.join`   | Client → Server  | Join tournament                     |
+| `tournament.update` | Server → Clients | Player joined/left, bracket changes |
+| `tournament.start`  | Server → Clients | Tournament begins                   |
+| `tournament.invite` | Client → Server  | Invite a friend                     |
+
+
+Match Events
+| Event Name     | Direction        | Description                 |
+| -------------- | ---------------- | --------------------------- |
+| `match.ready`  | Client → Server  | Player ready to start match |
+| `match.state`  | Server → Clients | Game state updates          |
+| `match.finish` | Client → Server  | Game finished, sends score  |
+
+test
+
+To test an 8-player tournament, you can simulate multiple users even if you're alone as a developer. Here are 4 practical ways to test it:
+
+✅ Option 1: Use Multiple Browser Tabs (Easiest)
+
+Open 8 browser tabs on http://localhost:3000/tournament/8
+
+Log in with 8 different test users (e.g. test1–test8)
+
+Join the same tournament lobby
+
+Validate:
+
+Players appear in real-time
+
+Bracket generates correctly (quarter-final → semi → final)
+
+Match start logic works
+
+✅ Fast
+✅ Good for UI + WebSocket testing
+❌ Manual & repetitive
+
+✅ Option 2: Use a Fake "Bot Join" Button
+
+If you're building it, add a temporary development feature:
+
+// Backend pseudo-code
+socket.on("tournament.joinBots", ({ tournamentId, count }) => {
+  for (let i = 0; i < count; i++) {
+    addFakeUserToTournament(tournamentId);
+  }
+  io.to(`tournament:${tournamentId}`).emit("tournament.update", getTournamentState(tournamentId));
+});
+
+
+Frontend button:
+
+[Test] Add 7 Fake Players
+
+
+✅ Fastest
+✅ Good for logic testing
+⚠️ Remove before production
+
+✅ Option 3: Simulate using Scripts (Automated)
+
+🚀 Development Plan (Best Practice)
+| Step | Frontend (Tailwind UI)                            | Backend                                           |
+| ---- | ------------------------------------------------- | ------------------------------------------------- |
+| 1    | Simple Tournament Selection Page (4 or 8 players) | Create Tournament API + Join Tournament           |
+| 2    | Tournament Lobby UI with Player List              | Tournament WebSocket room + player list broadcast |
+| 3    | Matchmaking Page UI                               | Game pairing logic                                |
+| 4    | Game Ready Page UI                                | Match start WebSocket                             |
+| 5    | Tournament Bracket UI (Tailwind grid)             | Match progress update                             |
+| 6    | Game Screen Integration                           | Real-time gameplay                                |
+| 7    | Tournament Final UI                               | Declare winner                                    |

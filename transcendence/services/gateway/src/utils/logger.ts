@@ -1,6 +1,7 @@
 import axios from 'axios';
 
 const LOG_SERVICE_URL = process.env.LOG_SERVICE_URL || 'http://log-service:3003';
+const LOG_REQUEST_TIMEOUT = parseInt(process.env.LOG_REQUEST_TIMEOUT || '1000');
 const SERVICE_NAME = 'gateway';
 
 class Logger {
@@ -13,7 +14,7 @@ class Logger {
 				metadata,
 				timestamp: new Date().toISOString()
 			}, {
-				timeout: 1000,
+				timeout: LOG_REQUEST_TIMEOUT,
 				validateStatus: () => true
 			});
 		} catch (error) {

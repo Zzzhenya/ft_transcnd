@@ -1,24 +1,33 @@
+
 import Fastify from 'fastify';
-const fastify = Fastify({ logger: true });
-import fetch from 'node-fetch'; // or axios
-const GAME_SERVER_URL = process.env.GAME_SERVER_URL || 'http://localhost:3002';
-
-import { generateBracket, advanceWinner } from './tournamentLogic.js';
 import websocket from '@fastify/websocket';
-import { readFileSync } from 'fs';
-import path from 'path';
+// import cors from '@fastify/cors';   
+// import { broadcastTournamentUpdate } from './tournament/broadcast.js';
+// import { registergetPlayerList } from './route/tournamentRoute.js';
+// import { registeradvanceWinner } from './route/tournamentRoute.js';
+// import { registergetBracket } from './route/tournamentRoute.js';  
+// import { registergenerateBracket } from './tournament/createBracket.js';
+// import { registercreateTournamentService } from './tournament/createTournament.js';
+import { healthRoute } from './route/healthRoute.js';
 import logger from './utils/logger.js';
+// import { registerhealthRoute } from './route/healthRoute.js';
+// import { registertournamentStatsRoute } from './route/tournamentStats.js';
 
-await fastify.register(websocket);
+const fastify = Fastify({ logger: true });
+// await fastify.register(websocket);
 
-// Tournament storage
-const tournaments = new Map(); // tournamentId -> tournament data
-let nextTournamentId = 1;
+// const tournaments = new Map();
+// let nextTournamentId = 1;
 
-// Health check endpoint    
-fastify.get('/health', async (request, reply) => {
-  return { service: 'tournament-service', status: 'healthy', timestamp: new Date() };
-});
+// registerhealthRoute(fastify);
+fastify.register(healthRoute);
+// registercreateTournamentService(fastify, tournaments, () => nextTournamentId++);
+// registergetPlayerList(fastify, tournaments);   
+// registergenerateBracket(fastify, tournaments, () => nextTournamentId++);
+// registergetBracket(fastify, tournaments);
+// registeradvanceWinner(fastify, tournaments, broadcastTournamentUpdate);
+// registerDemoRoutes(fastify, tournaments);
+// registertournamentStatsRoute(fastify, tournaments);
 
 // Create a new tournament
 fastify.post('/tournaments', async (request, reply) => {
@@ -122,11 +131,11 @@ fastify.post('/tournaments/:tournamentId/start-match', async (request, reply) =>
       tournamentId,
       gameId: gameData.id,
       match: tournament.currentMatch,
-      gameUrl: `ws://localhost:3002/ws/pong/game-ws/${gameData.id}`,
+      gameUrl: `ws://${process.env.GAME_SERVICE_HOST || 'localhost'}:${process.env.GAME_SERVICE_PORT || '3002'}/ws/pong/game-ws/${gameData.id}`,
       message: 'Match started successfully'
     });
   } catch (error) {
-    fastify.log.error('Failed to create game:', error);
+    logger.error('Failed to create game:', error);
     reply.code(500).send({ error: 'Failed to start match' });
   }
 });
@@ -210,10 +219,13 @@ function findNextMatch(bracket) {
 // Start server
 const start = async () => {
   try {
-    await fastify.listen({ port: 3005, host: '0.0.0.0' });
-    console.log('tournament-service running on port 3005');
+    const PORT = parseInt(process.env.TOURNAMENT_SERVICE_PORT || process.env.PORT || '3005');
+    const address = await fastify.listen({ port: PORT, host: '0.0.0.0' });
+    logger.info(`🚀 Server running on port ${PORT}`);
+    logger.info(`📡 Tournament service listening at ${address}`);
+    logger.info(`🏆 Tournament endpoints available`);
   } catch (err) {
-    fastify.log.error(err);
+    logger.error('Error starting server:', err);
     process.exit(1);
   }
 };

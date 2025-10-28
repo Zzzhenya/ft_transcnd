@@ -1,10 +1,12 @@
 import { getAuth, signOut } from "@/app/auth";
 import { navigate } from "@/app/router";
 
-export default function (root: HTMLElement) {
+export default function (root: HTMLElement, ctx?: { url?: URL }) {
   const user = getAuth();
+  // If not logged in, redirect to auth with next param set to current path
+  const currentPath = ctx?.url?.pathname || "/profile";
   if (!user) {
-    navigate("/auth?next=/profile");
+    navigate(`/auth?next=${encodeURIComponent(currentPath)}`);
     return;
   }
 
@@ -18,12 +20,19 @@ export default function (root: HTMLElement) {
       <div class="flex gap-2">
         <button id="logout" class="px-3 py-2 rounded bg-slate-700 text-white">Sign out</button>
         <a href="/" class="px-3 py-2 rounded bg-blue-600 text-white">Go Lobby</a>
+        <button id="backBtn" class="px-3 py-2 rounded bg-gray-400 text-white">Go Back to tournament lobby</button>
       </div>
     </section>
   `;
 
   root.querySelector<HTMLButtonElement>("#logout")?.addEventListener("click", async () => {
     await signOut();
-    navigate("/auth?next=/profile");
+    // After logout, redirect to auth with next param set to current path
+    navigate(`/auth?next=${encodeURIComponent(currentPath)}`);
   });
+
+root.querySelector<HTMLButtonElement>("#backBtn")?.addEventListener("click", (e) => {
+  e.preventDefault();
+  navigate("/tournaments");
+});
 }

@@ -1,1 +1,2 @@
-{"root":["./src/main.ts","./src/app/guards.ts","./src/app/router.ts","./src/app/shell.ts","./src/app/store.ts","./src/pages/game.ts","./src/pages/init.ts","./src/pages/lobby.ts","./src/pages/local.ts","./src/pages/not-found.ts","./src/pages/tournament-detail.ts","./src/pages/tournaments.ts","./src/ui/components.ts"],"version":"5.9.2"}
+{"root":["./src/main.ts","./src/app/guards.ts","./src/app/router.ts","./src/app/shell.ts","./src/app/store.ts","./src/pages/game.ts","./src/pages/init.ts","./src/pages/lobby.ts","./src/pages/local.ts","./src/pages/not-found.ts","./src/pages/tournamentWaitingRoom
+.ts","./src/pages/tournaments.ts","./src/ui/components.ts"],"version":"5.9.2"}

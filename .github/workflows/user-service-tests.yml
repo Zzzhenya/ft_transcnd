@@ -5,8 +5,10 @@ on:
     branches:
       - user-service
       - main
+      - dev-environ-node-gateway
       - integration-gateway-pong-front
       - log-service
+      - upstream_timeouts
 
     # No paths restriction for push - always run when pushing to these branches
   pull_request:
@@ -151,6 +153,40 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+
+      - name: Create test .env file for user service tests
+        run: |
+          cd transcendence
+          cat > .env << EOF
+          NODE_ENV=test
+          DATABASE_URL=sqlite:/app/shared/transcendence.db
+          JWT_SECRET=test-secret-key-for-ci-only-not-secure
+          USER_SERVICE_URL=http://user-service:3001
+          GAME_SERVICE_URL=http://game-service:3002
+          LOG_SERVICE_URL=http://log-service:3003
+          TOURNAMENT_SERVICE_URL=http://tournament-service:3004
+          VITE_API_URL=http://localhost:3000
+          VITE_USER_SERVICE_URL=http://localhost:3000/user-service
+          VITE_GAME_SERVICE_URL=http://localhost:3000/game-service
+          VITE_LOG_SERVICE_URL=http://localhost:3000/log-service
+          VITE_TOURNAMENT_SERVICE_URL=http://localhost:3000/tournament-service
+          # Service ports
+          GATEWAY_PORT=3000
+          USER_SERVICE_PORT=3001
+          GAME_SERVICE_PORT=3002
+          LOG_SERVICE_PORT=3003
+          TOURNAMENT_SERVICE_PORT=3004
+          FRONTEND_PORT=3005
+          # Service hosts
+          USER_SERVICE_HOST=user-service
+          GAME_SERVICE_HOST=game-service
+          LOG_SERVICE_HOST=log-service
+          TOURNAMENT_SERVICE_HOST=tournament-service
+          # Testing settings
+          DEBUG=false
+          LOG_LEVEL=info
+          EOF
+          echo "✅ Test .env file created for user service tests"
 
       - name: Start test services
         run: |
