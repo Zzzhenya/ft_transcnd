@@ -42,6 +42,12 @@ help:
 	@echo "  make up               - Build and start (alias for start-monitoring)"
 	@echo "  make down             - Interactive cleanup with confirmation"
 	@echo "  make restart          - Stop and start all services"
+	@echo ""
+	@echo "🔐 SSL/HTTPS:"
+	@echo "  make dev-ssl          - Start with HTTPS verification"
+	@echo "  make ssl-cert         - Generate new SSL certificates"
+	@echo "  make ssl-verify       - Check SSL certificate validity"
+	@echo "  make ssl-info         - Display SSL certificate information"
 
 #=============================================================================
 # Main Service Commands
@@ -189,11 +195,41 @@ health:
 	@curl -s http://localhost:5044 -X GET -w " (Status: %{http_code})\n" || echo "❌ Logstash not responding"
 
 #=============================================================================
+# SSL/HTTPS Commands
+#=============================================================================
+ssl-cert:
+	@echo "🔐 Generating SSL certificates..."
+	@./generate-ssl.sh
+
+ssl-verify:
+	@echo "🔍 Verifying SSL certificates..."
+	@openssl x509 -in nginx/ssl/certificate.crt -text -noout | grep -A 3 "Validity"
+	@openssl verify -CAfile nginx/ssl/certificate.crt nginx/ssl/certificate.crt || echo "⚠️  Self-signed certificate (expected for development)"
+
+ssl-info:
+	@echo "📋 SSL Certificate Information:"
+	@echo "🗂️  Certificate: nginx/ssl/certificate.crt"
+	@echo "🔑 Private key: nginx/ssl/private.key"
+	@echo ""
+	@openssl x509 -in nginx/ssl/certificate.crt -noout -subject -dates
+	@echo ""
+	@echo "🌐 Access URLs:"
+	@echo "  HTTPS: https://localhost"
+	@echo "  HTTP:  http://localhost (redirects to HTTPS)"
+
+dev-ssl: ssl-verify start-monitoring
+	@echo ""
+	@echo "🎉 HTTPS development environment started!"
+	@echo "🔐 Access your application at: https://localhost"
+	@echo "⚠️  You may need to accept the self-signed certificate in your browser"
+
+#=============================================================================
 # Development Helpers
 #=============================================================================
 dev-setup:
 	@echo "🛠️  Setting up development environment..."
 	@chmod +x monitoring/kibana/*.sh
+	@chmod +x generate-ssl.sh
 	@echo "✅ Scripts made executable"
 
 rebuild:
@@ -294,5 +330,5 @@ t: test
 h: health
 hf: health-full
 k: kibana
-db: db-status
-dbu: db-list-users
+ssl: dev-ssl
+cert: ssl-cert
