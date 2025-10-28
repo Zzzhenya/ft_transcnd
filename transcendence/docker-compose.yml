@@ -318,7 +318,7 @@ services:
     volumes:
       - shared-data:/shared
     environment:
-      SQLITE_DATABASE: /shared/test-db/pong.sqlite
+      SQLITE_DATABASE: /shared/database/transcendence.db
 
   testdb:
     build: ./services/testdb-service
