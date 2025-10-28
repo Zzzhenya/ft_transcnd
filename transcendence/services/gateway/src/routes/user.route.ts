@@ -9,7 +9,7 @@ const USER_SERVICE_URL = process.env.USER_SERVICE_URL || 'http://user-service:30
 
 const userRoutes: FastifyPluginAsync = async (fastify) => {
 
-// route:/user-service/health for user-service
+// Health check for user-service (through gateway)
 	fastify.get('/health', async (request, reply) => {
 		return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/health`, 'GET');
 	});

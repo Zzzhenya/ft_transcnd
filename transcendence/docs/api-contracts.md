@@ -2,14 +2,30 @@
 # API Contracts
 
 ## Overview
-All services are accessed through the API Gateway at `http://localhost:3000` (development).
+All services are accessed through nginx (HTTPS) → API Gateway architecture.
 
-Base URL: `http://localhost:3000`
+**Production URLs:**
+- **Frontend**: `https://localhost` (nginx serves SPA + SSL termination)
+- **API Base**: `https://localhost/api` (nginx → gateway proxy)
+- **WebSocket**: `wss://localhost/ws` (nginx → gateway WebSocket proxy)
+
+**Internal Docker Network:**
+- Gateway: `http://gateway:3000`
+- User Service: `http://user-service:3001`
+- Game Service: `http://game-service:3002`
+- Log Service: `http://log-service:3003`
+- Tournament Service: `http://tournament-service:3005`
 
 ## Authentication
 Protected endpoints require JWT token in the Authorization header:
 ```
 Authorization: Bearer <jwt_token>
+```
+
+## Architecture Overview
+
+```
+Browser (HTTPS) → nginx (SSL + Reverse Proxy) → Gateway (Route Orchestration) → Microservices (HTTP Internal)
 ```
 
 ---
@@ -42,44 +58,100 @@ Check gateway health status.
 
 ---
 
-### ❌ GET /user-service/health (NOT IMPLEMENTED)
+### ✅ GET /api/user-service/health
 Check user service health through the gateway.
 
-**Status:** Gateway proxy not implemented yet. Access directly at `http://localhost:3001/health`
+**URL:** `https://localhost/api/user-service/health`
+
+**Response (200 OK):**
+```json
+{
+  "service": "user-service",
+  "status": "healthy",
+  "timestamp": "2025-10-28T12:00:00.000Z"
+}
+```
 
 ---
 
-### ❌ GET /game-service/health (NOT IMPLEMENTED)
+### ✅ GET /api/game-service/health
 Check game service health through the gateway.
 
-**Status:** Gateway proxy not implemented yet. Access directly at `http://localhost:3002/health`
+**URL:** `https://localhost/api/game-service/health`
+
+**Response (200 OK):**
+```json
+{
+  "status": "ok",
+  "service": "game-service",
+  "timestamp": "2025-10-28T12:00:00.000Z",
+  "uptime": 1240
+}
+```
 
 ---
 
-### ❌ GET /log-service/health (NOT IMPLEMENTED)
+### ✅ GET /api/log-service/health
 Check log service health through the gateway.
 
-**Status:** Gateway proxy not implemented yet. Access directly at `http://localhost:3003/health`
+**URL:** `https://localhost/api/log-service/health`
+
+**Response (200 OK):**
+```json
+{
+  "service": "log-service",
+  "status": "healthy",
+  "timestamp": "2025-10-28T12:00:00.000Z"
+}
+```
+
+---
+
+### ✅ GET /api/tournament-service/health
+Check tournament service health through the gateway.
+
+**URL:** `https://localhost/api/tournament-service/health`
+
+**Response (200 OK):**
+```json
+{
+  "service": "tournament-service",
+  "status": "healthy",
+  "timestamp": "2025-10-28T12:00:00.000Z"
+}
+```
 
 ---
 
 ## WebSocket Routes
 
-### ❌ WS /ws/pong (NOT IMPLEMENTED)
-WebSocket proxy to game service for Pong game.
+### ✅ WSS /ws/pong/game-ws/:gameId
+Secure WebSocket proxy to game service for Pong game.
 
-**Status:** Gateway WebSocket proxy not implemented yet. Connect directly to game service at `ws://localhost:3002/ws/pong/game-ws/{gameId}`
+**URL:** `wss://localhost/ws/pong/game-ws/{gameId}`
 
-**Current Implementation:** Direct connection to game service required
+**Architecture Flow:**
+```
+Frontend → wss://localhost/ws → nginx (WebSocket upgrade) → gateway → game-service WebSocket
+```
+
+**Status:** ✅ **IMPLEMENTED** - Full WebSocket proxy with SSL support
 
 ---
 
-## User Service (Direct Access Only)
+## User Service (Through Gateway)
 
-**⚠️ Status:** These endpoints are NOT proxied through the gateway yet. Access directly at `http://localhost:3001/auth/*`
+**✅ Status:** All auth endpoints are proxied through nginx → gateway → user-service
 
-### POST /auth/register (Direct: http://localhost:3001/auth/register)
+### POST /api/auth/register
 Create a new user account.
+
+**URL:** `https://localhost/api/auth/register`
+
+**Architecture Flow:**
+```
+Frontend → /api/auth/register → nginx → /user-service/auth/register → gateway → user-service
+```
 
 **Request Body:**
 ```json
@@ -104,8 +176,6 @@ Create a new user account.
 }
 ```
 
-**Note:** Response messages are currently in German.
-
 **Error Responses:**
 - `400 Bad Request` - Missing required fields
 - `409 Conflict` - Username or email already exists
@@ -113,8 +183,10 @@ Create a new user account.
 
 ---
 
-### POST /auth/login (Direct: http://localhost:3001/auth/login)
+### POST /api/auth/login
 Authenticate a user and receive a JWT token.
+
+**URL:** `https://localhost/api/auth/login`
 
 **Request Body:**
 ```json
@@ -144,8 +216,10 @@ Authenticate a user and receive a JWT token.
 
 ---
 
-### GET /auth/profile (Direct: http://localhost:3001/auth/profile)
+### GET /api/auth/profile
 Get the current user's profile. **Requires authentication.**
+
+**URL:** `https://localhost/api/auth/profile`
 
 **Headers:**
 ```
@@ -171,10 +245,12 @@ Authorization: Bearer <jwt_token>
 
 ---
 
-## Game Service (Direct Access: http://localhost:3002)
+## Game Service (Through Gateway)
 
-### GET /health
-Game service health check.
+### GET /api/pong/game, POST /api/pong/game, etc.
+All game endpoints are accessible through the gateway with `/api/` prefix.
+
+**Base URL:** `https://localhost/api/`
 
 **Response (200 OK):**
 ```json
@@ -214,8 +290,10 @@ Get game statistics and counters.
 
 ## Single Games (Registered Users)
 
-### POST /pong/game
+### POST /api/pong/game
 Create a single game for registered users (3 rounds, score limit 5).
+
+**URL:** `https://localhost/api/pong/game`
 
 **Request Body:**
 ```json
@@ -239,7 +317,7 @@ Create a single game for registered users (3 rounds, score limit 5).
   "isRegistered": true,
   "maxRounds": 3,
   "scoreLimit": 5,
-  "websocketUrl": "ws://localhost:3002/ws/pong/game-ws/1",
+  "websocketUrl": "wss://localhost/ws/pong/game-ws/1",
   "message": "Single game created successfully (3 rounds, score limit: 5)"
 }
 ```
@@ -267,7 +345,7 @@ Join an existing game as player2.
   "player2_name": "Bob",
   "status": "ready",
   "message": "Successfully joined the game",
-  "websocketUrl": "ws://localhost:3002/ws/pong/game-ws/1"
+    "websocketUrl": "wss://localhost/ws/pong/game-ws/1"
 }
 ```
 
@@ -395,7 +473,7 @@ Create a demo game with auto-generated temporary players.
   "status": "demo",
   "isDemo": true,
   "message": "Demo game created with temporary players",
-  "websocketUrl": "ws://localhost:3002/ws/pong/game-ws/2"
+  "websocketUrl": "wss://localhost/ws/pong/demo-ws/2"
 }
 ```
 
@@ -499,7 +577,7 @@ Move paddle in demo game.
 ### WS /ws/pong/game-ws/:gameId
 Real-time game communication for all game types (single, demo, tournament).
 
-**Connection URL:** `ws://localhost:3002/ws/pong/game-ws/{gameId}`
+**Connection URL:** `wss://localhost/ws/pong/game-ws/{gameId}`
 
 ### WebSocket Message Types
 
@@ -633,7 +711,7 @@ Real-time game communication for all game types (single, demo, tournament).
 ### WS /ws/pong/demo-ws/:gameId
 Alternative WebSocket endpoint specifically for demo games.
 
-**Connection URL:** `ws://localhost:3002/ws/pong/demo-ws/{gameId}`
+**Connection URL:** `wss://localhost/ws/pong/demo-ws/{gameId}`
 
 **Note:** This redirects to the main WebSocket handler, so message format is identical.
 
@@ -648,25 +726,27 @@ TODO: Define tournament service endpoints
 ## Implementation Status
 
 ### ✅ Currently Implemented
-- Gateway health check (`/health`)
-- User service endpoints (direct access at `http://localhost:3001/auth/*`)
-- Game service HTTP endpoints for single games, demos, and stats
-- Game service WebSocket communication (`/ws/pong/game-ws/:gameId`)
-- Complete WebSocket message protocol for real-time gameplay
+- **HTTPS Infrastructure**: nginx SSL termination with valid certificates
+- **Gateway health checks**: All services monitored (`/api/health`, `/api/user-service/health`, etc.)
+- **Auth system**: Complete auth flow through nginx → gateway → user-service
+- **Game service**: HTTP endpoints and WebSocket communication
+- **WebSocket proxy**: Secure WSS connections through nginx → gateway
+- **Local game**: Backend integration with real game logic
+- **Route alignment**: Consistent with teammate API documentation
 
-### ❌ NOT Implemented
-- Gateway proxy for service health checks (`/user-service/health`, `/game-service/health`, `/log-service/health`)
-- Gateway WebSocket proxy (`/ws/pong`)
-- Gateway proxy for `/auth/*` routes
-- Tournament service endpoints
-- Log service endpoints (beyond health check)
+### ✅ HTTPS Architecture Fully Implemented
+- **nginx**: SSL termination, reverse proxy, security headers
+- **Gateway**: Route orchestration with service prefixes
+- **Auth routes**: `/api/auth/*` → `/user-service/auth/*` mapping
+- **WebSocket**: Secure `wss://` connections with automatic HTTP→HTTPS URL conversion
+- **Health monitoring**: Complete service health check system
+- **CORS**: Properly configured for HTTPS frontend
 
-### 🚧 Needs Implementation (HIGH PRIORITY)
-1. **Gateway Service Proxying**: Implement proxy routes for all services
-2. **Gateway WebSocket Proxy**: Proxy WebSocket connections to game service
-3. **Tournament Service**: Complete tournament management endpoints
-4. **API Gateway Request Routing**: Central routing and authentication middleware
-5. **Service Discovery**: Dynamic service registration and health monitoring
+### 🚧 Remaining Tasks
+1. **Tournament Service**: Complete tournament management endpoints
+2. **Log Service**: Expand beyond health checks
+3. **API Documentation**: Add missing endpoint details
+4. **Production Deployment**: Environment-specific configurations
 
 ---
 
@@ -718,40 +798,44 @@ All services return errors in this format:
 | `DATABASE_URL` | All Services | `sqlite:/app/shared/database/transcendence.db` | Shared database path |
 | `NODE_ENV` | All Services | `development` | Environment mode |
 
-### 🌐 Service URLs (Development)
-- Gateway: `http://localhost:3000`
-- User Service: `http://localhost:3001` 
-- Game Service: `http://localhost:3002`
-- Log Service: `http://localhost:3003`
-- Tournament Service: `http://localhost:3005`
+### 🌐 Service URLs (Production HTTPS)
+- **Frontend**: `https://localhost` (nginx SPA + SSL)
+- **API**: `https://localhost/api` (nginx → gateway proxy)
+- **WebSocket**: `wss://localhost/ws` (nginx → gateway WebSocket proxy)
+
+### 🐳 Internal Docker Network
+- Gateway: `http://gateway:3000`
+- User Service: `http://user-service:3001` 
+- Game Service: `http://game-service:3002`
+- Log Service: `http://log-service:3003`
+- Tournament Service: `http://tournament-service:3005`
 
 ---
 
 ## Service Architecture
 
-### Current Implementation (Direct Access)
+### ✅ Current Architecture (HTTPS Production Ready)
 ```
-Frontend (3004) 
+Browser (HTTPS) → nginx (SSL + Reverse Proxy) → Gateway (Route Orchestration) → Microservices (HTTP Internal)
+
+Frontend (https://localhost) 
     ↓
-Gateway (3000) - Basic health only
-    
-Direct Service Access:
-├── User Service (3001) - /auth/* 
-├── Game Service (3002) - /ws/pong/*, /stats, demos
-├── Log Service (3003) - /health only
-└── Tournament Service (3005) - Not documented yet
+nginx (443) - SSL termination, security headers
+    ├── /api/auth/* → Gateway /user-service/auth/* → User Service (3001)
+    ├── /api/pong/* → Gateway /pong/* → Game Service (3002) 
+    ├── /api/health → Gateway /health → Gateway Health
+    ├── /api/user-service/health → Gateway /user-service/health → User Service
+    ├── /api/game-service/health → Gateway /game-service/health → Game Service
+    ├── /ws/* → Gateway WebSocket Proxy → Game Service WebSocket
+    └── /* → Frontend SPA (3004)
 ```
 
-### Target Architecture (To Be Implemented)
+### 🔐 Security Implementation
 ```
-Frontend (3004) 
-    ↓
-Gateway (3000) - Full proxy & routing
-    ├── /auth/* → User Service (3001)
-    ├── /game/* → Game Service (3002) 
-    ├── /ws/pong → Game Service WebSocket
-    ├── /logs/* → Log Service (3003)
-    └── /tournaments/* → Tournament Service (3005)
+SSL/TLS: nginx handles certificate, TLSv1.2+, secure ciphers
+Headers: HSTS, X-Frame-Options, X-Content-Type-Options, X-XSS-Protection
+Auth Flow: JWT tokens, session cookies, CORS for HTTPS
+WebSocket: WSS (secure WebSocket) with automatic URL conversion
 ```
 
 ---
