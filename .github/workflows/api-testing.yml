@@ -108,16 +108,32 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Generate SSL certificates for HTTPS testing
+        run: |
+          cd transcendence
+          echo "🔐 Generating SSL certificates for testing..."
+          chmod +x generate-ssl.sh
+          ./generate-ssl.sh
+          
       - name: Create test environment file
         run: |
           cd transcendence
           cat > .env << EOF
           NODE_ENV=test
-          DATABASE_URL=sqlite:/app/shared/database/test.db
+          DATABASE_URL=sqlite:/app/shared/database/transcendence.db
           JWT_SECRET=test-jwt-secret-key-not-for-production-use-only
+          
+          # Frontend URLs (Browser → nginx → gateway) - HTTP for CI testing
+          VITE_API_BASE=http://localhost/api
+          VITE_GATEWAY_BASE=http://localhost/api
+          VITE_WS_BASE=ws://localhost/ws
+          FRONT_END_URL=http://localhost
+          
+          # Backend URLs (Docker internal network)
           USER_SERVICE_URL=http://user-service:3001
           GAME_SERVICE_URL=http://game-service:3002
           LOG_SERVICE_URL=http://log-service:3003
+          TOURNAMENT_SERVICE_URL=http://tournament-service:3005
           GATEWAY_URL=http://gateway:3000
           EOF
           
@@ -168,11 +184,11 @@ jobs:
           cd transcendence
           echo "🚀 Building and starting services for API testing..."
           
-          # Start gateway and user-service for comprehensive testing
-          docker compose up -d --build database user-service gateway
+          # Start with nginx proxy for full HTTPS architecture testing
+          docker compose up -d --build database user-service gateway nginx
           
           echo "⏳ Waiting for services to be ready..."
-          sleep 45
+          sleep 60
 
       - name: Check container status
         run: |
@@ -198,6 +214,12 @@ jobs:
           if ! docker compose ps gateway | grep -Eq "running|healthy|Up"; then
             echo "❌ Gateway container is not running"
             docker compose logs gateway
+            exit 1
+          fi
+          
+          if ! docker compose ps nginx | grep -Eq "running|healthy|Up"; then
+            echo "❌ nginx container is not running"
+            docker compose logs nginx
             exit 1
           fi
           
@@ -244,21 +266,29 @@ jobs:
             fi
           done
           
-          # Wait for gateway to be ready (exposed port)
-          echo "🌐 Testing Gateway health check..."
+          # Wait for nginx + gateway to be ready
+          echo "🌐 Testing nginx + Gateway health check..."
           for i in {1..15}; do
-            if curl -f -s http://localhost:3000/health > /dev/null 2>&1; then
-              echo "✅ Gateway is ready and responding"
+            # Try HTTPS first, fallback to HTTP for CI
+            if curl -k -f -s https://localhost/api/health > /dev/null 2>&1; then
+              echo "✅ nginx + Gateway is ready and responding (HTTPS)"
+              echo "⏳ Giving services additional time to fully initialize..."
+              sleep 10
+              break
+            elif curl -f -s http://localhost/api/health > /dev/null 2>&1; then
+              echo "✅ nginx + Gateway is ready and responding (HTTP fallback)"
               echo "⏳ Giving services additional time to fully initialize..."
               sleep 10
               break
             else
-              echo "⏳ Waiting for Gateway... attempt $i/15"
+              echo "⏳ Waiting for nginx + Gateway... attempt $i/15"
               sleep 10
               if [ $i -eq 15 ]; then
-                echo "❌ Gateway failed to respond after 150 seconds"
+                echo "❌ nginx + Gateway failed to respond after 150 seconds"
                 echo "=== Container Status ==="
                 docker compose ps
+                echo "=== nginx Logs ==="
+                docker compose logs nginx
                 echo "=== Gateway Logs ==="
                 docker compose logs gateway
                 exit 1
@@ -276,9 +306,20 @@ jobs:
           cd transcendence
           echo "🧪 Testing Health Check Endpoints..."
           
-          # Test Gateway Health Check (direct)
-          echo "1. 🌐 Testing Gateway Health Check (direct)"
-          GATEWAY_HEALTH=$(curl -s -w "%{http_code}" -o /tmp/gateway_health.json http://localhost:3000/health)
+          # Detect if HTTPS is available, fallback to HTTP for CI
+          if curl -k -f -s https://localhost/api/health > /dev/null 2>&1; then
+            BASE_URL="https://localhost/api"
+            CURL_FLAGS="-k"
+            echo "🔒 Using HTTPS endpoints"
+          else
+            BASE_URL="http://localhost/api"  
+            CURL_FLAGS=""
+            echo "🔓 Using HTTP endpoints (CI fallback)"
+          fi
+          
+          # Test Gateway Health Check (via nginx)
+          echo "1. 🌐 Testing Gateway Health Check (via nginx)"
+          GATEWAY_HEALTH=$(curl $CURL_FLAGS -s -w "%{http_code}" -o /tmp/gateway_health.json $BASE_URL/health)
           if [ "$GATEWAY_HEALTH" = "200" ]; then
             echo "✅ Gateway health check passed"
             cat /tmp/gateway_health.json | jq .
@@ -287,14 +328,14 @@ jobs:
             exit 1
           fi
           
-          # Test User Service Health Check through Gateway
-          echo "2. 🏥 Testing User Service Health Check (through Gateway)"
-          USER_VIA_GATEWAY=$(curl -s -w "%{http_code}" -o /tmp/user_via_gateway.json http://localhost:3000/user-service/health)
+          # Test User Service Health Check through nginx → Gateway
+          echo "2. 🏥 Testing User Service Health Check (via nginx → Gateway)"
+          USER_VIA_GATEWAY=$(curl $CURL_FLAGS -s -w "%{http_code}" -o /tmp/user_via_gateway.json $BASE_URL/user-service/health)
           if [ "$USER_VIA_GATEWAY" = "200" ]; then
-            echo "✅ User Service health check via Gateway passed"
+            echo "✅ User Service health check via nginx → Gateway passed"
             cat /tmp/user_via_gateway.json | jq .
           else
-            echo "❌ User Service health check via Gateway failed with status: $USER_VIA_GATEWAY"
+            echo "❌ User Service health check via nginx → Gateway failed with status: $USER_VIA_GATEWAY"
             exit 1
           fi
           
@@ -348,9 +389,18 @@ jobs:
       - name: Test User Service Endpoints via Gateway
         run: |
           cd transcendence
-          echo "🧪 Running User Service API tests via Gateway..."
+          echo "🧪 Running User Service API tests via nginx → Gateway..."
           
-          GATEWAY_URL="http://localhost:3000"
+          # Detect if HTTPS is available, fallback to HTTP for CI
+          if curl -k -f -s https://localhost/api/health > /dev/null 2>&1; then
+            GATEWAY_URL="https://localhost/api"
+            CURL_FLAGS="-k"
+            echo "🔒 Using HTTPS endpoints"
+          else
+            GATEWAY_URL="http://localhost/api"  
+            CURL_FLAGS=""
+            echo "🔓 Using HTTP endpoints (CI fallback)"
+          fi
           
           # User Registration via Gateway
           echo "1. 👤 Testing User Registration (via Gateway)"
@@ -361,8 +411,8 @@ jobs:
             "password": "SecurePassword123!"
           }'
           
-          REGISTER_RESPONSE=$(curl -s -w "%{http_code}" -o /tmp/register.json \
-            -X POST $GATEWAY_URL/user-service/auth/register \
+          REGISTER_RESPONSE=$(curl $CURL_FLAGS -s -w "%{http_code}" -o /tmp/register.json \
+            -X POST $GATEWAY_URL/auth/register \
             -H "Content-Type: application/json" \
             -d "$REGISTER_PAYLOAD")
           
@@ -385,8 +435,8 @@ jobs:
             "password": "SecurePassword123!"
           }'
           
-          LOGIN_RESPONSE=$(curl -s -w "%{http_code}" -o /tmp/login.json \
-            -X POST $GATEWAY_URL/user-service/auth/login \
+          LOGIN_RESPONSE=$(curl $CURL_FLAGS -s -w "%{http_code}" -o /tmp/login.json \
+            -X POST $GATEWAY_URL/auth/login \
             -H "Content-Type: application/json" \
             -d "$LOGIN_PAYLOAD")
           
@@ -406,8 +456,8 @@ jobs:
           # Profile Access via Gateway (Protected Route)
           echo "3. 👥 Testing Protected Profile Endpoint (via Gateway)"
           if [ ! -z "$TOKEN" ]; then
-            PROFILE_RESPONSE=$(curl -s -w "%{http_code}" -o /tmp/profile.json \
-              -X GET $GATEWAY_URL/user-service/auth/profile \
+            PROFILE_RESPONSE=$(curl $CURL_FLAGS -s -w "%{http_code}" -o /tmp/profile.json \
+              -X GET $GATEWAY_URL/auth/profile \
               -H "Authorization: Bearer $TOKEN")
             
             if [ "$PROFILE_RESPONSE" = "200" ]; then
