@@ -4,7 +4,7 @@ const path = require('path');
 // Database connection
 const DB_PATH = process.env.DATABASE_URL ? 
   process.env.DATABASE_URL.replace('sqlite:', '') : 
-  '/app/shared/database/transcendence.db';
+  './app/shared/database/transcendence.db';
 
 console.log('📍 User.js connecting to database at:', DB_PATH);
 
