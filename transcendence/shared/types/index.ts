@@ -2,7 +2,7 @@ export interface User {
   id: number;
   username: string;
   email: string;
-  display_name: string;
+  display_name?: string; // Made optional to match current API implementation
   avatar_url?: string;
   created_at: string;
 }
