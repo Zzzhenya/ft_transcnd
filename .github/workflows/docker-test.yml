@@ -39,15 +39,19 @@ jobs:
           NODE_ENV=test
           DATABASE_URL=sqlite:/app/shared/database/transcendence.db
           JWT_SECRET=ci-test-secret-not-for-production
+          
+          # Frontend URLs (Browser → nginx → gateway) - HTTP for CI testing
+          VITE_API_BASE=http://localhost/api
+          VITE_GATEWAY_BASE=http://localhost/api
+          VITE_WS_BASE=ws://localhost/ws
+          FRONT_END_URL=http://localhost
+          
+          # Backend URLs (Docker internal network)
           USER_SERVICE_URL=http://user-service:3001
           GAME_SERVICE_URL=http://game-service:3002
           LOG_SERVICE_URL=http://log-service:3003
-          TOURNAMENT_SERVICE_URL=http://tournament-service:3004
-          VITE_API_URL=http://localhost:3000
-          VITE_USER_SERVICE_URL=http://localhost:3000/user-service
-          VITE_GAME_SERVICE_URL=http://localhost:3000/game-service
-          VITE_LOG_SERVICE_URL=http://localhost:3000/log-service
-          VITE_TOURNAMENT_SERVICE_URL=http://localhost:3000/tournament-service
+          TOURNAMENT_SERVICE_URL=http://tournament-service:3005
+          GATEWAY_URL=http://gateway:3000
           # Database settings
           DB_HOST=localhost
           DB_PORT=5432
@@ -253,15 +257,19 @@ jobs:
           NODE_ENV=test
           DATABASE_URL=sqlite:/app/shared/database/transcendence.db
           JWT_SECRET=test-secret-key-for-ci-only-not-secure
+          
+          # Frontend URLs (Browser → nginx → gateway) - HTTP for CI testing
+          VITE_API_BASE=http://localhost/api
+          VITE_GATEWAY_BASE=http://localhost/api
+          VITE_WS_BASE=ws://localhost/ws
+          FRONT_END_URL=http://localhost
+          
+          # Backend URLs (Docker internal network)
           USER_SERVICE_URL=http://user-service:3001
           GAME_SERVICE_URL=http://game-service:3002
           LOG_SERVICE_URL=http://log-service:3003
-          TOURNAMENT_SERVICE_URL=http://tournament-service:3004
-          VITE_API_URL=http://localhost:3000
-          VITE_USER_SERVICE_URL=http://localhost:3000/user-service
-          VITE_GAME_SERVICE_URL=http://localhost:3000/game-service
-          VITE_LOG_SERVICE_URL=http://localhost:3000/log-service
-          VITE_TOURNAMENT_SERVICE_URL=http://localhost:3000/tournament-service
+          TOURNAMENT_SERVICE_URL=http://tournament-service:3005
+          GATEWAY_URL=http://gateway:3000
           # Service ports
           GATEWAY_PORT=3000
           USER_SERVICE_PORT=3001
@@ -280,10 +288,17 @@ jobs:
           EOF
           echo "✅ Test .env file created"
 
+      - name: Generate SSL certificates for testing
+        run: |
+          cd transcendence
+          echo "🔐 Generating SSL certificates for testing..."
+          chmod +x generate-ssl.sh
+          ./generate-ssl.sh
+          
       - name: Start all services
         run: |
           cd transcendence
-          echo "Starting all services..."
+          echo "Starting all services with nginx proxy..."
           docker compose up -d --build
           echo "⏳ Waiting for services to initialize..."
           sleep 60
@@ -294,20 +309,27 @@ jobs:
           echo "=== Container Status ==="
           docker compose ps
 
-      - name: Test Gateway service
+      - name: Test Gateway service via nginx
         run: |
-          echo "Testing Gateway..."
+          echo "Testing Gateway via nginx proxy..."
           for i in {1..12}; do
-            if curl -f -s http://localhost:3000/health > /dev/null 2>&1; then
-              echo "✅ Gateway is responding"
-              curl -s http://localhost:3000/health
+            # Try HTTPS first, fallback to HTTP for CI
+            if curl -k -f -s https://localhost/api/health > /dev/null 2>&1; then
+              echo "✅ Gateway is responding via nginx (HTTPS)"
+              curl -k -s https://localhost/api/health
+              break
+            elif curl -f -s http://localhost/api/health > /dev/null 2>&1; then
+              echo "✅ Gateway is responding via nginx (HTTP fallback)"
+              curl -s http://localhost/api/health
               break
             else
-              echo "⏳ Gateway not ready, attempt $i/12"
+              echo "⏳ Gateway + nginx not ready, attempt $i/12"
               sleep 10
               if [ $i -eq 12 ]; then
-                echo "❌ Gateway failed to respond after 120 seconds"
+                echo "❌ Gateway + nginx failed to respond after 120 seconds"
                 cd transcendence
+                echo "=== nginx Logs ==="
+                docker compose logs nginx | tail -100
                 echo "=== Gateway Logs ==="
                 docker compose logs gateway | tail -100
                 exit 1
@@ -315,18 +337,29 @@ jobs:
             fi
           done
 
-      - name: Test User Service via Gateway
+      - name: Test User Service via nginx → Gateway
         run: |
-          echo "Testing User Service via Gateway..."
+          echo "Testing User Service via nginx → Gateway..."
+          # Detect protocol and set variables
+          if curl -k -f -s https://localhost/api/health > /dev/null 2>&1; then
+            BASE_URL="https://localhost/api"
+            CURL_FLAGS="-k"
+            echo "🔒 Using HTTPS endpoints"
+          else
+            BASE_URL="http://localhost/api"
+            CURL_FLAGS=""
+            echo "🔓 Using HTTP endpoints (CI fallback)"
+          fi
+          
           for i in {1..5}; do
-            if curl -f -s http://localhost:3000/user-service/health; then
-              echo "✅ User Service is responding via Gateway"
+            if curl $CURL_FLAGS -f -s $BASE_URL/user-service/health; then
+              echo "✅ User Service is responding via nginx → Gateway"
               break
             else
-              echo "⏳ User Service not ready via Gateway, attempt $i/5"
+              echo "⏳ User Service not ready via nginx → Gateway, attempt $i/5"
               sleep 5
               if [ $i -eq 5 ]; then
-                echo "❌ User Service failed to respond via Gateway"
+                echo "❌ User Service failed to respond via nginx → Gateway"
                 echo "=== User Service Logs ==="
                 cd transcendence && docker compose logs user-service | tail -50
                 exit 1
@@ -334,35 +367,53 @@ jobs:
             fi
           done
 
-      - name: Test Game Service via Gateway
+      - name: Test Game Service via nginx → Gateway
         run: |
-          echo "Testing Game Service via Gateway..."
+          echo "Testing Game Service via nginx → Gateway..."
+          # Use same protocol detection as User Service test
+          if curl -k -f -s https://localhost/api/health > /dev/null 2>&1; then
+            BASE_URL="https://localhost/api"
+            CURL_FLAGS="-k"
+          else
+            BASE_URL="http://localhost/api"
+            CURL_FLAGS=""
+          fi
+          
           for i in {1..5}; do
-            if curl -f -s http://localhost:3000/game-service/health; then
-              echo "✅ Game Service is responding via Gateway"
+            if curl $CURL_FLAGS -f -s $BASE_URL/game-service/health; then
+              echo "✅ Game Service is responding via nginx → Gateway"
               break
             else
-              echo "⏳ Game Service not ready via Gateway, attempt $i/5"
+              echo "⏳ Game Service not ready via nginx → Gateway, attempt $i/5"
               sleep 5
               if [ $i -eq 5 ]; then
-                echo "⚠️ Game Service not accessible via Gateway yet"
+                echo "⚠️ Game Service not accessible via nginx → Gateway yet"
                 echo "ℹ️  This may be expected if game-service routes are not fully implemented"
               fi
             fi
           done
 
-      - name: Test Log Service via Gateway
+      - name: Test Log Service via nginx → Gateway
         run: |
-          echo "Testing Log Service via Gateway..."
+          echo "Testing Log Service via nginx → Gateway..."
+          # Use same protocol detection
+          if curl -k -f -s https://localhost/api/health > /dev/null 2>&1; then
+            BASE_URL="https://localhost/api"
+            CURL_FLAGS="-k"
+          else
+            BASE_URL="http://localhost/api"
+            CURL_FLAGS=""
+          fi
+          
           for i in {1..5}; do
-            if curl -f -s http://localhost:3000/log-service/health; then
-              echo "✅ Log Service is responding via Gateway"
+            if curl $CURL_FLAGS -f -s $BASE_URL/log-service/health; then
+              echo "✅ Log Service is responding via nginx → Gateway"
               break
             else
-              echo "⏳ Log Service not ready via Gateway, attempt $i/5"
+              echo "⏳ Log Service not ready via nginx → Gateway, attempt $i/5"
               sleep 5
               if [ $i -eq 5 ]; then
-                echo "⚠️ Log Service not accessible via Gateway yet"
+                echo "⚠️ Log Service not accessible via nginx → Gateway yet"
                 echo "ℹ️  This may be expected if log-service routes are not fully implemented"
               fi
             fi
@@ -531,15 +582,19 @@ jobs:
           NODE_ENV=development
           DATABASE_URL=sqlite:/app/shared/database/transcendence.db
           JWT_SECRET=dev-secret-key-for-ci-only-not-secure
+          
+          # Frontend URLs (Browser → nginx → gateway) - HTTP for CI testing
+          VITE_API_BASE=http://localhost/api
+          VITE_GATEWAY_BASE=http://localhost/api
+          VITE_WS_BASE=ws://localhost/ws
+          FRONT_END_URL=http://localhost
+          
+          # Backend URLs (Docker internal network)
           USER_SERVICE_URL=http://user-service:3001
           GAME_SERVICE_URL=http://game-service:3002
           LOG_SERVICE_URL=http://log-service:3003
-          TOURNAMENT_SERVICE_URL=http://tournament-service:3004
-          VITE_API_URL=http://localhost:3000
-          VITE_USER_SERVICE_URL=http://localhost:3000/user-service
-          VITE_GAME_SERVICE_URL=http://localhost:3000/game-service
-          VITE_LOG_SERVICE_URL=http://localhost:3000/log-service
-          VITE_TOURNAMENT_SERVICE_URL=http://localhost:3000/tournament-service
+          TOURNAMENT_SERVICE_URL=http://tournament-service:3005
+          GATEWAY_URL=http://gateway:3000
           # Service ports
           GATEWAY_PORT=3000
           USER_SERVICE_PORT=3001
