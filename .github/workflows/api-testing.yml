@@ -361,6 +361,10 @@ jobs:
             "email": "test'$UNIQUE_ID'@example.com",
             "password": "SecurePassword123!"
           }'
+
+          echo "quotes: " "$REGISTER_PAYLOAD"
+
+          echo "ohne: " $REGISTER_PAYLOAD
           
           REGISTER_RESPONSE=$(curl -s -w "%{http_code}" -o /tmp/register.json \
             -X POST $GATEWAY_URL/user-service/auth/register \
