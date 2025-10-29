@@ -54,7 +54,30 @@ fastify.post('/auth/register', async (request, reply) => {
     if (!username || !email || !password) {
       logger.warn('Missing fields');
       return reply.code(400).send({
+        success: false,
         message: 'Username, email and password are required'
+      });
+    }
+
+    // Check if username already exists
+    const existingUsername = await User.findByUsername(username);
+    if (existingUsername) {
+      logger.warn('Username already taken:', username);
+      return reply.code(409).send({
+        success: false,
+        message: `Username "${username}" is already taken. Please choose another.`,
+        error: 'Username already exists'
+      });
+    }
+
+    // Check if email already exists
+    const existingEmail = await User.findByEmail(email);
+    if (existingEmail) {
+      logger.warn('Email already registered:', email);
+      return reply.code(409).send({
+        success: false,
+        message: `Email "${email}" is already registered. Please use another email or login.`,
+        error: 'Email already exists'
       });
     }
 
@@ -63,6 +86,7 @@ fastify.post('/auth/register', async (request, reply) => {
     logger.info('User registered:', { userId: result.user.id, username });
 
     return reply.code(201).send({
+      success: true,
       message: 'User successfully registered',
       user: result.user,
       token: result.token
@@ -72,11 +96,18 @@ fastify.post('/auth/register', async (request, reply) => {
 
     if (error.message.includes('already')) {
       logger.warn('User already exists:', request.body.username);
-      return reply.code(409).send({ message: error.message });
+      return reply.code(409).send({ 
+        success: false, 
+        message: error.message 
+      });
     }
 
     logger.error('Registration failed:', error);
-    return reply.code(500).send({ message: 'Server error', error: error.message });
+    return reply.code(500).send({ 
+      success: false, 
+      message: 'Server error', 
+      error: error.message 
+    });
   }
 });
 
