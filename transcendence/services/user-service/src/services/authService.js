@@ -39,7 +39,8 @@ class AuthService {
         user: {
           id: newUser.id,
           username: newUser.username,
-          email: newUser.email
+          email: newUser.email,
+          display_name: newUser.display_name || newUser.username
         },
         token
       };
@@ -78,7 +79,8 @@ class AuthService {
         user: {
           id: user.id,
           username: user.username,
-          email: user.email
+          email: user.email,
+          display_name: user.display_name || user.username
         },
         token
       };
