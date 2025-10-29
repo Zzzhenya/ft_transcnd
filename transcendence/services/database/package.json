@@ -1,0 +1,18 @@
+{
+  "name": "database",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "db:init": "node database/init-db.js",
+    "db:reset": "node database/init-db.js",
+    "db:backup": "cp database/database.sqlite database/database.backup.sqlite",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "sqlite3": "^5.1.7"
+  }
+}
