@@ -90,6 +90,7 @@ class User {
         //   userData.is_guest || 0
         // ]
       );
+      console.log(username, email, password);
 
       return await User.findById(result.id);
     } catch (error) {
