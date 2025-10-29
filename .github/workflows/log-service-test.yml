@@ -2,7 +2,7 @@ name: Log Service Tests
 
 on:
   push:
-    branches: [ main, log-service, upstream_timeouts, experiment/rene-integration ]
+    branches: [ main, log-service, db-service-api, experiment/rene-integration ]
     paths:
       - 'transcendence/services/log-service/**'
       - 'transcendence/services/*/src/utils/logger.js'
