@@ -1,0 +1,131 @@
+
+
+Table Users {
+  id integer [primary key]
+  username varchar [unique]
+  name varchar
+  phone varchar
+  email varchar [unique]
+  ipadress_hash varchar [note: 'hashed']
+  subnetmask_hash varchar [note: 'hashed']
+  online bool
+  avatar varchar
+  statistics integer
+  password_hash varchar [note: 'hashed']
+  mfa_enabled_at bool [note: 'true send random email pin']
+  mfa_backup_codes varchar
+  mfa_secret varchar
+  tournament integer
+  registed timestamp
+  last_login timestamp [default: `now()`]
+  games_1v1_loses integer
+  games_1v1_winner integer 
+  tournament_first integer 
+  tournament_second integer
+  tournament_third integer
+  tournament_fourth integer
+  tournament_fifth integer
+  tournament_sixth integer
+  tournament_seventh integer
+  tournament_eighth integer
+}
+
+Table Games_1v1_goals {
+  timestamp timestamp [default: `now()`]
+  state enum
+  player1_id integer
+  player2_id integer
+  score_player1 integer
+  score_player1 integer
+  id integer [primary key]
+}
+
+Table Games_1v1 {
+  state enum
+  player1_id integer
+  player2_id integer
+  score_player1 integer
+  score_player1 integer
+  winner_id integer
+  started_at timestamp
+  finished_at timestamp
+  score_player1 integer
+  score_player1 integer
+  id integer [primary key]
+}
+
+Table Statistics {
+  id integer [primary key]
+  1v1_games_loses integer
+  1v1_games_wins integer 
+  tournament_first integer 
+  tournament_second integer
+  tournament_third integer
+  tournament_fourth integer
+  tournament_fifth integer
+  tournament_sixth integer
+  tournament_sevenrh integer
+  tournament_eigthth integer
+}
+
+Table Friend {
+  id  integer 
+  friend_id integer [unique]
+  status enum
+}
+
+Table Tournament_games {
+  state enum
+  player1_id integer
+  player1_tournamentname varchar
+  player2_id integer
+  player2_tournamentname varchar
+  player3_id integer
+  player3_tournamentname varchar
+  player4_id integer
+  player4_tournamentname varchar
+  player5_id integer
+  player5_tournamentname varchar
+  player6_id integer
+  player6_tournamentname varchar
+  player7_id integer
+  player7_tournamentname varchar
+  player8_id integer
+  player8_tournamentname varchar
+  games_id integer [primary key]
+}
+
+Table Tournament_goals {
+  timestamp timestamp [default: `now()`]
+  state enum
+  player1_id integeref 
+  player1_points integer
+  player2_id integer
+  player2_points integer
+  id integer [primary key]
+}
+
+
+Ref : Users.id < Games_1v1.player1_id
+Ref : Users.id < Games_1v1.player2_id
+Ref : Games_1v1_goals.id > Games_1v1.games_id
+
+
+Ref : Users.id < Tournament_games.player1_id
+Ref : Users.id < Tournament_games.player2_id
+Ref : Users.id < Tournament_games.player3_id
+Ref : Users.id < Tournament_games.player4_id
+Ref : Users.id < Tournament_games.player5_id
+Ref : Users.id < Tournament_games.player6_id
+Ref : Users.id < Tournament_games.player7_id
+Ref : Users.id < Tournament_games.player8_id
+Ref : Tournament_goals.id > Tournament_games.id
+
+// Ref : Statistics.id - Users.statistics
+
+Ref : Users.id - Friend.user_id
+Ref : Users.id > Friend.Frieds_id
+
+
+
+
