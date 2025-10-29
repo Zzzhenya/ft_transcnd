@@ -73,15 +73,22 @@ class User {
   static async create(userData) {
     try {
       const result = await dbRun(
-        `INSERT INTO Users (username, email, password_hash, display_name, is_guest)
-         VALUES (?, ?, ?, ?, ?)`,
+        // `INSERT INTO Users (username, email, password_hash, display_name, is_guest)
+        `INSERT INTO Users (username, email, password)
+        VALUES (?, ?, ?)`,
         [
           userData.username,
           userData.email,
-          userData.password_hash || userData.password,
-          userData.display_name || userData.username,
-          userData.is_guest || 0
+          userData.password_hash || userData.password
         ]
+        //  VALUES (?, ?, ?, ?, ?)`,
+        // [
+        //   userData.username,
+        //   userData.email,
+        //   userData.password_hash || userData.password,
+        //   userData.display_name || userData.username,
+        //   userData.is_guest || 0
+        // ]
       );
 
       return await User.findById(result.id);
