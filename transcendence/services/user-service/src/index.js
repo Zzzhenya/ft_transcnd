@@ -2,6 +2,7 @@ const fastify = require('fastify')({ logger: true });
 const AuthService = require('./services/authService');
 const User = require('./models/User');
 const jwt = require('jsonwebtoken');
+const bcrypt = require('bcrypt');
 const logger = require('./utils/logger');
 const PORT = parseInt(process.env.USER_SERVICE_PORT || process.env.PORT || '3001');
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-this';
@@ -105,6 +106,100 @@ fastify.post('/auth/login', async (request, reply) => {
     console.error('Login error:', error);
     logger.warn('Invalid credentials for:', request.body.email);
     return reply.code(401).send({ message: 'Invalid credentials' });
+  }
+});
+
+// Guest login endpoint
+fastify.post('/auth/guest', async (request, reply) => {
+  try {
+    const { alias } = request.body || {};
+    
+    logger.info('Guest login attempt:', { alias });
+    
+    // Generate unique guest ID
+    const timestamp = Date.now().toString(36);
+    const random = Math.random().toString(36).substring(2, 6);
+    const guestId = `${timestamp}${random}`;
+    
+    let username;
+    
+    // Create username with "guest_" prefix
+    if (alias) {
+      username = `guest_${alias}`;
+      
+      // Check if username already exists
+      const existingUser = await User.findByUsername(username);
+      
+      if (existingUser) {
+        logger.warn('Guest username already taken:', username);
+        return reply.code(409).send({
+          success: false,
+          message: `Username "${alias}" is already taken. Please choose another name.`,
+          error: 'Username already exists'
+        });
+      }
+      
+      logger.info('Guest username available:', username);
+    } else {
+      // No alias provided → guest_xxxxxxxx (always unique)
+      username = `guest_${guestId.substring(0, 8)}`;
+      logger.info('Generated guest username:', username);
+    }
+    
+    const email = `${guestId}@guest.local`;  // Always unique
+    
+    // Hash a random password
+    const password_hash = await bcrypt.hash(guestId, 10);
+
+    // Create guest user
+    const guestUser = await User.create({
+      username,
+      email,
+      password: password_hash, // Using password field as in current schema
+      display_name: username
+    });
+
+    logger.info('Guest user created:', { id: guestUser.id, username: guestUser.username });
+
+    // Generate token
+    const token = jwt.sign(
+      { 
+        userId: guestUser.id, 
+        username: guestUser.username,
+        isGuest: true 
+      },
+      JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+
+    return reply.code(201).send({
+      success: true,
+      message: 'Guest user created',
+      user: {
+        id: guestUser.id,
+        username: guestUser.username,
+        email: guestUser.email,
+        is_guest: true
+      },
+      token
+    });
+  } catch (error) {
+    logger.error('Guest login error:', error);
+    
+    // Fallback: UNIQUE constraint error
+    if (error.message && error.message.includes('UNIQUE constraint failed')) {
+      return reply.code(409).send({ 
+        success: false,
+        message: 'Username already exists. Please choose another name.',
+        error: 'Duplicate username'
+      });
+    }
+    
+    return reply.code(500).send({ 
+      success: false,
+      message: 'Failed to create guest user', 
+      error: error.message
+    });
   }
 });
 
