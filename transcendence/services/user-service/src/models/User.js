@@ -74,7 +74,7 @@ class User {
     try {
       const result = await dbRun(
         // `INSERT INTO Users (username, email, password_hash, display_name, is_guest)
-        `INSERT INTO Users (username, email, password)
+        `INSERT INTO Users (username, email, password_hash)
         VALUES (?, ?, ?)`,
         [
           userData.username,
@@ -90,7 +90,7 @@ class User {
         //   userData.is_guest || 0
         // ]
       );
-      console.log(username, email, password);
+      // console.log(username, email, password);
 
       return await User.findById(result.id);
     } catch (error) {
