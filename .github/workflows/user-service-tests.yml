@@ -5,10 +5,8 @@ on:
     branches:
       - user-service
       - main
-      - dev-environ-node-gateway
-      - integration-gateway-pong-front
       - log-service
-      - upstream_timeouts
+      - db-service-api
       - experiment/rene-integration  # René integration branch
       - tournament_new
 
