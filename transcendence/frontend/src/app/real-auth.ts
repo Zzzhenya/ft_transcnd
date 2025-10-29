@@ -118,6 +118,52 @@ export async function signOut() {
   dispatchEvent(new CustomEvent("auth:changed"));
 }
 
+// Guest Login
+export async function guestLogin(alias?: string): Promise<{ success: boolean; error?: string }> {
+	try {
+		console.log('🎮 Guest login with alias:', alias || 'auto-generated');
+		
+		const data = await api<{ success: boolean; token: string; user: any; message?: string }>(
+			"/auth/guest",
+			{ method: "POST", body: JSON.stringify({ alias: alias || undefined }) }
+		);
+		
+		console.log('Guest login response:', data);
+
+		if (!data.success) {
+			return {
+				success: false,
+				error: data.message || 'Guest login failed'
+			};
+		}
+
+		// Save guest user data to sessionStorage
+		const s = read();
+		if (!s.auth) s.auth = { user: null, token: null };
+		s.auth.user = {
+			id: data.user.id,
+			username: data.user.username,
+			email: data.user.email,
+			name: data.user.username,
+			role: "user"
+		};
+		s.auth.token = data.token;
+		write(s);
+		dispatchEvent(new CustomEvent("auth:changed"));
+
+		console.log('✅ Guest user created with ID:', data.user.id);
+
+		return { success: true };
+	} 
+	catch (error) {
+		console.error('❌ Guest login error:', error);
+		return {
+			success: false,
+			error: error instanceof Error ? error.message : 'Network error'
+		};
+	}
+}
+
 // Get user profile (example of authenticated request)
 export async function getProfile(): Promise<{
   success: boolean;

@@ -1,4 +1,4 @@
-import { signIn, signOut, getAuth, register } from "@/app/auth";
+import { signIn, signOut, getAuth, register, guestLogin } from "@/app/auth";
 import { navigate } from "@/app/router";
 import { setAlias, clearAlias} from "@/app/store"; // Make sure clearAlias exists in your store
 
@@ -101,21 +101,38 @@ export default function (root: HTMLElement, ctx: { url: URL }) {
   });
 
   // Play as guest form handler
-  root.querySelector<HTMLFormElement>("#guest-form")?.addEventListener("submit", (e) => {
+  root.querySelector<HTMLFormElement>("#guest-form")?.addEventListener("submit", async (e) => {
     e.preventDefault();
-    const alias = (root.querySelector<HTMLInputElement>("#guest-alias")?.value || "").trim();
+    const aliasInput = root.querySelector<HTMLInputElement>("#guest-alias");
+    const alias = (aliasInput?.value || "").trim();
     
-    // Set the alias in the global store
-    if (alias) {
-      setAlias(alias);
-    } else {
-      // Generate a random guest name if no alias provided
-      const randomId = Math.floor(Math.random() * 1000);
-      setAlias(`Guest${randomId}`);
+    // Show loading state
+    const submitButton = root.querySelector<HTMLButtonElement>("#guest-form button[type='submit']");
+    if (submitButton) {
+      submitButton.disabled = true;
+      submitButton.textContent = "Creating guest user...";
     }
     
-    // Navigate directly to lobby for guest play
-    history.back();
+    try {
+      const result = await guestLogin(alias || undefined);
+      
+      if (result.success) {
+        const user = getAuth();
+        if (user) setAlias(user.username);
+        navigate("/");
+      } else {
+        alert(result.error || 'Failed to create guest user');
+      }
+    } catch (error) {
+      console.error('Guest login error:', error);
+      alert('Network error. Please try again.');
+    } finally {
+      // Reset button state
+      if (submitButton) {
+        submitButton.disabled = false;
+        submitButton.textContent = "Play Now";
+      }
+    }
   });
 
   // Clear guest alias handler
