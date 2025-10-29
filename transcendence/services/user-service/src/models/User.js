@@ -14,6 +14,27 @@ const db = new sqlite3.Database(DB_PATH, (err) => {
   } else {
     console.log('✅ Connected to SQLite database');
     db.run('PRAGMA foreign_keys = ON');
+    
+    // For CI/CD: Create minimal schema if not exists (backwards compatibility)
+    if (process.env.NODE_ENV === 'test') {
+      console.log('🧪 Test environment detected - ensuring minimal schema exists');
+      db.run(`
+        CREATE TABLE IF NOT EXISTS Users (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          username VARCHAR(50) UNIQUE NOT NULL,
+          is_guest BOOLEAN DEFAULT 0,
+          email VARCHAR(100) UNIQUE NOT NULL,
+          password_hash VARCHAR(255),
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `, (err) => {
+        if (err) {
+          console.error('❌ Error creating minimal Users table:', err);
+        } else {
+          console.log('✅ Minimal Users table ready for tests');
+        }
+      });
+    }
   }
 });
 
