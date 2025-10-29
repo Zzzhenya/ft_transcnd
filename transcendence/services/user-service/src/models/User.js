@@ -14,27 +14,16 @@ const db = new sqlite3.Database(DB_PATH, (err) => {
   } else {
     console.log('✅ Connected to SQLite database');
     db.run('PRAGMA foreign_keys = ON');
-    
-    // For CI/CD: Create minimal schema if not exists (backwards compatibility)
-    if (process.env.NODE_ENV === 'test') {
-      console.log('🧪 Test environment detected - ensuring minimal schema exists');
-      db.run(`
-        CREATE TABLE IF NOT EXISTS Users (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          username VARCHAR(50) UNIQUE NOT NULL,
-          is_guest BOOLEAN DEFAULT 0,
-          email VARCHAR(100) UNIQUE NOT NULL,
-          password_hash VARCHAR(255),
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-      `, (err) => {
-        if (err) {
-          console.error('❌ Error creating minimal Users table:', err);
-        } else {
-          console.log('✅ Minimal Users table ready for tests');
-        }
-      });
-    }
+    // Ensure Users table exists with display_name column CD/CI tests--- might need to adjust this in production
+    db.run(`CREATE TABLE IF NOT EXISTS Users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      username VARCHAR(50) UNIQUE NOT NULL,
+      email VARCHAR(100) UNIQUE NOT NULL,
+      password_hash VARCHAR(255),
+      display_name VARCHAR(100),
+      is_guest BOOLEAN DEFAULT 0,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )`);
   }
 });
 
@@ -72,7 +61,7 @@ class User {
     this.username = data.username;
     this.email = data.email;
     this.password_hash = data.password_hash || data.password;
-    this.display_name = data.display_name;
+    this.display_name = data.display_name || data.username; // Fallback to username
     this.avatar = data.avatar;
     this.bio = data.bio;
     this.is_guest = data.is_guest;
