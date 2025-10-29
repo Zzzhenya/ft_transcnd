@@ -170,7 +170,7 @@ jobs:
           echo "🚀 Building and starting services for API testing..."
           
           # Start gateway and user-service for comprehensive testing
-          docker compose up -d --build database user-service gateway
+          docker compose up -d --build database database-service user-service gateway
           
           echo "⏳ Waiting for services to be ready..."
           sleep 45
@@ -745,7 +745,7 @@ jobs:
       - name: Start services for load testing
         run: |
           cd transcendence
-          docker compose up -d --build database user-service gateway
+          docker compose up -d --build database database-service user-service gateway
           sleep 30
 
       - name: Install Apache Bench

@@ -195,7 +195,7 @@ jobs:
           echo "🚀 Starting services for testing..."
           
           # Start services via gateway
-          docker compose up -d database user-service log-service gateway
+          docker compose up -d database database-service user-service log-service gateway
           
           echo "⏳ Waiting for services to initialize..."
           sleep 45
