@@ -5,13 +5,9 @@ on:
     branches:
       - user-service
       - microservices-refactor
-      - api-gateway-basics
       - main
-      - health-check-via-compose
-      - dev-environ-node-gateway
-      - integration-gateway-pong-front
       - log-service
-      - upstream_timeouts
+      - db-service-api
       - experiment/rene-integration  # René integration branch
   pull_request:
     branches:
