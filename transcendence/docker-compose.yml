@@ -310,6 +310,28 @@ services:
     environment:
       SQLITE_DATABASE: /shared/test-db/pong.sqlite
 
+  database-service:
+    build: ./services/database-service
+    ports:
+      - "3006:3006"
+    environment:
+      - NODE_ENV=${NODE_ENV:-development}
+      - DATABASE_URL=${DATABASE_URL:-sqlite:/app/shared/database/transcendence.db}
+      - PORT=3006
+    depends_on:
+      - database
+    volumes:
+      - shared-data:/app/shared
+      - shared-data:/shared
+    networks:
+      - transcendence-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3006/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
   testdb:
     build: ./services/testdb-service
     networks:
