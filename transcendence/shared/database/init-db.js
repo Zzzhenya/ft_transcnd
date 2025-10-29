@@ -54,7 +54,7 @@ function insertTestData(db) {
   const testUsers = `
     INSERT INTO Users (username, email, password_hash, display_name, is_guest)
     VALUES 
-      ('testuser', 'test@test.test', '$2b$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW', 'Alice', 0),;
+      ('testuser', 'test@test.test', '$2b$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW', 'Alice', 0);
   `;
   
   db.exec(testUsers, (err) => {
