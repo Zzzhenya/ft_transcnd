@@ -44,11 +44,103 @@ fastify.decorate('authenticate', async function (request, reply) {
   }
 });
 
-const withTimeout = (promise, ms, errorMessage = 'Operation timed out') => 
-  Promise.race([
-    promise,
-    new Promise((_, reject) => setTimeout(() => reject(new Error(errorMessage)), ms))
-  ]);
+// const withTimeout = (promise, ms, errorMessage = 'Operation timed out') => 
+//   Promise.race([
+//     promise,
+//     new Promise((_, reject) => setTimeout(() => reject(new Error(errorMessage)), ms))
+//   ]);
+
+// fastify.post('/auth/register', async (request, reply) => {
+//   try {
+//     const { username, email, password } = request.body;
+
+//     logger.info('Registration attempt:', { username, email });
+
+//     if (!username || !email || !password) {
+//       logger.warn('Missing fields');
+//       return reply.code(400).send({
+//         success: false,
+//         message: 'Username, email and password are required'
+//       });
+//     }
+
+//     // DB timeout in ms
+//     const DB_TIMEOUT = 3000;
+
+//     // Check if username already exists
+//     const existingUsername = await withTimeout(
+//       User.findByUsername(username),
+//       DB_TIMEOUT,
+//       'Username check timed out'
+//     );
+//     if (existingUsername) {
+//       logger.warn('Username already taken:', username);
+//       return reply.code(409).send({
+//         success: false,
+//         message: `Username "${username}" is already taken. Please choose another.`,
+//         error: 'Username already exists'
+//       });
+//     }
+
+//     // Check if email already exists
+//     const existingEmail = await withTimeout(
+//       User.findByEmail(email),
+//       DB_TIMEOUT,
+//       'Email check timed out'
+//     );
+//     if (existingEmail) {
+//       logger.warn('Email already registered:', email);
+//       return reply.code(409).send({
+//         success: false,
+//         message: `Email "${email}" is already registered. Please use another email or login.`,
+//         error: 'Email already exists'
+//       });
+//     }
+
+//     // Register user
+//     const result = await withTimeout(
+//       AuthService.register(username, email, password),
+//       DB_TIMEOUT,
+//       'User registration timed out'
+//     );
+
+//     logger.info('User registered:', { userId: result.user.id, username });
+
+//     return reply.code(201).send({
+//       success: true,
+//       message: 'User successfully registered',
+//       user: result.user,
+//       token: result.token
+//     });
+
+//   } catch (error) {
+//     console.error('Registration error:', error);
+
+//     if (error.message.includes('already')) {
+//       logger.warn('User already exists:', request.body.username);
+//       return reply.code(409).send({ 
+//         success: false, 
+//         message: error.message 
+//       });
+//     }
+
+//     if (error.message.includes('timed out')) {
+//       logger.error('DB timeout:', error);
+//       return reply.code(504).send({ 
+//         success: false, 
+//         message: 'Database operation timed out', 
+//         error: error.message 
+//       });
+//     }
+
+//     logger.error('Registration failed:', error);
+//     return reply.code(500).send({ 
+//       success: false, 
+//       message: 'Server error', 
+//       error: error.message 
+//     });
+//   }
+// });
 
 // Register endpoint
 fastify.post('/auth/register', async (request, reply) => {
@@ -65,15 +157,8 @@ fastify.post('/auth/register', async (request, reply) => {
       });
     }
 
-    // DB timeout in ms
-    const DB_TIMEOUT = 3000;
-
     // Check if username already exists
-    const existingUsername = await withTimeout(
-      User.findByUsername(username),
-      DB_TIMEOUT,
-      'Username check timed out'
-    );
+    const existingUsername = await User.findByUsername(username);
     if (existingUsername) {
       logger.warn('Username already taken:', username);
       return reply.code(409).send({
@@ -84,11 +169,7 @@ fastify.post('/auth/register', async (request, reply) => {
     }
 
     // Check if email already exists
-    const existingEmail = await withTimeout(
-      User.findByEmail(email),
-      DB_TIMEOUT,
-      'Email check timed out'
-    );
+    const existingEmail = await User.findByEmail(email);
     if (existingEmail) {
       logger.warn('Email already registered:', email);
       return reply.code(409).send({
@@ -99,11 +180,7 @@ fastify.post('/auth/register', async (request, reply) => {
     }
 
     // Register user
-    const result = await withTimeout(
-      AuthService.register(username, email, password),
-      DB_TIMEOUT,
-      'User registration timed out'
-    );
+    const result = await AuthService.register(username, email, password);
 
     logger.info('User registered:', { userId: result.user.id, username });
 
@@ -122,15 +199,6 @@ fastify.post('/auth/register', async (request, reply) => {
       return reply.code(409).send({ 
         success: false, 
         message: error.message 
-      });
-    }
-
-    if (error.message.includes('timed out')) {
-      logger.error('DB timeout:', error);
-      return reply.code(504).send({ 
-        success: false, 
-        message: 'Database operation timed out', 
-        error: error.message 
       });
     }
 
