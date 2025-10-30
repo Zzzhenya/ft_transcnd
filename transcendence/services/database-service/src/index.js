@@ -1,56 +1,109 @@
-// index.mjs or index.js (if "type": "module" in package.json)
+// index.mjs (or index.js if using "type": "module" in package.json)
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import Database from 'better-sqlite3';
+import PQueue from 'p-queue';
 
+// =============================================
+// ⚙️ Fastify Setup
+// =============================================
 const fastify = Fastify({ logger: true });
-
-// Enable CORS
 fastify.register(cors);
 
-// SQLite Database Connection
+// =============================================
+// 🗄️ SQLite Setup (Better-SQLite3)
+// =============================================
 const DB_PATH = process.env.DATABASE_URL
   ? process.env.DATABASE_URL.replace('sqlite:', '')
   : './transcendence.db';
 
-console.log('📍 Database Service connecting to:', DB_PATH);
+console.log('📍 Connecting to SQLite database at:', DB_PATH);
 
 const db = new Database(DB_PATH);
-db.pragma('foreign_keys = ON');
 
-console.log('✅ Connected to SQLite database');
+// --- Enable Best-Practice Pragmas ---
+db.pragma('journal_mode = WAL');     // ✅ concurrent reads + safe writes
+db.pragma('synchronous = NORMAL');   // good balance between safety & speed
+db.pragma('foreign_keys = ON');      // enforce FK constraints
 
-// ==================== DATABASE HELPERS ====================
+console.log('✅ SQLite database ready (WAL mode ON)');
+
+// Optional: queue writes to avoid blocking (single write at a time)
+const writeQueue = new PQueue({ concurrency: 1 });
+
+// =============================================
+// 🔧 Safe DB Helper Functions
+// =============================================
 const dbRun = (sql, params = []) => {
-  const stmt = db.prepare(sql);
-  const info = stmt.run(params);
-  return { id: info.lastInsertRowid, changes: info.changes };
+  try {
+    const stmt = db.prepare(sql);
+    const info = stmt.run(params);
+    return { id: info.lastInsertRowid, changes: info.changes };
+  } catch (err) {
+    fastify.log.error({ err, sql }, 'DB Run Error');
+    throw err;
+  }
 };
 
 const dbGet = (sql, params = []) => {
-  const stmt = db.prepare(sql);
-  return stmt.get(params);
+  try {
+    const stmt = db.prepare(sql);
+    return stmt.get(params);
+  } catch (err) {
+    fastify.log.error({ err, sql }, 'DB Get Error');
+    throw err;
+  }
 };
 
 const dbAll = (sql, params = []) => {
-  const stmt = db.prepare(sql);
-  return stmt.all(params);
+  try {
+    const stmt = db.prepare(sql);
+    return stmt.all(params);
+  } catch (err) {
+    fastify.log.error({ err, sql }, 'DB All Error');
+    throw err;
+  }
 };
 
-// ==================== HEALTH CHECK ====================
+// =============================================
+// 🧱 Allowed Tables / Columns (SQL Injection Safety)
+// =============================================
+const allowedTables = {
+  users: ['id', 'name', 'email'],
+  posts: ['id', 'title', 'content'],
+  // add more as needed...
+};
+
+function validateTableAndColumn(table, column) {
+  const columns = allowedTables[table];
+  if (!columns) return false;
+  if (column && !columns.includes(column)) return false;
+  return true;
+}
+
+// =============================================
+// 🩺 Health Check
+// =============================================
 fastify.get('/health', async () => ({
   status: 'ok',
   service: 'database-service',
   database: 'sqlite',
-  timestamp: new Date().toISOString()
+  wal_mode: db.pragma('journal_mode', { simple: true }),
+  timestamp: new Date().toISOString(),
 }));
 
-// ==================== READ ====================
+// =============================================
+// 📖 READ
+// =============================================
 fastify.get('/api/read', async (request, reply) => {
   const { table, id, column } = request.query;
 
   if (!table || !id || !column) {
     return reply.code(400).send({ error: 'Missing parameters: table, id, column required' });
+  }
+
+  if (!validateTableAndColumn(table, column)) {
+    return reply.code(400).send({ error: 'Invalid table or column' });
   }
 
   const sql = `SELECT ${column} FROM ${table} WHERE id = ?`;
@@ -61,7 +114,9 @@ fastify.get('/api/read', async (request, reply) => {
   return { success: true, value: row[column] };
 });
 
-// ==================== WRITE ====================
+// =============================================
+// ✍️ WRITE (Transactional + Queued)
+// =============================================
 fastify.post('/api/write', async (request, reply) => {
   const { table, id, column, value } = request.body;
 
@@ -69,19 +124,37 @@ fastify.post('/api/write', async (request, reply) => {
     return reply.code(400).send({ error: 'Missing parameters: table, id, column, value required' });
   }
 
+  if (!validateTableAndColumn(table, column)) {
+    return reply.code(400).send({ error: 'Invalid table or column' });
+  }
+
   const sql = `UPDATE ${table} SET ${column} = ? WHERE id = ?`;
-  const result = dbRun(sql, [value, id]);
 
-  if (result.changes === 0) return reply.code(404).send({ error: 'Record not found' });
+  try {
+    // Run writes sequentially to avoid DB locks
+    const result = await writeQueue.add(() =>
+      db.transaction(() => dbRun(sql, [value, id]))()
+    );
 
-  return { success: true, message: 'Value written successfully', changes: result.changes };
+    if (result.changes === 0) {
+      return reply.code(404).send({ error: 'Record not found' });
+    }
+
+    return { success: true, message: 'Value written successfully', changes: result.changes };
+  } catch (err) {
+    fastify.log.error(err);
+    return reply.code(500).send({ error: 'Database write failed', details: err.message });
+  }
 });
 
-// ==================== LIST ====================
+// =============================================
+// 📋 LIST (Paginated)
+// =============================================
 fastify.get('/api/list', async (request, reply) => {
   const { table, limit = 100, offset = 0 } = request.query;
 
   if (!table) return reply.code(400).send({ error: 'Missing parameter: table required' });
+  if (!allowedTables[table]) return reply.code(400).send({ error: 'Invalid table' });
 
   const sql = `SELECT * FROM ${table} LIMIT ? OFFSET ?`;
   const rows = dbAll(sql, [limit, offset]);
@@ -89,26 +162,38 @@ fastify.get('/api/list', async (request, reply) => {
   return { success: true, count: rows.length, data: rows };
 });
 
-// ==================== START SERVER ====================
+// =============================================
+// 🚀 Start Server
+// =============================================
 const PORT = process.env.PORT || 3006;
 
 fastify.listen({ port: PORT, host: '0.0.0.0' })
   .then(() => {
     console.log(`🚀 Server running on port ${PORT}`);
-    console.log(`📊 Database: ${DB_PATH}`);
+    console.log(`📊 Using SQLite at: ${DB_PATH}`);
+  })
+  .catch(err => {
+    fastify.log.error(err);
+    process.exit(1);
   });
 
-// Graceful shutdown
-process.on('SIGTERM', () => {
-  console.log('🛑 SIGTERM received, closing database...');
-  db.close();
-  console.log('Database closed');
-  process.exit(0);
-});
+// =============================================
+// 🧹 Graceful Shutdown with WAL Checkpoint
+// =============================================
+const shutdown = (signal) => {
+  console.log(`🛑 ${signal} received. Cleaning up...`);
 
-process.on('SIGINT', () => {
-  console.log('🛑 SIGINT received, closing database...');
-  db.close();
-  console.log('Database closed');
-  process.exit(0);
-});
+  try {
+    console.log('🔄 Performing WAL checkpoint...');
+    db.pragma('wal_checkpoint(TRUNCATE)');
+    db.close();
+    console.log('✅ Database closed cleanly');
+  } catch (err) {
+    console.error('❌ Error during shutdown:', err);
+  } finally {
+    process.exit(0);
+  }
+};
+
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
