@@ -256,7 +256,7 @@ jobs:
           
           # Test 1: Health Check
           echo "1. Testing health endpoint..."
-          HEALTH_RESPONSE=$(curl -s "$BASE_URL/health")
+          HEALTH_RESPONSE=$(curl -k -s "$BASE_URL/user-service/health")
           echo "Response: $HEALTH_RESPONSE"
           
           if echo "$HEALTH_RESPONSE" | grep -q "healthy"; then
