@@ -1,7 +1,19 @@
-# 🔐 HTTPS Configuration Guide
+# HTTPS Setup and SSL Certificate Guide
 
 ## Overview
-This guide explains how to use the HTTPS configuration in the ft_transcendence project.
+
+This project uses **nginx as a reverse proxy with SSL termination** to provide HTTPS support for all services. This guide explains how the current HTTPS setup works and how to manage SSL certificates.
+
+## Current Architecture
+
+```
+Browser (HTTPS) → nginx (SSL termination) → Gateway (HTTP) → Microservices (HTTP)
+```
+
+### URL Structure
+- **Frontend**: `https://localhost` (nginx serves SPA with SSL)
+- **API Base**: `https://localhost/api` (nginx → gateway proxy)
+- **WebSocket**: `wss://localhost/ws` (nginx → gateway WebSocket proxy)
 
 ## 🚀 Quick Start
 
@@ -13,12 +25,12 @@ This guide explains how to use the HTTPS configuration in the ft_transcendence p
 docker compose up -d --build
 
 # Verify all services are healthy
-./health-check.sh
+curl -k https://localhost/api/health
 ```
 
 Access your application at: **https://localhost**
 
-## ✅ Current Implementation Status
+## How nginx Handles HTTPS
 
 **🎉 HTTPS is FULLY IMPLEMENTED and WORKING!**
 
