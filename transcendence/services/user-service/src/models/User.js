@@ -20,7 +20,7 @@ const db = new sqlite3.Database(DB_PATH, (err) => {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         username VARCHAR(50) UNIQUE NOT NULL,
         email VARCHAR(100) UNIQUE NOT NULL,
-        password VARCHAR(255) NOT NULL,
+        password_hash VARCHAR(255) NOT NULL,
         bio TEXT,
         avatar VARCHAR(255),
         is_two_factor_auth_enabled BOOLEAN DEFAULT FALSE,
@@ -72,7 +72,8 @@ class User {
     this.id = data.id;
     this.username = data.username;
     this.email = data.email;
-    this.password = data.password;
+    this.password = data.password_hash; // Map password_hash to password for backward compatibility
+    this.password_hash = data.password_hash;
     this.bio = data.bio;
     this.avatar = data.avatar;
     this.is_two_factor_auth_enabled = data.is_two_factor_auth_enabled;
@@ -83,13 +84,15 @@ class User {
   }
 
   static async create(userData) {
-    const { username, email, password } = userData;
+    const { username, email, password, password_hash } = userData;
+    // Use password_hash if provided, otherwise use password
+    const hashToStore = password_hash || password;
 
     try {
       const result = await dbRun(
-        `INSERT INTO users (username, email, password) 
+        `INSERT INTO users (username, email, password_hash) 
                  VALUES (?, ?, ?)`,
-        [username, email, password]
+        [username, email, hashToStore]
       );
 
       // Fetch the created user
@@ -198,7 +201,7 @@ class User {
   static async getAllUsers(limit = 50, offset = 0) {
     try {
       const users = await dbAll(
-        `SELECT id, username, email, avatar, bio, created_at, updated_at, is_two_factor_auth_enabled 
+        `SELECT id, username, email, avatar, bio, created_at, updated_at, is_two_factor_auth_enabled, password_hash 
                  FROM users 
                  ORDER BY created_at DESC 
                  LIMIT ? OFFSET ?`,

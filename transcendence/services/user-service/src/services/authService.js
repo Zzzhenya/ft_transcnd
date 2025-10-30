@@ -26,7 +26,7 @@ class AuthService {
       const newUser = await User.create({
         username,
         email,
-        password: hashedPassword
+        password: hashedPassword // User.create will map this to password_hash
       });
 
       // JWT Token erstellen
