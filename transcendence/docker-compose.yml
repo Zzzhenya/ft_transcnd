@@ -300,7 +300,7 @@ services:
   database:
     build: ./services/database
     volumes:
-      - shared-data:/app/shared
+      - shared-data:/app/shared/database/
     environment:
       - NODE_ENV=development
 
