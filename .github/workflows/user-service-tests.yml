@@ -9,6 +9,7 @@ on:
       - db-service-api
       - experiment/rene-integration  # René integration branch
       - tournament_new
+      - microservices-refactor
 
     # No paths restriction for push - always run when pushing to these branches
   pull_request:
