@@ -397,6 +397,23 @@ jobs:
           echo "Checking container status..."
           docker compose ps
           
+          # Wait for nginx to be healthy (critical for HTTPS to work)
+          echo "⏳ Waiting for nginx to be healthy..."
+          for i in {1..10}; do
+            if docker compose ps nginx | grep -q "healthy"; then
+              echo "✅ nginx is healthy"
+              break
+            elif [ $i -eq 10 ]; then
+              echo "❌ nginx failed to become healthy"
+              echo "nginx logs:"
+              docker compose logs nginx | tail -20
+              exit 1
+            else
+              echo "Waiting for nginx... attempt $i/10"
+              sleep 10
+            fi
+          done
+          
           # Wait specifically for HTTPS to work
           for i in {1..20}; do
             echo "⏳ HTTPS health check attempt $i/20..."
@@ -625,6 +642,18 @@ jobs:
           echo "� Testing HTTPS endpoint..."
           
           # First test with detailed curl output to see what's failing
+          # First verify HTTP healthcheck works
+          echo "Testing HTTP healthcheck first..."
+          HTTP_HEALTH=$(curl -s --connect-timeout 10 --max-time 15 \
+            -w "HTTP_CODE:%{http_code}" http://localhost/health 2>&1)
+          
+          if echo "$HTTP_HEALTH" | grep -q "HTTP_CODE:200"; then
+            echo "✅ HTTP healthcheck working"
+          else
+            echo "❌ HTTP healthcheck failed: $HTTP_HEALTH"
+            exit 1
+          fi
+          
           echo "Detailed HTTPS test:"
           HTTPS_RESPONSE=$(curl -k -v -s --connect-timeout 15 --max-time 30 \
             -w "HTTP_CODE:%{http_code} TOTAL_TIME:%{time_total} SSL_VERIFY_RESULT:%{ssl_verify_result}" \
