@@ -535,8 +535,8 @@ jobs:
           echo "========================================================"
           echo "🔧 TROUBLESHOOTING SUGGESTIONS:"
           echo "========================================================"
-          echo "1. Gateway must be accessible at http://localhost:3000/health"
-          echo "2. Services should ONLY be accessed via Gateway (no direct access)"
+          echo "1. Services should be accessible via nginx proxy at https://localhost/api/"
+          echo "2. Services should ONLY be accessed via nginx proxy (no direct access)"
           echo "3. Check for application startup errors in logs above"
           echo "4. Verify inter-service DNS resolution (service-name:port)"
           echo "5. Ensure health endpoints exist and return 200 status"
@@ -544,8 +544,8 @@ jobs:
           echo "📞 To reproduce locally:"
           echo "   cd transcendence"
           echo "   docker compose up --build"
-          echo "   curl http://localhost:3000/health"
-          echo "   curl http://localhost:3000/user-service/health"
+          echo "   curl -k https://localhost/api/health"
+          echo "   curl -k https://localhost/api/user-service/health"
           echo "========================================================"
 
       - name: Cleanup

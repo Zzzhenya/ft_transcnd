@@ -172,10 +172,10 @@ jobs:
           JWT_SECRET=ci-test-secret-not-for-production
           
           # Frontend URLs (Browser → nginx → gateway) - HTTPS for production, HTTP for CI
-          VITE_API_BASE=http://localhost/api
-          VITE_GATEWAY_BASE=http://localhost/api
-          VITE_WS_BASE=ws://localhost/ws
-          FRONT_END_URL=http://localhost
+          VITE_API_BASE=https://localhost/api
+          VITE_GATEWAY_BASE=https://localhost/api
+          VITE_WS_BASE=wss://localhost/ws
+          FRONT_END_URL=https://localhost
           
           # Backend URLs (Docker internal network)
           USER_SERVICE_URL=http://user-service:3001

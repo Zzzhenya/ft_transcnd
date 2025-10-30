@@ -914,7 +914,9 @@ jobs:
         run: |
           echo "🧪 Testing error handling and validation via Gateway..."
           
-          GATEWAY_URL="http://localhost:3000"
+          # Use nginx as the public gateway (nginx proxies to gateway internally)
+          # Gateway service is not published to host by default, so use /api via nginx
+          GATEWAY_URL="http://localhost/api"
           
           # Test registration with missing fields via Gateway
           echo "1. Testing registration with missing fields (via Gateway)"
@@ -991,7 +993,8 @@ jobs:
           
           # Test duplicate user registration via Gateway
           echo "Testing duplicate user registration via Gateway"
-          GATEWAY_URL="http://localhost:3000"
+          # Use nginx public endpoint rather than gateway host port
+          GATEWAY_URL="http://localhost/api"
           
           DUPLICATE_PAYLOAD='{
             "username": "duplicate_test",
@@ -1021,7 +1024,8 @@ jobs:
         run: |
           echo "⚡ Running basic performance tests via Gateway..."
           
-          GATEWAY_URL="http://localhost:3000"
+          # Use nginx public endpoint rather than gateway host port
+          GATEWAY_URL="http://localhost/api"
           
           # Test multiple concurrent health checks via Gateway
           echo "Testing concurrent Gateway health check requests..."
@@ -1139,15 +1143,15 @@ jobs:
 
       - name: Run load tests
         run: |
-          echo "🚀 Running load tests via Gateway..."
+          echo "🚀 Running load tests via nginx HTTPS..."
           
-          # Test Gateway health endpoint with 100 requests, 10 concurrent
-          echo "Testing Gateway health endpoint..."
-          ab -n 100 -c 10 http://localhost:3000/health
+          # Test Gateway health endpoint with 100 requests, 10 concurrent (via nginx HTTPS)
+          echo "Testing Gateway health endpoint via nginx HTTPS..."
+          ab -n 100 -c 10 -k https://localhost/api/health
           
-          # Test User Service health via Gateway with 50 requests, 5 concurrent
-          echo "Testing User Service health via Gateway..."
-          ab -n 50 -c 5 http://localhost:3000/user-service/health
+          # Test User Service health via nginx → Gateway with 50 requests, 5 concurrent (HTTPS)
+          echo "Testing User Service health via nginx → Gateway HTTPS..."
+          ab -n 50 -c 5 -k https://localhost/api/user-service/health
           
           echo "✅ Load tests completed"
 
