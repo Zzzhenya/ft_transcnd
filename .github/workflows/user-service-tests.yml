@@ -9,6 +9,7 @@ on:
       - integration-gateway-pong-front
       - log-service
       - upstream_timeouts
+      - microservices-refactor
 
     # No paths restriction for push - always run when pushing to these branches
   pull_request:
