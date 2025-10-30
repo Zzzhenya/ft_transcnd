@@ -1,6 +1,5 @@
 FROM node:18-alpine AS base
 WORKDIR /app
-RUN apk add --no-cache wget curl
 COPY package*.json ./
 RUN npm install --omit=dev
 
