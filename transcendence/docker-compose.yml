@@ -41,7 +41,8 @@ services:
     depends_on:
       - database
     volumes:
-      - shared-data:/app/shared
+      - shared-data:/app/shared/database/
+      # - shared-data:/app/shared
     networks:
       - transcendence-network
     healthcheck:
