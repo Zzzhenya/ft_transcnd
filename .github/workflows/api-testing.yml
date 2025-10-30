@@ -357,21 +357,11 @@ jobs:
           # User Registration via Gateway
           echo "1. 👤 Testing User Registration (via Gateway)"
           UNIQUE_ID=$(date +%s)
-          # REGISTER_PAYLOAD='{
-          #   "username": "testuser'$UNIQUE_ID'",
-          #   "email": "test'$UNIQUE_ID'@example.com",
-          #   "password": "SecurePassword123!"
-          # }'
-          
-          REGISTER_PAYLOAD=$(jq -n \
-          --arg username "testuser$UNIQUE_ID" \
-          --arg email "test$UNIQUE_ID@example.com" \
-          --arg password "SecurePassword123!" \
-          '{username: $username, email: $email, password: $password}')
-
-          echo "quotes: " "$REGISTER_PAYLOAD"
-
-          echo "ohne: " $REGISTER_PAYLOAD
+          REGISTER_PAYLOAD='{
+            "username": "testuser'$UNIQUE_ID'",
+            "email": "test'$UNIQUE_ID'@example.com",
+            "password": "SecurePassword123!"
+          }'
           
           REGISTER_RESPONSE=$(curl -s -w "%{http_code}" -o /tmp/register.json \
             -X POST $GATEWAY_URL/user-service/auth/register \
@@ -739,7 +729,7 @@ jobs:
           cd transcendence
           cat > .env << EOF
           NODE_ENV=test
-          DATABASE_URL=sqlite:/app/shared/database/test.db
+          DATABASE_URL=sqlite:/app/shared/database/transcendence.db
           JWT_SECRET=test-jwt-secret-key-not-for-production-use-only
           USER_SERVICE_URL=http://user-service:3001
           GAME_SERVICE_URL=http://game-service:3002
