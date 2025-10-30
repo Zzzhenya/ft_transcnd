@@ -798,6 +798,107 @@ All services return errors in this format:
 | `DATABASE_URL` | All Services | `sqlite:/app/shared/database/transcendence.db` | Shared database path |
 | `NODE_ENV` | All Services | `development` | Environment mode |
 
+---
+
+## 🚀 Production Deployment TODO
+
+### SSL Certificate Management for Production
+
+When deploying to production with a real domain, follow these steps:
+
+#### 1. Domain Setup
+- [ ] **Purchase/Configure Domain**: Get a domain name (e.g., `transcendence.yourdomain.com`)
+- [ ] **DNS Configuration**: Point A/AAAA records to your server IP
+- [ ] **Update Environment Variables**: Change all `localhost` references to your domain
+
+#### 2. SSL Certificate Options
+
+**Option A: Let's Encrypt (Recommended - Free)**
+```bash
+# Install certbot
+sudo apt-get install certbot python3-certbot-nginx
+
+# Generate certificate for your domain
+sudo certbot --nginx -d transcendence.yourdomain.com
+
+# Certificates auto-renew, but test renewal:
+sudo certbot renew --dry-run
+```
+
+**Option B: Commercial SSL Certificate**
+- Purchase from Certificate Authority (CA)
+- Download certificate files
+- Install according to CA instructions
+
+#### 3. nginx Configuration Updates
+```bash
+# Update nginx/nginx.conf
+server_name transcendence.yourdomain.com; # Change from localhost
+
+# SSL certificate paths (Let's Encrypt example)
+ssl_certificate /etc/letsencrypt/live/transcendence.yourdomain.com/fullchain.pem;
+ssl_certificate_key /etc/letsencrypt/live/transcendence.yourdomain.com/privkey.pem;
+```
+
+#### 4. Environment Variables Update
+Update `.env` file:
+```bash
+# Frontend URLs
+VITE_API_BASE=https://transcendence.yourdomain.com/api
+VITE_GATEWAY_BASE=https://transcendence.yourdomain.com/api
+VITE_WS_BASE=wss://transcendence.yourdomain.com/ws
+FRONT_END_URL=https://transcendence.yourdomain.com
+
+# Update JWT secret for production
+JWT_SECRET=your-very-secure-production-secret-key
+```
+
+#### 5. Security Enhancements
+- [ ] **Strong JWT Secret**: Generate cryptographically secure JWT secret
+- [ ] **CORS Configuration**: Restrict CORS origins to your domain only
+- [ ] **Firewall Rules**: Configure UFW/iptables to allow only necessary ports
+- [ ] **Security Headers**: Review and enhance nginx security headers
+- [ ] **Certificate Monitoring**: Set up alerts for certificate expiration
+
+#### 6. Production Checklist
+- [ ] **SSL Certificate**: Real certificate installed and working
+- [ ] **Domain Resolution**: Domain points to correct server
+- [ ] **HTTPS Redirect**: All HTTP traffic redirects to HTTPS
+- [ ] **WebSocket SSL**: WSS connections working properly
+- [ ] **API Endpoints**: All endpoints accessible via HTTPS
+- [ ] **Database Security**: SQLite replaced with PostgreSQL/MySQL for production
+- [ ] **Logging**: Centralized logging configured
+- [ ] **Monitoring**: Health checks and uptime monitoring
+- [ ] **Backup Strategy**: Database and configuration backups
+- [ ] **Load Testing**: Performance testing under production load
+
+### Development vs Production Summary
+
+| Aspect | Development (Current) | Production (TODO) |
+|--------|----------------------|-------------------|
+| **Domain** | `localhost` | `transcendence.yourdomain.com` |
+| **SSL Certificate** | Self-signed | Let's Encrypt / Commercial CA |
+| **Database** | SQLite | PostgreSQL / MySQL |
+| **JWT Secret** | `your-secret-key-change-this` | Cryptographically secure key |
+| **CORS** | `*` (all origins) | Specific domain only |
+| **Logs** | Console output | Centralized logging system |
+| **Monitoring** | Manual health checks | Automated monitoring/alerts |
+
+### Quick Production Deploy Script (Future)
+```bash
+#!/bin/bash
+# production-deploy.sh (TODO: Create this script)
+
+# 1. Update environment variables
+# 2. Generate/install SSL certificates
+# 3. Update nginx configuration
+# 4. Deploy with production settings
+# 5. Run health checks
+# 6. Set up monitoring
+
+echo "🚀 Production deployment script - TODO"
+```
+
 ### 🌐 Service URLs (Production HTTPS)
 - **Frontend**: `https://localhost` (nginx SPA + SSL)
 - **API**: `https://localhost/api` (nginx → gateway proxy)
