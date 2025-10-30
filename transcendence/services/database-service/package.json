@@ -1,23 +1,22 @@
 {
   "name": "database-service",
   "version": "1.0.0",
-  "description": "Database API Service for Transcendence (SQLite)",
+  "description": "",
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",
     "dev": "nodemon src/index.js"
   },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
   "dependencies": {
-    "express": "^4.18.2",
-    "sqlite3": "^5.1.6",
-    "cors": "^2.8.5"
+    "@fastify/cors": "^11.1.0",
+    "better-sqlite3": "^12.4.1",
+    "fastify": "^5.6.1"
   },
   "devDependencies": {
-    "nodemon": "^3.0.1"
-  },
-  "engines": {
-    "node": ">=18.0.0"
-  },
-  "author": "",
-  "license": "ISC"
+    "nodemon": "^3.1.10"
+  }
 }

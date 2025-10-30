@@ -1,353 +1,114 @@
-const express = require('express');
-const cors = require('cors');
-const sqlite3 = require('sqlite3').verbose();
-const path = require('path');
+// index.mjs or index.js (if "type": "module" in package.json)
+import Fastify from 'fastify';
+import cors from '@fastify/cors';
+import Database from 'better-sqlite3';
 
-const app = express();
+const fastify = Fastify({ logger: true });
 
-// Middleware
-app.use(cors());
-app.use(express.json());
+// Enable CORS
+fastify.register(cors);
 
 // SQLite Database Connection
-const DB_PATH = process.env.DATABASE_URL ? 
-  process.env.DATABASE_URL.replace('sqlite:', '') : 
-  '/app/shared/database/transcendence.db';
+const DB_PATH = process.env.DATABASE_URL
+  ? process.env.DATABASE_URL.replace('sqlite:', '')
+  : './transcendence.db';
 
 console.log('📍 Database Service connecting to:', DB_PATH);
 
-const db = new sqlite3.Database(DB_PATH, (err) => {
-  if (err) {
-    console.error('❌ Database connection error:', err);
-    process.exit(1);
-  } else {
-    console.log('✅ Connected to SQLite database');
-    db.run('PRAGMA foreign_keys = ON');
-  }
-});
+const db = new Database(DB_PATH);
+db.pragma('foreign_keys = ON');
 
-// Promisify database methods
+console.log('✅ Connected to SQLite database');
+
+// ==================== DATABASE HELPERS ====================
 const dbRun = (sql, params = []) => {
-  return new Promise((resolve, reject) => {
-    db.run(sql, params, function (err) {
-      if (err) reject(err);
-      else resolve({ id: this.lastID, changes: this.changes });
-    });
-  });
+  const stmt = db.prepare(sql);
+  const info = stmt.run(params);
+  return { id: info.lastInsertRowid, changes: info.changes };
 };
 
 const dbGet = (sql, params = []) => {
-  return new Promise((resolve, reject) => {
-    db.get(sql, params, (err, row) => {
-      if (err) reject(err);
-      else resolve(row);
-    });
-  });
+  const stmt = db.prepare(sql);
+  return stmt.get(params);
 };
 
 const dbAll = (sql, params = []) => {
-  return new Promise((resolve, reject) => {
-    db.all(sql, params, (err, rows) => {
-      if (err) reject(err);
-      else resolve(rows);
-    });
-  });
+  const stmt = db.prepare(sql);
+  return stmt.all(params);
 };
 
 // ==================== HEALTH CHECK ====================
-app.get('/health', (req, res) => {
-  res.json({ 
-    status: 'ok', 
-    service: 'database-service',
-    database: 'sqlite',
-    timestamp: new Date().toISOString()
-  });
-});
+fastify.get('/health', async () => ({
+  status: 'ok',
+  service: 'database-service',
+  database: 'sqlite',
+  timestamp: new Date().toISOString()
+}));
 
 // ==================== READ ====================
-// GET /api/read?table=users&id=1&column=username
-app.get('/api/read', async (req, res) => {
-  try {
-    const { table, id, column } = req.query;
-    
-    if (!table || !id || !column) {
-      return res.status(400).json({ 
-        error: 'Missing parameters: table, id, column required' 
-      });
-    }
+fastify.get('/api/read', async (request, reply) => {
+  const { table, id, column } = request.query;
 
-    const sql = `SELECT ${column} FROM ${table} WHERE id = ?`;
-    const row = await dbGet(sql, [id]);
-    
-    if (!row) {
-      return res.status(404).json({ error: 'Record not found' });
-    }
-    
-    res.json({ 
-      success: true, 
-      value: row[column] 
-    });
-  } catch (error) {
-    console.error('❌ Read error:', error);
-    res.status(500).json({ error: error.message });
+  if (!table || !id || !column) {
+    return reply.code(400).send({ error: 'Missing parameters: table, id, column required' });
   }
+
+  const sql = `SELECT ${column} FROM ${table} WHERE id = ?`;
+  const row = dbGet(sql, [id]);
+
+  if (!row) return reply.code(404).send({ error: 'Record not found' });
+
+  return { success: true, value: row[column] };
 });
 
 // ==================== WRITE ====================
-// POST /api/write
-// Body: { "table": "users", "id": 1, "column": "status", "value": "online" }
-app.post('/api/write', async (req, res) => {
-  try {
-    const { table, id, column, value } = req.body;
-    
-    if (!table || !id || !column || value === undefined) {
-      return res.status(400).json({ 
-        error: 'Missing parameters: table, id, column, value required' 
-      });
-    }
+fastify.post('/api/write', async (request, reply) => {
+  const { table, id, column, value } = request.body;
 
-    const sql = `UPDATE ${table} SET ${column} = ? WHERE id = ?`;
-    const result = await dbRun(sql, [value, id]);
-    
-    if (result.changes === 0) {
-      return res.status(404).json({ error: 'Record not found' });
-    }
-    
-    res.json({ 
-      success: true, 
-      message: 'Value written successfully',
-      changes: result.changes
-    });
-  } catch (error) {
-    console.error('❌ Write error:', error);
-    res.status(500).json({ error: error.message });
+  if (!table || !id || !column || value === undefined) {
+    return reply.code(400).send({ error: 'Missing parameters: table, id, column, value required' });
   }
+
+  const sql = `UPDATE ${table} SET ${column} = ? WHERE id = ?`;
+  const result = dbRun(sql, [value, id]);
+
+  if (result.changes === 0) return reply.code(404).send({ error: 'Record not found' });
+
+  return { success: true, message: 'Value written successfully', changes: result.changes };
 });
 
-// ==================== CHECK ====================
-// GET /api/check?table=users&id=1&column=status&checkvalue=online
-app.get('/api/check', async (req, res) => {
-  try {
-    const { table, id, column, checkvalue } = req.query;
-    
-    if (!table || !id || !column || checkvalue === undefined) {
-      return res.status(400).json({ 
-        error: 'Missing parameters: table, id, column, checkvalue required' 
-      });
-    }
+// ==================== LIST ====================
+fastify.get('/api/list', async (request, reply) => {
+  const { table, limit = 100, offset = 0 } = request.query;
 
-    const sql = `SELECT ${column} FROM ${table} WHERE id = ?`;
-    const row = await dbGet(sql, [id]);
-    
-    if (!row) {
-      return res.json({ exists: false, match: false });
-    }
-    
-    const actualValue = row[column];
-    const matches = String(actualValue) === String(checkvalue);
-    
-    res.json({ 
-      exists: true, 
-      match: matches,
-      actualValue: actualValue
-    });
-  } catch (error) {
-    console.error('❌ Check error:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
+  if (!table) return reply.code(400).send({ error: 'Missing parameter: table required' });
 
-// ==================== SET NEW ID ====================
-// POST /api/setNewId
-// Body: { "table": "users", "data": { "username": "test", "email": "test@example.com" } }
-app.post('/api/setNewId', async (req, res) => {
-  try {
-    const { table, data } = req.body;
-    
-    if (!table || !data || typeof data !== 'object') {
-      return res.status(400).json({ 
-        error: 'Missing parameters: table and data (object) required' 
-      });
-    }
+  const sql = `SELECT * FROM ${table} LIMIT ? OFFSET ?`;
+  const rows = dbAll(sql, [limit, offset]);
 
-    const columns = Object.keys(data).join(', ');
-    const values = Object.values(data);
-    const placeholders = values.map(() => '?').join(', ');
-    
-    const sql = `INSERT INTO ${table} (${columns}) VALUES (${placeholders})`;
-    const result = await dbRun(sql, values);
-    
-    res.json({ 
-      success: true, 
-      id: result.id 
-    });
-  } catch (error) {
-    console.error('❌ SetNewId error:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// ==================== REMOVE ID ====================
-// DELETE /api/removeId?table=users&id=5
-app.delete('/api/removeId', async (req, res) => {
-  try {
-    const { table, id } = req.query;
-    
-    if (!table || !id) {
-      return res.status(400).json({ 
-        error: 'Missing parameters: table, id required' 
-      });
-    }
-
-    const sql = `DELETE FROM ${table} WHERE id = ?`;
-    const result = await dbRun(sql, [id]);
-    
-    if (result.changes === 0) {
-      return res.status(404).json({ error: 'Record not found' });
-    }
-    
-    res.json({ 
-      success: true, 
-      message: 'Record deleted successfully',
-      changes: result.changes
-    });
-  } catch (error) {
-    console.error('❌ RemoveId error:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// ==================== PRINT ID INPUT ====================
-// GET /api/printIdInput?table=users&id=1
-app.get('/api/printIdInput', async (req, res) => {
-  try {
-    const { table, id } = req.query;
-    
-    if (!table || !id) {
-      return res.status(400).json({ 
-        error: 'Missing parameters: table, id required' 
-      });
-    }
-
-    const sql = `SELECT * FROM ${table} WHERE id = ?`;
-    const row = await dbGet(sql, [id]);
-    
-    if (!row) {
-      return res.status(404).json({ error: 'Record not found' });
-    }
-    
-    const values = Object.values(row);
-    const outputString = values.join(';');
-    
-    res.json({ 
-      success: true, 
-      data: outputString,
-      columns: Object.keys(row)
-    });
-  } catch (error) {
-    console.error('❌ PrintIdInput error:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// ==================== BONUS: LIST ====================
-// GET /api/list?table=users&limit=100&offset=0
-app.get('/api/list', async (req, res) => {
-  try {
-    const { table, limit = 100, offset = 0 } = req.query;
-    
-    if (!table) {
-      return res.status(400).json({ error: 'Missing parameter: table required' });
-    }
-
-    const sql = `SELECT * FROM ${table} LIMIT ? OFFSET ?`;
-    const rows = await dbAll(sql, [limit, offset]);
-    
-    res.json({ 
-      success: true, 
-      count: rows.length,
-      data: rows 
-    });
-  } catch (error) {
-    console.error('❌ List error:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// ==================== BONUS: QUERY ====================
-// POST /api/query (für komplexere Queries, z.B. JOIN, WHERE mit mehreren Bedingungen)
-// Body: { "sql": "SELECT * FROM users WHERE status = ?", "params": ["online"] }
-app.post('/api/query', async (req, res) => {
-  try {
-    const { sql, params = [] } = req.body;
-    
-    if (!sql) {
-      return res.status(400).json({ error: 'Missing parameter: sql required' });
-    }
-
-    // Nur SELECT Queries erlauben für Sicherheit
-    if (!sql.trim().toUpperCase().startsWith('SELECT')) {
-      return res.status(403).json({ error: 'Only SELECT queries allowed' });
-    }
-
-    const rows = await dbAll(sql, params);
-    
-    res.json({ 
-      success: true, 
-      count: rows.length,
-      data: rows 
-    });
-  } catch (error) {
-    console.error('❌ Query error:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// ==================== ERROR HANDLER ====================
-app.use((err, req, res, next) => {
-  console.error('❌ Unhandled error:', err);
-  res.status(500).json({ error: 'Internal server error' });
+  return { success: true, count: rows.length, data: rows };
 });
 
 // ==================== START SERVER ====================
 const PORT = process.env.PORT || 3006;
 
-app.listen(PORT, '0.0.0.0', () => {
-  console.log('╔════════════════════════════════════════════╗');
-  console.log('║   DATABASE SERVICE STARTED (SQLite)        ║');
-  console.log('╚════════════════════════════════════════════╝');
-  console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`📊 Database: ${DB_PATH}`);
-  console.log(`⏰ Started at: ${new Date().toISOString()}`);
-  console.log('');
-  console.log('Available endpoints:');
-  console.log('  GET    /health');
-  console.log('  GET    /api/read');
-  console.log('  POST   /api/write');
-  console.log('  GET    /api/check');
-  console.log('  POST   /api/setNewId');
-  console.log('  DELETE /api/removeId');
-  console.log('  GET    /api/printIdInput');
-  console.log('  GET    /api/list');
-  console.log('  POST   /api/query');
-  console.log('');
-});
+fastify.listen({ port: PORT, host: '0.0.0.0' })
+  .then(() => {
+    console.log(`🚀 Server running on port ${PORT}`);
+    console.log(`📊 Database: ${DB_PATH}`);
+  });
 
 // Graceful shutdown
 process.on('SIGTERM', () => {
   console.log('🛑 SIGTERM received, closing database...');
-  db.close(() => {
-    console.log('Database closed');
-    process.exit(0);
-  });
+  db.close();
+  console.log('Database closed');
+  process.exit(0);
 });
 
 process.on('SIGINT', () => {
   console.log('🛑 SIGINT received, closing database...');
-  db.close(() => {
-    console.log('Database closed');
-    process.exit(0);
-  });
+  db.close();
+  console.log('Database closed');
+  process.exit(0);
 });
-
-module.exports = app;

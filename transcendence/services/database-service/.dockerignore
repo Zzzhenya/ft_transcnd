@@ -1,12 +1,4 @@
 node_modules
-npm-debug.log
-.git
-.gitignore
-README.md
-.env
-.env.*
-*.md
-.vscode
-.idea
-coverage
-.nyc_output
+dist
+package-lock.json
+old_express_code/*
