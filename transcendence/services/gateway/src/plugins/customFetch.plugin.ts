@@ -60,11 +60,20 @@ const fetchPlugin: FastifyPluginAsync = async (fastify) => {
   fastify.decorateRequest('customFetch', async function (url: string, options?: RequestInit, timeoutMs?: number) {
     const controller = new AbortController();
     const timeout = timeoutMs ?? 5000;
+    const method = options?.method || 'GET';
     const timer = setTimeout(() => controller.abort(), timeout);
 
     try {
       const res = await fetch(url, { ...options, signal: controller.signal });
       return res;
+    } catch (err) {
+        // Optional: additional logging for network errors
+        if (err instanceof Error && err.name !== 'AbortError') {
+          fastify.log.error(
+            `[[Gateway]] Fetch failed for ${method} ${url}: ${err.message}`
+          );
+        }
+        throw err;
     } finally {
       clearTimeout(timer);
     }
