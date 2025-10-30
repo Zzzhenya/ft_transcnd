@@ -142,6 +142,41 @@ fastify.decorate('authenticate', async function (request, reply) {
 //   }
 // });
 
+// async function proxyUserAction( username, email, password, timeout = 5000) {
+//   try {
+//     const controller = new AbortController();
+//     const timer = setTimeout(() => controller.abort(), timeout);
+
+//     const res = await fetch('http://127.0.0.1:3006/auth/register', {
+//       method: 'POST',
+//       headers: {
+//         'Content-Type': 'application/json',
+//         'x-service-auth': process.env.DB_SERVICE_TOKEN
+//       },
+//       body: JSON.stringify({ username, email, password }),
+//       signal: controller.signal
+//     });
+
+//     clearTimeout(timer);
+
+//     if (!res.ok) {
+//       // Handle HTTP errors (4xx, 5xx)
+//       const errorBody = await res.text();
+//       throw new Error(`Database service responded with status ${res.status}: ${errorBody}`);
+//     }
+
+//     const data = await res.json();
+//     return data;
+
+//   } catch (err) {
+//     if (err.name === 'AbortError') {
+//       throw new Error('Request to database-service timed out');
+//     }
+//     // Network errors or other unexpected issues
+//     throw new Error(`Failed to register user: ${err.message}`);
+//   }
+// }
+
 // Register endpoint
 fastify.post('/auth/register', async (request, reply) => {
   try {
@@ -156,6 +191,7 @@ fastify.post('/auth/register', async (request, reply) => {
         message: 'Username, email and password are required'
       });
     }
+
 
     // Check if username already exists
     const existingUsername = await User.findByUsername(username);
