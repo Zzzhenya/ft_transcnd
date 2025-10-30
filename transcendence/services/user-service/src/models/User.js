@@ -19,16 +19,29 @@ const db = new sqlite3.Database(DB_PATH, (err) => {
   } else {
     console.log('✅ Connected to SQLite database');
     db.run('PRAGMA foreign_keys = ON');
-    // Ensure Users table exists with display_name column CD/CI tests--- might need to adjust this in production
-    db.run(`CREATE TABLE IF NOT EXISTS Users (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      username VARCHAR(50) UNIQUE NOT NULL,
-      email VARCHAR(100) UNIQUE NOT NULL,
-      password_hash VARCHAR(255),
-      display_name VARCHAR(100),
-      is_guest BOOLEAN DEFAULT 0,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )`);
+    
+    // Create users table if it doesn't exist
+    db.run(`
+      CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username VARCHAR(50) UNIQUE NOT NULL,
+        email VARCHAR(100) UNIQUE NOT NULL,
+        password_hash VARCHAR(255) NOT NULL,
+        bio TEXT,
+        avatar VARCHAR(255),
+        is_two_factor_auth_enabled BOOLEAN DEFAULT FALSE,
+        two_factor_auth_secret VARCHAR(255),
+        forty_two_id VARCHAR(255),
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `, (err) => {
+      if (err) {
+        console.error('❌ Error creating users table:', err);
+      } else {
+        console.log('✅ Users table ready');
+      }
+    });
   }
 });
 
@@ -65,8 +78,9 @@ class User {
     this.id = data.id;
     this.username = data.username;
     this.email = data.email;
-    this.password_hash = data.password_hash || data.password;
-    this.display_name = data.display_name || data.username; // Fallback to username
+    this.password = data.password_hash; // Map password_hash to password for backward compatibility
+    this.password_hash = data.password_hash;
+    this.bio = data.bio;
     this.avatar = data.avatar;
     this.bio = data.bio;
     this.is_guest = data.is_guest;
@@ -76,62 +90,30 @@ class User {
 
   // ============ CREATE ============
   static async create(userData) {
+    const { username, email, password, password_hash } = userData;
+    // Use password_hash if provided, otherwise use password
+    const hashToStore = password_hash || password;
+
     try {
-      const res = await fetch(`${DATABASE_SERVICE_URL}/internal/users`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-service-auth': DB_SERVICE_TOKEN
-        },
-        body: JSON.stringify({
-          table: 'Users',
-          action: 'insert',
-          values: {
-            username: userData.username,
-            email: userData.email,
-            password_hash: userData.password_hash || userData.password
-          } })
-        });
-      // const result = await dbRun(
-      //   // `INSERT INTO Users (username, email, password_hash, display_name, is_guest)
-      //   `INSERT INTO Users (username, email, password_hash)
-      //   VALUES (?, ?, ?)`,
-      //   [
-      //     userData.username,
-      //     userData.email,
-      //     userData.password_hash || userData.password
-      //   ]
-      //   //  VALUES (?, ?, ?, ?, ?)`,
-      //   // [
-      //   //   userData.username,
-      //   //   userData.email,
-      //   //   userData.password_hash || userData.password,
-      //   //   userData.display_name || userData.username,
-      //   //   userData.is_guest || 0
-      //   // ]
-      // );
-      // // console.log(username, email, password);
-      return await User.findById(res.id);
-      // if (!res.ok) {
-      //   throw new Error(`Database service responded with status ${res.status}`);
-      // }
-      // const data = await res.json();
-      // // data.data is assumed to be an array of rows
-      // console.log( data.data && data.data.length > 0 ? data.data[0] : null)
-      // return data.data && data.data.length > 0 ? data.data[0] : null;
-  } catch (error) {
-    console.error('❌ Error creating user:', error);
-    throw error;
+      const result = await dbRun(
+        `INSERT INTO users (username, email, password_hash) 
+                 VALUES (?, ?, ?)`,
+        [username, email, hashToStore]
+      );
+
+      // Fetch the created user
+      const user = await dbGet(
+        'SELECT * FROM users WHERE id = ?',
+        [result.lastID]
+      );
+
+      return new User(user);
+    } catch (error) {
+      console.error('Error creating user:', error);
+      throw error;
+    }
   }
 
-    //   return await User.findById(result.id);
-    // } catch (error) {
-    //   console.error('❌ Error creating user:', error);
-    //   throw error;
-    // }
-  }
-
-  // ============ FIND BY ID ============
   static async findById(id) {
     // try {
     //   const row = await dbGet('SELECT * FROM Users WHERE id = ?', [id]);
@@ -296,11 +278,11 @@ class User {
   // ============ GET ALL USERS ============
   static async getAllUsers(limit = 50, offset = 0) {
     try {
-      const rows = await dbAll(
-        `SELECT id, username, email, display_name, avatar, bio, status, is_guest, created_at 
-         FROM Users 
-         ORDER BY created_at DESC 
-         LIMIT ? OFFSET ?`,
+      const users = await dbAll(
+        `SELECT id, username, email, avatar, bio, created_at, updated_at, is_two_factor_auth_enabled, password_hash 
+                 FROM users 
+                 ORDER BY created_at DESC 
+                 LIMIT ? OFFSET ?`,
         [limit, offset]
       );
 
