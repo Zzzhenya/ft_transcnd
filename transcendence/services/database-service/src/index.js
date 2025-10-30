@@ -1,4 +1,4 @@
-// database-service.mjs
+// database-service.js
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import Database from 'better-sqlite3';
@@ -74,13 +74,13 @@ function validateTableColumn(table, column) {
 }
 
 // ================= Security Middleware =================
-fastify.addHook('onRequest', async (req, reply) => {
-  const token = req.headers['x-service-auth'];
-  if (token !== SERVICE_TOKEN) {
-    req.log.warn('🚫 Unauthorized access attempt to database service');
-    return reply.code(403).send({ error: 'Forbidden: internal access only' });
-  }
-});
+// fastify.addHook('onRequest', async (req, reply) => {
+//   const token = req.headers['x-service-auth'];
+//   if (token !== SERVICE_TOKEN) {
+//     req.log.warn('🚫 Unauthorized access attempt to database service');
+//     return reply.code(403).send({ error: 'Forbidden: internal access only' });
+//   }
+// });
 
 // ================= Routes =================
 
@@ -100,6 +100,51 @@ fastify.get('/internal/schema', async () => ({
   tables: allowedTables,
   refreshedAt: new Date().toISOString(),
 }));
+
+// 📦 POST /internal/query
+fastify.post('/internal/query', async (request, reply) => {
+  const { table, columns = '*', filters = {}, limit = 100, offset = 0 } = request.body;
+
+  // 1️⃣ Validate table
+  if (!allowedTables[table]) {
+    return reply.code(400).send({ error: 'Invalid table' });
+  }
+
+  // 2️⃣ Validate requested columns
+  let sqlColumns = '*';
+  if (columns !== '*') {
+    const invalidCols = columns.filter(c => !validateTableColumn(table, c));
+    if (invalidCols.length > 0)
+      return reply.code(400).send({ error: 'Invalid columns', invalidCols });
+    sqlColumns = columns.map(safeIdentifier).join(', ');
+  }
+
+  // 3️⃣ Build WHERE clause safely
+  const whereClauses = [];
+  const values = [];
+  for (const [col, val] of Object.entries(filters)) {
+    if (!validateTableColumn(table, col)) {
+      return reply.code(400).send({ error: 'Invalid filter column', column: col });
+    }
+    whereClauses.push(`${safeIdentifier(col)} = ?`);
+    values.push(val);
+  }
+  const whereSQL = whereClauses.length ? `WHERE ${whereClauses.join(' AND ')}` : '';
+
+  // 4️⃣ Construct final SQL
+  const sql = `SELECT ${sqlColumns} FROM ${safeIdentifier(table)} ${whereSQL} LIMIT ? OFFSET ?`;
+  values.push(limit, offset);
+
+  // 5️⃣ Execute
+  try {
+    const rows = dbAll(sql, values);
+    return { success: true, count: rows.length, data: rows };
+  } catch (err) {
+    fastify.log.error(err);
+    return reply.code(500).send({ error: 'Database query failed', details: err.message });
+  }
+});
+
 
 // 🔍 READ
 fastify.get('/internal/read', async (request, reply) => {
