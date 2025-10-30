@@ -1,6 +1,9 @@
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 
+const DATABASE_SERVICE_URL = String(process.env.DATABASE_SERVICE_URL) || 'http://database-service:3006';
+const DB_SERVICE_TOKEN = String(process.env.DB_SERVICE_TOKEN) || 'JabbaTheHut';
+
 // Database connection
 const DB_PATH = process.env.DATABASE_URL ? 
   process.env.DATABASE_URL.replace('sqlite:', '') : 
@@ -110,16 +113,55 @@ class User {
     }
   }
 
+  /*
+{
+  "table": "Users",
+  "columns": ["id"],          // Only fetch the ID if it exists
+  "filters": {
+    "username": "alice"       // The username you want to check
+  },
+  "limit": 1                  // Only need one row
+}
+
+
+  */
+
   // ============ FIND BY USERNAME ============
   static async findByUsername(username) {
     try {
-      const row = await dbGet('SELECT * FROM Users WHERE username = ?', [username]);
-      return row ? new User(row) : null;
-    } catch (error) {
-      console.error('❌ Error finding user by username:', error);
-      throw error;
+      const res = await fetch(`${DATABASE_SERVICE_URL}/internal/query`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-service-auth': DB_SERVICE_TOKEN
+        },
+        body: JSON.stringify({
+          table: 'Users',
+          columns: ['id'],
+          filters: { username },
+          limit: 1
+        })
+      });
+
+      // const row = await dbGet('SELECT * FROM Users WHERE username = ?', [username]);
+  //     return row ? new User(row) : null;
+  //   } catch (error) {
+  //     console.error('❌ Error finding user by username:', error);
+  //     throw error;
+  //   }
+  // }
+    if (!res.ok) {
+      throw new Error(`Database service responded with status ${res.status}`);
     }
+
+    const data = await res.json();
+    // data.data is assumed to be an array of rows
+    return data.data && data.data.length > 0 ? data.data[0] : null;
+  } catch (error) {
+    console.error('❌ Error finding user by username:', error);
+    throw error;
   }
+}
 
   // ============ FIND BY EMAIL ============
   static async findByEmail(email) {
