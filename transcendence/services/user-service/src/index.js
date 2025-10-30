@@ -44,6 +44,12 @@ fastify.decorate('authenticate', async function (request, reply) {
   }
 });
 
+const withTimeout = (promise, ms, errorMessage = 'Operation timed out') => 
+  Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error(errorMessage)), ms))
+  ]);
+
 // Register endpoint
 fastify.post('/auth/register', async (request, reply) => {
   try {
@@ -59,8 +65,15 @@ fastify.post('/auth/register', async (request, reply) => {
       });
     }
 
+    // DB timeout in ms
+    const DB_TIMEOUT = 3000;
+
     // Check if username already exists
-    const existingUsername = await User.findByUsername(username);
+    const existingUsername = await withTimeout(
+      User.findByUsername(username),
+      DB_TIMEOUT,
+      'Username check timed out'
+    );
     if (existingUsername) {
       logger.warn('Username already taken:', username);
       return reply.code(409).send({
@@ -71,7 +84,11 @@ fastify.post('/auth/register', async (request, reply) => {
     }
 
     // Check if email already exists
-    const existingEmail = await User.findByEmail(email);
+    const existingEmail = await withTimeout(
+      User.findByEmail(email),
+      DB_TIMEOUT,
+      'Email check timed out'
+    );
     if (existingEmail) {
       logger.warn('Email already registered:', email);
       return reply.code(409).send({
@@ -81,7 +98,12 @@ fastify.post('/auth/register', async (request, reply) => {
       });
     }
 
-    const result = await AuthService.register(username, email, password);
+    // Register user
+    const result = await withTimeout(
+      AuthService.register(username, email, password),
+      DB_TIMEOUT,
+      'User registration timed out'
+    );
 
     logger.info('User registered:', { userId: result.user.id, username });
 
@@ -91,6 +113,7 @@ fastify.post('/auth/register', async (request, reply) => {
       user: result.user,
       token: result.token
     });
+
   } catch (error) {
     console.error('Registration error:', error);
 
@@ -99,6 +122,15 @@ fastify.post('/auth/register', async (request, reply) => {
       return reply.code(409).send({ 
         success: false, 
         message: error.message 
+      });
+    }
+
+    if (error.message.includes('timed out')) {
+      logger.error('DB timeout:', error);
+      return reply.code(504).send({ 
+        success: false, 
+        message: 'Database operation timed out', 
+        error: error.message 
       });
     }
 
