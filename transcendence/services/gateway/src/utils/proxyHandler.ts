@@ -40,7 +40,6 @@ export async function proxyRequest(
       if (response.status >= 400 && response.status < 500) {
         // all 4xx errors are forwarded to frontend with details - probably an issue with client call
         logger.warn(`[[Gateway]] ${upstreamUrl || ''} error : ${response.status} :  ${body}`);
-        fastify.log.error('HEREEEEEEE')
         throw fastify.httpErrors.createError(response.status, `Upstream ${upstreamUrl || ''} error: ${body}`);
       } else if (response.status >= 500) {
         // all 5xx errors from upstream -> redirect to 502 Bad gateway - frontend doesn't need to know what is wrong
