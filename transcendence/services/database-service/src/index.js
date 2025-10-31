@@ -140,8 +140,9 @@ fastify.post('/internal/query', async (request, reply) => {
   try {
     const rows = dbAll(sql, values);
     // console.log(rows);
-    return reply.code(200).send({ success: true, count: rows.length, data: rows });
+    // return reply.code(200).send({ success: true, count: rows.length, data: rows });
     // return { success: true, count: rows.length, data: rows };
+    return rows ? rows : null;
   } catch (err) {
     fastify.log.error(err);
     return reply.code(500).send({ error: 'Database query failed', details: err.message });
