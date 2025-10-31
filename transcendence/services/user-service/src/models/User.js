@@ -129,6 +129,7 @@ class User {
 
   // ============ FIND BY USERNAME ============
   static async findByUsername(username) {
+    console.log("1")
     try {
       console.log('URL: ', `${DATABASE_SERVICE_URL}/internal/query`)
       const res = await fetch(`${DATABASE_SERVICE_URL}/internal/query`, {
@@ -144,8 +145,12 @@ class User {
           limit: 1
         })
       });
-      logger.info(res)
-      console.log(res.data)
+      // logger.info(res)
+      // console.log(res.data)
+      console.log("2")
+      if (res.data === undefined)
+        console.log("3")
+        console.log("res is emptyyyy")
       // const row = await dbGet('SELECT * FROM Users WHERE username = ?', [username]);
   //     return row ? new User(row) : null;
   //   } catch (error) {
@@ -154,11 +159,13 @@ class User {
   //   }
   // }
     if (!res.ok) {
+      console.log("3")
       throw new Error(`Database service responded with status ${res.status}`);
     }
 
     const data = await res.json();
     // data.data is assumed to be an array of rows
+    console.log( data.data && data.data.length > 0 ? data.data[0] : null)
     return data.data && data.data.length > 0 ? data.data[0] : null;
   } catch (error) {
     console.error('❌ Error finding user by username:', error);
