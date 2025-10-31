@@ -1,67 +1,42 @@
-import fastify from 'fastify';
+
 import { generateBracket } from './createBracket.js';
 
-const tournaments = new Map();
-let nextTournamentId = 1;   
-const playersset = new Set();
+export function registercreateTournamentService(fastify, tournaments, getNextTournamentId) {
+  fastify.post('/tournaments', async (request, reply) => {
+    const { creator, size, name } = request.body;
+    if (!creator || (size !== 4 && size !== 8)) {
+      return reply.code(400).send({ error: 'Missing creator or invalid size (must be 4 or 8)' });
+    }
 
-// ... server setup and listen code here ...
-export { tournaments, nextTournamentId };
-fastify.post('/tournaments', async (request, reply) => {
-  const { players, name } = request.body;
-  if (!players || (players.length !== 4 && players.length !== 8)) {
-    return reply.code(400).send({ error: "Player count must be 4 or 8" });
-  }
-  const tournamentId = nextTournamentId++;
-  const bracket = generateBracket(players);
-  const playerSet = new Set(players);
+    const tournamentId = getNextTournamentId();
+    const playerSet = new Set([creator]);
 
-  const tournament = {
-  id: tournamentId,
-  name: name || `Tournament ${tournamentId}`,
-  playerSet,
-  bracket,
-  status: 'ready', // 'ready' | 'progressing' | 'finished'
-  clients: new Set(),
-};
-  tournaments.set(tournamentId, tournament);
+    const tournament = {
+      id: tournamentId,
+      name: name || `Tournament ${tournamentId}`,
+      playerSet,
+      size,
+      status: 'ready',
+      bracket: null,
+      clients: new Set(),
+    };
+
+    tournaments.set(tournamentId, tournament);
     reply.send({ id: tournamentId });
-});
-
-
-// export function startServer() {
-// fastify.listen({ port: 3005 }, (err, address) => {
-//   if (err) {
-//     fastify.log.error(err);
-//     process.exit(1);
-//   }
-//   fastify.log.info(`Tournament service listening at ${address}`);
-// });
-// }
-
-// List all tournaments (for lobby)
-fastify.get('/tournaments', async (request, reply) => {
-  const list = Array.from(tournaments.values()).map(t => ({
-    id: t.id,
-    name: t.name,
-    size: t.size,
-    status: t.status,
-    players: Array.from(t.playerSet),
-  }));
-  reply.send(list);
-});
-
-// Get details for a specific tournament (for waiting room)
-fastify.get('/tournaments/:id', async (request, reply) => {
-  const t = tournaments.get(Number(request.params.id));
-  if (!t) return reply.code(404).send({ error: "Tournament not found" });
-  reply.send({
-    id: t.id,
-    name: t.name,
-    size: t.size,
-    status: t.status,
-    players: Array.from(t.playerSet),
-    bracket: t.bracket,
   });
-});
 
+  fastify.post('/tournaments/:id/join', async (request, reply) => {
+    const t = tournaments.get(Number(request.params.id));
+    const { player } = request.body;
+    if (!t) return reply.code(404).send({ error: 'Tournament not found' });
+    if (t.playerSet.has(player)) return reply.code(400).send({ error: 'Already joined' });
+    if (t.playerSet.size >= t.size) return reply.code(400).send({ error: 'Tournament full' });
+
+    t.playerSet.add(player);
+    if (t.playerSet.size === t.size) {
+      t.bracket = generateBracket(Array.from(t.playerSet));
+      t.status = 'progressing';
+    }
+    reply.send({ ok: true, status: t.status, bracket: t.bracket });
+  });
+}
