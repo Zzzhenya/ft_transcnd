@@ -85,7 +85,7 @@ function validateTableColumn(table, column) {
 // ================= Routes =================
 
 // 🩺 Health check
-fastify.get('/internal/health', async () => ({
+fastify.get('/health', async () => ({
   status: 'ok',
   service: 'database-service',
   database: 'sqlite',
@@ -103,6 +103,7 @@ fastify.get('/internal/schema', async () => ({
 
 // 📦 POST /internal/query
 fastify.post('/internal/query', async (request, reply) => {
+  // console.log(request);
   const { table, columns = '*', filters = {}, limit = 100, offset = 0 } = request.body;
 
   // 1️⃣ Validate table
@@ -138,6 +139,7 @@ fastify.post('/internal/query', async (request, reply) => {
   // 5️⃣ Execute
   try {
     const rows = dbAll(sql, values);
+    // console.log(rows);
     return { success: true, count: rows.length, data: rows };
   } catch (err) {
     fastify.log.error(err);
