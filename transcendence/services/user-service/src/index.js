@@ -195,6 +195,7 @@ fastify.post('/auth/register', async (request, reply) => {
 
     // Check if username already exists
     const existingUsername = await User.findByUsername(username);
+    logger.info(existingUsername);
     if (existingUsername) {
       logger.warn('Username already taken:', username);
       return reply.code(409).send({
