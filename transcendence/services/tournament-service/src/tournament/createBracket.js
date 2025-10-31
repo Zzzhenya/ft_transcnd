@@ -1,6 +1,4 @@
 
-
-
 export function generateBracket(players) {
   if (!players || (players.length !== 4 && players.length !== 8)) {
     throw new Error("Player count must be exactly 4 or 8 for this tournament.");
@@ -42,25 +40,4 @@ export function generateBracket(players) {
   }
 
   return { rounds };
-}
-
-export function advanceWinner(bracket, matchId, winnerName) {
-  for (let r = 0; r < bracket.rounds.length; ++r) {
-    for (let m of bracket.rounds[r]) {
-      if (m.matchId === matchId) {
-        m.winner = winnerName;
-        m.status = "finished";
-        if (bracket.rounds[r + 1]) {
-          const nextMatch = bracket.rounds[r + 1].find(
-            nm => nm.prevMatch1 === matchId || nm.prevMatch2 === matchId
-          );
-          if (nextMatch) {
-            if (nextMatch.prevMatch1 === matchId) nextMatch.player1 = winnerName;
-            else if (nextMatch.prevMatch2 === matchId) nextMatch.player2 = winnerName;
-          }
-        }
-        return;
-      }
-    }
-  }
 }
