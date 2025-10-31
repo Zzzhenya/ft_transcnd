@@ -10,16 +10,27 @@ import PQueue from 'p-queue';
 const fastify = Fastify({ logger: true });
 fastify.register(cors);
 
+
 // =============== Config ===============
 const DB_PATH = process.env.DATABASE_URL
   ? process.env.DATABASE_URL.replace('sqlite:', '')
   : '/app/shared/database/transcendence.db';
 
-const dir = path.dirname(DB_PATH);
-if (!fs.existsSync(dir)) {
-  fs.mkdirSync(dir, { recursive: true });
-  console.log(`📁 Created missing directory: ${dir}`);
-}
+const dirPath = '/app/shared/database';
+const fileName = 'transcendence.db'
+
+const watcher = fs.watch(dirPath, (eventType, changedFile) => {
+  if (changedFile === fileName) {
+    console.log(`✅ File detected: ${DB_PATH}`);
+    watcher.close();
+  }
+});
+
+// const dir = path.dirname(DB_PATH);
+// if (!fs.existsSync(dir)) {
+//   fs.mkdirSync(dir, { recursive: true });
+//   console.log(`📁 Created missing directory: ${dir}`);
+// }
 
 const DB_SERVICE_TOKEN = process.env.DB_SERVICE_TOKEN || 'super_secret_internal_token';
 const PORT = 3006;
@@ -112,6 +123,7 @@ fastify.get('/internal/schema', async () => ({
 // 📦 POST /internal/query
 fastify.post('/internal/query', async (request, reply) => {
   // console.log(request);
+  fastify.log.info({ body: request.body }, 'Incoming query request');
   fastify.log.error("1")
   const { table, columns = '*', filters = {}, limit = 100, offset = 0 } = request.body;
   fastify.log.error("2")
