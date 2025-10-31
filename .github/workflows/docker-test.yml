@@ -464,7 +464,7 @@ jobs:
           docker compose logs user-service | tail -100
 
           echo ""
-          echo "👤 DATABASE SERVICE LOGS:"
+          echo "<3 DATABASE SERVICE LOGS:"
           echo "----------------------------------------"
           docker compose logs database-service | tail -100
           
