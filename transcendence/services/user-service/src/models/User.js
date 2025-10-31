@@ -2,8 +2,8 @@ const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 const logger = require('../utils/logger');
 
-const DATABASE_SERVICE_URL = String(process.env.DATABASE_SERVICE_URL) || 'http://database-service:3006';
-const DB_SERVICE_TOKEN = String(process.env.DB_SERVICE_TOKEN) || 'super_secret_internal_token';
+const DATABASE_SERVICE_URL = process.env.DATABASE_SERVICE_URL || 'http://database-service:3006';
+const DB_SERVICE_TOKEN = process.env.DB_SERVICE_TOKEN || 'super_secret_internal_token';
 
 // Database connection
 const DB_PATH = process.env.DATABASE_URL ? 
@@ -130,6 +130,7 @@ class User {
   // ============ FIND BY USERNAME ============
   static async findByUsername(username) {
     try {
+      console.log('URL: ', `${DATABASE_SERVICE_URL}/internal/query`)
       const res = await fetch(`${DATABASE_SERVICE_URL}/internal/query`, {
         method: 'POST',
         headers: {
