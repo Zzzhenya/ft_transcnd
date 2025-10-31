@@ -466,6 +466,11 @@ jobs:
           echo "<3 DATABASE SERVICE LOGS:"
           echo "----------------------------------------"
           docker compose logs database-service | tail -100
+
+          echo ""
+          echo "<3 DATABASE LOGS:"
+          echo "----------------------------------------"
+          docker compose logs database | tail -100
           
           echo ""
           echo "🎮 GAME SERVICE LOGS:"
