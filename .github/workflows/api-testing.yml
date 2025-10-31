@@ -675,6 +675,8 @@ jobs:
           docker compose logs user-service | tail -100
           echo "=== Database Service Logs ==="
           docker compose logs database-service | tail -100
+          echo "=== Database Logs ==="
+          docker compose logs database | tail -100
 
       - name: Cleanup
         if: always()
