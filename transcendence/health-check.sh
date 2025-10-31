@@ -10,6 +10,7 @@ http://user-service:3001/health
 http://game-service:3002/health
 http://log-service:3003/health
 http://tournament-service:3005/health
+http://database-service:3006/health
 "
 
 for url in $SERVICES; do
