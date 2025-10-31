@@ -215,7 +215,7 @@ fastify.get('/internal/list', async (request, reply) => {
 });
 
 // ================= Start Server =================
-fastify.listen({ port: PORT, host: '127.0.0.1' })
+fastify.listen({ port: PORT, host: '0.0.0.0' })
   .then(() => console.log(`🔒 Database service running internally on port ${PORT}`))
   .catch(err => {
     fastify.log.error(err);
