@@ -325,9 +325,10 @@ services:
     networks:
       - transcendence-network
     ports:
-      - "8082:8080"
+      - "127.0.0.1:8080:8080"
+      # - "8082:8080"
     volumes:
-      - shared-data:/app/shared
+      - shared-data:/app/shared/database
     command: ["sqlite_web", "/app/shared/database/transcendence.db", "--host", "0.0.0.0", "--port", "8080"]
     depends_on:
       - database
