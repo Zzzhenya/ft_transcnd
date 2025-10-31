@@ -390,6 +390,9 @@ jobs:
           echo "=== Gateway Logs ==="
           docker compose logs gateway | tail -100
           
+          echo "=== Database Service Logs ==="
+          docker compose logs database-service | tail -100
+          
           echo "=== Container Status ==="
           docker compose ps
 
