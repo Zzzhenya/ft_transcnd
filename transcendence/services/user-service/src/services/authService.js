@@ -1,6 +1,7 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const logger = require('../utils/logger');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
@@ -14,6 +15,9 @@ class AuthService {
       }
 
       const existingUsername = await User.findByUsername(username);
+
+      logger.info(existingUsername);
+
       if (existingUsername) {
         throw new Error('Username already taken');
       }

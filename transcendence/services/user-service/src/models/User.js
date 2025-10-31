@@ -1,8 +1,9 @@
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
+const logger = require('../utils/logger');
 
 const DATABASE_SERVICE_URL = String(process.env.DATABASE_SERVICE_URL) || 'http://database-service:3006';
-const DB_SERVICE_TOKEN = String(process.env.DB_SERVICE_TOKEN) || 'JabbaTheHut';
+const DB_SERVICE_TOKEN = String(process.env.DB_SERVICE_TOKEN) || 'super_secret_internal_token';
 
 // Database connection
 const DB_PATH = process.env.DATABASE_URL ? 
@@ -142,7 +143,7 @@ class User {
           limit: 1
         })
       });
-
+      logger.info(res)
       // const row = await dbGet('SELECT * FROM Users WHERE username = ?', [username]);
   //     return row ? new User(row) : null;
   //   } catch (error) {
