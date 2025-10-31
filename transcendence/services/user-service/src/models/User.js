@@ -8,7 +8,7 @@ const DB_SERVICE_TOKEN = process.env.DB_SERVICE_TOKEN || 'super_secret_internal_
 // Database connection
 const DB_PATH = process.env.DATABASE_URL ? 
   process.env.DATABASE_URL.replace('sqlite:', '') : 
-  './app/shared/database/transcendence.db';
+  '/app/shared/database/transcendence.db';
 
 console.log('📍 User.js connecting to database at:', DB_PATH);
 
