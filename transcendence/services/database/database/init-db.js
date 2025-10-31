@@ -3,7 +3,8 @@ const fs = require('fs');
 const path = require('path');
 
 // ← GEÄNDERT: .db statt .sqlite!
-const DB_PATH = path.join(__dirname, 'transcendence.db');
+const DB_PATH = path.join('/app/shared/database', 'transcendence.db');
+
 const SCHEMA_PATH = path.join(__dirname, 'schema.sql');
 
 function initDatabase() {
