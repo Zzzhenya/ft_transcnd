@@ -13,7 +13,7 @@ fastify.register(cors);
 // =============== Config ===============
 const DB_PATH = process.env.DATABASE_URL
   ? process.env.DATABASE_URL.replace('sqlite:', '')
-  : './transcendence.db';
+  : '/app/shared/database/transcendence.db';
 
 const dir = path.dirname(DB_PATH);
 if (!fs.existsSync(dir)) {
