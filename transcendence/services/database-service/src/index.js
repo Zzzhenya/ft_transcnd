@@ -1,5 +1,6 @@
 // database-service.js
 import Fastify from 'fastify';
+import fs from 'fs';
 import cors from '@fastify/cors';
 import Database from 'better-sqlite3';
 import PQueue from 'p-queue';
@@ -12,6 +13,12 @@ fastify.register(cors);
 const DB_PATH = process.env.DATABASE_URL
   ? process.env.DATABASE_URL.replace('sqlite:', '')
   : './transcendence.db';
+
+const dir = path.dirname(DB_PATH);
+if (!fs.existsSync(dir)) {
+  fs.mkdirSync(dir, { recursive: true });
+  console.log(`📁 Created missing directory: ${dir}`);
+}
 
 const DB_SERVICE_TOKEN = process.env.DB_SERVICE_TOKEN || 'super_secret_internal_token';
 const PORT = 3006;
