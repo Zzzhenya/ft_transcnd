@@ -1,5 +1,6 @@
 // database-service.js
 import Fastify from 'fastify';
+import path from 'path';
 import fs from 'fs';
 import cors from '@fastify/cors';
 import Database from 'better-sqlite3';
