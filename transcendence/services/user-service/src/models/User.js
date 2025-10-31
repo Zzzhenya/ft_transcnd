@@ -145,6 +145,7 @@ class User {
         })
       });
       logger.info(res)
+      console.log(res.data)
       // const row = await dbGet('SELECT * FROM Users WHERE username = ?', [username]);
   //     return row ? new User(row) : null;
   //   } catch (error) {
