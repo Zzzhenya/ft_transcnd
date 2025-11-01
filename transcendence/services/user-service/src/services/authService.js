@@ -32,6 +32,8 @@ class AuthService {
         password_hash: hashedPassword  // ← password_hash!
       });
 
+      if (!newUser)
+        throw new Error('User create failed')
       // Generate JWT
       const token = jwt.sign(
         { userId: newUser.id, username: newUser.username },
