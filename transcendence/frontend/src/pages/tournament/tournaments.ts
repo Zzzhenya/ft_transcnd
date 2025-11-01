@@ -1,3 +1,30 @@
+/**
+ * Tournament Lobby Page
+ * 
+ * PURPOSE:
+ * - Display all available tournaments
+ * - Allow users to create new tournaments (4P or 8P)
+ * - Join existing tournaments
+ * - Show interrupted tournament status
+ * 
+ * KEY FEATURES:
+ * 1. Tournament List: Shows all tournaments with player count
+ * 2. Filter Tabs: Filter by tournament size (ALL, 4P, 8P)
+ * 3. Create Buttons: Create new 4-player or 8-player tournaments
+ * 4. Join Functionality: Navigate to waiting room for specific tournament
+ * 5. Interrupted Status: Visual indicators for interrupted tournaments
+ * 
+ * INTERRUPTION DISPLAY:
+ * - Checks each tournament's status
+ * - If status === 'interrupted':
+ *   * Shows ⚠️ INTERRUPTED badge in top-left
+ *   * Red border instead of white/hover
+ *   * Dimmed appearance (70% opacity)
+ *   * Red warning text: "Match interrupted - Cannot join"
+ *   * Button changes to "VIEW ONLY" (gray, disabled)
+ * - Users can still click to view interrupted tournaments but cannot join
+ * - This prevents new players from joining broken tournaments
+ */
 
 import { getAuth } from "@/app/auth";
 import { getState } from "@/app/store";
@@ -58,14 +85,21 @@ export default function (root: HTMLElement) {
                         tournaments.filter(t => filter === "all" || t.size === filter).length > 0
                         ? tournaments
                             .filter(t => filter === "all" || t.size === filter)
-                            .map(t => `
-                                <div class="group relative bg-white/5 backdrop-blur-lg rounded-2xl p-4 border border-white/10 hover:border-white/30 hover:bg-white/10 transition-all duration-300">
+                            .map(t => {
+                                const isInterrupted = t.status === 'interrupted';
+                                return `
+                                <div class="group relative bg-white/5 backdrop-blur-lg rounded-2xl p-4 border ${isInterrupted ? 'border-red-500/50' : 'border-white/10 hover:border-white/30'} ${isInterrupted ? '' : 'hover:bg-white/10'} transition-all duration-300 ${isInterrupted ? 'opacity-70' : ''}">
+                                    ${isInterrupted ? `
+                                        <div class="absolute top-3 left-3 px-3 py-1 rounded-full bg-red-500/30 border border-red-500 backdrop-blur-sm">
+                                            <span class="text-xs font-black text-red-200">⚠️ INTERRUPTED</span>
+                                        </div>
+                                    ` : ''}
                                     <div class="absolute top-3 right-3">
-                                        <div class="w-10 h-10 rounded-full bg-gradient-to-br ${t.size === 4 ? 'from-cyan-500 to-blue-600' : 'from-orange-500 to-pink-600'} flex items-center justify-center text-white font-black shadow-lg">
+                                        <div class="w-10 h-10 rounded-full bg-gradient-to-br ${t.size === 4 ? 'from-cyan-500 to-blue-600' : 'from-orange-500 to-pink-600'} flex items-center justify-center text-white font-black shadow-lg ${isInterrupted ? 'opacity-50' : ''}">
                                             ${t.size}
                                         </div>
                                     </div>
-                                    <div class="mb-3">
+                                    <div class="mb-3 ${isInterrupted ? 'mt-8' : ''}">
                                         <div class="text-purple-300 font-mono text-xs mb-1">TOURNAMENT #${t.id}</div>
                                         <div class="text-2xl font-black text-white mb-1">${t.size} PLAYERS</div>
                                         <div class="flex items-center gap-2 text-sm text-gray-300">
@@ -73,12 +107,17 @@ export default function (root: HTMLElement) {
                                             <span class="font-bold">${t.playerSet ? Array.from(t.playerSet).length : (t.players || 0)} / ${t.size}</span>
                                             <span class="text-gray-500 text-xs">joined</span>
                                         </div>
+                                        ${isInterrupted ? `
+                                            <div class="mt-2 text-xs text-red-300 font-semibold">
+                                                Match interrupted - Cannot join
+                                            </div>
+                                        ` : ''}
                                     </div>
-                                    <a href="/tournaments/waitingroom/${t.id}" data-tournament-size="${t.size}" class="join-btn block w-full py-3 rounded-xl bg-white text-gray-900 font-black text-center hover:bg-gray-100 transition-all transform hover:scale-105 ${(!signedIn && !isGuest) ? "opacity-30 pointer-events-none" : ""}">
-                                        JOIN NOW →
+                                    <a href="/tournaments/waitingroom/${t.id}" data-tournament-size="${t.size}" data-tournament-id="${t.id}" class="join-btn block w-full py-3 rounded-xl font-black text-center transition-all ${isInterrupted ? 'bg-gray-600/50 text-gray-300 hover:bg-gray-600/70 cursor-pointer' : 'bg-white text-gray-900 hover:bg-gray-100 transform hover:scale-105'} ${(!signedIn && !isGuest) ? "opacity-30 pointer-events-none" : ""}">
+                                        ${isInterrupted ? '👁️ VIEW DETAILS' : 'JOIN NOW →'}
                                     </a>
                                 </div>
-                            `).join('')
+                            `}).join('')
                         : `<div class="col-span-2 text-center py-12">
                                 <div class="text-6xl mb-3 opacity-20">🎯</div>
                                 <div class="text-xl text-white/40 font-bold">NO ACTIVE TOURNAMENTS</div>

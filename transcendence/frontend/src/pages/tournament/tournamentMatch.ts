@@ -1,3 +1,26 @@
+/**
+ * Tournament Match Page
+ * 
+ * Handles the active gameplay for a tournament match with interruption detection.
+ * 
+ * KEY FEATURES:
+ * - WebSocket-based real-time gameplay
+ * - Match state persistence in sessionStorage
+ * - Automatic interruption on navigation/page exit
+ * - Async cleanup to ensure interruption requests complete
+ * 
+ * INTERRUPTION FLOW:
+ * 1. User navigates away or closes page during active match
+ * 2. handlePageUnload() detects active match (matchStarted && !matchCompleted)
+ * 3. forfeitMatch() sends interrupt request with keepalive flag
+ * 4. Backend marks match and tournament as 'interrupted'
+ * 5. Cleanup completes before navigation proceeds
+ * 
+ * MATCH STATE TRACKING:
+ * - SessionStorage key: `match_${tournamentId}_${matchId}`
+ * - Possible states: 'waiting', 'in-progress', 'completed', 'interrupted'
+ * - State prevents duplicate match starts and shows appropriate UI
+ */
 
 import { navigate } from "@/app/router";
 
@@ -40,6 +63,42 @@ export default function (root: HTMLElement, ctx: any) {
   let lastTime = 0;
   let connectionAttempts = 0;
   const maxConnectionAttempts = 3;
+  
+  // Track if match has started and is active
+  // These flags determine when to trigger interruption
+  let matchStarted = false;      // True when match is actively being played
+  let matchCompleted = false;    // True when match finished normally with a winner
+  let matchInterrupted = false;  // True when match was interrupted (player left)
+  
+  // Check if match is already completed/in-progress/interrupted
+  // This prevents duplicate starts and shows appropriate messages
+  const matchKey = `match_${tournamentId}_${matchId}`;
+  const matchState = sessionStorage.getItem(matchKey);
+  console.log('Match state check:', { tournamentId, matchId, matchKey, matchState });
+  
+  if (matchState) {
+    try {
+      const state = JSON.parse(matchState);
+      console.log('Parsed match state:', state);
+      
+      if (state.status === 'completed') {
+        matchCompleted = true;
+        console.log('Match marked as completed');
+      } else if (state.status === 'in-progress') {
+        matchStarted = true;
+        console.log('Match marked as in-progress');
+      } else if (state.status === 'interrupted') {
+        matchInterrupted = true;
+        console.log('Match marked as interrupted');
+      }
+    } catch (e) {
+      console.error('Error parsing match state:', e);
+      // Clear invalid state
+      sessionStorage.removeItem(matchKey);
+    }
+  } else {
+    console.log('No previous match state found - starting fresh match');
+  }
 
   root.innerHTML = `
     <section class="py-10 px-4 min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-indigo-900 via-blue-900 to-gray-900">
@@ -47,13 +106,25 @@ export default function (root: HTMLElement, ctx: any) {
         <h1 class="text-5xl font-extrabold text-white drop-shadow-lg">🏓 Tournament Match</h1>
         <p class="mt-2 text-lg text-indigo-200">Players: <span class="font-bold">${player1Name} vs ${player2Name}</span></p>
       </header>
+      ${matchCompleted ? `
+        <div class="mb-8 p-6 bg-green-500/20 border-2 border-green-500 rounded-xl">
+          <p class="text-2xl font-bold text-white text-center">✅ This match has already been completed</p>
+          <p class="text-indigo-200 text-center mt-2">Please return to the tournament lobby</p>
+        </div>
+      ` : matchInterrupted ? `
+        <div class="mb-8 p-6 bg-red-500/20 border-2 border-red-500 rounded-xl">
+          <p class="text-2xl font-bold text-white text-center">❌ Tournament Interrupted</p>
+          <p class="text-indigo-200 text-center mt-2">A player left during the match - tournament cannot continue</p>
+        </div>
+      ` : `
       <div class="flex gap-6 mb-8">
-        <button id="startBtn" class="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-indigo-600 hover:to-blue-500 text-white px-8 py-3 rounded-xl font-bold shadow-lg transition-all duration-200">
-          <span class="mr-2">🚀</span>Start Match
+        <button id="startBtn" class="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-indigo-600 hover:to-blue-500 text-white px-8 py-3 rounded-xl font-bold shadow-lg transition-all duration-200" ${matchStarted ? 'disabled' : ''}>
+          <span class="mr-2">🚀</span>${matchStarted ? 'Match In Progress' : 'Start Match'}
         </button>
       </div>
+      `}
       <div id="gameStatus" class="mb-4 text-xl font-semibold text-indigo-100 text-center drop-shadow">
-        🌐 Click "Start Match" to connect to backend
+        ${matchCompleted ? '✅ Match completed' : matchInterrupted ? '❌ Tournament interrupted - no winner' : matchStarted ? '⚠️ Match in progress - leaving will interrupt tournament' : '🌐 Click "Start Match" to connect to backend'}
       </div>
       <div class="flex justify-center mb-6">
         <div class="rounded-2xl shadow-2xl bg-gradient-to-br from-gray-800 via-indigo-900 to-blue-900 p-6">
@@ -121,6 +192,7 @@ export default function (root: HTMLElement, ctx: any) {
       ws.onopen = () => {
         updateStatus('🌐 Connected! Starting match...');
         updateConnectionStatus('✅ Connected to backend match');
+        
         startNetworkGame();
         setTimeout(() => {
           if (ws && ws.readyState === WebSocket.OPEN) {
@@ -139,11 +211,22 @@ export default function (root: HTMLElement, ctx: any) {
       };
 
       ws.onclose = (event) => {
-        if (connectionAttempts < maxConnectionAttempts && event.code === 1006) {
-          updateStatus(`🔄 Connection lost, retrying... (${connectionAttempts}/${maxConnectionAttempts})`);
-          updateConnectionStatus(`🔄 Reconnecting... (${connectionAttempts}/${maxConnectionAttempts})`);
-          setTimeout(() => connectWebSocket(gameId), 2000);
-        } else {
+        console.log('WebSocket closed', event.code, event.reason);
+        
+        // If game is playing and connection lost, mark as interrupted
+        if (gameState.gameStatus === 'playing') {
+          updateStatus('❌ Connection lost during match - tournament interrupted');
+          updateConnectionStatus('❌ Connection to backend lost');
+          markMatchAsInterrupted();
+        }
+        
+        // Attempt reconnection for non-game-playing scenarios
+        if (connectionAttempts < maxConnectionAttempts && event.code === 1006 && gameState.gameStatus !== 'playing') {
+          setTimeout(() => {
+            updateConnectionStatus(`🔄 Reconnecting... (${connectionAttempts}/${maxConnectionAttempts})`);
+            connectWebSocket(gameId);
+          }, 2000);
+        } else if (connectionAttempts >= maxConnectionAttempts) {
           updateStatus('❌ Backend connection failed - please try again');
           updateConnectionStatus('❌ Unable to connect to backend');
           startBtn.disabled = false;
@@ -151,6 +234,7 @@ export default function (root: HTMLElement, ctx: any) {
       };
 
       ws.onerror = (error) => {
+        console.error('WebSocket error:', error);
         updateStatus('❌ Connection error');
         updateConnectionStatus('❌ WebSocket error occurred');
       };
@@ -189,6 +273,125 @@ async function reportWinner(winnerName: string) {
   }
 }
 
+async function markMatchAsInterrupted() {
+  if (!tournamentId || !matchId) {
+    console.log("No tournament context - skipping interruption report");
+    return;
+  }
+  
+  try {
+    console.log(`Marking match ${matchId} as interrupted in tournament ${tournamentId}`);
+    const response = await fetch(`http://localhost:3000/tournaments/${tournamentId}/interrupt`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ matchId: matchId, reason: 'connection_timeout' })
+    });
+    
+    if (response.ok) {
+      const result = await response.json();
+      console.log(`Match ${matchId} marked as interrupted`, result);
+      
+      // Show interruption dialog
+      if (winnerDialog) {
+        winnerDialog.innerHTML = `
+          <div class="text-3xl font-bold mb-4 text-red-600">❌ Match Interrupted</div>
+          <div class="text-xl mb-4">Connection lost for more than 30 seconds</div>
+          <div class="text-gray-600 mb-6">The tournament has been marked as interrupted.</div>
+          <button id="interruptOkBtn" class="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg font-semibold">Back to Tournament</button>
+        `;
+        winnerDialog.showModal();
+        winnerDialog.querySelector('#interruptOkBtn')?.addEventListener('click', () => {
+          winnerDialog.close();
+          if (tournamentId) {
+            navigate(`/tournaments/waitingroom/${tournamentId}`);
+          }
+        });
+      }
+    } else {
+      console.error('Failed to mark match as interrupted:', response.status);
+    }
+  } catch (error) {
+    console.error('Error marking match as interrupted:', error);
+  }
+}
+
+/**
+ * Send interruption request to backend
+ * 
+ * PURPOSE:
+ * - Notifies backend that a player left during an active match
+ * - Marks both the match and tournament as 'interrupted'
+ * - Prevents any further matches in the tournament from being played
+ * 
+ * WHEN CALLED:
+ * - User navigates away during active gameplay (via handlePageUnload)
+ * - User closes browser tab/window (via beforeunload handler with sendBeacon)
+ * 
+ * TECHNICAL DETAILS:
+ * - Uses fetch with keepalive:true to ensure completion during page unload
+ * - Updates sessionStorage to persist interrupted state locally
+ * - Sends POST to /tournaments/:id/interrupt endpoint
+ * - Backend updates both match.status and tournament.status to 'interrupted'
+ * 
+ * FLOW:
+ * 1. Update local sessionStorage state
+ * 2. Send POST request with keepalive flag
+ * 3. Backend marks tournament as interrupted
+ * 4. All clients see updated status via polling/broadcast
+ */
+async function forfeitMatch() {
+  if (!tournamentId || !matchId) {
+    console.log("No tournament context - skipping forfeit");
+    return;
+  }
+  
+  console.log(`🔴 forfeitMatch() START - Tournament: ${tournamentId}, Match: ${matchId}`);
+  
+  try {
+    console.log(`Match ${matchId} interrupted - player left during game`);
+    
+    // Mark match as interrupted in sessionStorage
+    sessionStorage.setItem(`match_${tournamentId}_${matchId}`, JSON.stringify({
+      status: 'interrupted',
+      reason: 'player_left',
+      interruptedAt: Date.now()
+    }));
+    console.log('📝 SessionStorage updated with interrupted status');
+    
+    // Always use fetch (not beacon) to ensure it completes
+    const data = JSON.stringify({ 
+      matchId: matchId, 
+      reason: 'player_left'
+    });
+    
+    const url = `http://localhost:3000/tournaments/${tournamentId}/interrupt`;
+    console.log(`📡 Sending POST request to: ${url}`);
+    console.log(`📦 Request body:`, data);
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: data,
+      keepalive: true // Ensures request completes even during page unload
+    });
+    
+    console.log(`📬 Response received:`, response.status, response.statusText);
+    
+    if (response.ok) {
+      const result = await response.json();
+      console.log(`✅ Tournament ${tournamentId} marked as interrupted`, result);
+      matchInterrupted = true; // Update local state
+    } else {
+      const errorText = await response.text();
+      console.error('❌ Failed to mark tournament as interrupted:', response.status, errorText);
+    }
+  } catch (error) {
+    console.error('❌ Error marking tournament as interrupted:', error);
+  }
+  
+  console.log(`🔴 forfeitMatch() END`);
+}
+
 function showWinnerDialog(winner: string) {
   if (!winnerDialog) return;
   let winnerDisplay = winner;
@@ -206,6 +409,14 @@ function showWinnerDialog(winner: string) {
   // Report winner to tournament service
   if (actualWinner) {
     reportWinner(actualWinner);
+    
+    // Mark match as completed
+    matchCompleted = true;
+    sessionStorage.setItem(`match_${tournamentId}_${matchId}`, JSON.stringify({
+      status: 'completed',
+      winner: actualWinner,
+      completedAt: Date.now()
+    }));
   }
 
   winnerDialog.innerHTML = `
@@ -437,6 +648,14 @@ function showWinnerDialog(winner: string) {
   async function handleStartMatch() {
     startBtn.disabled = true;
     connectionAttempts = 0;
+    matchStarted = true;
+    
+    // Mark match as in-progress
+    sessionStorage.setItem(`match_${tournamentId}_${matchId}`, JSON.stringify({
+      status: 'in-progress',
+      startTime: Date.now()
+    }));
+    
     updateStatus('🔄 Starting tournament match...');
     try {
       const newGameId = await createTournamentGame();
@@ -453,14 +672,133 @@ function showWinnerDialog(winner: string) {
     }
   }
 
-  // Initialize
-  drawGame();
-  const renderLoop = () => {
-    drawGame();
-    requestAnimationFrame(renderLoop);
-  };
-  requestAnimationFrame(renderLoop);
+  /**
+   * Handle page unload or navigation away from match
+   * 
+   * CRITICAL INTERRUPTION DETECTION:
+   * - Called when user navigates away via router or closes page
+   * - Checks if match is actively being played
+   * - If so, sends interrupt request to backend
+   * 
+   * CONDITIONS FOR INTERRUPT:
+   * - matchStarted = true (match was initiated)
+   * - matchCompleted = false (no winner declared yet)
+   * - matchInterrupted = false (not already interrupted)
+   * - gameStatus = 'playing' (game is actively running)
+   * 
+   * ASYNC HANDLING:
+   * - Returns a Promise to ensure cleanup completes
+   * - Router waits for this to finish before navigation
+   * - Uses keepalive flag in fetch to complete even if page unloads
+   */
+  let isProcessingInterrupt = false;  // Prevent duplicate interrupt requests
+  
+  async function handlePageUnload() {
+    console.log('🚨 handlePageUnload() CALLED');
+    console.log('Current state:', { 
+      matchStarted, 
+      matchCompleted, 
+      matchInterrupted,
+      gameStatus: gameState.gameStatus,
+      isProcessingInterrupt,
+      tournamentId,
+      matchId
+    });
+    
+    if (isProcessingInterrupt) {
+      console.log('⚠️ Already processing interrupt, skipping...');
+      return;
+    }
+    
+    if (matchStarted && !matchCompleted && !matchInterrupted && gameState.gameStatus === 'playing') {
+      // Match is active and player is leaving - mark as interrupted
+      console.log('🔥 ACTIVE MATCH DETECTED - calling forfeitMatch()');
+      isProcessingInterrupt = true;
+      await forfeitMatch();
+      isProcessingInterrupt = false;
+      console.log('✅ forfeitMatch() completed');
+    } else {
+      console.log('ℹ️ No active match to interrupt');
+    }
+    
+    console.log('🚨 handlePageUnload() FINISHED');
+  }
+  
+  // Add beforeunload event to warn user when closing browser/tab
+  function handleBeforeUnload(e: BeforeUnloadEvent) {
+    if (matchStarted && !matchCompleted && !matchInterrupted && gameState.gameStatus === 'playing') {
+      // Show browser confirmation dialog
+      e.preventDefault();
+      e.returnValue = ''; // Required for Chrome
+      
+      // Try to send interrupt using keepalive
+      if (!isProcessingInterrupt) {
+        // Use navigator.sendBeacon as last resort for browser close
+        const data = JSON.stringify({ matchId: matchId, reason: 'player_left' });
+        navigator.sendBeacon(
+          `http://localhost:3000/tournaments/${tournamentId}/interrupt`,
+          new Blob([data], { type: 'application/json' })
+        );
+      }
+      
+      return ''; // For some older browsers
+    }
+  }
 
-  startBtn.addEventListener('click', handleStartMatch);
-  setupKeyboardControls();
+    // Initialize
+  if (matchCompleted) {
+    // Show completed message and return button
+    const backBtn = document.createElement('button');
+    backBtn.className = "mt-4 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold";
+    backBtn.textContent = "← Back to Tournament";
+    backBtn.addEventListener('click', () => {
+      if (tournamentId) {
+        navigate(`/tournaments/waitingroom/${tournamentId}`);
+      } else {
+        navigate('/tournaments');
+      }
+    });
+    root.querySelector('section')?.appendChild(backBtn);
+  } else {
+    // Normal initialization (includes interrupted local games that can resume)
+    drawGame();
+    const renderLoop = () => {
+      drawGame();
+      requestAnimationFrame(renderLoop);
+    };
+    requestAnimationFrame(renderLoop);
+
+    startBtn?.addEventListener('click', handleStartMatch);
+    setupKeyboardControls();
+  }
+  
+  // Add beforeunload handler for browser close/refresh warning
+  window.addEventListener('beforeunload', handleBeforeUnload);
+  
+  /**
+   * Cleanup function - called by router before navigation
+   * 
+   * CRITICAL FOR INTERRUPTION:
+   * - This is an ASYNC function (returns Promise<void>)
+   * - Router WAITS for this to complete before proceeding
+   * - Ensures interrupt request is sent and completed
+   * 
+   * SEQUENCE:
+   * 1. Router detects navigation (back button, link click, etc.)
+   * 2. Router calls this cleanup function
+   * 3. await handlePageUnload() - sends interrupt if match is active
+   * 4. Cleanup completes - navigation proceeds
+   * 
+   * This pattern ensures interruption is properly recorded even
+   * during rapid navigation (e.g., quickly pressing back button)
+   */
+  return async () => {
+    console.log('🧹 Cleanup function called - page being unmounted');
+    await handlePageUnload(); // Wait for interrupt to complete
+    window.removeEventListener('beforeunload', handleBeforeUnload);
+    if (ws) {
+      console.log('Closing WebSocket connection');
+      ws.close();
+    }
+  };
 }
