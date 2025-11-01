@@ -76,38 +76,90 @@ class User {
   // ============ CREATE ============
   static async create(userData) {
     try {
-      const result = await dbRun(
-        // `INSERT INTO Users (username, email, password_hash, display_name, is_guest)
-        `INSERT INTO Users (username, email, password_hash)
-        VALUES (?, ?, ?)`,
-        [
-          userData.username,
-          userData.email,
-          userData.password_hash || userData.password
-        ]
-        //  VALUES (?, ?, ?, ?, ?)`,
-        // [
-        //   userData.username,
-        //   userData.email,
-        //   userData.password_hash || userData.password,
-        //   userData.display_name || userData.username,
-        //   userData.is_guest || 0
-        // ]
-      );
-      // console.log(username, email, password);
+      const res = await fetch(`${DATABASE_SERVICE_URL}/internal/users`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-service-auth': DB_SERVICE_TOKEN
+        },
+        body: JSON.stringify({
+          table: 'Users',
+          action: 'insert',
+          values: {
+            username: userData.username,
+            email: userData.email,
+            password_hash: userData.password_hash || userData.password
+          } })
+        });
+      // const result = await dbRun(
+      //   // `INSERT INTO Users (username, email, password_hash, display_name, is_guest)
+      //   `INSERT INTO Users (username, email, password_hash)
+      //   VALUES (?, ?, ?)`,
+      //   [
+      //     userData.username,
+      //     userData.email,
+      //     userData.password_hash || userData.password
+      //   ]
+      //   //  VALUES (?, ?, ?, ?, ?)`,
+      //   // [
+      //   //   userData.username,
+      //   //   userData.email,
+      //   //   userData.password_hash || userData.password,
+      //   //   userData.display_name || userData.username,
+      //   //   userData.is_guest || 0
+      //   // ]
+      // );
+      // // console.log(username, email, password);
+      return await User.findById(res.id);
+      // if (!res.ok) {
+      //   throw new Error(`Database service responded with status ${res.status}`);
+      // }
+      // const data = await res.json();
+      // // data.data is assumed to be an array of rows
+      // console.log( data.data && data.data.length > 0 ? data.data[0] : null)
+      // return data.data && data.data.length > 0 ? data.data[0] : null;
+  } catch (error) {
+    console.error('❌ Error creating user:', error);
+    throw error;
+  }
 
-      return await User.findById(result.id);
-    } catch (error) {
-      console.error('❌ Error creating user:', error);
-      throw error;
-    }
+    //   return await User.findById(result.id);
+    // } catch (error) {
+    //   console.error('❌ Error creating user:', error);
+    //   throw error;
+    // }
   }
 
   // ============ FIND BY ID ============
   static async findById(id) {
+    // try {
+    //   const row = await dbGet('SELECT * FROM Users WHERE id = ?', [id]);
+    //   return row ? new User(row) : null;
+    // } catch (error) {
+    //   console.error('❌ Error finding user by id:', error);
+    //   throw error;
+    // }
     try {
-      const row = await dbGet('SELECT * FROM Users WHERE id = ?', [id]);
-      return row ? new User(row) : null;
+      const res = await fetch(`${DATABASE_SERVICE_URL}/internal/query`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-service-auth': DB_SERVICE_TOKEN
+        },
+        body: JSON.stringify({
+          table: 'Users',
+          columns: ['id'],
+          filters: { id },
+          limit: 1
+        })
+      });
+      if (!res.ok) {
+        throw new Error(`Database service responded with status ${res.status}`);
+      }
+      const data = await res.json();
+      // data.data is assumed to be an array of rows
+      console.log( data.data && data.data.length > 0 ? data.data[0] : null)
+      return data.data && data.data.length > 0 ? data.data[0] : null;
     } catch (error) {
       console.error('❌ Error finding user by id:', error);
       throw error;
@@ -129,9 +181,7 @@ class User {
 
   // ============ FIND BY USERNAME ============
   static async findByUsername(username) {
-    console.log("1")
     try {
-      console.log('URL: ', `${DATABASE_SERVICE_URL}/internal/query`)
       const res = await fetch(`${DATABASE_SERVICE_URL}/internal/query`, {
         method: 'POST',
         headers: {
@@ -145,13 +195,7 @@ class User {
           limit: 1
         })
       });
-      // logger.info(res)
-      // console.log(res.data)
-      console.log("2")
-      if (res.data === undefined)
-        console.log("3")
-        console.log("res is emptyyyy")
-      // const row = await dbGet('SELECT * FROM Users WHERE username = ?', [username]);
+  // const row = await dbGet('SELECT * FROM Users WHERE username = ?', [username]);
   //     return row ? new User(row) : null;
   //   } catch (error) {
   //     console.error('❌ Error finding user by username:', error);
@@ -159,10 +203,8 @@ class User {
   //   }
   // }
     if (!res.ok) {
-      console.log("3")
       throw new Error(`Database service responded with status ${res.status}`);
     }
-
     const data = await res.json();
     // data.data is assumed to be an array of rows
     console.log( data.data && data.data.length > 0 ? data.data[0] : null)
@@ -175,9 +217,34 @@ class User {
 
   // ============ FIND BY EMAIL ============
   static async findByEmail(email) {
+    // try {
+    //   const row = await dbGet('SELECT * FROM Users WHERE email = ?', [email]);
+    //   return row ? new User(row) : null;
+    // } catch (error) {
+    //   console.error('❌ Error finding user by email:', error);
+    //   throw error;
+    // }
     try {
-      const row = await dbGet('SELECT * FROM Users WHERE email = ?', [email]);
-      return row ? new User(row) : null;
+      const res = await fetch(`${DATABASE_SERVICE_URL}/internal/query`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-service-auth': DB_SERVICE_TOKEN
+        },
+        body: JSON.stringify({
+          table: 'Users',
+          columns: ['email'],
+          filters: { email },
+          limit: 1
+        })
+      });
+      if (!res.ok) {
+        throw new Error(`Database service responded with status ${res.status}`);
+      }
+      const data = await res.json();
+      // data.data is assumed to be an array of rows
+      console.log( data.data && data.data.length > 0 ? data.data[0] : null)
+      return data.data && data.data.length > 0 ? data.data[0] : null;
     } catch (error) {
       console.error('❌ Error finding user by email:', error);
       throw error;
@@ -250,13 +317,40 @@ class User {
 
   // ============ CHECK IF EXISTS ============
   static async exists(id) {
+    // try {
+    //   const row = await dbGet('SELECT 1 FROM Users WHERE id = ? LIMIT 1', [id]);
+    //   return !!row;
+    // } catch (error) {
+    //   console.error('❌ Error checking if user exists:', error);
+    //   throw error;
+    // }
+
     try {
-      const row = await dbGet('SELECT 1 FROM Users WHERE id = ? LIMIT 1', [id]);
-      return !!row;
+      const res = await fetch(`${DATABASE_SERVICE_URL}/internal/query`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-service-auth': DB_SERVICE_TOKEN
+        },
+        body: JSON.stringify({
+          table: 'Users',
+          columns: ['id'],
+          filters: { id },
+          limit: 1
+        })
+      });
+      if (!res.ok) {
+        throw new Error(`Database service responded with status ${res.status}`);
+      }
+      const data = await res.json();
+      // data.data is assumed to be an array of rows
+      console.log( data.data && data.data.length > 0 ? data.data[0] : null)
+      return data.data && data.data.length > 0 ? data.data[0] : null;
     } catch (error) {
-      console.error('❌ Error checking if user exists:', error);
+      console.error('❌ Error finding user by email:', error);
       throw error;
     }
+
   }
 }
 
