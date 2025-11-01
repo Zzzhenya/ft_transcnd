@@ -59,14 +59,24 @@ class AuthService {
   static async login(usernameOrEmail, password) {
     try {
       // Find user by username or email
+      console.log("username: ", usernameOrEmail, " password: ", password)
       let user = await User.findByUsername(usernameOrEmail);
+      console.log("user: ", user)
       if (!user) {
         user = await User.findByEmail(usernameOrEmail);
+        console.log("user: ", user)
       }
 
       if (!user) {
         throw new Error('Invalid credentials');
       }
+
+      console.log(user)
+      if (!user.password_hash){
+        throw new Error('Password is required');
+
+      }
+
 
       // Check password
       const isValidPassword = await bcrypt.compare(password, user.password_hash);  // ← password_hash!

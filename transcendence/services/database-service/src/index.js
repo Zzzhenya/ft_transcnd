@@ -206,8 +206,10 @@ fastify.post('/internal/query', async (request, reply) => {
   // 5️⃣ Execute
   try {
     fastify.log.error("12")
+    fastify.log.error(values, sql)
     const rows = dbAll(sql, values);
     fastify.log.error("13")
+    fastify.log.error(rows)
     // console.log(rows);
     // return reply.code(200).send({ success: true, count: rows.length, data: rows });
     // return { success: true, count: rows.length, data: rows };
