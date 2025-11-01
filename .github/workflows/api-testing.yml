@@ -10,6 +10,7 @@ on:
       - integration-gateway-pong-front
       - log-service
       - upstream_timeouts
+      - tournament_new
     # No paths restriction for push - always run when pushing to these branches
   pull_request:
     branches:
