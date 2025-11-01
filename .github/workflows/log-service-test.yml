@@ -2,7 +2,7 @@ name: Log Service Tests
 
 on:
   push:
-    branches: [ main, log-service, db-service-api, experiment/rene-integration ]
+    branches: [ main, log-service, microservices-refactor, db-service-api ]
     paths:
       - 'transcendence/services/log-service/**'
       - 'transcendence/services/*/src/utils/logger.js'
@@ -34,15 +34,19 @@ jobs:
           NODE_ENV=test
           DATABASE_URL=sqlite:/app/shared/transcendence.db
           JWT_SECRET=test-secret-key-for-ci-only-not-secure
+          
+          # Frontend URLs (Browser → nginx → gateway) - HTTP for CI testing
+          VITE_API_BASE=http://localhost/api
+          VITE_GATEWAY_BASE=http://localhost/api
+          VITE_WS_BASE=ws://localhost/ws
+          FRONT_END_URL=http://localhost
+          
+          # Backend URLs (Docker internal network)
           USER_SERVICE_URL=http://user-service:3001
           GAME_SERVICE_URL=http://game-service:3002
           LOG_SERVICE_URL=http://log-service:3003
-          TOURNAMENT_SERVICE_URL=http://tournament-service:3004
-          VITE_API_URL=http://localhost:3000
-          VITE_USER_SERVICE_URL=http://localhost:3000/user-service
-          VITE_GAME_SERVICE_URL=http://localhost:3000/game-service
-          VITE_LOG_SERVICE_URL=http://localhost:3000/log-service
-          VITE_TOURNAMENT_SERVICE_URL=http://localhost:3000/tournament-service
+          TOURNAMENT_SERVICE_URL=http://tournament-service:3005
+          GATEWAY_URL=http://gateway:3000
           # Service ports
           GATEWAY_PORT=3000
           USER_SERVICE_PORT=3001

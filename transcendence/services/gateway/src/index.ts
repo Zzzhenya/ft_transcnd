@@ -153,8 +153,8 @@ try {
   logger.info('[[Gateway]] register /pong/game routes ');
   Fastify.register(pongGameRoute, { prefix: '/pong/game' });
   logger.info('[[Gateway]] register game routes ');
-  Fastify.register(gameRoute, { prefix: '/api' })
-  logger.info('[[Gateway]] register auth routes ');
+  Fastify.register(gameRoute)
+  logger.info('[[Gateway]] register user routes ');
   Fastify.register(userRoute, { prefix: '/user-service' });
   logger.info('[[Gateway]] register tournament routes ');
   Fastify.register(tournamentRoute, { prefix: '/tournaments' });
