@@ -3,7 +3,7 @@ import { canEnterGame } from "./guards";
 import { getAuth } from "@/app/auth";
 
 
-type Cleanup = () => void;
+type Cleanup = (() => void) | (() => Promise<void>);
 type Ctx = { params?: Record<string, string>; url: URL };
 type PageModule = { default: (root: HTMLElement, ctx: Ctx) => Cleanup | void };
 type Importer = (m: RegExpMatchArray) => Promise<PageModule>;
@@ -67,8 +67,10 @@ export function initRouter(root: HTMLElement) {
 
 	async function render(path: string) {
 
-		// clean-up 'previous page'
-		cleanup?.();
+		// clean-up 'previous page' - await if it returns a promise
+		if (cleanup) {
+			await cleanup();
+		}
 
 		const url = new URL(path, location.origin);
 		const pathname = url.pathname;

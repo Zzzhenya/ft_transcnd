@@ -1,3 +1,32 @@
+/**
+ * Tournament Waiting Room Page
+ * 
+ * PURPOSE:
+ * - Shows tournament bracket and match list
+ * - Allows players to join before tournament starts
+ * - Displays match status and play buttons during tournament
+ * - Handles interrupted tournament status display
+ * 
+ * KEY FEATURES:
+ * 1. Player Management: Add guests, join with authenticated users
+ * 2. Tournament Start: Creates bracket when all players have joined
+ * 3. Match Play: "Play Match" buttons for available matches
+ * 4. Interruption Display: Shows banner and disables matches when interrupted
+ * 
+ * INTERRUPTION HANDLING:
+ * - Checks tournamentStatus from backend
+ * - If status === 'interrupted':
+ *   * Shows prominent red warning banner
+ *   * Disables all "Play Match" buttons (canPlayMatch condition)
+ *   * Displays "Back to Lobby" button
+ *   * Shows interrupted matches with red badges
+ * - Users can view but not play matches in interrupted tournaments
+ * 
+ * MATCH STATE TRACKING:
+ * - Clears old match state before starting new match
+ * - Prevents duplicate match starts
+ * - SessionStorage key pattern: `match_${tournamentId}_${matchId}`
+ */
 
 import { navigate } from "@/app/router";
 import { getAuth } from "@/app/auth";
@@ -29,6 +58,7 @@ export default function (root: HTMLElement, ctx: any) {
   // Keep guest list persistent across renders
   let guestList: string[] = [];
   let bracket: any = null;
+  let tournamentStatus = 'waiting'; // Track tournament status (waiting, active, completed, interrupted)
 
   function getSavedPlayers(): string[] {
     try {
@@ -69,6 +99,7 @@ export default function (root: HTMLElement, ctx: any) {
       if (response.ok) {
         const data = await response.json();
         bracket = data.bracket; // Extract the bracket object from the response
+        tournamentStatus = data.status || 'waiting'; // Get tournament status
         // Update maxPlayers from bracket response if available (works even for finished tournaments)
         if (data.size) {
           maxPlayers = data.size;
@@ -160,6 +191,20 @@ export default function (root: HTMLElement, ctx: any) {
           <h2 class="text-5xl font-black text-white mb-4 tracking-tight">
             ${tournamentStarted ? 'TOURNAMENT LIVE' : 'WAITING ROOM'}
           </h2>
+          ${tournamentStatus === 'interrupted' ? `
+            <div class="bg-red-500/20 border-2 border-red-500 rounded-2xl p-6 mb-6 backdrop-blur-sm max-w-2xl mx-auto">
+              <div class="text-red-200 mb-4">
+                <div class="text-2xl font-black mb-2">⚠️ TOURNAMENT INTERRUPTED</div>
+                <p class="text-sm">A player left during a match. No further matches can be played.</p>
+              </div>
+              <button
+                id="backToLobbyBtn"
+                class="px-6 py-3 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold transition-all transform hover:scale-105"
+              >
+                ← Back to Tournament Lobby
+              </button>
+            </div>
+          ` : ''}
           ${!tournamentStarted ? `
             <div class="inline-block px-6 py-3 rounded-full bg-white/10 backdrop-blur-sm border border-white/20">
               <span class="font-black text-white text-lg">${players.length} / ${maxPlayers} PLAYERS</span>
@@ -257,13 +302,25 @@ export default function (root: HTMLElement, ctx: any) {
                     const hasLocalPlayer = isPlayer1Local || isPlayer2Local;
                     const isRemoteMatch = match.player1 && match.player2 && !bothPlayersLocal;
                     
-                    // Show "Play Match" button only if:
-                    // 1. Both players are local (play on this computer), OR
-                    // 2. At least one player is local (can play their side)
-                    const canPlayMatch = match.player1 && match.player2 && !match.winner && hasLocalPlayer;
+                    /**
+                     * Determine if "Play Match" button should be enabled
+                     * 
+                     * CRITICAL INTERRUPTION CHECK:
+                     * - First condition: tournamentStatus !== 'interrupted'
+                     * - This ensures NO matches can be played if tournament is interrupted
+                     * - Even if match has both players and no winner, button is disabled
+                     * 
+                     * Other conditions (only checked if not interrupted):
+                     * - match.player1 && match.player2: Both players assigned
+                     * - !match.winner: No winner declared yet
+                     * - hasLocalPlayer: At least one local player in this match
+                     */
+                    const canPlayMatch = tournamentStatus !== 'interrupted' && match.player1 && match.player2 && !match.winner && hasLocalPlayer;
                     
                     return `
                     <div class="flex justify-between items-center p-4 rounded-xl border transition-all ${
+                      match.status === 'interrupted' ? 'bg-red-500/20 border-red-500/30' :
+                      match.status === 'forfeited' ? 'bg-orange-500/20 border-orange-500/30' :
                       match.winner ? 'bg-green-500/20 border-green-500/30' : 
                       match.player1 && match.player2 ? 'bg-white/10 border-white/20 hover:bg-white/15' : 
                       'bg-white/5 border-white/10'
@@ -274,7 +331,11 @@ export default function (root: HTMLElement, ctx: any) {
                         <span class="${match.winner === match.player2 ? 'font-black text-green-400 text-lg' : 'text-white font-bold'}">${match.player2 || 'TBD'}${isPlayer2Local ? ' 🔵' : ''}</span>
                       </div>
                       <div class="flex items-center gap-2">
-                        ${match.status === 'completed' && match.winner ? `
+                        ${match.status === 'interrupted' ? `
+                          <span class="px-4 py-2 rounded-xl bg-gradient-to-r from-red-500 to-red-600 text-white text-sm font-black shadow-lg">❌ INTERRUPTED</span>
+                        ` : match.status === 'forfeited' ? `
+                          <span class="px-4 py-2 rounded-xl bg-gradient-to-r from-orange-500 to-orange-600 text-white text-sm font-black shadow-lg">⚠️ FORFEIT - ${match.winner}</span>
+                        ` : match.status === 'completed' && match.winner ? `
                           <span class="px-4 py-2 rounded-xl bg-gradient-to-r from-green-500 to-emerald-600 text-white text-sm font-black shadow-lg">🏆 ${match.winner}</span>
                         ` : match.player1 && match.player2 && !match.winner ? `
                           ${bothPlayersLocal ? `
@@ -341,6 +402,17 @@ export default function (root: HTMLElement, ctx: any) {
     // --- Event Listeners ---
     const lobbyBtn = root.querySelector<HTMLButtonElement>("#backBtn");
     lobbyBtn?.addEventListener("click", (e) => {
+      e.preventDefault();
+      sessionStorage.removeItem("tournamentPlayers");
+      sessionStorage.removeItem("currentTournamentSize");
+      sessionStorage.removeItem("tournamentLocalPlayers");
+      sessionStorage.removeItem("tournamentPlayerTypes");
+      navigate("/tournaments");
+    });
+
+    // Back to lobby button for interrupted tournaments
+    const backToLobbyBtn = root.querySelector<HTMLButtonElement>("#backToLobbyBtn");
+    backToLobbyBtn?.addEventListener("click", (e) => {
       e.preventDefault();
       sessionStorage.removeItem("tournamentPlayers");
       sessionStorage.removeItem("currentTournamentSize");
@@ -444,6 +516,14 @@ export default function (root: HTMLElement, ctx: any) {
         const player2 = btn.getAttribute('data-player2');
         const round = btn.getAttribute('data-round');
         const matchType = btn.getAttribute('data-match-type'); // 'local' or 'remote'
+        
+        // Clear any old match state for this match (in case of refresh/restart)
+        const tid = sessionStorage.getItem('currentTournamentId');
+        if (tid && matchId) {
+          const oldMatchKey = `match_${tid}_${matchId}`;
+          sessionStorage.removeItem(oldMatchKey);
+          console.log(`Cleared old match state for ${oldMatchKey}`);
+        }
         
         // Store match info in sessionStorage
         sessionStorage.setItem('currentMatchId', matchId || '');
