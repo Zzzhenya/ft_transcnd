@@ -31,6 +31,38 @@ const interval = setInterval(() => {
   }
 }, 5000);
 
+function findFile(startPath, fileName) {
+  let result = null;
+
+  function searchDir(dir) {
+    const files = fs.readdirSync(dir);
+    for (const file of files) {
+      const filePath = path.join(dir, file);
+      const stat = fs.statSync(filePath);
+
+      if (stat.isDirectory()) {
+        searchDir(filePath); // recurse
+      } else if (file === fileName) {
+        result = filePath;
+        console.log('✅ Found file at:', result);
+        return;
+      }
+    }
+  }
+
+  if (fs.existsSync(startPath)) {
+    searchDir(startPath);
+  } else {
+    console.error('❌ Start path not found:', startPath);
+  }
+
+  if (!result) console.log('⚠️  File not found');
+  return result;
+}
+
+// Example:
+findFile('/app', 'transcendence.db');
+
 // const dir = path.dirname(DB_PATH);
 // if (!fs.existsSync(dir)) {
 //   fs.mkdirSync(dir, { recursive: true });
