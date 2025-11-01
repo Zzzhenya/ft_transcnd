@@ -2,9 +2,10 @@ const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 const logger = require('../utils/logger');
 
+
 const DATABASE_SERVICE_URL = process.env.DATABASE_SERVICE_URL || 'http://database-service:3006';
 const DB_SERVICE_TOKEN = process.env.DB_SERVICE_TOKEN || 'super_secret_internal_token';
-
+/*
 // Database connection
 const DB_PATH = process.env.DATABASE_URL ? 
   process.env.DATABASE_URL.replace('sqlite:', '') : 
@@ -57,7 +58,7 @@ const dbAll = (sql, params = []) => {
       else resolve(rows);
     });
   });
-};
+};*/
 
 class User {
   constructor(data) {
@@ -255,6 +256,8 @@ class User {
     }
   }
 
+/* Commenting out to rule out direct db access
+
   // ============ UPDATE ============
   static async update(id, updateData) {
     try {
@@ -318,6 +321,8 @@ class User {
       throw error;
     }
   }
+
+  */
 
   // ============ CHECK IF EXISTS ============
   static async exists(id) {
