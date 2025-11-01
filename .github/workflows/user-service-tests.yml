@@ -158,7 +158,7 @@ jobs:
           cd transcendence
           cat > .env << EOF
           NODE_ENV=test
-          DATABASE_URL=sqlite:/app/shared/transcendence.db
+          DATABASE_URL=sqlite:/app/shared/database/transcendence.db
           JWT_SECRET=test-secret-key-for-ci-only-not-secure
           USER_SERVICE_URL=http://user-service:3001
           GAME_SERVICE_URL=http://game-service:3002
