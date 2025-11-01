@@ -299,11 +299,19 @@ services:
   #     - transcendence-network
 
   database:
-    build: ./services/database
+    build:
+      context: .  # ← Root context
+      dockerfile: ./services/database/Dockerfile
+    container_name: transcendence-database
     volumes:
-      - shared-data:/app/shared/database/
+      - shared-data:/app/shared
     environment:
       - NODE_ENV=development
+    # build: ./services/database
+    # volumes:
+    #   - shared-data:/app/shared/database/
+    # environment:
+    #   - NODE_ENV=development
 
   # sqlite-web:
   #   image: ghcr.io/coleifer/sqlite-web:latest
