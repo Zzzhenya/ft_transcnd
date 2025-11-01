@@ -126,6 +126,8 @@ class AuthService {
     }
   }
 
+  /* Direct db access limitation - temp
+
   static async updatePassword(userId, oldPassword, newPassword) {
     try {
       const user = await User.findById(userId);
@@ -150,7 +152,7 @@ class AuthService {
       console.error('Error in updatePassword:', error);
       throw error;
     }
-  }
+  }*/
 }
 
 module.exports = AuthService;
