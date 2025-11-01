@@ -40,9 +40,9 @@ services:
       - LOG_SERVICE_URL=${LOG_SERVICE_URL:-http://log-service:3003}
     depends_on:
       - database
-    volumes:
-      # - shared-data:/app/shared/database/
-      - shared-data:/app/shared/
+    # volumes:
+    #   # - shared-data:/app/shared/database/
+    #   - shared-data:/app/shared/
     networks:
       - transcendence-network
     healthcheck:
