@@ -32,6 +32,12 @@ const healthRoutes: FastifyPluginAsync = async (fastify) => {
         return proxyRequest(fastify, request, reply, `${TESTDB_URL}/health`, 'GET');
     });
 
+// health route for tournament-service
+    fastify.get('/tournament-service/health', async (request, reply) => {
+        const TOURNAMENT_SERVICE_URL = process.env.TOURNAMENT_SERVICE_URL || 'http://tournament-service:3005';
+        return proxyRequest(fastify, request, reply, `${TOURNAMENT_SERVICE_URL}/health`, 'GET');
+    });
+
 };
 
 export default healthRoutes

@@ -29,6 +29,29 @@ const db = new sqlite3.Database(DB_PATH, (err) => {
       is_guest BOOLEAN DEFAULT 0,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )`);
+    
+    // Create users table if it doesn't exist
+    db.run(`
+      CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username VARCHAR(50) UNIQUE NOT NULL,
+        email VARCHAR(100) UNIQUE NOT NULL,
+        password_hash VARCHAR(255) NOT NULL,
+        bio TEXT,
+        avatar VARCHAR(255),
+        is_two_factor_auth_enabled BOOLEAN DEFAULT FALSE,
+        two_factor_auth_secret VARCHAR(255),
+        forty_two_id VARCHAR(255),
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `, (err) => {
+      if (err) {
+        console.error('❌ Error creating users table:', err);
+      } else {
+        console.log('✅ Users table ready');
+      }
+    });
   }
 });
 
@@ -60,13 +83,18 @@ const dbAll = (sql, params = []) => {
   });
 };*/
 
+// Talk with Irene about this change - Did we store password before. 
+// Talk also with Rene about the display_name : does the migration scripts create this field in Users
 class User {
   constructor(data) {
     this.id = data.id;
     this.username = data.username;
     this.email = data.email;
-    this.password_hash = data.password_hash || data.password;
-    this.display_name = data.display_name || data.username; // Fallback to username
+    // this.password_hash = data.password_hash || data.password;
+    // this.display_name = data.display_name || data.username; // Fallback to username
+    this.password = data.password_hash; // Map password_hash to password for backward compatibility
+    this.password_hash = data.password_hash;
+    this.bio = data.bio;
     this.avatar = data.avatar;
     this.bio = data.bio;
     this.is_guest = data.is_guest;
@@ -122,6 +150,29 @@ class User {
   } catch (error) {
     console.error('❌ Error creating user:', error);
     throw error;
+    /* // This block is about the password-passwordhash as well queries are moved to dbservice
+    const { username, email, password, password_hash } = userData;
+    // Use password_hash if provided, otherwise use password
+    const hashToStore = password_hash || password;
+
+    try {
+      const result = await dbRun(
+        `INSERT INTO users (username, email, password_hash) 
+                 VALUES (?, ?, ?)`,
+        [username, email, hashToStore]
+      );
+
+      // Fetch the created user
+      const user = await dbGet(
+        'SELECT * FROM users WHERE id = ?',
+        [result.lastID]
+      );
+
+      return new User(user);
+    } catch (error) {
+      console.error('Error creating user:', error);
+      throw error;
+    }*/
   }
 
     //   return await User.findById(result.id);
@@ -301,6 +352,12 @@ class User {
          FROM Users 
          ORDER BY created_at DESC 
          LIMIT ? OFFSET ?`,
+      // Also about password and password hash => need to be moved to the database-service but resolve the logic difference before
+      // const users = await dbAll(
+      //   `SELECT id, username, email, avatar, bio, created_at, updated_at, is_two_factor_auth_enabled, password_hash 
+      //            FROM users 
+      //            ORDER BY created_at DESC 
+      //            LIMIT ? OFFSET ?`,
         [limit, offset]
       );
 

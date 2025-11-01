@@ -29,7 +29,7 @@ class AuthService {
       const newUser = await User.create({
         username,
         email,
-        password_hash: hashedPassword  // ← password_hash!
+        password: hashedPassword // User.create will map this to password_hash
       });
 
       if (!newUser)
