@@ -26,6 +26,8 @@ export async function proxyRequest(
         body: ['POST', 'PUT', 'PATCH'].includes(method)
           ? JSON.stringify(request.body)
           : null,
+          // ? JSON.stringify(request.body)
+          // : null,
       },
       PROXY_REQUEST_TIMEOUT
     );

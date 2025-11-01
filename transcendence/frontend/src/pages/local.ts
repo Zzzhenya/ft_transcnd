@@ -90,10 +90,15 @@ root.innerHTML = `
       updateStatus('🔄 Creating local game...');
       updateConnectionStatus('📡 Connecting to gateway...');
       
-      const response = await fetch(`${GATEWAY_BASE}/pong/demo`, {
+      const response = await fetch(`${GATEWAY_BASE}/pong/game`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({})
+        body: JSON.stringify({
+          player1_id: 1,
+          player1_name: "Player 1",
+          player2_id: 2,
+          player2_name: "Player 2"
+        })
       });
 
       if (!response.ok) {
@@ -109,6 +114,10 @@ root.innerHTML = `
 
       updateStatus(`🎮 Local game ${result.id} created successfully`);
       updateConnectionStatus('✅ Game created on backend');
+      
+      // Store the websocket URL for later use
+      (window as any).gameWebSocketUrl = result.websocketUrl;
+      
       return result.id.toString();
       
     } catch (error) {
@@ -122,7 +131,11 @@ root.innerHTML = `
   function connectWebSocket(gameId: string) {
     connectionAttempts++;
     try {
-      const wsUrl = `${WS_BASE}/ws/pong/game-ws/${gameId}`;
+      // Use the websocket URL from the backend response, but convert to wss for HTTPS
+      const backendWsUrl = (window as any).gameWebSocketUrl;
+      const wsUrl = backendWsUrl ? 
+        backendWsUrl.replace('ws://localhost:3002', 'wss://localhost') : 
+        `${WS_BASE}/pong/game-ws/${gameId}`;
       console.log(`🔌 Connecting to WebSocket: ${wsUrl} (attempt ${connectionAttempts})`);
       updateStatus('🔄 Connecting to game...');
       updateConnectionStatus(`🔌 WebSocket connecting... (${connectionAttempts}/${maxConnectionAttempts})`);

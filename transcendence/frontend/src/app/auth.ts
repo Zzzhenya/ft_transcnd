@@ -5,4 +5,4 @@
 // export { getAuth, signIn, signOut } from "./real-auth";
 
 export type { AuthUser } from "./real-auth";
-export { getAuth, signIn, signOut, register, getToken, getProfile } from "./real-auth";
+export { getAuth, signIn, signOut, register, getToken, getProfile, guestLogin } from "./real-auth";

@@ -24,4 +24,5 @@ Our ft_transcendence platform uses a microservices architecture with:
 
 ## Deployment
 
-All services run in Docker containers orchestrated with Docker Compose.
+All services run in Docker containers orchestrated with Docker Compose. 
+

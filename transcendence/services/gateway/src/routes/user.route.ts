@@ -9,7 +9,7 @@ const USER_SERVICE_URL = process.env.USER_SERVICE_URL || 'http://user-service:30
 
 const userRoutes: FastifyPluginAsync = async (fastify) => {
 
-// route:/user-service/health for user-service
+// Health check for user-service (through gateway)
 	fastify.get('/health', async (request, reply) => {
 		return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/health`, 'GET');
 	});
@@ -24,6 +24,13 @@ const userRoutes: FastifyPluginAsync = async (fastify) => {
 		// fastify.log.info("Gateway received POST request for /register")
 		// fastify.log.info({ body: request.body }, "Request body")
 		return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/auth/login`, 'POST');
+	});
+
+	// Guest login route
+	fastify.post('/auth/guest', async (request, reply) => {
+		fastify.log.info("Gateway received POST request for /auth/guest");
+		fastify.log.info({ body: request.body }, "Guest login request body");
+		return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/auth/guest`, 'POST');
 	});
 
 	fastify.get('/auth/profile', async (request, reply) => {

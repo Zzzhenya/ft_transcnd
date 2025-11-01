@@ -28,14 +28,14 @@ This guide explains how to configure environment variables for the Transcendence
 | `NODE_ENV` | Environment mode | `development` | ✅ |
 | `JWT_SECRET` | Secret key for JWT tokens | `your-secret-key-change-in-production` | ✅ |
 
-### Frontend URLs (Browser-accessible)
+### Frontend URLs (Browser-accessible - HTTPS Enabled)
 
-| Variable | Description | Default | Required |
-|----------|-------------|---------|----------|
-| `VITE_API_BASE` | User service API endpoint | `http://localhost:3000/user-service` | ✅ |
-| `VITE_GATEWAY_BASE` | Gateway service endpoint | `http://localhost:3000` | ✅ |
-| `VITE_WS_BASE` | WebSocket endpoint | `ws://localhost:3000` | ✅ |
-| `FRONT_END_URL` | Frontend URL | `http://localhost:3004` | ✅ |
+| Variable | Description | Current Value | Required |
+|----------|-------------|---------------|----------|
+| `VITE_API_BASE` | API endpoints through nginx | `https://localhost/api` | ✅ |
+| `VITE_GATEWAY_BASE` | Gateway through nginx | `https://localhost/api` | ✅ |
+| `VITE_WS_BASE` | Secure WebSocket endpoint | `wss://localhost/ws` | ✅ |
+| `FRONT_END_URL` | Frontend URL for CORS | `https://localhost` | ✅ |
 
 ### Service URLs (Internal Docker network)
 
@@ -91,29 +91,40 @@ This guide explains how to configure environment variables for the Transcendence
 
 ## 🔧 Configuration Modes
 
-### Development Mode
+### ✅ Current HTTPS Development Mode (IMPLEMENTED)
 ```bash
 NODE_ENV=development
-VITE_API_BASE=http://localhost:3000/user-service
-VITE_GATEWAY_BASE=http://localhost:3000
-VITE_WS_BASE=ws://localhost:3000
+
+# Frontend URLs (Browser → nginx → gateway)
+VITE_API_BASE=https://localhost/api
+VITE_GATEWAY_BASE=https://localhost/api
+VITE_WS_BASE=wss://localhost/ws
+FRONT_END_URL=https://localhost
+
+# Backend URLs (Docker internal network)
+USER_SERVICE_URL=http://user-service:3001
+GAME_SERVICE_URL=http://game-service:3002
+LOG_SERVICE_URL=http://log-service:3003
+GATEWAY_URL=http://gateway:3000
 ```
 
-### Docker Mode
-```bash
-NODE_ENV=development
-VITE_API_BASE=http://gateway:3000/user-service
-VITE_GATEWAY_BASE=http://gateway:3000
-VITE_WS_BASE=ws://gateway:3000
-```
-
-### Production Mode
+### Production Mode (Template)
 ```bash
 NODE_ENV=production
-VITE_API_BASE=https://yourdomain.com/user-service
-VITE_GATEWAY_BASE=https://yourdomain.com
-VITE_WS_BASE=wss://yourdomain.com
+VITE_API_BASE=https://yourdomain.com/api
+VITE_GATEWAY_BASE=https://yourdomain.com/api
+VITE_WS_BASE=wss://yourdomain.com/ws
+FRONT_END_URL=https://yourdomain.com
 JWT_SECRET=your-secure-random-secret-key
+```
+
+### 🏗️ Architecture Overview
+```
+Browser (HTTPS) → nginx (SSL Termination) → Gateway (Route Orchestration) → Microservices (HTTP Internal)
+
+nginx:443 → gateway:3000 → user-service:3001
+          → gateway:3000 → game-service:3002
+          → gateway:3000 → log-service:3003
 ```
 
 ## 🛠️ Configuration Helper Script
@@ -215,12 +226,21 @@ curl http://localhost:3004
 # Check environment variables are loaded
 docker compose exec gateway env | grep -E "(USER_SERVICE_URL|GAME_SERVICE_URL)"
 
-# Test service connectivity
+# Test service connectivity (internal)
 docker compose exec gateway curl http://user-service:3001/health
 
+# Test HTTPS endpoints (external)
+curl -k https://localhost/api/health
+curl -k https://localhost/api/user-service/health
+curl -k https://localhost/api/auth/register -X POST -H "Content-Type: application/json" -d '{"username":"test","email":"test@test.com","password":"test123"}'
+
 # Check logs
+docker compose logs nginx
 docker compose logs gateway
 docker compose logs user-service
+
+# Verify health of all services
+./health-check.sh
 ```
 
 ## 📁 File Structure
