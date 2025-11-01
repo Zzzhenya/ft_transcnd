@@ -190,11 +190,12 @@ class User {
         },
         body: JSON.stringify({
           table: 'Users',
-          columns: ['id'],
+          columns: ['username'],
           filters: { username },
           limit: 1
         })
       });
+    console.log(res)
   // const row = await dbGet('SELECT * FROM Users WHERE username = ?', [username]);
   //     return row ? new User(row) : null;
   //   } catch (error) {
@@ -207,7 +208,9 @@ class User {
     }
     const data = await res.json();
     // data.data is assumed to be an array of rows
+    console.log("data: ", data)
     console.log( data.data && data.data.length > 0 ? data.data[0] : null)
+    // return data.data && data.data.length > 0 ? data.data : null;
     return data.data && data.data.length > 0 ? data.data[0] : null;
   } catch (error) {
     console.error('❌ Error finding user by username:', error);
@@ -233,7 +236,7 @@ class User {
         },
         body: JSON.stringify({
           table: 'Users',
-          columns: ['email'],
+          columns: ["id","username","email","password_hash"],
           filters: { email },
           limit: 1
         })
@@ -244,6 +247,7 @@ class User {
       const data = await res.json();
       // data.data is assumed to be an array of rows
       console.log( data.data && data.data.length > 0 ? data.data[0] : null)
+      // return data.data && data.data.length > 0 ? data.data : null;
       return data.data && data.data.length > 0 ? data.data[0] : null;
     } catch (error) {
       console.error('❌ Error finding user by email:', error);
