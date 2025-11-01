@@ -1,5 +1,22 @@
 
 export function registerTournamentRoutes(fastify, tournaments, broadcastTournamentUpdate) {
+  // List all tournaments
+  fastify.get('/tournaments', async (req, reply) => {
+    try {
+      const list = Array.from(tournaments.values()).map(t => ({
+        id: t.id,
+        name: t.name,
+        size: t.size,
+        status: t.status,
+        players: Array.from(t.playerSet || [])
+      }));
+      return reply.send({ tournaments: list });
+    } catch (err) {
+      fastify.log.error('[TournamentService] Failed to list tournaments', err);
+      return reply.code(500).send({ error: 'Internal server error' });
+    }
+  });
+
   // Player list
   fastify.get('/tournaments/:id/players', async (req, reply) => {
     const t = tournaments.get(Number(req.params.id));

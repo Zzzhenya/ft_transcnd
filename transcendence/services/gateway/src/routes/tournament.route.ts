@@ -13,6 +13,11 @@ const tournamentRoute: FastifyPluginAsync = async (fastify) => {
 		return proxyRequest(fastify, request, reply, `${TOURNAMENT_SERVICE_URL}/tournaments`, 'POST');
 	});
 
+	// List tournaments (proxy to tournament-service)
+	fastify.get('/', async (request, reply) => {
+		return proxyRequest(fastify, request, reply, `${TOURNAMENT_SERVICE_URL}/tournaments`, 'GET');
+	});
+
 	fastify.get<{Params: { id: string }}>('/:id/players', async (request, reply) => {
 		let tournId = null;
 		if (request.params) {
@@ -60,6 +65,18 @@ const tournamentRoute: FastifyPluginAsync = async (fastify) => {
 			throw fastify.httpErrors.badRequest('Missing required parameter: id');
 		}
 		return proxyRequest(fastify, request, reply, `${TOURNAMENT_SERVICE_URL}/tournaments/${tournId}/advance`, 'POST');
+	});
+
+	// Join tournament
+	fastify.post<{Params: { id: string }}>('/:id/join', async (request, reply) => {
+		let tournId = null;
+		if (request.params) {
+			var tournIdStr = request.params.id;
+			tournId = parseInt(tournIdStr.replace(/[^0-9]/g, ''),10);
+		} else {
+			throw fastify.httpErrors.badRequest('Missing required parameter: id');
+		}
+		return proxyRequest(fastify, request, reply, `${TOURNAMENT_SERVICE_URL}/tournaments/${tournId}/join`, 'POST');
 	});
 
 	fastify.get('/stats', async (request, reply) => {

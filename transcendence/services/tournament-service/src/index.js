@@ -3,22 +3,24 @@ import Fastify from 'fastify';
 import websocket from '@fastify/websocket';
 import cors from '@fastify/cors';
 
-import { broadcastTournamentUpdate } from '../tournament/broadcast.js';
-import { registerTournamentRoutes } from '../route/tournamentRoute.js';
-import { registercreateTournamentService } from '../tournament/createTournament.js';
-import { registertournamentStatsRoute } from '../route/tournamentStats.js';
-import { registerhealthRoute } from '../route/healthRoute.js';
-import { registerWebSocketRoute } from '../websocket/tournamentwebsocket.js';
+import { createBroadcast } from './tournament/broadcast.js';
+import { registerTournamentRoutes } from './route/tournamentRoute.js';
+import { registercreateTournamentService } from './tournament/createTournament.js';
+import { registertournamentStatsRoute } from './route/tournamentStats.js';
+import { healthRoute } from './route/healthRoute.js';
+import { registerWebSocketRoute } from './websocket/tournamentWebsocket.js';
 
 const fastify = Fastify({ logger: true });
 await fastify.register(websocket);
 await fastify.register(cors, { origin: '*' });
 
-// const tournaments = new Map();
-// let nextTournamentId = 1;
+const tournaments = new Map();
+let nextTournamentId = 1;
+// create a broadcast helper bound to our tournaments map
+const broadcastTournamentUpdate = createBroadcast(tournaments);
 
 // --- Route registrations ---
-registerhealthRoute(fastify);
+await fastify.register(healthRoute);
 registercreateTournamentService(fastify, tournaments, () => nextTournamentId++);
 registerTournamentRoutes(fastify, tournaments, broadcastTournamentUpdate);
 registertournamentStatsRoute(fastify, tournaments);
