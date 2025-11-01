@@ -1,25 +1,14 @@
+
 FROM node:18-alpine
 
-WORKDIR /app
+WORKDIR /app/shared
 
 # Copy shared folder content INTO the image
-# COPY ../../shared/package*.json ./
-# COPY ../../shared/database ./database
-# COPY ../../shared/config ./config
-# COPY ../../shared/types ./types
-# COPY ../../shared/utils ./utils
-
-#COPY ./package*.json ./
-#COPY ./database ./database
-#COPY ./config ./config
-#COPY ./types ./types
-#COPY ./utils ./utils
-
-COPY package*.json ./
-
-RUN npm install
-
-COPY . .
+COPY ../../shared/package*.json ./
+COPY ../../shared/database ./database
+COPY ../../shared/config ./config
+COPY ../../shared/types ./types
+COPY ../../shared/utils ./utils
 
 # Testdata
 # COPY ../database/test_db_data.sh test_db_data.sh
@@ -29,11 +18,10 @@ COPY . .
 #     chmod +x clear_db.sh
 
 # Install dependencies
-# RUN npm install
-#RUN npm install
+RUN npm install
 
 # Set working directory
-# WORKDIR /app/shared
+WORKDIR /app/shared
 
 # Init database and keep container running
 CMD ["sh", "-c", "npm run db:init && tail -f /dev/null"]

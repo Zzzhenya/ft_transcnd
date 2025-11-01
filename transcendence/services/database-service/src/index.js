@@ -16,15 +16,20 @@ const DB_PATH = process.env.DATABASE_URL
   ? process.env.DATABASE_URL.replace('sqlite:', '')
   : '/app/shared/database/transcendence.db';
 
-const dirPath = '/app/shared/database';
-const fileName = 'transcendence.db'
+console.log(`Waiting for ${DB_PATH} ...`);
 
-const watcher = fs.watch(dirPath, (eventType, changedFile) => {
-  if (changedFile === fileName) {
+const interval = setInterval(() => {
+  if (fs.existsSync(DB_PATH)) {
     console.log(`✅ File detected: ${DB_PATH}`);
-    watcher.close();
+    clearInterval(interval);
+
+    // Wait 5 more seconds
+    setTimeout(() => {
+      console.log('⏱️ 5 extra seconds passed. Proceeding...');
+      // continue your logic here
+    }, 5000);
   }
-});
+}, 5000);
 
 // const dir = path.dirname(DB_PATH);
 // if (!fs.existsSync(dir)) {
