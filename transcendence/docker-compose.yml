@@ -1,8 +1,28 @@
 services:
+  nginx:
+    image: nginx:alpine
+    container_name: transcendence-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - gateway
+      - frontend
+    networks:
+      - transcendence-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
   gateway:
     build: ./services/gateway
-    ports:
-      - "${GATEWAY_PORT:-3000}:${GATEWAY_PORT:-3000}"
+    #ports:
+    #  - "${GATEWAY_PORT:-3000}:${GATEWAY_PORT:-3000}"
     env_file:
       - .env
     environment:
@@ -18,7 +38,7 @@ services:
       - log-service
       - database
     volumes:
-      - shared-data:/app/shared
+      - shared-data:/app/shared/
     networks:
       - transcendence-network
     healthcheck:
@@ -40,8 +60,9 @@ services:
       - LOG_SERVICE_URL=${LOG_SERVICE_URL:-http://log-service:3003}
     depends_on:
       - database
-    volumes:
-      - shared-data:/app/shared
+    # volumes:
+    #   # - shared-data:/app/shared/database/
+    #   - shared-data:/app/shared/
     networks:
       - transcendence-network
     healthcheck:
@@ -66,7 +87,7 @@ services:
     depends_on:
       - database
     volumes:
-      - shared-data:/app/shared
+      - shared-data:/app/shared/
     networks:
       - transcendence-network
     healthcheck:
@@ -86,7 +107,7 @@ services:
     depends_on:
       - database
     volumes:
-      - shared-data:/app/shared
+      - shared-data:/app/shared/
     networks:
       - transcendence-network
     healthcheck:
@@ -259,7 +280,7 @@ services:
     depends_on:
       - database
     volumes:
-      - shared-data:/app/shared
+      - shared-data:/app/shared/
     networks:
       - transcendence-network
     healthcheck:
@@ -289,13 +310,41 @@ services:
     depends_on:
       - gateway
 
+  # database:
+  #   image: alpine:latest
+  #   command: sh -c "mkdir -p /shared/database && touch /shared/database/transcendence.db && tail -f /dev/null"
+  #   volumes:
+  #     - shared-data:/shared
+  #   networks:
+  #     - transcendence-network
+
   database:
-    image: alpine:latest
-    command: sh -c "mkdir -p /shared/database && touch /shared/database/transcendence.db && tail -f /dev/null"
+    build:
+      context: .  # ← Root context
+      dockerfile: ./services/database/Dockerfile
+    container_name: transcendence-database
     volumes:
-      - shared-data:/shared
-    networks:
-      - transcendence-network
+      - shared-data:/app/shared
+    environment:
+      - NODE_ENV=development
+    # build: ./services/database
+    # volumes:
+    #   - shared-data:/app/shared/database/
+    # environment:
+    #   - NODE_ENV=development
+
+  # sqlite-web:
+  #   image: ghcr.io/coleifer/sqlite-web:latest
+  #   container_name: sqlite-web
+  #   restart: unless-stopped
+  #   networks:
+  #     - transcendence-network
+  #   ports:
+  #     - "127.0.0.1:8080:8080"  # Bind to localhost only
+  #   volumes:
+  #     - shared-data:/shared
+  #   environment:
+  #     SQLITE_DATABASE: /shared/test-db/pong.sqlite
 
   sqlite-web:
     image: ghcr.io/coleifer/sqlite-web:latest
@@ -304,11 +353,38 @@ services:
     networks:
       - transcendence-network
     ports:
-      - "127.0.0.1:8080:8080"  # Bind to localhost only
+      - "127.0.0.1:8080:8080"
+      # - "8082:8080"
     volumes:
-      - shared-data:/shared
+      - shared-data:/app/shared/
+    command: ["sqlite_web", "/app/shared/database/transcendence.db", "--host", "0.0.0.0", "--port", "8080"]
+    depends_on:
+      - database
+    labels:
+      - "com.transcendence.description=SQLite Web Admin Interface"
+
+  database-service:
+    build: ./services/database-service
+    # ports:
+    #   - "3006:3006"
     environment:
-      SQLITE_DATABASE: /shared/test-db/pong.sqlite
+      - NODE_ENV=${NODE_ENV:-development}
+      - DATABASE_URL=${DATABASE_URL:-sqlite:/app/shared/database/transcendence.db}
+      - PORT=3006
+    depends_on:
+      - database
+    volumes:
+      - shared-data:/app/shared/
+      # - shared-data:/app/shared
+      # - shared-data:/shared
+    networks:
+      - transcendence-network
+    # healthcheck:
+    #   test: ["CMD", "curl", "-f", "http://localhost:3006/health"]
+    #   interval: 15s
+    #   timeout: 5s
+    #   retries: 3
+    #   start_period: 30s
 
   testdb:
     build: ./services/testdb-service
@@ -317,7 +393,7 @@ services:
     # ports:
     #   - "3010:"  # Docker internal port for testdb
     volumes:
-      - shared-data:/shared
+      - shared-data:/app/shared/
 
   health-checker:
     image: curlimages/curl

@@ -5,10 +5,9 @@ on:
     branches:
       - user-service
       - main
-      - dev-environ-node-gateway
-      - integration-gateway-pong-front
       - log-service
-      - upstream_timeouts
+      - db-service-api
+      - microservices-refactor
 
     # No paths restriction for push - always run when pushing to these branches
   pull_request:
@@ -154,22 +153,34 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Generate SSL certificates for HTTPS testing
+        run: |
+          cd transcendence
+          echo "🔐 Generating SSL certificates for testing..."
+          chmod +x generate-ssl.sh
+          ./generate-ssl.sh
+          
       - name: Create test .env file for user service tests
         run: |
           cd transcendence
           cat > .env << EOF
+          # CI/CD Override values - NOT FOR PRODUCTION
           NODE_ENV=test
-          DATABASE_URL=sqlite:/app/shared/transcendence.db
-          JWT_SECRET=test-secret-key-for-ci-only-not-secure
+          DATABASE_URL=sqlite:/app/shared/database/transcendence.db
+          JWT_SECRET=ci-test-secret-not-for-production
+          
+          # Frontend URLs (Browser → nginx → gateway) - HTTPS for production, HTTP for CI
+          VITE_API_BASE=https://localhost/api
+          VITE_GATEWAY_BASE=https://localhost/api
+          VITE_WS_BASE=wss://localhost/ws
+          FRONT_END_URL=https://localhost
+          
+          # Backend URLs (Docker internal network)
           USER_SERVICE_URL=http://user-service:3001
           GAME_SERVICE_URL=http://game-service:3002
           LOG_SERVICE_URL=http://log-service:3003
-          TOURNAMENT_SERVICE_URL=http://tournament-service:3004
-          VITE_API_URL=http://localhost:3000
-          VITE_USER_SERVICE_URL=http://localhost:3000/user-service
-          VITE_GAME_SERVICE_URL=http://localhost:3000/game-service
-          VITE_LOG_SERVICE_URL=http://localhost:3000/log-service
-          VITE_TOURNAMENT_SERVICE_URL=http://localhost:3000/tournament-service
+          TOURNAMENT_SERVICE_URL=http://tournament-service:3005
+          GATEWAY_URL=http://gateway:3000
           # Service ports
           GATEWAY_PORT=3000
           USER_SERVICE_PORT=3001
@@ -193,11 +204,11 @@ jobs:
           cd transcendence
           echo "🚀 Starting services for testing..."
           
-          # Start services via gateway
-          docker compose up -d database user-service log-service gateway
+          # Start services with nginx proxy for HTTPS testing
+          docker compose up -d database database-service user-service log-service gateway nginx
           
           echo "⏳ Waiting for services to initialize..."
-          sleep 45
+          sleep 60
 
       - name: Wait for services to be ready
         run: |
@@ -208,13 +219,13 @@ jobs:
           elapsed=0
           
           while [ $elapsed -lt $timeout ]; do
-            # Check gateway health
-            if curl -f -s http://localhost:3000/health > /dev/null 2>&1; then
-              echo "✅ Gateway is ready!"
+            # Check nginx health (HTTPS endpoint)
+            if curl -k -f -s https://localhost/api/health > /dev/null 2>&1; then
+              echo "✅ nginx + Gateway is ready!"
               
-              # Check user-service through gateway
-              if curl -f -s http://localhost:3000/user-service/health > /dev/null 2>&1; then
-                echo "✅ User service accessible via gateway!"
+              # Check user-service through nginx → gateway
+              if curl -k -f -s https://localhost/api/user-service/health > /dev/null 2>&1; then
+                echo "✅ User service accessible via nginx → gateway!"
                 break
               fi
             fi
@@ -239,11 +250,11 @@ jobs:
         run: |
           echo "🧪 Running API integration tests..."
           
-          BASE_URL="http://localhost:3000/user-service"
+          BASE_URL="https://localhost/api"
           
           # Test 1: Health Check
           echo "1. Testing health endpoint..."
-          HEALTH_RESPONSE=$(curl -s "$BASE_URL/health")
+          HEALTH_RESPONSE=$(curl -k -s "$BASE_URL/user-service/health")
           echo "Response: $HEALTH_RESPONSE"
           
           if echo "$HEALTH_RESPONSE" | grep -q "healthy"; then
@@ -257,7 +268,7 @@ jobs:
           echo "2. Testing user registration..."
           UNIQUE_ID=$(date +%s)
           
-          REGISTER_RESPONSE=$(curl -s -w "\n%{http_code}" \
+          REGISTER_RESPONSE=$(curl -k -s -w "\n%{http_code}" \
             -X POST "$BASE_URL/auth/register" \
             -H "Content-Type: application/json" \
             -d "{
@@ -285,7 +296,7 @@ jobs:
           # Test 3: User Login
           echo "3. Testing user login..."
           
-          LOGIN_RESPONSE=$(curl -s -w "\n%{http_code}" \
+          LOGIN_RESPONSE=$(curl -k -s -w "\n%{http_code}" \
             -X POST "$BASE_URL/auth/login" \
             -H "Content-Type: application/json" \
             -d "{
@@ -310,7 +321,7 @@ jobs:
           if [ ! -z "$TOKEN" ]; then
             echo "4. Testing protected profile endpoint..."
             
-            PROFILE_RESPONSE=$(curl -s -w "\n%{http_code}" \
+            PROFILE_RESPONSE=$(curl -k -s -w "\n%{http_code}" \
               -X GET "$BASE_URL/auth/profile" \
               -H "Authorization: Bearer $TOKEN")
             
@@ -334,11 +345,11 @@ jobs:
         run: |
           echo "🧪 Testing API error handling..."
           
-          BASE_URL="http://localhost:3000/user-service"
+          BASE_URL="https://localhost/api"
           
           # Test invalid registration
           echo "Testing invalid registration data..."
-          RESPONSE=$(curl -s -w "\n%{http_code}" \
+          RESPONSE=$(curl -k -s -w "\n%{http_code}" \
             -X POST "$BASE_URL/auth/register" \
             -H "Content-Type: application/json" \
             -d '{"username": "test"}')
@@ -353,7 +364,7 @@ jobs:
           
           # Test invalid login
           echo "Testing invalid login credentials..."
-          RESPONSE=$(curl -s -w "\n%{http_code}" \
+          RESPONSE=$(curl -k -s -w "\n%{http_code}" \
             -X POST "$BASE_URL/auth/login" \
             -H "Content-Type: application/json" \
             -d '{"email": "nonexistent@example.com", "password": "wrong"}')
@@ -368,7 +379,7 @@ jobs:
           
           # Test protected endpoint without token
           echo "Testing protected endpoint without authentication..."
-          RESPONSE=$(curl -s -w "\n%{http_code}" \
+          RESPONSE=$(curl -k -s -w "\n%{http_code}" \
             -X GET "$BASE_URL/auth/profile")
           
           HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
@@ -390,6 +401,9 @@ jobs:
           
           echo "=== Gateway Logs ==="
           docker compose logs gateway | tail -100
+          
+          echo "=== Database Service Logs ==="
+          docker compose logs database-service | tail -100
           
           echo "=== Container Status ==="
           docker compose ps

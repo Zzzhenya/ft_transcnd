@@ -1,7 +1,7 @@
-// services/authService.js
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const logger = require('../utils/logger');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
@@ -15,21 +15,26 @@ class AuthService {
       }
 
       const existingUsername = await User.findByUsername(username);
+
+      logger.info(existingUsername);
+
       if (existingUsername) {
         throw new Error('Username already taken');
       }
 
-      // Passwort hashen
+      // Hash password
       const hashedPassword = await bcrypt.hash(password, 10);
 
-      // Benutzer erstellen
+      // Create user
       const newUser = await User.create({
         username,
         email,
-        password: hashedPassword
+        password: hashedPassword // User.create will map this to password_hash
       });
 
-      // JWT Token erstellen
+      if (!newUser)
+        throw new Error('User create failed')
+      // Generate JWT
       const token = jwt.sign(
         { userId: newUser.id, username: newUser.username },
         JWT_SECRET,
@@ -40,7 +45,8 @@ class AuthService {
         user: {
           id: newUser.id,
           username: newUser.username,
-          email: newUser.email
+          email: newUser.email,
+          display_name: newUser.display_name || newUser.username
         },
         token
       };
@@ -50,64 +56,35 @@ class AuthService {
     }
   }
 
-  // FEHLENDE FUNKTION HINZUGEFÜGT: validateUser
-  static async validateUser(username, password) {
+  static async login(usernameOrEmail, password) {
     try {
-      console.log('validateUser called with:', { username, password: '***' });
-      
-      // Benutzer finden (erst nach username, dann email)
-      let user = await User.findByUsername(username);
-      
-      // Falls nicht mit username gefunden, versuche email
+      // Find user by username or email
+      console.log("username: ", usernameOrEmail, " password: ", password)
+      let user = await User.findByUsername(usernameOrEmail);
+      console.log("user: ", user)
       if (!user) {
-        user = await User.findByEmail(username);
-      }
-      
-      console.log('User found:', user ? user.username : 'null');
-      
-      if (!user) {
-        return null; // User nicht gefunden
+        user = await User.findByEmail(usernameOrEmail);
+        console.log("user: ", user)
       }
 
-      // Passwort prüfen
-      const isValidPassword = await bcrypt.compare(password, user.password);
-      console.log('Password valid:', isValidPassword);
-      
-      if (!isValidPassword) {
-        return null; // Falsches Passwort
-      }
-
-      return user; // Erfolgreiche Validierung
-    } catch (error) {
-      console.error('Error in validateUser:', error);
-      return null;
-    }
-  }
-
-  // FEHLENDE FUNKTION HINZUGEFÜGT: generateToken
-  static generateToken(user) {
-    return jwt.sign(
-      { userId: user.id, username: user.username },
-      JWT_SECRET,
-      { expiresIn: '24h' }
-    );
-  }
-
-  static async login(email, password) {
-    try {
-      // Find user
-      const user = await User.findByEmail(email);
       if (!user) {
         throw new Error('Invalid credentials');
       }
+
+      console.log(user)
+      if (!user.password_hash){
+        throw new Error('Password is required');
+
+      }
+
 
       // Check password
-      const isValidPassword = await bcrypt.compare(password, user.password);
+      const isValidPassword = await bcrypt.compare(password, user.password_hash);  // ← password_hash!
       if (!isValidPassword) {
         throw new Error('Invalid credentials');
       }
 
-      // JWT Token erstellen
+      // Generate JWT
       const token = jwt.sign(
         { userId: user.id, username: user.username },
         JWT_SECRET,
@@ -118,7 +95,8 @@ class AuthService {
         user: {
           id: user.id,
           username: user.username,
-          email: user.email
+          email: user.email,
+          display_name: user.display_name || user.username
         },
         token
       };
@@ -134,7 +112,7 @@ class AuthService {
       const user = await User.findById(decoded.userId);
       
       if (!user) {
-        throw new Error('Benutzer nicht gefunden');
+        throw new Error('User not found');
       }
 
       return {
@@ -148,31 +126,33 @@ class AuthService {
     }
   }
 
+  /* Direct db access limitation - temp
+
   static async updatePassword(userId, oldPassword, newPassword) {
     try {
       const user = await User.findById(userId);
       if (!user) {
-        throw new Error('Benutzer nicht gefunden');
+        throw new Error('User not found');
       }
 
-      // Altes Passwort prüfen
-      const isValidPassword = await bcrypt.compare(oldPassword, user.password);
+      // Check old password
+      const isValidPassword = await bcrypt.compare(oldPassword, user.password_hash);  // ← password_hash!
       if (!isValidPassword) {
-        throw new Error('Altes Passwort ist falsch');
+        throw new Error('Old password is incorrect');
       }
 
-      // Neues Passwort hashen
+      // Hash new password
       const hashedPassword = await bcrypt.hash(newPassword, 10);
 
-      // Passwort aktualisieren
-      await User.update(userId, { password: hashedPassword });
+      // Update password
+      await User.update(userId, { password_hash: hashedPassword });  // ← password_hash!
 
-      return { message: 'Passwort erfolgreich geändert' };
+      return { message: 'Password successfully changed' };
     } catch (error) {
       console.error('Error in updatePassword:', error);
       throw error;
     }
-  }
+  }*/
 }
 
 module.exports = AuthService;
