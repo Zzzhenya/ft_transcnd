@@ -242,6 +242,43 @@ fastify.get('/internal/read', async (request, reply) => {
   return { success: true, data: row };
 });
 
+// ✏️ /internal/users
+fastify.post('/internal/users', async (request, reply) => {
+  const { table, action, values } = request.body;
+
+  if (!table || action !== 'insert' || !values) {
+    return reply.code(400).send({ error: 'Missing or invalid parameters' });
+  }
+
+  if (!allowedTables[table]) {
+    return reply.code(400).send({ error: 'Invalid table name' });
+  }
+
+  // Validate all provided columns
+  const cols = Object.keys(values);
+  const invalidCols = cols.filter(c => !validateTableColumn(table, c));
+  if (invalidCols.length > 0) {
+    return reply.code(400).send({ error: 'Invalid column(s)', invalidCols });
+  }
+
+  // Build SQL dynamically
+  const placeholders = cols.map(() => '?').join(', ');
+  const sql = `INSERT INTO ${safeIdentifier(table)} (${cols.map(safeIdentifier).join(', ')}) VALUES (${placeholders})`;
+
+  try {
+    const result = await writeQueue.add(() =>
+      db.transaction(() => dbRun(sql, Object.values(values)))()
+    );
+
+    // ✅ Return the same shape as dbRun does
+    return { success: true, id: result.id, changes: result.changes };
+  } catch (err) {
+    fastify.log.error(err);
+    return reply.code(500).send({ error: 'Database insert failed', details: err.message });
+  }
+});
+
+
 // ✏️ WRITE
 fastify.post('/internal/write', async (request, reply) => {
   const { table, id, column, value } = request.body;
