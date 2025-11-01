@@ -18,7 +18,7 @@ services:
       - log-service
       - database
     volumes:
-      - shared-data:/app/shared/database/
+      - shared-data:/app/shared/
     networks:
       - transcendence-network
     healthcheck:
@@ -42,7 +42,7 @@ services:
       - database
     volumes:
       # - shared-data:/app/shared/database/
-      - shared-data:/app/shared/database/
+      - shared-data:/app/shared/
     networks:
       - transcendence-network
     healthcheck:
@@ -67,7 +67,7 @@ services:
     depends_on:
       - database
     volumes:
-      - shared-data:/app/shared/database/
+      - shared-data:/app/shared/
     networks:
       - transcendence-network
     healthcheck:
@@ -87,7 +87,7 @@ services:
     depends_on:
       - database
     volumes:
-      - shared-data:/app/shared/database/
+      - shared-data:/app/shared/
     networks:
       - transcendence-network
     healthcheck:
@@ -260,7 +260,7 @@ services:
     depends_on:
       - database
     volumes:
-      - shared-data:/app/shared/database/
+      - shared-data:/app/shared/
     networks:
       - transcendence-network
     healthcheck:
@@ -336,7 +336,7 @@ services:
       - "127.0.0.1:8080:8080"
       # - "8082:8080"
     volumes:
-      - shared-data:/app/shared/database/
+      - shared-data:/app/shared/
     command: ["sqlite_web", "/app/shared/database/transcendence.db", "--host", "0.0.0.0", "--port", "8080"]
     depends_on:
       - database
@@ -354,7 +354,7 @@ services:
     depends_on:
       - database
     volumes:
-      - shared-data:/app/shared/database/
+      - shared-data:/app/shared/
       # - shared-data:/app/shared
       # - shared-data:/shared
     networks:
@@ -373,7 +373,7 @@ services:
     # ports:
     #   - "3010:"  # Docker internal port for testdb
     volumes:
-      - shared-data:/app/shared/database/
+      - shared-data:/app/shared/
 
   health-checker:
     image: curlimages/curl
