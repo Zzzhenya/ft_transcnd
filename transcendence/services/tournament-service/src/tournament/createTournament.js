@@ -4,11 +4,15 @@ import { generateBracket } from './createBracket.js';
 export function registercreateTournamentService(fastify, tournaments, getNextTournamentId) {
   fastify.post('/tournaments', async (request, reply) => {
     const { creator, size, name } = request.body;
+    
+    // Validate required fields
     if (!creator || (size !== 4 && size !== 8)) {
       return reply.code(400).send({ error: 'Missing creator or invalid size (must be 4 or 8)' });
     }
 
+    // Backend generates the tournament ID
     const tournamentId = getNextTournamentId();
+
     const playerSet = new Set([creator]);
 
     const tournament = {
