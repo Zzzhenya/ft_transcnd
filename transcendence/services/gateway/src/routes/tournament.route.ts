@@ -79,6 +79,22 @@ const tournamentRoute: FastifyPluginAsync = async (fastify) => {
 		return proxyRequest(fastify, request, reply, `${TOURNAMENT_SERVICE_URL}/tournaments/${tournId}/join`, 'POST');
 	});
 
+	// Start tournament
+	fastify.post<{Params: { id: string }}>('/:id/start', async (request, reply) => {
+		let tournId = null;
+		if (request.params) {
+			var tournIdStr = request.params.id;
+			tournId = parseInt(tournIdStr.replace(/[^0-9]/g, ''),10);
+			logger.info(`[[Gateway]] Gateway received POST request for /tournaments/${tournId}/start`)
+			fastify.log.info(`[[Gateway]] Gateway received POST request for /tournaments/${tournId}/start`)
+		} else {
+			logger.info(`[[Gateway]] 400 :Bad Request at /tournaments/:id/start :Required request parameter is missing`)
+			fastify.log.info(`[[Gateway]] 400 :Bad Request at /tournaments/:id/start :Required request parameter is missing`)
+			throw fastify.httpErrors.badRequest('Missing required parameter: id');
+		}
+		return proxyRequest(fastify, request, reply, `${TOURNAMENT_SERVICE_URL}/tournaments/${tournId}/start`, 'POST');
+	});
+
 	fastify.get('/stats', async (request, reply) => {
 		return proxyRequest(fastify, request, reply, `${TOURNAMENT_SERVICE_URL}/stats`, 'GET');
 	});

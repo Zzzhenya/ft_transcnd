@@ -2,8 +2,22 @@
 import { navigate } from "@/app/router";
 
 export default function (root: HTMLElement, ctx: any) {
-  const playerNames: string[] = ctx?.players
-    || JSON.parse(sessionStorage.getItem("tournamentPlayers") || '["Player 1","Player 2"]');
+  // Get match info from sessionStorage
+  const matchId = sessionStorage.getItem("currentMatchId") || "0";
+  const tournamentId = sessionStorage.getItem("currentTournamentId");
+  const matchPlayersStr = sessionStorage.getItem("currentMatchPlayers");
+  
+  let playerNames: string[] = [];
+  if (matchPlayersStr) {
+    try {
+      playerNames = JSON.parse(matchPlayersStr);
+    } catch (e) {
+      playerNames = ["Player 1", "Player 2"];
+    }
+  } else {
+    playerNames = ctx?.players || JSON.parse(sessionStorage.getItem("tournamentPlayers") || '["Player 1","Player 2"]');
+  }
+  
   let player1Name = playerNames[0] || "Player 1";
   let player2Name = playerNames[1] || "Player 2";
 
@@ -77,7 +91,7 @@ export default function (root: HTMLElement, ctx: any) {
     try {
       updateStatus('🔄 Creating tournament match...');
       updateConnectionStatus('📡 Connecting to gateway...');
-      const response = await fetch('http://localhost:3000/ws/pong/demo', {
+      const response = await fetch('http://localhost:3000/pong/demo', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ players: [player1Name, player2Name] })
@@ -149,12 +163,50 @@ export default function (root: HTMLElement, ctx: any) {
 
   let hasSentStartGame = false;
 
+async function reportWinner(winnerName: string) {
+  if (!tournamentId || !matchId) {
+    console.log("No tournament context - skipping winner report");
+    return;
+  }
+  
+  try {
+    console.log(`Reporting winner: ${winnerName} for match ${matchId} in tournament ${tournamentId}`);
+    const response = await fetch(`http://localhost:3000/tournaments/${tournamentId}/advance`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ matchId: matchId, winner: winnerName })
+    });
+    
+    if (response.ok) {
+      const result = await response.json();
+      console.log(`Winner ${winnerName} reported to tournament ${tournamentId}`, result);
+    } else {
+      const errorText = await response.text();
+      console.error('Failed to report winner:', response.status, errorText);
+    }
+  } catch (error) {
+    console.error('Error reporting winner:', error);
+  }
+}
+
 function showWinnerDialog(winner: string) {
   if (!winnerDialog) return;
   let winnerDisplay = winner;
-  if (winner === "player1") winnerDisplay = player1Name;
-  else if (winner === "player2") winnerDisplay = player2Name;
-  else if (!winner) winnerDisplay = "Nobody";
+  let actualWinner = "";
+  if (winner === "player1") {
+    winnerDisplay = player1Name;
+    actualWinner = player1Name;
+  } else if (winner === "player2") {
+    winnerDisplay = player2Name;
+    actualWinner = player2Name;
+  } else if (!winner) {
+    winnerDisplay = "Nobody";
+  }
+
+  // Report winner to tournament service
+  if (actualWinner) {
+    reportWinner(actualWinner);
+  }
 
   winnerDialog.innerHTML = `
     <div class="text-3xl font-bold mb-4">🏆 Winner!</div>
@@ -164,7 +216,12 @@ function showWinnerDialog(winner: string) {
   winnerDialog.showModal();
   winnerDialog.querySelector('#winnerOkBtn')?.addEventListener('click', () => {
     winnerDialog.close();
-    navigate('/tournaments/waitingroom');
+    // Navigate back to waiting room with tournament ID
+    if (tournamentId) {
+      navigate(`/tournaments/waitingroom/${tournamentId}`);
+    } else {
+      navigate('/tournaments');
+    }
   });
 }
 
