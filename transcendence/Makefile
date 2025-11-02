@@ -73,7 +73,8 @@ start-monitoring:
 	@echo "⏳ Wait ~60 seconds for Elasticsearch & Kibana to fully initialize"
 	@echo ""
 	@echo "🔗 Access Points:"
-	@echo "  Frontend:     http://localhost:3004"
+	@echo "  Nginx:        http://localhost:8000 (HTTP) / https://localhost:8443 (HTTPS)"
+	@echo "  Frontend:     http://localhost:3004 (direct)"
 	@echo "  Gateway:      http://localhost:3000"
 	@echo "  Database API: http://localhost:3006"
 	@echo "  Kibana:       http://localhost:5601"
@@ -81,7 +82,7 @@ start-monitoring:
 	@echo ""
 	@echo "📊 Running health checker..."
 	@sleep 2
-	@docker compose -f docker-compose.yml run --rm health-checker || true
+#	@docker compose -f docker-compose.yml run --rm health-checker || true
 	@echo ""
 	@echo "📈 Container count:"
 	@docker ps | wc -l

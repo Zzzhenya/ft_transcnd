@@ -23,6 +23,7 @@
  */
 
 import { navigate } from "@/app/router";
+import { API_BASE, WS_BASE } from "@/app/config";
 
 export default function (root: HTMLElement, ctx: any) {
   // Get match info from sessionStorage
@@ -162,7 +163,7 @@ export default function (root: HTMLElement, ctx: any) {
     try {
       updateStatus('🔄 Creating tournament match...');
       updateConnectionStatus('📡 Connecting to gateway...');
-      const response = await fetch('http://localhost:3000/pong/demo', {
+      const response = await fetch(`${API_BASE}/pong/demo`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ players: [player1Name, player2Name] })
@@ -184,7 +185,7 @@ export default function (root: HTMLElement, ctx: any) {
   function connectWebSocket(gameId: string) {
     connectionAttempts++;
     try {
-      const wsUrl = `ws://localhost:3000/ws/pong/game-ws/${gameId}`;
+      const wsUrl = `${WS_BASE}/pong/game-ws/${gameId}`;
       ws = new WebSocket(wsUrl);
       updateStatus('🔄 Connecting to match...');
       updateConnectionStatus(`🔌 WebSocket connecting... (${connectionAttempts}/${maxConnectionAttempts})`);
@@ -255,7 +256,7 @@ async function reportWinner(winnerName: string) {
   
   try {
     console.log(`Reporting winner: ${winnerName} for match ${matchId} in tournament ${tournamentId}`);
-    const response = await fetch(`http://localhost:3000/tournaments/${tournamentId}/advance`, {
+    const response = await fetch(`${API_BASE}/tournaments/${tournamentId}/advance`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ matchId: matchId, winner: winnerName })
@@ -281,7 +282,7 @@ async function markMatchAsInterrupted() {
   
   try {
     console.log(`Marking match ${matchId} as interrupted in tournament ${tournamentId}`);
-    const response = await fetch(`http://localhost:3000/tournaments/${tournamentId}/interrupt`, {
+    const response = await fetch(`${API_BASE}/tournaments/${tournamentId}/interrupt`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ matchId: matchId, reason: 'connection_timeout' })
@@ -364,7 +365,7 @@ async function forfeitMatch() {
       reason: 'player_left'
     });
     
-    const url = `http://localhost:3000/tournaments/${tournamentId}/interrupt`;
+    const url = `${API_BASE}/tournaments/${tournamentId}/interrupt`;
     console.log(`📡 Sending POST request to: ${url}`);
     console.log(`📦 Request body:`, data);
     
@@ -736,7 +737,7 @@ function showWinnerDialog(winner: string) {
         // Use navigator.sendBeacon as last resort for browser close
         const data = JSON.stringify({ matchId: matchId, reason: 'player_left' });
         navigator.sendBeacon(
-          `http://localhost:3000/tournaments/${tournamentId}/interrupt`,
+          `${API_BASE}/tournaments/${tournamentId}/interrupt`,
           new Blob([data], { type: 'application/json' })
         );
       }

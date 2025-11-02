@@ -133,8 +133,9 @@ root.innerHTML = `
     try {
       // Use the websocket URL from the backend response, but convert to wss for HTTPS
       const backendWsUrl = (window as any).gameWebSocketUrl;
+      // Use WS_BASE config for WebSocket URL
       const wsUrl = backendWsUrl ? 
-        backendWsUrl.replace('ws://localhost:3002', 'wss://localhost') : 
+        `${WS_BASE}/pong/game-ws/${gameId}` : 
         `${WS_BASE}/pong/game-ws/${gameId}`;
       console.log(`🔌 Connecting to WebSocket: ${wsUrl} (attempt ${connectionAttempts})`);
       updateStatus('🔄 Connecting to game...');
