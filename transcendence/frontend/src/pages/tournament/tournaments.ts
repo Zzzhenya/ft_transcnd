@@ -29,6 +29,7 @@
 import { getAuth } from "@/app/auth";
 import { getState } from "@/app/store";
 import { navigate } from "@/app/router";
+import { API_BASE } from "@/app/config";
 
 export default function (root: HTMLElement) {
     let tournaments: any[] = [];
@@ -42,7 +43,7 @@ export default function (root: HTMLElement) {
     sessionStorage.removeItem("tournamentPlayerTypes");
 
     async function fetchTournaments() {
-        const res = await fetch("http://localhost:3000/tournaments");
+        const res = await fetch(`${API_BASE}/tournaments`);
         const data = await res.json();
         tournaments = data.tournaments || [];
     }
@@ -200,7 +201,7 @@ export default function (root: HTMLElement) {
                 create4Btn.onclick = async () => {
                     const creator = user ? user.name : state.session.alias;
                     // Backend will generate the tournament ID
-                    const response = await fetch("http://localhost:3000/tournaments", {
+                    const response = await fetch(`${API_BASE}/tournaments`, {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({ creator, size: 4 })
@@ -223,7 +224,7 @@ export default function (root: HTMLElement) {
                 create8Btn.onclick = async () => {
                     const creator = user ? user.name : state.session.alias;
                     // Backend will generate the tournament ID
-                    const response = await fetch("http://localhost:3000/tournaments", {
+                    const response = await fetch(`${API_BASE}/tournaments`, {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({ creator, size: 8 })

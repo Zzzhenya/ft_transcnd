@@ -32,6 +32,7 @@ import { navigate } from "@/app/router";
 import { getAuth } from "@/app/auth";
 import { getState } from "@/app/store";
 import { renderTournamentWinner, attachWinnerEventListeners } from "./tournamentWinner";
+import { API_BASE, WS_BASE } from "@/app/config";
 
 export default function (root: HTMLElement, ctx: any) {
   const user = getAuth();
@@ -74,7 +75,7 @@ export default function (root: HTMLElement, ctx: any) {
     if (!tid) return;
     
     try {
-      const response = await fetch(`http://localhost:3000/tournaments`);
+      const response = await fetch(`${API_BASE}/tournaments`);
       if (response.ok) {
         const data = await response.json();
         const tournament = data.tournaments?.find((t: any) => t.id === Number(tid));
@@ -95,7 +96,7 @@ export default function (root: HTMLElement, ctx: any) {
     if (!tid) return;
     
     try {
-      const response = await fetch(`http://localhost:3000/tournaments/${tid}/bracket`);
+      const response = await fetch(`${API_BASE}/tournaments/${tid}/bracket`);
       if (response.ok) {
         const data = await response.json();
         bracket = data.bracket; // Extract the bracket object from the response
@@ -469,7 +470,7 @@ export default function (root: HTMLElement, ctx: any) {
             }
             
             // Start the tournament using the /tournaments/:id/start endpoint
-            const response = await fetch(`http://localhost:3000/tournaments/${tid}/start`, {
+            const response = await fetch(`${API_BASE}/tournaments/${tid}/start`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ 

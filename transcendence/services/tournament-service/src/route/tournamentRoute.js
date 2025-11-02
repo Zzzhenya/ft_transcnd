@@ -97,7 +97,8 @@ export function registerTournamentRoutes(fastify, tournaments, broadcastTourname
       return reply.code(400).send({ error: `Need exactly ${size} players to start` });
     }
 
-    // Add all players to tournament
+    // Clear playerSet and add all players from the request
+    t.playerSet.clear();
     players.forEach(player => t.playerSet.add(player));
     
     // Generate bracket and start tournament
