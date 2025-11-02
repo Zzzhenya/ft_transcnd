@@ -135,7 +135,6 @@ jobs:
           cat > .env << EOF
           NODE_ENV=test
           DATABASE_URL=sqlite:/app/shared/database/transcendence.db
-          DATABASE_URL=sqlite:/app/shared/database/transcendence.db
           JWT_SECRET=test-jwt-secret-key-not-for-production-use-only
           
           # Frontend URLs (Browser → nginx → gateway) - HTTPS for production testing
@@ -294,7 +293,7 @@ jobs:
           grep -A 5 "healthcheck:" docker-compose.yml | grep -A 3 "nginx" || echo "nginx healthcheck not found"
           
           # Start services with nginx proxy for full HTTPS architecture testing
-          docker compose up -d --build database user-service gateway nginx
+          docker compose up -d --build database database-service user-service gateway nginx
           
           echo "⏳ Waiting for services to initialize..."
           sleep 30
