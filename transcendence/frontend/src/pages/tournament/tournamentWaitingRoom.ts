@@ -510,13 +510,17 @@ export default function (root: HTMLElement, ctx: any) {
 
     // Play Match buttons
     const playMatchButtons = root.querySelectorAll<HTMLButtonElement>('.play-match-btn');
+    console.log(`Found ${playMatchButtons.length} play match buttons`);
     playMatchButtons.forEach(btn => {
       btn.addEventListener('click', () => {
+        console.log('Play Match button clicked!');
         const matchId = btn.getAttribute('data-match-id');
         const player1 = btn.getAttribute('data-player1');
         const player2 = btn.getAttribute('data-player2');
         const round = btn.getAttribute('data-round');
         const matchType = btn.getAttribute('data-match-type'); // 'local' or 'remote'
+        
+        console.log('Match details:', { matchId, player1, player2, round, matchType });
         
         // Clear any old match state for this match (in case of refresh/restart)
         const tid = sessionStorage.getItem('currentTournamentId');
@@ -532,6 +536,7 @@ export default function (root: HTMLElement, ctx: any) {
         sessionStorage.setItem('currentMatchRound', round || '1');
         sessionStorage.setItem('currentMatchType', matchType || 'remote');
         
+        console.log('Navigating to /tournaments/match');
         // Navigate to match page
         navigate('/tournaments/match');
       });
