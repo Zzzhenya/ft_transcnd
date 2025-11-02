@@ -284,13 +284,12 @@ services:
       - shared-data:/app/shared/
     networks:
       - transcendence-network
-    # Healthcheck temporarily disabled - service is functional
-    # healthcheck:
-    #   test: ["CMD", "node", "-e", "require('http').get({host:'127.0.0.1',port:3005,path:'/health',family:4}, (res) => process.exit(res.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
-    #   interval: 10s
-    #   timeout: 5s
-    #   retries: 5
-    #   start_period: 20s
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get({host:'127.0.0.1',port:3005,path:'/health',family:4}, (res) => process.exit(res.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
   frontend:
     build:
