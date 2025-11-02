@@ -6,8 +6,6 @@
 SSL_DIR="./nginx/ssl"
 CERT_FILE="$SSL_DIR/certificate.crt"
 KEY_FILE="$SSL_DIR/private.key"
-CSR_FILE="$SSL_DIR/certificate.csr"
-EXT_FILE="$SSL_DIR/v3.ext"
 DAYS=365
 
 echo "🔐 Generating SSL certificates for ft_transcendence..."
@@ -19,33 +17,11 @@ mkdir -p "$SSL_DIR"
 echo "📝 Generating private key..."
 openssl genrsa -out "$KEY_FILE" 2048
 
-# Create v3 extension file for Subject Alternative Name (SAN)
-# This is compatible with older OpenSSL versions
-echo "📋 Creating v3 extension configuration..."
-cat > "$EXT_FILE" << EOF
-authorityKeyIdentifier=keyid,issuer
-basicConstraints=CA:FALSE
-keyUsage = digitalSignature, nonRepudiation, keyEncipherment, dataEncipherment
-subjectAltName = @alt_names
-
-[alt_names]
-DNS.1 = localhost
-DNS.2 = *.localhost
-IP.1 = 127.0.0.1
-EOF
-
-# Generate Certificate Signing Request (CSR)
-echo "� Generating certificate signing request..."
-openssl req -new -key "$KEY_FILE" -out "$CSR_FILE" \
-    -subj "/C=DE/ST=Berlin/L=Berlin/O=42School/OU=ft_transcendence/CN=localhost"
-
-# Generate self-signed certificate using the CSR and extension file
+# Generate certificate
 echo "📜 Generating certificate..."
-openssl x509 -req -in "$CSR_FILE" -signkey "$KEY_FILE" -out "$CERT_FILE" \
-    -days $DAYS -extfile "$EXT_FILE"
-
-# Clean up temporary files
-rm -f "$CSR_FILE" "$EXT_FILE"
+openssl req -new -x509 -key "$KEY_FILE" -out "$CERT_FILE" -days $DAYS \
+    -subj "/C=DE/ST=Berlin/L=Berlin/O=42School/OU=ft_transcendence/CN=localhost" \
+    -addext "subjectAltName=DNS:localhost,DNS:*.localhost,IP:127.0.0.1"
 
 # Set proper permissions
 chmod 600 "$KEY_FILE"
