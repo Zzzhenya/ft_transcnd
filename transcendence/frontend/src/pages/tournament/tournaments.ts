@@ -60,6 +60,24 @@ export default function (root: HTMLElement) {
                 
                 <!-- Header -->
                 <div class="text-center mb-6">
+                    <div class="flex justify-between items-center mb-4 px-4">
+                        <button id="backBtn" class="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white font-semibold transition-all">
+                            ← Back
+                        </button>
+                        ${signedIn ? `
+                            <button id="logoutBtn" class="px-4 py-2 rounded-lg bg-red-500/80 hover:bg-red-600 text-white font-semibold transition-all">
+                                Logout
+                            </button>
+                        ` : isGuest ? `
+                            <button id="loginBtn" class="px-4 py-2 rounded-lg bg-green-500/80 hover:bg-green-600 text-white font-semibold transition-all">
+                                Sign In
+                            </button>
+                        ` : `
+                            <button id="loginBtn" class="px-4 py-2 rounded-lg bg-green-500/80 hover:bg-green-600 text-white font-semibold transition-all">
+                                Sign In
+                            </button>
+                        `}
+                    </div>
                     <div class="text-5xl mb-2 filter drop-shadow-2xl">🏆</div>
                     <h1 class="text-4xl font-black text-white mb-3 tracking-tight">
                         TOURNAMENT
@@ -264,6 +282,35 @@ export default function (root: HTMLElement) {
             lobbyBtn.addEventListener('click', (e) => {
                 e.preventDefault();
                 navigate("/");
+            });
+        }
+
+        // Add event listener for logout button
+        const logoutBtn = root.querySelector<HTMLButtonElement>("#logoutBtn");
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                // Clear all storage
+                sessionStorage.clear();
+                localStorage.clear();
+                // Clear cookies
+                document.cookie.split(";").forEach(c => {
+                    document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+                });
+                // Trigger auth change event
+                window.dispatchEvent(new CustomEvent("auth:changed"));
+                // Redirect to home
+                navigate("/");
+            });
+        }
+
+        // Add event listener for login button
+        const loginBtn = root.querySelector<HTMLButtonElement>("#loginBtn");
+        if (loginBtn) {
+            loginBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                // Navigate to auth/login page
+                navigate("/auth");
             });
         }
 

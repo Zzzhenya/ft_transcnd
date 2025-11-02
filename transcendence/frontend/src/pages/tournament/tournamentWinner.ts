@@ -49,11 +49,19 @@ export function attachWinnerEventListeners(root: HTMLElement) {
   const newTournamentBtn = root.querySelector<HTMLButtonElement>("#newTournamentBtn");
   newTournamentBtn?.addEventListener("click", (e) => {
     e.preventDefault();
+    // Clear tournament data
     sessionStorage.removeItem("tournamentPlayers");
     sessionStorage.removeItem("currentTournamentId");
     sessionStorage.removeItem("currentTournamentSize");
     sessionStorage.removeItem("tournamentLocalPlayers");
     sessionStorage.removeItem("tournamentPlayerTypes");
+    
+    // Clear guest alias (force user to create new guest name for next tournament)
+    sessionStorage.removeItem("guestAlias");
+    
+    // Trigger auth change to update UI
+    window.dispatchEvent(new CustomEvent("auth:changed"));
+    
     navigate("/tournaments");
   });
 }
