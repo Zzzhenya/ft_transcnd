@@ -330,5 +330,8 @@ t: test
 h: health
 hf: health-full
 k: kibana
+db: db-status
+dbu: db-list-users
+k: kibana
 ssl: dev-ssl
 cert: ssl-cert
