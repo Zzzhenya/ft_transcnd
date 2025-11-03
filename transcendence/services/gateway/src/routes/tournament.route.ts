@@ -2,6 +2,7 @@
 import gatewayError from '../utils/gatewayError.js';
 import logger from '../utils/logger.js'; // log-service
 import { proxyRequest } from '../utils/proxyHandler.js';
+import { queueAwareProxyRequest } from '../utils/queueAwareProxyHandler.js';
 
 import type { FastifyHttpOptions, FastifyInstance, FastifyServerOptions, FastifyPluginAsync } from "fastify"
 
@@ -10,7 +11,7 @@ const TOURNAMENT_SERVICE_URL = process.env.TOURNAMENT_SERVICE_INTERNAL_URL || 'h
 const tournamentRoute: FastifyPluginAsync = async (fastify) => {
 
 	fastify.post('/', async (request, reply) => {
-		return proxyRequest(fastify, request, reply, `${TOURNAMENT_SERVICE_URL}/tournaments`, 'POST');
+		return queueAwareProxyRequest(fastify, request, reply, `${TOURNAMENT_SERVICE_URL}/tournaments`, 'POST');
 	});
 
 	// List tournaments (proxy to tournament-service)
