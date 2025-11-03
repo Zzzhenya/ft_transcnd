@@ -32,7 +32,7 @@ import { navigate } from "@/app/router";
 import { getAuth } from "@/app/auth";
 import { getState } from "@/app/store";
 import { renderTournamentWinner, attachWinnerEventListeners } from "./tournamentWinner";
-import { API_BASE, WS_BASE } from "@/app/config";
+import { API_BASE } from "@/app/config";
 
 export default function (root: HTMLElement, ctx: any) {
   const user = getAuth();
