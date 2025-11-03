@@ -9,7 +9,7 @@ on:
       - db-service-api
       - tournament_new
       - microservices-refactor
-      - fix-gateway-timeout-queue
+      #- fix-gateway-timeout-queue
 
     # No paths restriction for push - always run when pushing to these branches
   pull_request:
