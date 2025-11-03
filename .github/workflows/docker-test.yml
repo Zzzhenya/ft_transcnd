@@ -40,11 +40,11 @@ jobs:
           DATABASE_URL=sqlite:/app/shared/database/transcendence.db
           JWT_SECRET=ci-test-secret-not-for-production
           
-          # Frontend URLs (Browser → nginx → gateway) - HTTP for CI testing
-          VITE_API_BASE=http://localhost/api
-          VITE_GATEWAY_BASE=http://localhost/api
-          VITE_WS_BASE=ws://localhost/ws
-          FRONT_END_URL=http://localhost
+          # Frontend URLs (Browser → nginx → gateway) - HTTP for CI testing  
+          VITE_API_BASE=http://localhost:8000/api
+          VITE_GATEWAY_BASE=http://localhost:8000/api
+          VITE_WS_BASE=ws://localhost:8000/ws
+          FRONT_END_URL=http://localhost:8000
           
           # Backend URLs (Docker internal network)
           USER_SERVICE_URL=http://user-service:3001
@@ -258,11 +258,11 @@ jobs:
           DATABASE_URL=sqlite:/app/shared/database/transcendence.db
           JWT_SECRET=test-secret-key-for-ci-only-not-secure
           
-          # Frontend URLs (Browser → nginx → gateway) - HTTP for CI testing
-          VITE_API_BASE=http://localhost/api
-          VITE_GATEWAY_BASE=http://localhost/api
-          VITE_WS_BASE=ws://localhost/ws
-          FRONT_END_URL=http://localhost
+          # Frontend URLs (Browser → nginx → gateway) - HTTP for CI testing  
+          VITE_API_BASE=http://localhost:8000/api
+          VITE_GATEWAY_BASE=http://localhost:8000/api
+          VITE_WS_BASE=ws://localhost:8000/ws
+          FRONT_END_URL=http://localhost:8000
           
           # Backend URLs (Docker internal network)
           USER_SERVICE_URL=http://user-service:3001
@@ -314,13 +314,13 @@ jobs:
           echo "Testing Gateway via nginx proxy..."
           for i in {1..12}; do
             # Try HTTPS first, fallback to HTTP for CI
-            if curl -k -f -s https://localhost/api/health > /dev/null 2>&1; then
+            if curl -k -f -s https://localhost:8443/api/health > /dev/null 2>&1; then
               echo "✅ Gateway is responding via nginx (HTTPS)"
-              curl -k -s https://localhost/api/health
+              curl -k -s https://localhost:8443/api/health
               break
-            elif curl -f -s http://localhost/api/health > /dev/null 2>&1; then
+            elif curl -f -s http://localhost:8000/api/health > /dev/null 2>&1; then
               echo "✅ Gateway is responding via nginx (HTTP fallback)"
-              curl -s http://localhost/api/health
+              curl -s http://localhost:8000/api/health
               break
             else
               echo "⏳ Gateway + nginx not ready, attempt $i/12"
@@ -341,12 +341,12 @@ jobs:
         run: |
           echo "Testing User Service via nginx → Gateway..."
           # Detect protocol and set variables
-          if curl -k -f -s https://localhost/api/health > /dev/null 2>&1; then
-            BASE_URL="https://localhost/api"
+          if curl -k -f -s https://localhost:8443/api/health > /dev/null 2>&1; then
+            BASE_URL="https://localhost:8443/api"
             CURL_FLAGS="-k"
             echo "🔒 Using HTTPS endpoints"
           else
-            BASE_URL="http://localhost/api"
+            BASE_URL="http://localhost:8000/api"
             CURL_FLAGS=""
             echo "🔓 Using HTTP endpoints (CI fallback)"
           fi
@@ -371,11 +371,11 @@ jobs:
         run: |
           echo "Testing Game Service via nginx → Gateway..."
           # Use same protocol detection as User Service test
-          if curl -k -f -s https://localhost/api/health > /dev/null 2>&1; then
-            BASE_URL="https://localhost/api"
+          if curl -k -f -s https://localhost:8443/api/health > /dev/null 2>&1; then
+            BASE_URL="https://localhost:8443/api"
             CURL_FLAGS="-k"
           else
-            BASE_URL="http://localhost/api"
+            BASE_URL="http://localhost:8000/api"
             CURL_FLAGS=""
           fi
           
@@ -397,11 +397,11 @@ jobs:
         run: |
           echo "Testing Log Service via nginx → Gateway..."
           # Use same protocol detection
-          if curl -k -f -s https://localhost/api/health > /dev/null 2>&1; then
-            BASE_URL="https://localhost/api"
+          if curl -k -f -s https://localhost:8443/api/health > /dev/null 2>&1; then
+            BASE_URL="https://localhost:8443/api"
             CURL_FLAGS="-k"
           else
-            BASE_URL="http://localhost/api"
+            BASE_URL="http://localhost:8000/api"
             CURL_FLAGS=""
           fi
           
@@ -583,11 +583,11 @@ jobs:
           DATABASE_URL=sqlite:/app/shared/database/transcendence.db
           JWT_SECRET=dev-secret-key-for-ci-only-not-secure
           
-          # Frontend URLs (Browser → nginx → gateway) - HTTP for CI testing
-          VITE_API_BASE=http://localhost/api
-          VITE_GATEWAY_BASE=http://localhost/api
-          VITE_WS_BASE=ws://localhost/ws
-          FRONT_END_URL=http://localhost
+          # Frontend URLs (Browser → nginx → gateway) - HTTP for CI testing  
+          VITE_API_BASE=http://localhost:8000/api
+          VITE_GATEWAY_BASE=http://localhost:8000/api
+          VITE_WS_BASE=ws://localhost:8000/ws
+          FRONT_END_URL=http://localhost:8000
           
           # Backend URLs (Docker internal network)
           USER_SERVICE_URL=http://user-service:3001

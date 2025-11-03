@@ -171,11 +171,11 @@ jobs:
           DATABASE_URL=sqlite:/app/shared/database/transcendence.db
           JWT_SECRET=ci-test-secret-not-for-production
           
-          # Frontend URLs (Browser → nginx → gateway) - HTTPS for production, HTTP for CI
-          VITE_API_BASE=https://localhost/api
-          VITE_GATEWAY_BASE=https://localhost/api
-          VITE_WS_BASE=wss://localhost/ws
-          FRONT_END_URL=https://localhost
+          # Frontend URLs (Browser → nginx → gateway) - HTTPS for production testing
+          VITE_API_BASE=https://localhost:8443/api
+          VITE_GATEWAY_BASE=https://localhost:8443/api
+          VITE_WS_BASE=wss://localhost:8443/ws
+          FRONT_END_URL=https://localhost:8443
           
           # Backend URLs (Docker internal network)
           USER_SERVICE_URL=http://user-service:3001
@@ -222,11 +222,11 @@ jobs:
           
           while [ $elapsed -lt $timeout ]; do
             # Check nginx health (HTTPS endpoint)
-            if curl -k -f -s https://localhost/api/health > /dev/null 2>&1; then
+            if curl -k -f -s https://localhost:8443/api/health > /dev/null 2>&1; then
               echo "✅ nginx + Gateway is ready!"
               
               # Check user-service through nginx → gateway
-              if curl -k -f -s https://localhost/api/user-service/health > /dev/null 2>&1; then
+              if curl -k -f -s https://localhost:8443/api/user-service/health > /dev/null 2>&1; then
                 echo "✅ User service accessible via nginx → gateway!"
                 break
               fi
@@ -252,7 +252,7 @@ jobs:
         run: |
           echo "🧪 Running API integration tests..."
           
-          BASE_URL="https://localhost/api"
+          BASE_URL="https://localhost:8443/api"
           
           # Test 1: Health Check
           echo "1. Testing health endpoint..."
@@ -347,7 +347,7 @@ jobs:
         run: |
           echo "🧪 Testing API error handling..."
           
-          BASE_URL="https://localhost/api"
+          BASE_URL="https://localhost:8443/api"
           
           # Test invalid registration
           echo "Testing invalid registration data..."
