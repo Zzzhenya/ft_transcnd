@@ -1,3 +1,4 @@
+// src/app/router.ts
 // SPA 라우터: URL ↔ 페이지 모듈 매칭, a[href] 인터셉트, popstate 처리, 포커스 이동, 404 처리
 import { canEnterGame } from "./guards";
 import { getAuth } from "@/app/auth";
@@ -15,7 +16,7 @@ const routes: [RegExp, Importer][] = [
 	[/^\/$/,                    () => import("../pages/lobby") as Promise<PageModule>],
 	[/^\/lobby$/,               () => import("../pages/lobby") as Promise<PageModule>],
 	[/^\/init$/,                () => import("../pages/init") as Promise<PageModule>],
-	[/^\/local$/,               () => import("../pages/local") as Promise<PageModule>],
+	[/^\/local$/,               () => import("../pages/local-pong") as Promise<PageModule>],
 	[/^\/tournaments$/,         () => import("../pages/tournaments") as Promise<PageModule>],
 	[/^\/tournaments\/match$/,   () => import("../pages/tournamentMatch") as Promise<PageModule>],
 	[/^\/tournaments\/([^/]+)$/, () => import("../pages/tournamentWaitingRoom") as Promise<PageModule>],

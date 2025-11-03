@@ -11,6 +11,10 @@
 		"lint:fix": "eslint \"src/**/*.{ts,tsx}\" --fix",
 		"format": "prettier --write \"{src,public}/**/*.{ts,tsx,css,html}\""
 	},
+	"dependencies": {
+		"@babylonjs/core": "^6.49.0",
+		"@babylonjs/loaders": "^6.49.0"
+	},
 	"devDependencies": {
 		"@babylonjs/gui": "^6.49.0",
 		"@types/earcut": "^3.0.0",
@@ -27,8 +31,5 @@
 		"typescript": "^5.4.0",
 		"typescript-eslint": "^8.44.1",
 		"vite": "^5.4.20"
-	},
-	"dependencies": {
-		"@babylonjs/core": "^6.49.0"
 	}
 }

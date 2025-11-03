@@ -1,5 +1,4 @@
-import { GATEWAY_BASE, WS_BASE } from '../app/config.js'
-
+// src/pages/local.ts
 export default function (root: HTMLElement) {
   let gameId: string | null = null;
   let ws: WebSocket | null = null;
@@ -7,7 +6,6 @@ export default function (root: HTMLElement) {
   let ctx: CanvasRenderingContext2D;
   let player1Keys = { up: false, down: false }; // WASD keys for left paddle
   let player2Keys = { up: false, down: false }; // Arrow keys for right paddle
-
 
   let gameState: any = {
   ball: { x: 0, y: 0 },
@@ -90,15 +88,10 @@ root.innerHTML = `
       updateStatus('🔄 Creating local game...');
       updateConnectionStatus('📡 Connecting to gateway...');
       
-      const response = await fetch(`${GATEWAY_BASE}/pong/game`, {
+      const response = await fetch('http://localhost:3000/ws/pong/demo', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          player1_id: 1,
-          player1_name: "Player 1",
-          player2_id: 2,
-          player2_name: "Player 2"
-        })
+        body: JSON.stringify({})
       });
 
       if (!response.ok) {
@@ -114,10 +107,6 @@ root.innerHTML = `
 
       updateStatus(`🎮 Local game ${result.id} created successfully`);
       updateConnectionStatus('✅ Game created on backend');
-      
-      // Store the websocket URL for later use
-      (window as any).gameWebSocketUrl = result.websocketUrl;
-      
       return result.id.toString();
       
     } catch (error) {
@@ -131,11 +120,7 @@ root.innerHTML = `
   function connectWebSocket(gameId: string) {
     connectionAttempts++;
     try {
-      // Use the websocket URL from the backend response, but convert to wss for HTTPS
-      const backendWsUrl = (window as any).gameWebSocketUrl;
-      const wsUrl = backendWsUrl ? 
-        backendWsUrl.replace('ws://localhost:3002', 'wss://localhost') : 
-        `${WS_BASE}/pong/game-ws/${gameId}`;
+      const wsUrl = `ws://localhost:3000/ws/pong/game-ws/${gameId}`;
       console.log(`🔌 Connecting to WebSocket: ${wsUrl} (attempt ${connectionAttempts})`);
       updateStatus('🔄 Connecting to game...');
       updateConnectionStatus(`🔌 WebSocket connecting... (${connectionAttempts}/${maxConnectionAttempts})`);

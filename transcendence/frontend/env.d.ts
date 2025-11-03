@@ -1,3 +1,4 @@
+// env.d.ts
 // 'Type' declarations for Vite environment variables.
 // This file provides type definitions for "import.meta.env" used in the project.
 /// <reference types="vite/client" />
@@ -10,4 +11,9 @@ interface ImportMetaEnv {
 
 interface ImportMeta {
   readonly env: ImportMetaEnv;
+}
+
+declare module "*.glb" {
+	const url: string;
+	export default url;
 }
