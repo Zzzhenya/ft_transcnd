@@ -1,0 +1,198 @@
+name: Gateway Timeout Fix Tests
+
+on:
+  push:
+    branches: [ main, fix-gateway-timeout-queue ]
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'transcendence/services/gateway/**'
+      - 'transcendence/services/database-service/**'
+      - 'transcendence/.env'
+      - 'transcendence/docker-compose.yml'
+
+jobs:
+  timeout-fix-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      
+    - name: Create SSL certificates for testing
+      run: |
+        cd transcendence
+        bash generate-ssl.sh
+        
+    - name: Configure environment variables for timeout fix
+      run: |
+        cd transcendence
+        # Ensure we have the timeout fix environment variables
+        if ! grep -q "DB_QUEUE_TIMEOUT" .env; then
+          echo "" >> .env
+          echo "# Gateway Timeout Fix Configuration" >> .env
+          echo "DB_QUEUE_TIMEOUT=8000" >> .env
+          echo "DB_QUEUE_MAX_SIZE=100" >> .env
+          echo "GATEWAY_QUEUE_CHECK_ENABLED=true" >> .env
+          echo "GATEWAY_DYNAMIC_TIMEOUT=true" >> .env
+        fi
+        echo "Environment variables configured:"
+        grep -E "(DB_QUEUE_|GATEWAY_.*QUEUE|GATEWAY_.*TIMEOUT)" .env || echo "No timeout fix variables found in .env"
+        
+    - name: Build and start services
+      run: |
+        cd transcendence
+        docker-compose up -d --build
+        
+    - name: Wait for services to be ready
+      run: |
+        echo "Waiting for services to start..."
+        sleep 30
+        
+        # Wait for gateway to be healthy
+        for i in {1..30}; do
+          if curl -k -s https://localhost:8443/api/health > /dev/null; then
+            echo "Gateway is ready"
+            break
+          fi
+          echo "Waiting for gateway... ($i/30)"
+          sleep 2
+        done
+        
+        # Wait for database service to be ready
+        for i in {1..30}; do
+          if docker exec transcendence-database-service-1 curl -s http://localhost:3006/health > /dev/null; then
+            echo "Database service is ready"
+            break
+          fi
+          echo "Waiting for database service... ($i/30)"
+          sleep 2
+        done
+        
+    - name: Verify timeout fix configuration
+      run: |
+        echo "Verifying timeout fix environment variables are loaded..."
+        # Check if database service has the queue configuration
+        docker exec transcendence-database-service-1 printenv | grep -E "(DB_QUEUE_|NODE_ENV)" || echo "Queue env vars not found"
+        # Check if gateway service has the queue configuration  
+        docker exec transcendence-gateway-1 printenv | grep -E "(GATEWAY_.*QUEUE|GATEWAY_.*TIMEOUT|NODE_ENV)" || echo "Gateway env vars not found"
+        
+    - name: Test Gateway Health
+      run: |
+        echo "Testing gateway health..."
+        response=$(curl -k -s -w "%{http_code}" https://localhost:8443/api/health -o /dev/null)
+        if [ "$response" = "200" ]; then
+          echo "✅ Gateway health check passed"
+        else
+          echo "❌ Gateway health check failed (HTTP: $response)"
+          exit 1
+        fi
+        
+    - name: Test Database Service Health
+      run: |
+        echo "Testing database service health..."
+        response=$(docker exec transcendence-database-service-1 curl -s -w "%{http_code}" http://localhost:3006/health -o /dev/null)
+        if [ "$response" = "200" ]; then
+          echo "✅ Database service health check passed"
+        else
+          echo "❌ Database service health check failed (HTTP: $response)"
+          exit 1
+        fi
+        
+    - name: Test Queue Status Endpoint
+      run: |
+        echo "Testing queue status endpoint..."
+        queue_response=$(docker exec transcendence-database-service-1 curl -s http://localhost:3006/internal/queue-status)
+        if echo "$queue_response" | grep -q '"success":true'; then
+          echo "✅ Queue status endpoint is working"
+          echo "Queue Status: $queue_response"
+        else
+          echo "❌ Queue status endpoint failed"
+          echo "Response: $queue_response"
+          exit 1
+        fi
+        
+    - name: Test Timeout Fix Under Load
+      run: |
+        echo "Testing timeout fix with parallel requests..."
+        
+        # Function to send test request
+        send_request() {
+          local id=$1
+          local response=$(curl -k -s -w "%{http_code}" -X POST \
+            "https://localhost:8443/api/tournaments" \
+            -H "Content-Type: application/json" \
+            -d "{\"name\":\"CI Test Tournament $id\",\"size\":8,\"creator\":\"ci-user-$id\"}" \
+            -o "/tmp/response_$id.json" 2>/dev/null)
+          echo "Request $id: HTTP $response"
+          return $response
+        }
+        
+        # Send 8 parallel requests
+        echo "Sending 8 parallel tournament creation requests..."
+        success_count=0
+        timeout_count=0
+        error_count=0
+        
+        for i in {1..8}; do
+          send_request $i &
+        done
+        wait
+        
+        # Analyze results
+        for i in {1..8}; do
+          if [ -f "/tmp/response_$i.json" ]; then
+            response_body=$(cat "/tmp/response_$i.json")
+            if echo "$response_body" | grep -q '"id":[0-9]'; then
+              success_count=$((success_count + 1))
+              echo "✅ Request $i: Tournament created successfully"
+            elif echo "$response_body" | grep -q 'timeout\|504'; then
+              timeout_count=$((timeout_count + 1))
+              echo "⏰ Request $i: Timeout detected"
+            else
+              error_count=$((error_count + 1))
+              echo "❌ Request $i: Error - $response_body"
+            fi
+            rm -f "/tmp/response_$i.json"
+          else
+            error_count=$((error_count + 1))
+            echo "❌ Request $i: No response file"
+          fi
+        done
+        
+        echo ""
+        echo "📊 Results Summary:"
+        echo "   Successful: $success_count/8"
+        echo "   Timeouts: $timeout_count/8"
+        echo "   Errors: $error_count/8"
+        
+        # Test passes if we have at least 6/8 successful and 0 timeouts
+        if [ $timeout_count -eq 0 ] && [ $success_count -ge 6 ]; then
+          echo "✅ Timeout fix test PASSED"
+        else
+          echo "❌ Timeout fix test FAILED"
+          exit 1
+        fi
+        
+    - name: Final Queue Status Check
+      run: |
+        echo "Final queue status after load test..."
+        final_status=$(docker exec transcendence-database-service-1 curl -s http://localhost:3006/internal/queue-status)
+        echo "Final Queue Status: $final_status"
+        
+        # Verify queue is empty after processing
+        if echo "$final_status" | grep -q '"size":0.*"pending":0'; then
+          echo "✅ Queue properly cleared after processing"
+        else
+          echo "⚠️ Queue still has pending items"
+        fi
+        
+    - name: Cleanup
+      if: always()
+      run: |
+        cd transcendence
+        docker-compose down -v
+        docker system prune -f
