@@ -10,6 +10,7 @@ on:
       - db-service-api
       - experiment/rene-integration  # René integration branch
       - tournament_new
+      - tournament_new_fixed
   pull_request:
     branches:
       - user-service
