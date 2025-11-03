@@ -22,6 +22,17 @@ jobs:
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
       
+    - name: Check Docker Compose availability
+      run: |
+        if ! command -v "docker compose" &> /dev/null; then
+          echo "Docker Compose plugin not found, trying docker-compose"
+          if ! command -v docker-compose &> /dev/null; then
+            echo "Installing Docker Compose..."
+            sudo curl -L "https://github.com/docker/compose/releases/download/v2.23.0/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+            sudo chmod +x /usr/local/bin/docker-compose
+          fi
+        fi
+        
     - name: Create SSL certificates for testing
       run: |
         cd transcendence
@@ -45,7 +56,11 @@ jobs:
     - name: Build and start services
       run: |
         cd transcendence
-        docker-compose up -d --build
+        if command -v "docker compose" &> /dev/null; then
+          docker compose up -d --build
+        else
+          docker-compose up -d --build
+        fi
         
     - name: Wait for services to be ready
       run: |
@@ -194,5 +209,9 @@ jobs:
       if: always()
       run: |
         cd transcendence
-        docker-compose down -v
+        if command -v "docker compose" &> /dev/null; then
+          docker compose down -v
+        else
+          docker-compose down -v
+        fi
         docker system prune -f
