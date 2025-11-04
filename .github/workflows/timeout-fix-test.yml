@@ -186,7 +186,7 @@ jobs:
         }
         
         echo ""
-        echo "� PHASE 1: Light Load (5 requests) - Baseline functionality"
+        echo "🟢 PHASE 1: Light Load (5 requests) - Baseline functionality"
         for i in {1..5}; do
           send_request $i 1 &
         done
