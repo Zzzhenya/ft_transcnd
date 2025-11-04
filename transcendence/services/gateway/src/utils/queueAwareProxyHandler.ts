@@ -85,7 +85,7 @@ export async function queueAwareProxyRequest(
   
   try {
     // Check if this is a database operation (write operations that might use the queue)
-    const isDatabaseOperation = upstreamUrl.includes('database-service') || 
+    const isDatabaseOperation = upstreamUrl.includes('database-service') && 
                                ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method);
 
     if (isDatabaseOperation && QUEUE_CHECK_ENABLED) {
