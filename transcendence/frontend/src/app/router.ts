@@ -3,7 +3,7 @@ import { canEnterGame } from "./guards";
 import { getAuth } from "@/app/auth";
 
 
-type Cleanup = () => void;
+type Cleanup = (() => void) | (() => Promise<void>);
 type Ctx = { params?: Record<string, string>; url: URL };
 type PageModule = { default: (root: HTMLElement, ctx: Ctx) => Cleanup | void };
 type Importer = (m: RegExpMatchArray) => Promise<PageModule>;
@@ -16,9 +16,9 @@ const routes: [RegExp, Importer][] = [
 	[/^\/lobby$/,               () => import("../pages/lobby") as Promise<PageModule>],
 	[/^\/init$/,                () => import("../pages/init") as Promise<PageModule>],
 	[/^\/local$/,               () => import("../pages/local") as Promise<PageModule>],
-	[/^\/tournaments$/,         () => import("../pages/tournaments") as Promise<PageModule>],
-	[/^\/tournaments\/match$/,   () => import("../pages/tournamentMatch") as Promise<PageModule>],
-	[/^\/tournaments\/([^/]+)$/, () => import("../pages/tournamentWaitingRoom") as Promise<PageModule>],
+	[/^\/tournaments$/,         () => import("../pages/tournament/tournaments") as Promise<PageModule>],
+	[/^\/tournaments\/match$/,   () => import("../pages/tournament/tournamentMatch") as Promise<PageModule>],
+	[/^\/tournaments\/waitingroom\/([^/]+)$/, () => import("../pages/tournament/tournamentWaitingRoom") as Promise<PageModule>],
 	//[/^\/tournaments\/next$/,    () => import("../pages/tournament-next") as Promise<PageModule>],
 	[/^\/game\/([^/]+)$/,       () => import("../pages/game") as Promise<PageModule>],
 	[/^\/auth$/,                () => import("../pages/auth") as Promise<PageModule>],
@@ -67,8 +67,10 @@ export function initRouter(root: HTMLElement) {
 
 	async function render(path: string) {
 
-		// clean-up 'previous page'
-		cleanup?.();
+		// clean-up 'previous page' - await if it returns a promise
+		if (cleanup) {
+			await cleanup();
+		}
 
 		const url = new URL(path, location.origin);
 		const pathname = url.pathname;
@@ -124,8 +126,8 @@ export function initRouter(root: HTMLElement) {
 			if (re.source === "^\\/game\\/([^/]+)$") {
 				params.matchId = v;               // for pages/game.ts
 			}
-			if (re.source === "^\\/tournaments\\/([^/]+)$") {
-				params.tournamentId = v;          // (optional) if you want a named key
+			if (re.source === "^\\/tournaments\\/waitingroom\\/([^/]+)$") {
+				params.tournamentId = v;          // for waiting room
 			}
 		}
 

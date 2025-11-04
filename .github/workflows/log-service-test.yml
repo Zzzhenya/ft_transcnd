@@ -2,7 +2,7 @@ name: Log Service Tests
 
 on:
   push:
-    branches: [ main, log-service, microservices-refactor, db-service-api ]
+    branches: [ main, log-service, microservices-refactor, db-service-api, experiment/rene-integration, tournament_new, tournament_new_fixed ]
     paths:
       - 'transcendence/services/log-service/**'
       - 'transcendence/services/*/src/utils/logger.js'
@@ -36,10 +36,10 @@ jobs:
           JWT_SECRET=test-secret-key-for-ci-only-not-secure
           
           # Frontend URLs (Browser → nginx → gateway) - HTTP for CI testing
-          VITE_API_BASE=http://localhost/api
-          VITE_GATEWAY_BASE=http://localhost/api
-          VITE_WS_BASE=ws://localhost/ws
-          FRONT_END_URL=http://localhost
+          VITE_API_BASE=http://localhost:8000/api
+          VITE_GATEWAY_BASE=http://localhost:8000/api
+          VITE_WS_BASE=ws://localhost:8000/ws
+          FRONT_END_URL=http://localhost:8000
           
           # Backend URLs (Docker internal network)
           USER_SERVICE_URL=http://user-service:3001

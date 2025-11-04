@@ -18,6 +18,7 @@
   },
   "homepage": "https://github.com/Zzzhenya/ft_transcnd#readme",
   "dependencies": {
+    "@fastify/cors": "^11.1.0",
     "@fastify/websocket": "^11.2.0",
     "axios": "^1.12.2",
     "fastify": "^5.6.1",
