@@ -72,7 +72,13 @@ findFile('/app', 'transcendence.db');
 const DB_SERVICE_TOKEN = process.env.DB_SERVICE_TOKEN || 'super_secret_internal_token';
 const PORT = 3006;
 
+// =============== Timeout Configuration ===============
+const DB_QUEUE_TIMEOUT = parseInt(process.env.DB_QUEUE_TIMEOUT || '8000'); // 8 seconds
+const DB_QUEUE_MAX_SIZE = parseInt(process.env.DB_QUEUE_MAX_SIZE || '100');
+
 console.log('📍 Connecting to SQLite database at:', DB_PATH);
+console.log('⏰ Database queue timeout:', DB_QUEUE_TIMEOUT + 'ms');
+console.log('📊 Database queue max size:', DB_QUEUE_MAX_SIZE);
 
 // =============== Database Init ===============
 const db = new Database(DB_PATH);
@@ -82,7 +88,36 @@ db.pragma('foreign_keys = ON');
 
 console.log('✅ SQLite ready (WAL mode ON)');
 
-const writeQueue = new PQueue({ concurrency: 1 });
+// =============== Queue Setup with Timeout ===============
+const writeQueue = new PQueue({ 
+  concurrency: 1,
+  timeout: DB_QUEUE_TIMEOUT,
+  throwOnTimeout: true
+});
+
+// Queue monitoring
+writeQueue.on('add', () => {
+  console.log(`📥 Queue size: ${writeQueue.size}, pending: ${writeQueue.pending}`);
+});
+
+writeQueue.on('next', () => {
+  console.log(`📤 Queue processing, remaining: ${writeQueue.size}`);
+});
+
+writeQueue.on('error', (error) => {
+  console.error('❌ Queue error:', error);
+});
+
+// Function to add with timeout and queue size check
+const addToQueue = async (fn) => {
+  if (writeQueue.size >= DB_QUEUE_MAX_SIZE) {
+    throw new Error(`Queue full: ${writeQueue.size}/${DB_QUEUE_MAX_SIZE} items`);
+  }
+  
+  return writeQueue.add(fn, { 
+    timeout: DB_QUEUE_TIMEOUT 
+  });
+};
 
 // =============== Helpers ===============
 const dbRun = (sql, params = []) => db.prepare(sql).run(params);
@@ -147,7 +182,26 @@ fastify.get('/health', async () => ({
   database: 'sqlite',
   wal_mode: db.pragma('journal_mode', { simple: true }),
   tables: Object.keys(allowedTables),
+  queue: {
+    size: writeQueue.size,
+    pending: writeQueue.pending,
+    isPaused: writeQueue.isPaused
+  },
   timestamp: new Date().toISOString(),
+}));
+
+// 📊 Queue status endpoint
+fastify.get('/internal/queue-status', async () => ({
+  success: true,
+  queue: {
+    size: writeQueue.size,
+    pending: writeQueue.pending,
+    isPaused: writeQueue.isPaused,
+    maxSize: DB_QUEUE_MAX_SIZE,
+    timeout: DB_QUEUE_TIMEOUT,
+    utilization: (writeQueue.size / DB_QUEUE_MAX_SIZE) * 100
+  },
+  timestamp: new Date().toISOString()
 }));
 
 // 📑 Schema view (manual)
@@ -268,7 +322,7 @@ fastify.post('/internal/users', async (request, reply) => {
   const sql = `INSERT INTO ${safeIdentifier(table)} (${cols.map(safeIdentifier).join(', ')}) VALUES (${placeholders})`;
 
   try {
-    const result = await writeQueue.add(() =>
+    const result = await addToQueue(() =>
       db.transaction(() => dbRun(sql, Object.values(values)))()
     );
 
@@ -276,6 +330,31 @@ fastify.post('/internal/users', async (request, reply) => {
     return { success: true, id: result.id, changes: result.changes };
   } catch (err) {
     fastify.log.error(err);
+    
+    // Handle timeout errors specifically
+    if (err.name === 'TimeoutError') {
+      return reply.code(504).send({ 
+        error: 'Database operation timed out', 
+        details: 'Request took longer than expected to process',
+        queueStatus: {
+          size: writeQueue.size,
+          pending: writeQueue.pending
+        }
+      });
+    }
+    
+    // Handle queue full errors
+    if (err.message.includes('Queue full')) {
+      return reply.code(503).send({ 
+        error: 'Service temporarily unavailable', 
+        details: err.message,
+        queueStatus: {
+          size: writeQueue.size,
+          maxSize: DB_QUEUE_MAX_SIZE
+        }
+      });
+    }
+    
     return reply.code(500).send({ error: 'Database insert failed', details: err.message });
   }
 });
@@ -293,7 +372,7 @@ fastify.post('/internal/write', async (request, reply) => {
   const sql = `UPDATE ${safeIdentifier(table)} SET ${safeIdentifier(column)} = ? WHERE id = ?`;
 
   try {
-    const result = await writeQueue.add(() =>
+    const result = await addToQueue(() =>
       db.transaction(() => dbRun(sql, [value, id]))()
     );
 
@@ -303,6 +382,31 @@ fastify.post('/internal/write', async (request, reply) => {
     return { success: true, message: 'Value written successfully', changes: result.changes };
   } catch (err) {
     fastify.log.error(err);
+    
+    // Handle timeout errors specifically
+    if (err.name === 'TimeoutError') {
+      return reply.code(504).send({ 
+        error: 'Database operation timed out', 
+        details: 'Request took longer than expected to process',
+        queueStatus: {
+          size: writeQueue.size,
+          pending: writeQueue.pending
+        }
+      });
+    }
+    
+    // Handle queue full errors
+    if (err.message.includes('Queue full')) {
+      return reply.code(503).send({ 
+        error: 'Service temporarily unavailable', 
+        details: err.message,
+        queueStatus: {
+          size: writeQueue.size,
+          maxSize: DB_QUEUE_MAX_SIZE
+        }
+      });
+    }
+    
     return reply.code(500).send({ error: 'Database write failed', details: err.message });
   }
 });

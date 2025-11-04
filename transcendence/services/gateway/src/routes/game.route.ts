@@ -1,6 +1,7 @@
 // src/routes/game.route.ts
 import type { FastifyPluginAsync } from 'fastify'
 import { proxyRequest } from '../utils/proxyHandler.js';
+import { queueAwareProxyRequest } from '../utils/queueAwareProxyHandler.js';
 import gatewayError from '../utils/gatewayError.js';
 import logger from '../utils/logger.js'; // log-service
 
@@ -10,7 +11,7 @@ const gameRoute: FastifyPluginAsync = async (fastify) => {
   
   // POST /api/rooms - Create new room
   fastify.post('/rooms', async (request, reply) => {
-      return proxyRequest(fastify, request, reply, `${GAME_SERVICE_URL}/api/rooms`, 'POST');
+      return queueAwareProxyRequest(fastify, request, reply, `${GAME_SERVICE_URL}/api/rooms`, 'POST');
   });
   
   // fastify.post('/rooms', async (request, reply) => {
@@ -73,7 +74,7 @@ const gameRoute: FastifyPluginAsync = async (fastify) => {
 
   // POST /api/matchmaking/join - Quick match
   fastify.post('/matchmaking/join', async (request, reply) => {
-      return proxyRequest(fastify, request, reply, `${GAME_SERVICE_URL}/api/matchmaking/join`, 'POST');
+      return queueAwareProxyRequest(fastify, request, reply, `${GAME_SERVICE_URL}/api/matchmaking/join`, 'POST');
   });
 
   // // POST /api/matchmaking/join - Quick match

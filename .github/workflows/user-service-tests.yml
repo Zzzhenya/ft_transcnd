@@ -7,10 +7,9 @@ on:
       - main
       - log-service
       - db-service-api
-      - experiment/rene-integration  # René integration branch
       - tournament_new
       - microservices-refactor
-      - tournament_new_fixed
+      #- fix-gateway-timeout-queue
 
     # No paths restriction for push - always run when pushing to these branches
   pull_request:
