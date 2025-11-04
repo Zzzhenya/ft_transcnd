@@ -28,13 +28,16 @@ export function registerDemoRoutes(fastify, games, counters, broadcastState) {
    */
   fastify.post('/pong/demo', async (request, reply) => {
     try {
+      // Check if custom player names are provided in request body
+      const customPlayers = request.body?.players;
+      
       // Generate temporary player IDs
       const demoPlayer1Id = counters.nextPlayerId++;
       const demoPlayer2Id = counters.nextPlayerId++;
       
-      // Generate demo player names with 'd' prefix
-      const demoPlayer1Name = `player${demoPlayer1Id}`;
-      const demoPlayer2Name = `player${demoPlayer2Id}`;
+      // Use custom player names if provided, otherwise generate demo names
+      const demoPlayer1Name = (customPlayers && customPlayers[0]) || `player${demoPlayer1Id}`;
+      const demoPlayer2Name = (customPlayers && customPlayers[1]) || `player${demoPlayer2Id}`;
 
       const gameId = counters.nextGameId++;
       const state = initialGameState();

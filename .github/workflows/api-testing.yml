@@ -11,6 +11,8 @@ on:
       - log-service
       - db-service-api
       - experiment/rene-integration  # René integration branch
+      - tournament_new
+      - tournament_new_fixed
     # No paths restriction for push - always run when pushing to these branches
   pull_request:
     branches:
@@ -137,10 +139,10 @@ jobs:
           JWT_SECRET=test-jwt-secret-key-not-for-production-use-only
           
           # Frontend URLs (Browser → nginx → gateway) - HTTPS for production testing
-          VITE_API_BASE=https://localhost/api
-          VITE_GATEWAY_BASE=https://localhost/api
-          VITE_WS_BASE=wss://localhost/ws
-          FRONT_END_URL=https://localhost
+          VITE_API_BASE=https://localhost:8443/api
+          VITE_GATEWAY_BASE=https://localhost:8443/api
+          VITE_WS_BASE=wss://localhost:8443/ws
+          FRONT_END_URL=https://localhost:8443
           
           # Backend URLs (Docker internal network)
           USER_SERVICE_URL=http://user-service:3001
@@ -423,7 +425,7 @@ jobs:
             HTTPS_TEST=$(curl -k -s --connect-timeout 10 --max-time 15 \
               -w "HTTP_CODE:%{http_code} TIME:%{time_total}" \
               -o /tmp/health_check.json \
-              https://localhost/api/health 2>&1)
+              https://localhost:8443/api/health 2>&1)
             
             if echo "$HTTPS_TEST" | grep -q "HTTP_CODE:200"; then
               echo "✅ HTTPS nginx + Gateway is ready and responding"
@@ -468,7 +470,7 @@ jobs:
                 echo "   Checking SSL setup..."
                 docker compose exec -T nginx ls -la /etc/nginx/ssl/ 2>/dev/null || echo "   Cannot access SSL directory"
                 
-                # Check if nginx is listening on port 443
+                # Check if nginx is listening on port 443 (internal port)
                 docker compose exec -T nginx netstat -tln 2>/dev/null | grep :443 || echo "   nginx not listening on 443"
                 
                 # Check nginx process
@@ -497,12 +499,14 @@ jobs:
                 docker compose logs gateway | tail -30
                 echo "Port mappings:"
                 docker compose port nginx 443 || echo "No port 443 mapping"
+                echo "Expected port 8443 mapping:"
+                docker compose port nginx 8443 || echo "No port 8443 mapping"
                 echo "SSL files:"
                 docker compose exec -T nginx find /etc/nginx/ssl -type f -ls 2>/dev/null || echo "Cannot list SSL files"
                 
                 echo "Final curl debugging - testing specific SSL issues:"
                 # Test with verbose curl to see exact SSL error
-                curl -k -v --connect-timeout 10 --max-time 15 https://localhost/api/health 2>&1 | head -30
+                curl -k -v --connect-timeout 10 --max-time 15 https://localhost:8443/api/health 2>&1 | head -30
                 
                 echo "Testing if curl exit code 60 is related to SSL:"
                 # curl exit code 60 = SSL_CACERT: Peer certificate cannot be authenticated with known CA certificates
@@ -527,12 +531,12 @@ jobs:
           
           # Use HTTPS endpoint (production setup)
           echo "� Using HTTPS endpoints for testing..."
-          BASE_URL="https://localhost/api"
+          BASE_URL="https://localhost:8443/api"
           CURL_FLAGS="-k"
           
           # Verify HTTPS is working before proceeding
           echo "Verifying HTTPS connectivity..."
-          if ! curl -k -f -s --connect-timeout 15 --max-time 30 https://localhost/api/health > /dev/null 2>&1; then
+          if ! curl -k -f -s --connect-timeout 15 --max-time 30 https://localhost:8443/api/health > /dev/null 2>&1; then
             echo "❌ HTTPS endpoint is not responding"
             echo "This indicates a problem with the SSL setup or nginx configuration"
             
@@ -557,11 +561,11 @@ jobs:
           
           # Additional SSL connectivity test
           echo "🔐 Testing SSL connectivity details..."
-          echo | openssl s_client -connect localhost:443 -servername localhost 2>/dev/null | head -10
+          echo | openssl s_client -connect localhost:8443 -servername localhost 2>/dev/null | head -10
           
           # Test certificate chain
           echo "📋 SSL Certificate information:"
-          echo | openssl s_client -connect localhost:443 -servername localhost 2>/dev/null | openssl x509 -noout -subject -issuer -dates
+          echo | openssl s_client -connect localhost:8443 -servername localhost 2>/dev/null | openssl x509 -noout -subject -issuer -dates
           
           # Test Gateway Health Check (via nginx)
           echo "1. 🌐 Testing Gateway Health Check (via nginx)"
@@ -646,7 +650,7 @@ jobs:
           # First verify HTTP healthcheck works
           echo "Testing HTTP healthcheck first..."
           HTTP_HEALTH=$(curl -s --connect-timeout 10 --max-time 15 \
-            -w "HTTP_CODE:%{http_code}" http://localhost/health 2>&1)
+            -w "HTTP_CODE:%{http_code}" http://localhost:8000/health 2>&1)
           
           if echo "$HTTP_HEALTH" | grep -q "HTTP_CODE:200"; then
             echo "✅ HTTP healthcheck working"
@@ -659,12 +663,12 @@ jobs:
           HTTPS_RESPONSE=$(curl -k -v -s --connect-timeout 15 --max-time 30 \
             -w "HTTP_CODE:%{http_code} TOTAL_TIME:%{time_total} SSL_VERIFY_RESULT:%{ssl_verify_result}" \
             -o /tmp/https_test.json \
-            https://localhost/api/health 2>&1)
+            https://localhost:8443/api/health 2>&1)
           
           echo "HTTPS Response: $HTTPS_RESPONSE"
           
           if echo "$HTTPS_RESPONSE" | grep -q "HTTP_CODE:200"; then
-            GATEWAY_URL="https://localhost/api"
+            GATEWAY_URL="https://localhost:8443/api"
             CURL_FLAGS="-k"
             echo "✅ HTTPS is working correctly"
             echo "Selected base URL: $GATEWAY_URL"
@@ -693,7 +697,7 @@ jobs:
             HTTP_TEST=$(curl -v -s --connect-timeout 10 --max-time 20 \
               -w "HTTP_CODE:%{http_code}" \
               -o /tmp/http_test.json \
-              http://localhost/api/health 2>&1)
+              http://localhost:8000/api/health 2>&1)
             echo "HTTP test result: $HTTP_TEST"
             
             # This should fail because we want HTTPS to work
@@ -834,10 +838,10 @@ jobs:
             
             # Test SSL connection with more details
             echo "=== SSL Connection Test ==="
-            openssl s_client -connect localhost:443 -servername localhost -verify_return_error < /dev/null 2>&1 | head -20
+            openssl s_client -connect localhost:8443 -servername localhost -verify_return_error < /dev/null 2>&1 | head -20
             
             echo "=== Certificate chain test ==="
-            echo | openssl s_client -connect localhost:443 -servername localhost 2>/dev/null | openssl x509 -noout -subject -issuer
+            echo | openssl s_client -connect localhost:8443 -servername localhost 2>/dev/null | openssl x509 -noout -subject -issuer
             
             exit 1
           fi
@@ -919,10 +923,14 @@ jobs:
           # Gateway service is not published to host by default, so use /api via nginx
           GATEWAY_URL="http://localhost/api"
           
+          # Use HTTPS endpoint with correct port for testing
+          GATEWAY_URL="https://localhost:8443/api"
+          CURL_FLAGS="-k"
+          
           # Test registration with missing fields via Gateway
           echo "1. Testing registration with missing fields (via Gateway)"
           echo "Sending payload: {\"username\": \"test\"}"
-          INVALID_REGISTER=$(curl -s -w "%{http_code}" -o /tmp/invalid_register.json \
+          INVALID_REGISTER=$(curl $CURL_FLAGS -s -w "%{http_code}" -o /tmp/invalid_register.json \
             -X POST $GATEWAY_URL/user-service/auth/register \
             -H "Content-Type: application/json" \
             -d '{"username": "test"}')
@@ -944,7 +952,7 @@ jobs:
           # Test login with wrong credentials via Gateway
           echo "2. Testing login with invalid credentials (via Gateway)"
           echo "Sending payload: {\"email\": \"nonexistent@test.com\", \"password\": \"wrong\"}"
-          INVALID_LOGIN=$(curl -s -w "%{http_code}" -o /tmp/invalid_login.json \
+          INVALID_LOGIN=$(curl $CURL_FLAGS -s -w "%{http_code}" -o /tmp/invalid_login.json \
             -X POST $GATEWAY_URL/user-service/auth/login \
             -H "Content-Type: application/json" \
             -d '{"email": "nonexistent@test.com", "password": "wrong"}')
@@ -962,7 +970,7 @@ jobs:
           
           # Test protected route without token via Gateway
           echo "3. Testing protected route without token (via Gateway)"
-          NO_TOKEN_RESPONSE=$(curl -s -w "%{http_code}" -o /tmp/no_token.json \
+          NO_TOKEN_RESPONSE=$(curl $CURL_FLAGS -s -w "%{http_code}" -o /tmp/no_token.json \
             -X GET $GATEWAY_URL/user-service/auth/profile)
           
           if [ "$NO_TOKEN_RESPONSE" = "401" ]; then
@@ -973,7 +981,7 @@ jobs:
           
           # Test protected route with invalid token via Gateway
           echo "4. Testing protected route with invalid token (via Gateway)"
-          INVALID_TOKEN_RESPONSE=$(curl -s -w "%{http_code}" -o /tmp/invalid_token.json \
+          INVALID_TOKEN_RESPONSE=$(curl $CURL_FLAGS -s -w "%{http_code}" -o /tmp/invalid_token.json \
             -X GET $GATEWAY_URL/user-service/auth/profile \
             -H "Authorization: Bearer invalid-token")
           
@@ -994,8 +1002,9 @@ jobs:
           
           # Test duplicate user registration via Gateway
           echo "Testing duplicate user registration via Gateway"
-          # Use nginx public endpoint rather than gateway host port
-          GATEWAY_URL="http://localhost/api"
+          # Use nginx HTTPS endpoint with correct port
+          GATEWAY_URL="https://localhost:8443/api"
+          CURL_FLAGS="-k"
           
           DUPLICATE_PAYLOAD='{
             "username": "duplicate_test",
@@ -1004,12 +1013,12 @@ jobs:
           }'
           
           # First registration via Gateway
-          curl -s -X POST $GATEWAY_URL/user-service/auth/register \
+          curl $CURL_FLAGS -s -X POST $GATEWAY_URL/user-service/auth/register \
             -H "Content-Type: application/json" \
             -d "$DUPLICATE_PAYLOAD" > /dev/null
           
           # Second registration (should fail) via Gateway
-          DUPLICATE_RESPONSE=$(curl -s -w "%{http_code}" -o /tmp/duplicate.json \
+          DUPLICATE_RESPONSE=$(curl $CURL_FLAGS -s -w "%{http_code}" -o /tmp/duplicate.json \
             -X POST $GATEWAY_URL/user-service/auth/register \
             -H "Content-Type: application/json" \
             -d "$DUPLICATE_PAYLOAD")
@@ -1025,13 +1034,14 @@ jobs:
         run: |
           echo "⚡ Running basic performance tests via Gateway..."
           
-          # Use nginx public endpoint rather than gateway host port
-          GATEWAY_URL="http://localhost/api"
+          # Use nginx HTTPS endpoint with correct port
+          GATEWAY_URL="https://localhost:8443/api"
+          CURL_FLAGS="-k"
           
           # Test multiple concurrent health checks via Gateway
           echo "Testing concurrent Gateway health check requests..."
           for i in {1..10}; do
-            curl -s $GATEWAY_URL/health > /dev/null &
+            curl $CURL_FLAGS -s $GATEWAY_URL/health > /dev/null &
           done
           wait
           echo "✅ Concurrent Gateway requests handled"
@@ -1039,7 +1049,7 @@ jobs:
           # Test multiple concurrent User Service health checks via Gateway
           echo "Testing concurrent User Service health check requests via Gateway..."
           for i in {1..10}; do
-            curl -s $GATEWAY_URL/user-service/health > /dev/null &
+            curl $CURL_FLAGS -s $GATEWAY_URL/user-service/health > /dev/null &
           done
           wait
           echo "✅ Concurrent User Service requests via Gateway handled"
@@ -1047,7 +1057,7 @@ jobs:
           # Test Gateway response time
           echo "Testing Gateway response time..."
           START_TIME=$(date +%s%N)
-          curl -s $GATEWAY_URL/health > /dev/null
+          curl $CURL_FLAGS -s $GATEWAY_URL/health > /dev/null
           END_TIME=$(date +%s%N)
           RESPONSE_TIME=$(( (END_TIME - START_TIME) / 1000000 ))
           echo "Gateway response time: ${RESPONSE_TIME}ms"
@@ -1061,7 +1071,7 @@ jobs:
           # Test User Service via Gateway response time
           echo "Testing User Service via Gateway response time..."
           START_TIME=$(date +%s%N)
-          curl -s $GATEWAY_URL/user-service/health > /dev/null
+          curl $CURL_FLAGS -s $GATEWAY_URL/user-service/health > /dev/null
           END_TIME=$(date +%s%N)
           RESPONSE_TIME=$(( (END_TIME - START_TIME) / 1000000 ))
           echo "User Service via Gateway response time: ${RESPONSE_TIME}ms"
@@ -1171,11 +1181,11 @@ jobs:
           
           # Test Gateway health endpoint with 100 requests, 10 concurrent (via nginx HTTPS)
           echo "Testing Gateway health endpoint via nginx HTTPS..."
-          ab -n 100 -c 10 -k https://localhost/api/health
+          ab -n 100 -c 10 -k https://localhost:8443/api/health
           
           # Test User Service health via nginx → Gateway with 50 requests, 5 concurrent (HTTPS)
           echo "Testing User Service health via nginx → Gateway HTTPS..."
-          ab -n 50 -c 5 -k https://localhost/api/user-service/health
+          ab -n 50 -c 5 -k https://localhost:8443/api/user-service/health
           
           echo "✅ Load tests completed"
 

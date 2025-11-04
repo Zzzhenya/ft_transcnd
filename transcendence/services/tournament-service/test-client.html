@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Tournament Service Quick Test</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    body{font-family:Inter,system-ui,Segoe UI,Roboto,'Helvetica Neue',Arial;background:#111;color:#e6e6e6}
+    .wrap{max-width:900px;margin:2rem auto;background:#1b1b1b;padding:1.2rem;border-radius:8px}
+    input,select,button{font-size:14px;padding:6px;margin:4px}
+    pre{background:#0f0f0f;padding:8px;border-radius:6px;overflow:auto}
+    .row{display:flex;gap:8px;align-items:center}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h2>🏁 Tournament Service - Quick Tester</h2>
+    <p>Use this UI to call the gateway endpoints for tournaments. Adjust the <code>Base URL</code> if your gateway is on a different host/port.</p>
+
+    <div class="row">
+      <label for="base">Base URL</label>
+      <input id="base" value="http://localhost:3000" size="30">
+      <button id="refreshList">Refresh list</button>
+    </div>
+
+    <hr />
+
+    <div>
+      <h3>Create tournament</h3>
+      <div class="row">
+        <input id="creator" placeholder="creator id" value="playerA">
+        <select id="sizeSel"><option value="4">4</option><option value="8">8</option></select>
+        <input id="tname" placeholder="optional name" value="Quick Test">
+        <button id="create">Create</button>
+      </div>
+    </div>
+
+    <hr />
+
+    <div>
+      <h3>Join tournament</h3>
+      <div class="row">
+        <input id="joinTid" placeholder="tournament id" size="6">
+        <input id="joinPlayer" placeholder="player id" value="playerB">
+        <button id="join">Join</button>
+      </div>
+    </div>
+
+    <hr />
+
+    <div>
+      <h3>Fetch bracket / players</h3>
+      <div class="row">
+        <input id="fetchTid" placeholder="tournament id" size="6">
+        <button id="getPlayers">Get players</button>
+        <button id="getBracket">Get bracket</button>
+      </div>
+    </div>
+
+    <hr />
+
+    <div>
+      <h3>List tournaments</h3>
+      <pre id="list" style="min-height:60px">(no data yet)</pre>
+    </div>
+
+    <div>
+      <h3>Output</h3>
+      <pre id="out" style="min-height:120px">(logs appear here)</pre>
+    </div>
+  </div>
+
+  <script>
+    const $ = id => document.getElementById(id);
+    function log(msg){ const o = $('out'); o.textContent = (new Date()).toISOString() + '  ' + msg + '\n' + o.textContent }
+    function setList(obj){ $('list').textContent = JSON.stringify(obj, null, 2) }
+    function base(){ return $('base').value.replace(/\/$/, '') }
+
+    async function safeFetch(path, opts){
+      const url = base() + path;
+      try {
+        const res = await fetch(url, opts);
+        const content = await res.text();
+        try{ const json = JSON.parse(content); return { status: res.status, ok: res.ok, body: json } }
+        catch(e){ return { status: res.status, ok: res.ok, body: content } }
+      } catch(err){ return { status: 0, ok:false, body: String(err) } }
+    }
+
+    $('create').onclick = async () => {
+      const payload = { creator: $('creator').value || 'anon', size: Number($('sizeSel').value), name: $('tname').value || undefined };
+      log('POST /tournaments -> ' + JSON.stringify(payload));
+      const r = await safeFetch('/tournaments', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+      log('=> ' + r.status + ' ' + JSON.stringify(r.body));
+      if (r.ok && r.body && r.body.id) { $('joinTid').value = r.body.id; $('fetchTid').value = r.body.id; }
+      await refreshList();
+    }
+
+    $('join').onclick = async () => {
+      const id = $('joinTid').value; if (!id){ alert('set tournament id to join'); return }
+      const pl = $('joinPlayer').value || 'playerX';
+      log(`POST /tournaments/${id}/join -> {player: ${pl}}`);
+      const r = await safeFetch(`/tournaments/${id}/join`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ player: pl }) });
+      log('=> ' + r.status + ' ' + JSON.stringify(r.body));
+      await refreshList();
+    }
+
+    $('getPlayers').onclick = async () => {
+      const id = $('fetchTid').value; if(!id){ alert('set id'); return }
+      log('GET /tournaments/' + id + '/players');
+      const r = await safeFetch(`/tournaments/${id}/players`);
+      log('=> ' + r.status + ' ' + JSON.stringify(r.body));
+    }
+
+    $('getBracket').onclick = async () => {
+      const id = $('fetchTid').value; if(!id){ alert('set id'); return }
+      log('GET /tournaments/' + id + '/bracket');
+      const r = await safeFetch(`/tournaments/${id}/bracket`);
+      log('=> ' + r.status + ' ' + JSON.stringify(r.body));
+    }
+
+    async function refreshList(){
+      log('GET /tournaments');
+      const r = await safeFetch('/tournaments');
+      if (r.ok) setList(r.body);
+      log('=> ' + r.status + ' ' + JSON.stringify(r.body));
+    }
+
+    $('refreshList').onclick = refreshList;
+
+    // auto-refresh on load
+    (async () => { await refreshList() })();
+  </script>
+</body>
+</html>
