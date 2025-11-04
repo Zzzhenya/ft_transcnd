@@ -179,7 +179,7 @@ export async function queueAwareProxyRequest(
       });
     }
     
-    logger.error(`Failed to fetch from ${upstreamUrl || 'upstream'}`)
+    logger.error(`Failed to fetch from ${upstreamUrl || 'upstream'}`);
     return reply.code(502).send({
       error: 'Bad Gateway',
       message: 'The server received an invalid response from an upstream service. Please try again later.'
