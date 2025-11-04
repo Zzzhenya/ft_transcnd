@@ -85,8 +85,9 @@ export async function queueAwareProxyRequest(
   
   try {
     // Check if this is a database operation (write operations that might use the queue)
-    const isDatabaseOperation = upstreamUrl.includes('database-service') || 
-                               ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method);
+    // Note: Currently no DELETE endpoints exist in database-service
+    const isDatabaseOperation = upstreamUrl.includes('database-service') && 
+                               ['POST', 'PUT', 'PATCH'].includes(method);
 
     if (isDatabaseOperation && QUEUE_CHECK_ENABLED) {
       queueStatus = await getQueueStatus(fastify);
