@@ -2,10 +2,12 @@ import requests
 
 OWNER = "Zzzhenya"      # change this
 REPO = "ft_transcnd"   # change this
-BRANCH = "log-service"        # change this if your repo uses 'master' or another branch
+BRANCH = "rene_db_test_UM"        # change this if your repo uses 'master' or another branch
+
 
 API_URL = f"https://api.github.com/repos/{OWNER}/{REPO}/git/trees/{BRANCH}?recursive=1"
 RAW_BASE = f"https://raw.githubusercontent.com/{OWNER}/{REPO}/{BRANCH}/"
+
 
 response = requests.get(API_URL)
 if response.status_code != 200:
@@ -17,5 +19,7 @@ data = response.json()
 print("Files in repo with raw URLs:\n")
 for item in data.get("tree", []):
     if item["type"] == "blob":  # only files
-        raw_url = RAW_BASE + item["path"]
-        print(raw_url)
+        # Skip files in legacy/ folder
+        if not item["path"].startswith("legacy/") and not item["path"].startswith("frontend_jason/"):
+            raw_url = RAW_BASE + item["path"]
+            print(raw_url)
