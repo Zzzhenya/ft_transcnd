@@ -1,0 +1,269 @@
+name: Gateway Timeout Fix Tests
+
+on:
+  push:
+    branches: [ main, fix-gateway-timeout-queue ]
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'transcendence/services/gateway/**'
+      - 'transcendence/services/database-service/**'
+      - 'transcendence/.env'
+      - 'transcendence/docker-compose.yml'
+
+jobs:
+  timeout-fix-escalated-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      
+    - name: Check Docker Compose availability
+      run: |
+        if ! command -v "docker compose" &> /dev/null; then
+          echo "Docker Compose plugin not found, trying docker-compose"
+          if ! command -v docker-compose &> /dev/null; then
+            echo "Installing Docker Compose..."
+            sudo curl -L "https://github.com/docker/compose/releases/download/v2.23.0/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+            sudo chmod +x /usr/local/bin/docker-compose
+          fi
+        fi
+        
+    - name: Create SSL certificates for testing
+      run: |
+        cd transcendence
+        bash generate-ssl.sh
+        
+    - name: Configure environment variables for timeout fix
+      run: |
+        cd transcendence
+        # Ensure we have the timeout fix environment variables
+        if ! grep -q "DB_QUEUE_TIMEOUT" .env; then
+          echo "" >> .env
+          echo "# Gateway Timeout Fix Configuration" >> .env
+          echo "DB_QUEUE_TIMEOUT=8000" >> .env
+          echo "DB_QUEUE_MAX_SIZE=100" >> .env
+          echo "GATEWAY_QUEUE_CHECK_ENABLED=true" >> .env
+          echo "GATEWAY_DYNAMIC_TIMEOUT=true" >> .env
+        fi
+        echo "Environment variables configured:"
+        grep -E "(DB_QUEUE_|GATEWAY_.*QUEUE|GATEWAY_.*TIMEOUT)" .env || echo "No timeout fix variables found in .env"
+        
+    - name: Build and start services
+      run: |
+        cd transcendence
+        if command -v "docker compose" &> /dev/null; then
+          docker compose up -d --build
+        else
+          docker-compose up -d --build
+        fi
+        
+    - name: Wait for services to be ready
+      run: |
+        echo "Waiting for services to start..."
+        sleep 30
+        
+        # Wait for gateway to be healthy
+        for i in {1..30}; do
+          if curl -k -s https://localhost:8443/api/health > /dev/null; then
+            echo "Gateway is ready"
+            break
+          fi
+          echo "Waiting for gateway... ($i/30)"
+          sleep 2
+        done
+        
+        # Wait for database service to be ready
+        for i in {1..30}; do
+          if docker exec transcendence-database-service-1 curl -s http://localhost:3006/health > /dev/null; then
+            echo "Database service is ready"
+            break
+          fi
+          echo "Waiting for database service... ($i/30)"
+          sleep 2
+        done
+        
+    - name: Verify timeout fix configuration
+      run: |
+        echo "Verifying timeout fix environment variables are loaded..."
+        # Check if database service has the queue configuration
+        docker exec transcendence-database-service-1 printenv | grep -E "(DB_QUEUE_|NODE_ENV)" || echo "Queue env vars not found"
+        # Check if gateway service has the queue configuration  
+        docker exec transcendence-gateway-1 printenv | grep -E "(GATEWAY_.*QUEUE|GATEWAY_.*TIMEOUT|NODE_ENV)" || echo "Gateway env vars not found"
+        
+    - name: Test Gateway Health
+      run: |
+        echo "Testing gateway health..."
+        response=$(curl -k -s -w "%{http_code}" https://localhost:8443/api/health -o /dev/null)
+        if [ "$response" = "200" ]; then
+          echo "✅ Gateway health check passed"
+        else
+          echo "❌ Gateway health check failed (HTTP: $response)"
+          exit 1
+        fi
+        
+    - name: Test Database Service Health
+      run: |
+        echo "Testing database service health..."
+        response=$(docker exec transcendence-database-service-1 curl -s -w "%{http_code}" http://localhost:3006/health -o /dev/null)
+        if [ "$response" = "200" ]; then
+          echo "✅ Database service health check passed"
+        else
+          echo "❌ Database service health check failed (HTTP: $response)"
+          exit 1
+        fi
+        
+    - name: Test Queue Status Endpoint
+      run: |
+        echo "Testing queue status endpoint..."
+        queue_response=$(docker exec transcendence-database-service-1 curl -s http://localhost:3006/internal/queue-status)
+        if echo "$queue_response" | grep -q '"success":true'; then
+          echo "✅ Queue status endpoint is working"
+          echo "Queue Status: $queue_response"
+        else
+          echo "❌ Queue status endpoint failed"
+          echo "Response: $queue_response"
+          exit 1
+        fi
+        
+    - name: Test Timeout Fix - Escalated Load Testing
+      run: |
+        echo "🚀 Testing timeout fix with escalated load scenarios..."
+        
+        # Function to send test request
+        send_request() {
+          local id=$1
+          local batch=$2
+          local response=$(curl -k -s -w "%{http_code}" -X POST \
+            "https://localhost:8443/api/tournaments" \
+            -H "Content-Type: application/json" \
+            -d "{\"name\":\"CI Test Tournament B$batch-$id\",\"size\":8,\"creator\":\"ci-user-b$batch-$id\"}" \
+            -o "/tmp/response_b${batch}_$id.json" 2>/dev/null)
+          echo "Batch $batch Request $id: HTTP $response"
+          return $response
+        }
+        
+        # Function to analyze batch results
+        analyze_batch() {
+          local batch=$1
+          local total_requests=$2
+          local success_count=0
+          local timeout_count=0  
+          local error_count=0
+          
+          echo "📊 Analyzing Batch $batch results..."
+          
+          for i in $(seq 1 $total_requests); do
+            if [ -f "/tmp/response_b${batch}_$i.json" ]; then
+              response_body=$(cat "/tmp/response_b${batch}_$i.json")
+              if echo "$response_body" | grep -q '"id":[0-9]'; then
+                success_count=$((success_count + 1))
+              elif echo "$response_body" | grep -q 'timeout\|504'; then
+                timeout_count=$((timeout_count + 1))
+                echo "⏰ Batch $batch Request $i: Timeout detected"
+              else
+                error_count=$((error_count + 1))
+                echo "❌ Batch $batch Request $i: Error - $response_body"
+              fi
+              rm -f "/tmp/response_b${batch}_$i.json"
+            else
+              error_count=$((error_count + 1))
+              echo "❌ Batch $batch Request $i: No response file"
+            fi
+          done
+          
+          echo "   Batch $batch Results: ✅ $success_count/$total_requests successful, ⏰ $timeout_count timeouts, ❌ $error_count errors"
+          
+          # Return results via global variables
+          eval "batch${batch}_success=$success_count"
+          eval "batch${batch}_timeout=$timeout_count"  
+          eval "batch${batch}_error=$error_count"
+          eval "batch${batch}_total=$total_requests"
+        }
+        
+        echo ""
+        echo "🟢 PHASE 1: Light Load (5 requests) - Baseline functionality"
+        for i in {1..5}; do
+          send_request $i 1 &
+        done
+        wait
+        analyze_batch 1 5
+        
+        echo ""
+        echo "🔥 PHASE 2: Medium Load (15 requests) - Typical usage simulation"  
+        for i in {1..15}; do
+          send_request $i 2 &
+        done
+        wait
+        analyze_batch 2 15
+        
+        echo ""
+        echo "🔥 PHASE 3: Heavy Load (25 requests) - Stress test"
+        for i in {1..25}; do
+          send_request $i 3 &
+        done
+        wait
+        analyze_batch 3 25
+        
+        echo ""
+        echo "📈 ESCALATED LOAD TEST SUMMARY:"
+        echo "================================="
+        echo "Phase 1 (Light):  ✅ $batch1_success/$batch1_total successful, ⏰ $batch1_timeout timeouts"
+        echo "Phase 2 (Medium): ✅ $batch2_success/$batch2_total successful, ⏰ $batch2_timeout timeouts" 
+        echo "Phase 3 (Heavy):  ✅ $batch3_success/$batch3_total successful, ⏰ $batch3_timeout timeouts"
+        
+        total_success=$((batch1_success + batch2_success + batch3_success))
+        total_timeout=$((batch1_timeout + batch2_timeout + batch3_timeout))
+        total_requests=$((batch1_total + batch2_total + batch3_total))
+        
+        echo ""
+        echo "🎯 OVERALL RESULTS: $total_success/$total_requests successful ($((total_success * 100 / total_requests))%)"
+        echo "   Total timeouts: $total_timeout"
+        
+        # Test criteria for escalated load:
+        # - Phase 1: Must be 100% successful (5/5)
+        # - Phase 2: Must be >= 90% successful (>=14/15) 
+        # - Phase 3: Must be >= 80% successful (>=20/25)
+        # - Overall: Zero timeouts across all phases
+        
+        phase1_pass=$((batch1_success >= 5 && batch1_timeout == 0))
+        phase2_pass=$((batch2_success >= 14 && batch2_timeout == 0))  
+        phase3_pass=$((batch3_success >= 20 && batch3_timeout == 0))
+        
+        if [ $phase1_pass -eq 1 ] && [ $phase2_pass -eq 1 ] && [ $phase3_pass -eq 1 ]; then
+          echo "✅ ESCALATED LOAD TEST PASSED - Timeout fix working under all load levels!"
+        else
+          echo "❌ ESCALATED LOAD TEST FAILED"
+          [ $phase1_pass -eq 0 ] && echo "   ❌ Phase 1 failed: Expected 5/5 successful with 0 timeouts"
+          [ $phase2_pass -eq 0 ] && echo "   ❌ Phase 2 failed: Expected ≥14/15 successful with 0 timeouts"  
+          [ $phase3_pass -eq 0 ] && echo "   ❌ Phase 3 failed: Expected ≥20/25 successful with 0 timeouts"
+          exit 1
+        fi
+        
+    - name: Final Queue Status Check
+      run: |
+        echo "Final queue status after load test..."
+        final_status=$(docker exec transcendence-database-service-1 curl -s http://localhost:3006/internal/queue-status)
+        echo "Final Queue Status: $final_status"
+        
+        # Verify queue is empty after processing
+        if echo "$final_status" | grep -q '"size":0.*"pending":0'; then
+          echo "✅ Queue properly cleared after processing"
+        else
+          echo "⚠️ Queue still has pending items"
+        fi
+        
+    - name: Cleanup
+      if: always()
+      run: |
+        cd transcendence
+        if command -v "docker compose" &> /dev/null; then
+          docker compose down -v
+        else
+          docker-compose down -v
+        fi
+        docker system prune -f
