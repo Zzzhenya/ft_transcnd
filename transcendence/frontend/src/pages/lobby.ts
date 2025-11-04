@@ -28,6 +28,7 @@ export default function (root: HTMLElement) {
 	: mountLobbyScene({
 		host: bgHost,
 		onLocal: () => navigate("/local"),
+		onRemote: () => navigate("/remote"),
 		onTournaments: () => navigate("/tournaments")
 	});
 
