@@ -35,17 +35,18 @@ TODO
 
 ```mermaid
 flowchart TD
-    A[Frontend\n(TypeScript / Vite / Node.js)] -->|HTTPS (REST / GraphQL)| B[API Gateway\n(NGINX / Fastify)]
-    B -->|Internal HTTP (authenticated)| C[Auth / User Service\n(Node.js / Fastify)]
-    C -->|POST /internal/users\nPOST /internal/query| D[Database Service\n(Fastify + SQLite + better-sqlite3)]
+    A[Frontend\nReact or Vite App] -->|HTTPS REST or GraphQL| B[API Gateway\nFastify or NGINX]
+    B -->|Internal HTTP Authenticated| C[Auth Service\nUser Registration and Login]
+    C -->|POST internal users\nPOST internal query| D[Database Service\nFastify and SQLite]
 
-    subgraph Flow["Data Flow: User Registration Example"]
-        A -->|/register| B
-        B -->|/auth/register| C
-        C -->|Insert user →| D
-        D -->|Return { success: true, id }| C
-        C -->|Generate JWT →| A
+    subgraph Flow["User Registration Example"]
+        A -->|POST /register| B
+        B -->|Route to /auth/register| C
+        C -->|Insert new user| D
+        D -->|Return success and id| C
+        C -->|Generate JWT| A
     end
+
 ```
 
 ## 🏠 Setup & Installation
