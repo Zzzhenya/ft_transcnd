@@ -35,14 +35,11 @@ TODO
 
 ```mermaid
 flowchart TD
-    A[🌐 Frontend<br/>(TypeScript / Node.js)] 
-        -->|HTTPS (REST / GraphQL)| 
-    B[🚪 API Gateway<br/>(NGINX / Fastify)]
+    A[Frontend\n(TypeScript / Vite / Node.js)] -->|HTTPS (REST / GraphQL)| B[API Gateway\n(NGINX / Fastify)]
+    B -->|Internal HTTP (authenticated)| C[Auth / User Service\n(Node.js / Fastify)]
+    C -->|POST /internal/users\nPOST /internal/query| D[Database Service\n(Fastify + SQLite + better-sqlite3)]
 
-    B -->|Internal HTTP (authenticated)| C[🔐 Auth / User Service<br/>(Node.js / Fastify)]
-    C -->|POST /internal/users<br/>POST /internal/query| D[🗄️ Database Service<br/>(Fastify + SQLite + better-sqlite3)]
-
-    subgraph flow[Data Flow: User Registration Example]
+    subgraph Flow["Data Flow: User Registration Example"]
         A -->|/register| B
         B -->|/auth/register| C
         C -->|Insert user →| D
