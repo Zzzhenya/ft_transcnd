@@ -101,7 +101,16 @@ export async function signIn(
       username: data.user.username,
       email: data.user.email,
       name: data.user.username,
-      role: "user",
+      role: data.user.role || "user",
+	  display_name: data.user.display_name,
+	  avatar: data.user.avatar,
+	  bio: data.user.bio,
+	  status: data.user.status,
+	  created_at: data.user.created_at,
+	  last_login: data.user.last_login,
+	  mfa_enabled: data.user.mfa_enabled,
+	  is_guest: data.user.is_guest,
+	  current_match_id: data.user.current_match_id
     };
     s.auth.token = data.token;
     write(s);

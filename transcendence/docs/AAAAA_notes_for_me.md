@@ -10,6 +10,64 @@ docker exec sqlite-web ls -lah /app/shared/database/ | grep -E "(transcendence|w
 -rw-rw-rw-    1 root     root       32.0K Nov  5 09:34 transcendence.db-shm
 -rw-rw-rw-    1 root     root        1.8M Nov  5 09:34 transcendence.db-wal
 
+```mermaid
+graph TD
+    subgraph "🖥️ Browser (Frontend)"
+        A[User tippt Email/Passwort]
+        B[real-auth.ts: signIn]
+        C[api.ts: fetch]
+        D[SessionStorage]
+        E[Profile Page]
+    end
+    
+    subgraph "🌐 Gateway (Port 3000)"
+        F[/api/auth/login Route]
+        G[Proxy zu User-Service]
+    end
+    
+    subgraph "👤 User-Service (Port 3001)"
+        H[index.js: /auth/login]
+        I[authService.js: login]
+        J[User.js: findByEmail]
+    end
+    
+    subgraph "🗄️ Database-Service (Port 3006)"
+        K[/internal/query]
+        L[SQLite Abfrage]
+    end
+    
+    subgraph "💾 SQLite DB"
+        M[(Users Tabelle)]
+    end
+    
+    A -->|POST Request| B
+    B --> C
+    C -->|HTTP POST localhost:3000/api/auth/login| F
+    F --> G
+    G -->|Weiterleitung an user-service:3001| H
+    H --> I
+    I --> J
+    J -->|HTTP POST zu DB-Service| K
+    K --> L
+    L -->|SQL Query| M
+    
+    M -->|Alle User-Daten| L
+    L -->|{created_at, last_login, etc}| K
+    K --> J
+    J -->|User Objekt| I
+    I -->|{user, token}| H
+    H -->|Response| G
+    G --> F
+    F -->|JSON Response| C
+    C --> B
+    B -->|❌ HIER WAR DAS PROBLEM!<br/>Nur 5 Felder gespeichert| D
+    D --> E
+    E -->|Zeigt User-Daten| E
+    
+    style B fill:#ff9999
+    style D fill:#99ff99
+```
+
 ## Modified Updates 
         modified:   frontend/src/app/real-auth.ts
         modified:   frontend/src/pages/profile.ts
