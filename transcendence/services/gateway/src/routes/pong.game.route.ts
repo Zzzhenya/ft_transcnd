@@ -12,7 +12,9 @@ interface GameParams {
 
 const pongGameRoute: FastifyPluginAsync = async (fastify) => {
 
+// Creates a game
   fastify.post('/', async (request, reply) => {
+    fastify.log.info(request.headers);
     return proxyRequest(fastify, request, reply, `${GAME_SERVICE_URL}/pong/game`, 'POST');
   });
 
