@@ -37,10 +37,10 @@ TODO
 flowchart TD
     A[🌐 Frontend<br/>(TypeScript / Node.js)] 
         -->|HTTPS (REST / GraphQL)| 
-    B[🚪 API Gateway<br/>(NGINX / Node.js/ Fastify)]
+    B[🚪 API Gateway<br/>(NGINX / Fastify)]
 
     B -->|Internal HTTP (authenticated)| C[🔐 Auth / User Service<br/>(Node.js / Fastify)]
-    C -->|POST /internal/users<br/>POST /internal/query| D[🗄️ Database Service<br/>(Node.js /Fastify + SQLite + better-sqlite3)]
+    C -->|POST /internal/users<br/>POST /internal/query| D[🗄️ Database Service<br/>(Fastify + SQLite + better-sqlite3)]
 
     subgraph flow[Data Flow: User Registration Example]
         A -->|/register| B
