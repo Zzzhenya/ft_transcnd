@@ -302,6 +302,10 @@ fastify.get('/internal/read', async (request, reply) => {
 fastify.post('/internal/users', async (request, reply) => {
   const { table, action, values } = request.body;
 
+  fastify.log.info(table)
+  fastify.log.info(action)
+  fastify.log.info(values)
+
   if (!table || action !== 'insert' || !values) {
     return reply.code(400).send({ error: 'Missing or invalid parameters' });
   }
@@ -320,7 +324,6 @@ fastify.post('/internal/users', async (request, reply) => {
   // Build SQL dynamically
   const placeholders = cols.map(() => '?').join(', ');
   const sql = `INSERT INTO ${safeIdentifier(table)} (${cols.map(safeIdentifier).join(', ')}) VALUES (${placeholders})`;
-
   try {
     const result = await addToQueue(() =>
       db.transaction(() => dbRun(sql, Object.values(values)))()

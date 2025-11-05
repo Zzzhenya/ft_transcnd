@@ -3,8 +3,11 @@
 import type { FastifyHttpOptions, FastifyInstance, FastifyServerOptions, FastifyPluginAsync } from "fastify"
 import { proxyRequest } from '../utils/proxyHandler.js';
 import logger from '../utils/logger.js'; // log-service
+import { queueAwareProxyRequest } from '../utils/queueAwareProxyHandler.js';
+import { intermediateRequest } from '../utils/intermediateRequest.js';
 
 const GAME_SERVICE_URL = process.env.GAME_SERVICE_URL || 'http://game-service:3002';
+const USER_SERVICE_URL = process.env.USER_SERVICE_URL || 'http://user-service:3001';
 
 interface GameParams {
   gameId: string;
@@ -14,7 +17,21 @@ const pongGameRoute: FastifyPluginAsync = async (fastify) => {
 
 // Creates a game
   fastify.post('/', async (request, reply) => {
+    fastify.log.info("GAME START~~ >>> POST REQUEST ")
+    fastify.log.info("Request headers: ");
     fastify.log.info(request.headers);
+    const session = request.cookies;
+    if (!session){
+      throw fastify.httpErrors.badRequest('Missing required parameter: no cookies');
+      fastify.log.info("400: No session cookie");
+    }
+    else{
+      fastify.log.info("Has session cookie");
+      fastify.log.info(session);
+      const res = await intermediateRequest(fastify, request, reply, `${USER_SERVICE_URL}/auth/guest`, 'POST');
+      if (!res)
+        throw fastify.httpErrors.badRequest('Database failed for storing cookie data');
+    }
     return proxyRequest(fastify, request, reply, `${GAME_SERVICE_URL}/pong/game`, 'POST');
   });
 

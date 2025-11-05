@@ -253,6 +253,8 @@ fastify.post('/auth/login', async (request, reply) => {
   try {
     const { email, password } = request.body;
 
+    fastify.log.info("login email password: "); fastify.log.info(email); fastify.log.info(password);
+
     logger.info('Login attempt:', { email });
 
     if (!email || !password) {
@@ -281,6 +283,10 @@ fastify.post('/auth/login', async (request, reply) => {
 fastify.post('/auth/guest', async (request, reply) => {
   try {
     const { alias } = request.body || {};
+
+    fastify.log.info("Alias: "); fastify.log.info(alias);
+
+
     
     logger.info('Guest login attempt:', { alias });
     
@@ -289,11 +295,14 @@ fastify.post('/auth/guest', async (request, reply) => {
     const random = Math.random().toString(36).substring(2, 6);
     const guestId = `${timestamp}${random}`;
     
+    fastify.log.info("guestID: "); fastify.log.info(guestId);
+
     let username;
     
     // Create username with "guest_" prefix
     if (alias) {
       username = `guest_${alias}`;
+      fastify.log.info("alias username: "); fastify.log.info(username);
       
       // Check if username already exists
       const existingUser = await User.findByUsername(username);
@@ -312,19 +321,25 @@ fastify.post('/auth/guest', async (request, reply) => {
       // No alias provided → guest_xxxxxxxx (always unique)
       username = `guest_${guestId.substring(0, 8)}`;
       logger.info('Generated guest username:', username);
+      fastify.log.info("non-alias userame: "); fastify.log.info(username);
     }
     
     const email = `${guestId}@guest.local`;  // Always unique
+
+    fastify.log.info("email: "); fastify.log.info(email);
     
     // Hash a random password
     const password_hash = await bcrypt.hash(guestId, 10);
+
+    fastify.log.info("password hash with guestId: "); fastify.log.info(password_hash);
 
     // Create guest user
     const guestUser = await User.create({
       username,
       email,
       password: password_hash, // Using password field as in current schema
-      display_name: username
+      display_name: username,
+      is_guest: true
     });
 
     logger.info('Guest user created:', { id: guestUser.id, username: guestUser.username });
@@ -339,6 +354,8 @@ fastify.post('/auth/guest', async (request, reply) => {
       JWT_SECRET,
       { expiresIn: '24h' }
     );
+
+    fastify.log.info("jwt token: "); fastify.log.info(token);
 
     return reply.code(201).send({
       success: true,

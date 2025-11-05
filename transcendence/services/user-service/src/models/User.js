@@ -117,7 +117,8 @@ class User {
           values: {
             username: userData.username,
             email: userData.email,
-            password_hash: userData.password_hash || userData.password
+            password_hash: userData.password_hash || userData.password,
+            is_guest: userData.is_guest ? 1 : 0
           } })
         });
       // const result = await dbRun(
