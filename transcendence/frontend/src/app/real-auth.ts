@@ -6,7 +6,16 @@ export type AuthUser = {
 	username: string;
 	email: string;
 	name: string;
-	role?: "user" | "admin"
+	role?: "user" | "admin";
+	display_name?: string;      
+	avatar?: string;            
+	bio?: string;              
+	status?: 'online' | 'offline' | 'in_game' | 'away'; 
+	created_at?: string;       
+	last_login?: string;      
+	mfa_enabled?: boolean;    
+	is_guest?: boolean;       
+	current_match_id?: number;
 };
 
 type RootState = {

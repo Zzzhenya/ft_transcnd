@@ -46,7 +46,16 @@ class AuthService {
           id: newUser.id,
           username: newUser.username,
           email: newUser.email,
-          display_name: newUser.display_name || newUser.username
+          display_name: newUser.display_name || newUser.username,
+          avatar: newUser.avatar,
+          bio: newUser.bio,
+          status: newUser.status,
+          created_at: newUser.created_at,
+          last_login: newUser.last_login,
+          mfa_enabled: newUser.mfa_enabled,
+          is_guest: newUser.is_guest,
+          current_match_id: newUser.current_match_id,
+          role: 'user'
         },
         token
       };
@@ -96,7 +105,16 @@ class AuthService {
           id: user.id,
           username: user.username,
           email: user.email,
-          display_name: user.display_name || user.username
+          display_name: user.display_name || user.username,
+          avatar: user.avatar,
+          bio: user.bio,
+          status: user.status,
+          created_at: user.created_at,
+          last_login: user.last_login,
+          mfa_enabled: user.mfa_enabled,
+          is_guest: user.is_guest,
+          current_match_id: user.current_match_id,
+          role: 'user'
         },
         token
       };

@@ -28,7 +28,15 @@ const login = async (req, res) => {
         id: user.id,
         username: user.username,
         email: user.email,
-        avatar: user.avatar
+        avatar: user.avatar,
+        display_name: user.display_name,
+        bio: user.bio,
+        status: user.status,
+        created_at: user.created_at,
+        last_login: user.last_login,
+        mfa_enabled: user.mfa_enabled,
+        is_guest: user.is_guest,
+        current_match_id: user.current_match_id
       }
     });
   } catch (error) {
@@ -55,7 +63,15 @@ const register = async (req, res) => {
         id: user.id,
         username: user.username,
         email: user.email,
-        avatar: user.avatar
+        avatar: user.avatar,
+        display_name: user.display_name,
+        bio: user.bio,
+        status: user.status,
+        created_at: user.created_at,
+        last_login: user.last_login,
+        mfa_enabled: user.mfa_enabled,
+        is_guest: user.is_guest,
+        current_match_id: user.current_match_id
       }
     });
   } catch (error) {

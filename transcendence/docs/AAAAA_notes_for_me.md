@@ -10,6 +10,11 @@ docker exec sqlite-web ls -lah /app/shared/database/ | grep -E "(transcendence|w
 -rw-rw-rw-    1 root     root       32.0K Nov  5 09:34 transcendence.db-shm
 -rw-rw-rw-    1 root     root        1.8M Nov  5 09:34 transcendence.db-wal
 
+## Modified Updates 
+        modified:   frontend/src/app/real-auth.ts
+        modified:   frontend/src/pages/profile.ts
+        modified:   services/user-service/src/controllers/authController.js
+        modified:   services/user-service/src/models/User.js
 
 ## Final Message to Group 
 In meiner Branch rene_db_test_UM sind unter scripts/database 3 testscripte hinzugekommen. 

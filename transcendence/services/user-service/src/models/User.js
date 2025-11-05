@@ -200,7 +200,10 @@ class User {
         },
         body: JSON.stringify({
           table: 'Users',
-          columns: ['id'],
+          columns: ["id", "username", "email", "password_hash", 
+          "display_name", "avatar", "bio", "status", 
+          "created_at", "last_login", "mfa_enabled", 
+          "is_guest", "current_match_id"],
           filters: { id },
           limit: 1
         })
@@ -242,7 +245,7 @@ class User {
         },
         body: JSON.stringify({
           table: 'Users',
-          columns: ['username'],
+          columns: ["id","username","email","password_hash","display_name","avatar","bio","status","created_at","last_login","mfa_enabled","is_guest","current_match_id"],
           filters: { username },
           limit: 1
         })
@@ -288,7 +291,7 @@ class User {
         },
         body: JSON.stringify({
           table: 'Users',
-          columns: ["id","username","email","password_hash"],
+          columns: ["id","username","email","password_hash","display_name","avatar","bio","status","created_at","last_login","mfa_enabled","is_guest","current_match_id"],
           filters: { email },
           limit: 1
         })
@@ -298,7 +301,8 @@ class User {
       }
       const data = await res.json();
       // data.data is assumed to be an array of rows
-      console.log( data.data && data.data.length > 0 ? data.data[0] : null)
+      //console.log( data.data && data.data.length > 0 ? data.data[0] : null)
+      console.log("🔍 DATABASE RESPONSE:", JSON.stringify(data, null, 2));
       // return data.data && data.data.length > 0 ? data.data : null;
       return data.data && data.data.length > 0 ? data.data[0] : null;
     } catch (error) {
