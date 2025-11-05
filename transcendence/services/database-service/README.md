@@ -217,6 +217,57 @@ ComponentDescriptionbetter-sqlite3High-performance synchronous SQLite driverPQue
 
 Do not expose this service to the public internet.
 
+** How to access Databse-service from other internal services
+
+A Generalized request to query and check whether a given data exists
+```javascript
+const res = await fetch(`${DATABASE_SERVICE_URL}/internal/query`, {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'x-service-auth': DB_SERVICE_TOKEN
+  },
+  body: JSON.stringify({
+    table: 'Users',
+    columns: ['id', 'username', 'email'],
+    filters: { id: 42 },
+    limit: 1
+  })
+});
+const data = await res.json();
+```
+A context specific request to insert a data row
+```javascript
+const res = await fetch(`${DATABASE_SERVICE_URL}/internal/users`, {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'x-service-auth': DB_SERVICE_TOKEN
+  },
+  body: JSON.stringify({
+    table: 'Users',
+    action: 'insert',
+    values: {
+      username: userData.username,
+      email: userData.email,
+      password_hash: userData.password_hash || userData.password
+    }
+  })
+});
+
+```
+
+🧩 API Endpoints Used
+
+| Endpoint          | Method | Purpose                                |
+| ----------------- | ------ | -------------------------------------- |
+| `/internal/users` | `POST` | Insert new user (used in registration) |
+| `/internal/query` | `POST` | Read data from a specific table        |
+| `/internal/write` | `POST` | Update a record by ID                  |
+| `/internal/read`  | `GET`  | Fetch a single record by ID            |
+| `/internal/list`  | `GET`  | List multiple records (for admin use)  |
+
+
 🧹 Graceful Shutdown
 Handles SIGINT and SIGTERM:
 
