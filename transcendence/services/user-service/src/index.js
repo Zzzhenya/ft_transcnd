@@ -390,6 +390,49 @@ fastify.get('/health', async (request, reply) => {
   return { service: 'user-service', status: 'healthy', timestamp: new Date() };
 });
 
+// GET full user profile with all details
+fastify.get('/profile/:userId', async (request, reply) => {
+  try {
+    const { userId } = request.params;
+    
+    // Query für alle User-Daten
+    const query = `SELECT 
+      id, username, email, display_name, 
+      avatar, bio, status, created_at, 
+      last_login, mfa_enabled, is_guest 
+      FROM users WHERE id = ?`;
+    
+    const response = await fetch('http://database-service:3006/internal/query', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        query: query,
+        params: [userId]
+      })
+    });
+    
+    const data = await response.json();
+    
+    if (data.success && data.data.length > 0) {
+      return reply.code(200).send({
+        success: true,
+        user: data.data[0]
+      });
+    } else {
+      return reply.code(404).send({
+        success: false,
+        message: 'User not found'
+      });
+    }
+  } catch (error) {
+    logger.error('Get profile error:', error);
+    return reply.code(500).send({
+      success: false,
+      message: 'Error fetching profile'
+    });
+  }
+});
+
 // Error handler
 fastify.setErrorHandler(async (error, request, reply) => {
   logger.error('Unhandled error:', error);
