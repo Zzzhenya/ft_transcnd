@@ -266,17 +266,20 @@ CREATE INDEX idx_invitations_status ON Game_Invitations(status);
 CREATE TABLE Notifications (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id INTEGER NOT NULL,
+  actor_id INTEGER,
   
   type VARCHAR(30) NOT NULL,
   title VARCHAR(100),
   content TEXT,
+  payload TEXT,
   link VARCHAR(255),
   
   read BOOLEAN DEFAULT 0,
   
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   
-  FOREIGN KEY (user_id) REFERENCES Users(id) ON DELETE CASCADE
+  FOREIGN KEY (user_id) REFERENCES Users(id) ON DELETE CASCADE,
+  FOREIGN KEY (actor_id) REFERENCES Users(id)
 );
 
 CREATE INDEX idx_notifications_user ON Notifications(user_id);
