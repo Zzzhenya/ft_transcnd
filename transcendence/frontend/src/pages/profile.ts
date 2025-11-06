@@ -1,3 +1,4 @@
+// frontend/src/pages/profile.ts
 import { getAuth, signOut } from "@/app/auth";
 import { navigate } from "@/app/router";
 
