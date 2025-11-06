@@ -48,6 +48,17 @@ const userRoutes: FastifyPluginAsync = async (fastify) => {
 		return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/users/${userId}/friends`, 'POST');
 	});
 
+	// Friend requests endpoints
+	fastify.get('/users/:userId/friend-requests', async (request, reply) => {
+		const { userId } = request.params as { userId: string };
+		return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/users/${userId}/friend-requests`, 'GET');
+	});
+
+	fastify.put('/users/:userId/friend-requests/:requesterId', async (request, reply) => {
+		const { userId, requesterId } = request.params as { userId: string; requesterId: string };
+		return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/users/${userId}/friend-requests/${requesterId}`, 'PUT');
+	});
+
 	// Online users endpoint
 	fastify.get('/users/online', async (request, reply) => {
 		return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/users/online`, 'GET');

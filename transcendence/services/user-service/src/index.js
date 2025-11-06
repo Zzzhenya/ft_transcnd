@@ -12,22 +12,38 @@ fastify.register(require('@fastify/cors'), {
   origin: true
 });
 
+// Global hook to capture all PUT requests
+fastify.addHook('preHandler', async (request, reply) => {
+  if (request.method === 'PUT' && request.url.includes('friend-requests')) {
+    console.log('GLOBAL HOOK: PUT friend-requests request detected:', request.url);
+    console.log('GLOBAL HOOK: Method:', request.method);
+    console.log('GLOBAL HOOK: Headers:', request.headers);
+  }
+});
+
 // JWT verification decorator
 fastify.decorate('authenticate', async function (request, reply) {
+  console.log('AUTHENTICATE MIDDLEWARE - Starting for URL:', request.url);
   try {
     const authHeader = request.headers.authorization;
+    console.log('AUTHENTICATE MIDDLEWARE - Auth header:', authHeader ? 'Present' : 'Missing');
 
     if (!authHeader) {
+      console.log('AUTHENTICATE MIDDLEWARE - No auth header, sending 401');
       logger.warn('Authentication failed - No token');
       reply.code(401).send({ message: 'Kein Token bereitgestellt' });
       return;
     }
 
     const token = authHeader.split(' ')[1];
+    console.log('AUTHENTICATE MIDDLEWARE - Token extracted, length:', token ? token.length : 'null');
     const payload = jwt.verify(token, JWT_SECRET);
+    console.log('AUTHENTICATE MIDDLEWARE - JWT verified, userId:', payload.userId);
 
     const user = await User.findById(payload.userId);
+    console.log('AUTHENTICATE MIDDLEWARE - User found:', user ? user.username : 'null');
     if (!user) {
+      console.log('AUTHENTICATE MIDDLEWARE - User not found, sending 404');
       logger.warn('User not found:', payload.userId);
       reply.code(404).send({ message: 'Benutzer nicht gefunden' });
       return;
@@ -38,9 +54,12 @@ fastify.decorate('authenticate', async function (request, reply) {
       username: payload.username
     };
     request.userDetails = user;
+    console.log('AUTHENTICATE MIDDLEWARE - Success, proceeding to endpoint');
   } catch (err) {
+    console.log('AUTHENTICATE MIDDLEWARE - Error:', err.message);
     logger.error('Authentication error:', err.message);
     reply.code(403).send({ message: 'Token ungültig oder abgelaufen' });
+    return;
   }
 });
 
@@ -461,7 +480,20 @@ fastify.get('/users/:userId/friends', {
     }
 
     const result = await response.json();
-    return { success: true, friends: result.data || [] };
+    const friends = result.data || [];
+    
+    // Get usernames for the friends
+    const friendsWithUsernames = await Promise.all(
+      friends.map(async (friend) => {
+        const user = await User.findById(friend.friend_id);
+        return {
+          ...friend,
+          username: user?.username || 'Unknown User'
+        };
+      })
+    );
+    
+    return { success: true, friends: friendsWithUsernames };
 
   } catch (error) {
     logger.error('Error getting friends:', error);
@@ -501,6 +533,8 @@ fastify.get('/users/:userId/friend-requests', {
     const result = await response.json();
     const requests = result.data || [];
     
+    console.log('CHECKPOINT -1: About to process friend requests with Promise.all, requests:', requests.length);
+    
     // Get usernames for the senders
     const requestsWithUsernames = await Promise.all(
       requests.map(async (req) => {
@@ -521,6 +555,8 @@ fastify.get('/users/:userId/friend-requests', {
     return reply.code(500).send({ error: 'Internal server error' });
   }
 });
+
+console.log('CHECKPOINT 0: About to register POST /users/:userId/friends endpoint');
 
 fastify.post('/users/:userId/friends', {
   preHandler: fastify.authenticate
@@ -573,15 +609,28 @@ fastify.post('/users/:userId/friends', {
   }
 });
 
+console.log('CHECKPOINT 1: Friend request POST endpoint completed');
+
+console.log('ABOUT TO REGISTER PUT ENDPOINT');
+
 // Accept or reject friend request
+console.log('REGISTERING PUT ENDPOINT: /users/:userId/friend-requests/:requesterId');
 fastify.put('/users/:userId/friend-requests/:requesterId', {
   preHandler: fastify.authenticate
 }, async (request, reply) => {
+  console.log('PUT endpoint hit - starting function');
   try {
     const { userId, requesterId } = request.params;
+    
+    console.log('PUT /users/:userId/friend-requests/:requesterId - Request params:', { userId, requesterId });
+    console.log('PUT /users/:userId/friend-requests/:requesterId - Request body:', request.body);
+    
     const { action } = request.body; // 'accept' or 'reject'
     
+    console.log('PUT /users/:userId/friend-requests/:requesterId - Action extracted:', action);
+    
     if (!action || !['accept', 'reject'].includes(action)) {
+      console.log('PUT /users/:userId/friend-requests/:requesterId - Invalid action, sending 400');
       return reply.code(400).send({ error: 'Action must be "accept" or "reject"' });
     }
 
@@ -589,18 +638,48 @@ fastify.put('/users/:userId/friend-requests/:requesterId', {
 
     const newStatus = action === 'accept' ? 'accepted' : 'rejected';
     
-    const response = await fetch('http://database-service:3006/internal/write', {
+    // First, get the friend request ID to update it
+    const findResponse = await fetch('http://database-service:3006/internal/query', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'x-service-auth': 'super_secret_internal_token'
+      },
       body: JSON.stringify({
         table: 'Friends',
-        action: 'update',
-        data: { status: newStatus },
+        columns: ['id'],
         filters: { 
           user_id: parseInt(requesterId),
           friend_id: parseInt(userId),
           status: 'pending'
-        }
+        },
+        limit: 1
+      })
+    });
+
+    if (!findResponse.ok) {
+      return reply.code(500).send({ error: 'Could not find friend request' });
+    }
+
+    const findData = await findResponse.json();
+    if (!findData.success || !findData.data || findData.data.length === 0) {
+      return reply.code(404).send({ error: 'Friend request not found' });
+    }
+
+    const friendRequestId = findData.data[0].id;
+
+    // Now update the status using the ID
+    const response = await fetch('http://database-service:3006/internal/write', {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'x-service-auth': 'super_secret_internal_token'
+      },
+      body: JSON.stringify({
+        table: 'Friends',
+        id: friendRequestId,
+        column: 'status',
+        value: newStatus
       })
     });
 
@@ -615,6 +694,34 @@ fastify.put('/users/:userId/friend-requests/:requesterId', {
       return reply.code(404).send({ error: 'Friend request not found or already processed' });
     }
 
+    // If the friend request was accepted, create the bidirectional relationship
+    if (action === 'accept') {
+      console.log('Creating bidirectional friendship relationship');
+      
+      const bidirectionalResponse = await fetch('http://database-service:3006/internal/users', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-service-auth': 'super_secret_internal_token'
+        },
+        body: JSON.stringify({
+          table: 'Friends',
+          action: 'insert',
+          values: {
+            user_id: parseInt(userId),
+            friend_id: parseInt(requesterId),
+            status: 'accepted'
+          }
+        })
+      });
+
+      if (!bidirectionalResponse.ok) {
+        console.log('Warning: Failed to create bidirectional relationship, but main acceptance succeeded');
+      } else {
+        console.log('Bidirectional friendship relationship created successfully');
+      }
+    }
+
     return { 
       success: true, 
       message: `Friend request ${action}ed successfully`,
@@ -622,10 +729,21 @@ fastify.put('/users/:userId/friend-requests/:requesterId', {
     };
 
   } catch (error) {
+    console.log('PUT /users/:userId/friend-requests/:requesterId - Error caught:', error);
     logger.error('Error updating friend request:', error);
     return reply.code(500).send({ error: 'Internal server error' });
   }
 });
+
+console.log('PUT ENDPOINT REGISTERED SUCCESSFULLY');
+
+// TEST PUT ENDPOINT
+fastify.put('/test-put', async (request, reply) => {
+  console.log('TEST PUT ENDPOINT HIT!');
+  return { success: true, message: 'Test PUT works' };
+});
+
+console.log('TEST PUT ENDPOINT REGISTERED');
 
 // Update user online status
 fastify.post('/users/:userId/status', {
