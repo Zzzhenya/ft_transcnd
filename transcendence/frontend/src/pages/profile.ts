@@ -72,7 +72,7 @@ export default async function (root: HTMLElement, ctx?: { url?: URL }) {
       default: return 'bg-gray-500';
     }
   };
-
+//
   root.innerHTML = `
     <section class="py-6 md:py-8 lg:py-10 space-y-6">
       <h1 class="text-2xl sm:text-3xl lg:text-4xl font-bold">
