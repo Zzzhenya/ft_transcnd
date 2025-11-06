@@ -193,3 +193,99 @@ export async function getProfile(): Promise<{
 	};
   }
 }
+
+// Online status management
+export async function setOnlineStatus(isOnline: boolean): Promise<{ success: boolean; error?: string }> {
+  try {
+    const user = getAuth();
+    const token = getToken();
+    if (!user) {
+      return { success: false, error: 'User not authenticated' };
+    }
+
+    console.log(`🔄 Setting online status for user ${user.id} to ${isOnline}`);
+
+    // Import GATEWAY_BASE directly
+    const { GATEWAY_BASE } = await import('./config');
+    
+    const response = await fetch(`${GATEWAY_BASE}/user-service/users/${user.id}/status`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token || ''}`
+      },
+      body: JSON.stringify({ is_online: isOnline ? 1 : 0 }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+    }
+
+    console.log(`✅ Online status updated successfully`);
+    return { success: true };
+  } catch (error) {
+    console.error('❌ Error updating online status:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Network error'
+    };
+  }
+}
+
+// Set user online when app starts
+export async function setUserOnline(): Promise<void> {
+  await setOnlineStatus(true);
+}
+
+// Set user offline when app closes
+export async function setUserOffline(): Promise<void> {
+  await setOnlineStatus(false);
+}
+
+// Auto-manage online status
+export function initOnlineStatusManager(): () => void {
+  const user = getAuth();
+  if (!user) return () => {};
+
+  // Set online immediately
+  setUserOnline();
+
+  // Set offline on page unload
+  const handleUnload = () => {
+    setUserOffline();
+  };
+
+  // Handle visibility change (tab switching)
+  const handleVisibilityChange = () => {
+    if (document.hidden) {
+      // User switched tabs or minimized window
+      setTimeout(() => {
+        if (document.hidden) {
+          setUserOffline();
+        }
+      }, 30000); // Wait 30 seconds before setting offline
+    } else {
+      // User came back to the tab
+      setUserOnline();
+    }
+  };
+
+  // Add event listeners
+  window.addEventListener('beforeunload', handleUnload);
+  document.addEventListener('visibilitychange', handleVisibilityChange);
+
+  // Heartbeat to keep user online (every 5 minutes)
+  const heartbeat = setInterval(() => {
+    if (!document.hidden) {
+      setUserOnline();
+    }
+  }, 5 * 60 * 1000); // 5 minutes
+
+  // Return cleanup function
+  return () => {
+    window.removeEventListener('beforeunload', handleUnload);
+    document.removeEventListener('visibilitychange', handleVisibilityChange);
+    clearInterval(heartbeat);
+    setUserOffline();
+  };
+}
