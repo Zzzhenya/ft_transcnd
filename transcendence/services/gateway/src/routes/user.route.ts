@@ -37,6 +37,28 @@ const userRoutes: FastifyPluginAsync = async (fastify) => {
 		return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/auth/profile`, 'GET');
 	});
 
+	// Friends endpoints
+	fastify.get('/users/:userId/friends', async (request, reply) => {
+		const { userId } = request.params as { userId: string };
+		return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/users/${userId}/friends`, 'GET');
+	});
+
+	fastify.post('/users/:userId/friends', async (request, reply) => {
+		const { userId } = request.params as { userId: string };
+		return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/users/${userId}/friends`, 'POST');
+	});
+
+	// Online users endpoint
+	fastify.get('/users/online', async (request, reply) => {
+		return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/users/online`, 'GET');
+	});
+
+	// User status endpoint
+	fastify.post('/users/:userId/status', async (request, reply) => {
+		const { userId } = request.params as { userId: string };
+		return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/users/${userId}/status`, 'POST');
+	});
+
 }
 
 export default userRoutes

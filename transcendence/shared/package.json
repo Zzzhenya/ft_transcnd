@@ -6,7 +6,7 @@
   "scripts": {
     "db:init": "node database/init-db.js",
     "db:reset": "node database/init-db.js",
-    "db:backup": "cp database/database.sqlite database/database.backup.sqlite",
+    "db:backup": "cp database/transcendence.db database/transcendence.backup.db",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

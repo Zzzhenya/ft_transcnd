@@ -1,9 +1,9 @@
 // frontend/src/pages/remote-new.ts
 
 import { navigate } from "@/app/router";
-import { getAuth } from "@/app/auth";
+import { getAuth, getToken } from "@/app/auth";
 import { getState } from "@/app/store";
-import { GATEWAY_BASE, WS_BASE } from "@/app/config";
+import { GATEWAY_BASE } from "@/app/config";
 
 interface Friend {
 	id: string;
@@ -19,13 +19,18 @@ export default function (root: HTMLElement) {
 
 	let friends: Friend[] = [];
 	let onlineUsers: any[] = [];
-	let ws: WebSocket | null = null;
+
 
 	// Load friends list
 	async function loadFriends() {
 		try {
 			if (user) {
-				const res = await fetch(`${GATEWAY_BASE}/users/${user.id}/friends`);
+				const token = getToken();
+				const res = await fetch(`${GATEWAY_BASE}/user-service/users/${user.id}/friends`, {
+					headers: {
+						'Authorization': `Bearer ${token || ''}`
+					}
+				});
 				if (res.ok) {
 					const data = await res.json();
 					friends = data.friends || [];
@@ -37,10 +42,56 @@ export default function (root: HTMLElement) {
 		}
 	}
 
+	// Add friend function
+	async function addFriend(username: string) {
+		try {
+			if (user) {
+				const token = getToken();
+				const res = await fetch(`${GATEWAY_BASE}/user-service/users/${user.id}/friends`, {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+						'Authorization': `Bearer ${token || ''}`
+					},
+					body: JSON.stringify({ friendUsername: username })
+				});
+				
+				if (res.ok) {
+					showMessage('Friend request sent successfully!', 'success');
+					await loadFriends(); // Reload friends list
+					await render(); // Re-render the page
+				} else {
+					const error = await res.json();
+					showMessage(error.message || 'Failed to add friend', 'error');
+				}
+			}
+		} catch (error) {
+			console.log('Could not add friend:', error);
+			showMessage('Failed to add friend', 'error');
+		}
+	}
+
+	// Show message function
+	function showMessage(message: string, type: 'success' | 'error' | 'info') {
+		const messageEl = document.createElement('div');
+		messageEl.className = `fixed top-4 right-4 px-6 py-3 rounded-lg font-semibold z-50 transition-all transform translate-x-0 ${
+			type === 'success' ? 'bg-green-500 text-white' :
+			type === 'error' ? 'bg-red-500 text-white' :
+			'bg-blue-500 text-white'
+		}`;
+		messageEl.textContent = message;
+		document.body.appendChild(messageEl);
+		
+		setTimeout(() => {
+			messageEl.style.transform = 'translateX(100%)';
+			setTimeout(() => messageEl.remove(), 300);
+		}, 3000);
+	}
+
 	// Load online users for matchmaking
 	async function loadOnlineUsers() {
 		try {
-			const res = await fetch(`${GATEWAY_BASE}/users/online`);
+			const res = await fetch(`${GATEWAY_BASE}/user-service/users/online`);
 			if (res.ok) {
 				const data = await res.json();
 				onlineUsers = data.users || [];
@@ -144,6 +195,18 @@ export default function (root: HTMLElement) {
 						<div class="flex items-center justify-between mb-4">
 							<h3 class="text-2xl font-black text-white">🧑‍🤝‍🧑 FRIENDS LIST</h3>
 							<button id="closeFriendsBtn" class="text-white/60 hover:text-white transition-colors text-2xl">✕</button>
+						</div>
+						
+						<!-- Add Friend Form -->
+						<div class="mb-6 p-4 bg-white/5 rounded-lg border border-white/10">
+							<div class="flex items-center gap-3">
+								<input id="friendUsernameInput" type="text" 
+									placeholder="Enter username to add friend" 
+									class="flex-1 px-3 py-2 rounded-lg bg-white/10 backdrop-blur-sm border border-white/20 text-white placeholder-white/60 focus:border-blue-400 focus:outline-none" />
+								<button id="addFriendBtn" class="px-4 py-2 rounded-lg bg-blue-500 hover:bg-blue-600 text-white font-semibold transition-all">
+									➕ Add Friend
+								</button>
+							</div>
 						</div>
 						<div id="friendsList" class="space-y-3">
 							${friends.length > 0 ? friends.map(friend => `
@@ -269,6 +332,26 @@ export default function (root: HTMLElement) {
 			};
 		}
 
+		// Add Friend
+		const addFriendBtn = root.querySelector<HTMLButtonElement>("#addFriendBtn");
+		const friendUsernameInput = root.querySelector<HTMLInputElement>("#friendUsernameInput");
+		if (addFriendBtn && friendUsernameInput && (signedIn || isGuest)) {
+			addFriendBtn.onclick = async () => {
+				const username = friendUsernameInput.value.trim();
+				if (username) {
+					await addFriend(username);
+					friendUsernameInput.value = ''; // Clear input after adding
+				} else {
+					showMessage('Please enter a username', 'error');
+				}
+			};
+			friendUsernameInput.addEventListener('keypress', (e) => {
+				if (e.key === 'Enter') {
+					addFriendBtn.click();
+				}
+			});
+		}
+
 		// Join Room
 		const joinRoomBtn = root.querySelector<HTMLButtonElement>("#joinRoomBtn");
 		const roomCodeInput = root.querySelector<HTMLInputElement>("#roomCodeInput");
@@ -367,8 +450,6 @@ export default function (root: HTMLElement) {
 
 	// Cleanup
 	return () => {
-		if (ws) {
-			ws.close();
-		}
+		// WebSocket cleanup would go here when implemented
 	};
 }

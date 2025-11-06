@@ -38,6 +38,10 @@ CREATE TABLE Users (
   status VARCHAR(20) DEFAULT 'offline',
   current_match_id INTEGER,
   
+  -- Online Status
+  last_seen TEXT DEFAULT CURRENT_TIMESTAMP,
+  is_online INTEGER DEFAULT 0,
+  
   -- Security
   mfa_enabled BOOLEAN DEFAULT 0,
   mfa_secret VARCHAR(255),
@@ -54,6 +58,8 @@ CREATE TABLE Users (
 CREATE INDEX idx_users_username ON Users(username);
 CREATE INDEX idx_users_email ON Users(email);
 CREATE INDEX idx_users_intra_id ON Users(intra_id);
+CREATE INDEX idx_users_online ON Users(is_online);
+CREATE INDEX idx_users_last_seen ON Users(last_seen);
 
 -- -------------------- FRIENDS --------------------
 CREATE TABLE Friends (
@@ -71,6 +77,7 @@ CREATE TABLE Friends (
 
 CREATE INDEX idx_friends_user_id ON Friends(user_id);
 CREATE INDEX idx_friends_friend_id ON Friends(friend_id);
+CREATE INDEX idx_friends_status ON Friends(status);
 
 -- -------------------- BLOCKED USERS --------------------
 CREATE TABLE Blocked_Users (
