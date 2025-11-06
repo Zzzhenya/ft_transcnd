@@ -390,6 +390,152 @@ fastify.get('/health', async (request, reply) => {
   return { service: 'user-service', status: 'healthy', timestamp: new Date() };
 });
 
+// =============== FRIENDS ENDPOINTS ===============
+
+// Get online users
+fastify.get('/users/online', async (request, reply) => {
+  try {
+    logger.info('Getting online users');
+    
+    // Query database-service for online users
+    const response = await fetch('http://database-service:3006/internal/query', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        table: 'Users',
+        columns: ['id', 'username', 'display_name', 'last_seen'],
+        filters: { is_online: 1 },
+        limit: 50
+      })
+    });
+
+    if (!response.ok) {
+      logger.error('Database query failed:', response.status);
+      return reply.code(500).send({ error: 'Database query failed' });
+    }
+
+    const result = await response.json();
+    return { success: true, users: result.data || [] };
+
+  } catch (error) {
+    logger.error('Error getting online users:', error);
+    return reply.code(500).send({ error: 'Internal server error' });
+  }
+});
+
+// Get user's friends  
+fastify.get('/users/:userId/friends', {
+  preHandler: fastify.authenticate
+}, async (request, reply) => {
+  try {
+    const { userId } = request.params;
+    logger.info(`Getting friends for user ${userId}`);
+
+    const response = await fetch('http://database-service:3006/internal/query', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        table: 'Friends',
+        columns: ['friend_id', 'status', 'created_at'],
+        filters: { user_id: parseInt(userId) },
+        limit: 100
+      })
+    });
+
+    if (!response.ok) {
+      logger.error('Database query failed:', response.status);
+      return reply.code(500).send({ error: 'Database query failed' });
+    }
+
+    const result = await response.json();
+    return { success: true, friends: result.data || [] };
+
+  } catch (error) {
+    logger.error('Error getting friends:', error);
+    return reply.code(500).send({ error: 'Internal server error' });
+  }
+});
+
+// Send friend request
+fastify.post('/users/:userId/friends', {
+  preHandler: fastify.authenticate
+}, async (request, reply) => {
+  try {
+    const { userId } = request.params;
+    const { friend_id } = request.body;
+    
+    if (!friend_id) {
+      return reply.code(400).send({ error: 'friend_id is required' });
+    }
+
+    logger.info(`Creating friend request from ${userId} to ${friend_id}`);
+
+    const response = await fetch('http://database-service:3006/internal/users', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        table: 'Friends',
+        action: 'insert',
+        values: {
+          user_id: parseInt(userId),
+          friend_id: parseInt(friend_id),
+          status: 'pending'
+        }
+      })
+    });
+
+    if (!response.ok) {
+      logger.error('Database insert failed:', response.status);
+      return reply.code(500).send({ error: 'Failed to create friend request' });
+    }
+
+    const result = await response.json();
+    return { success: true, message: 'Friend request sent', id: result.id };
+
+  } catch (error) {
+    logger.error('Error creating friend request:', error);
+    return reply.code(500).send({ error: 'Internal server error' });
+  }
+});
+
+// Update user online status
+fastify.post('/users/:userId/status', {
+  preHandler: fastify.authenticate
+}, async (request, reply) => {
+  try {
+    const { userId } = request.params;
+    const { is_online } = request.body;
+    
+    if (typeof is_online !== 'number') {
+      return reply.code(400).send({ error: 'is_online must be 0 or 1' });
+    }
+
+    logger.info(`Updating online status for user ${userId} to ${is_online}`);
+
+    const response = await fetch('http://database-service:3006/internal/write', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        table: 'Users',
+        id: parseInt(userId),
+        column: 'is_online',
+        value: is_online
+      })
+    });
+
+    if (!response.ok) {
+      logger.error('Database update failed:', response.status);
+      return reply.code(500).send({ error: 'Failed to update status' });
+    }
+
+    return { success: true, message: 'Status updated' };
+
+  } catch (error) {
+    logger.error('Error updating status:', error);
+    return reply.code(500).send({ error: 'Internal server error' });
+  }
+});
+
 // Error handler
 fastify.setErrorHandler(async (error, request, reply) => {
   logger.error('Unhandled error:', error);
