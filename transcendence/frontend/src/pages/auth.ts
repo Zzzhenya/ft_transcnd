@@ -1,10 +1,15 @@
+// frontend/src/pages/auth.ts
 import { signIn, signOut, getAuth, register, guestLogin } from "@/app/auth";
 import { navigate } from "@/app/router";
-import { setAlias, clearAlias} from "@/app/store"; // Make sure clearAlias exists in your store
+import { setAlias, clearAlias} from "@/app/store";
 
 export default function (root: HTMLElement, ctx: { url: URL }) {
   const next = ctx.url.searchParams.get("next") || "/profile";
   const user = getAuth();
+
+  const dn = user
+  	? (user.name ?? user.username ?? user.displayName ?? user.alias ?? user.email ?? "Player")
+  	: "";
 
   root.innerHTML = `
     <section class="py-6 md:py-8 lg:py-10 space-y-6">
@@ -12,7 +17,7 @@ export default function (root: HTMLElement, ctx: { url: URL }) {
 
       <div class="rounded border p-4 space-y-4">
         ${user ? `
-          <p class="text-gray-700">Signed in as <strong>${user.name}</strong></p>
+          <p class="text-gray-700">Signed in as <strong>${dn}</strong></p>
           <button id="logout" class="px-3 py-2 rounded bg-slate-700 text-white">Sign out</button>
         ` : `
           <!-- Guest Play Option -->
@@ -118,7 +123,10 @@ export default function (root: HTMLElement, ctx: { url: URL }) {
       
       if (result.success) {
         const user = getAuth();
-        if (user) setAlias(user.username);
+        if (user) {
+			const aliasToStore = user.username ?? user.name ?? alias ?? "Guest";
+			setAlias(aliasToStore);
+		}
         navigate("/");
       } else {
         alert(result.error || 'Failed to create guest user');
