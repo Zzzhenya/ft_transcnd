@@ -16,7 +16,8 @@ const routes: [RegExp, Importer][] = [
 	[/^\/lobby$/,               () => import("../pages/lobby") as Promise<PageModule>],
 	[/^\/init$/,                () => import("../pages/init") as Promise<PageModule>],
 	[/^\/local$/,               () => import("../pages/local") as Promise<PageModule>],
-	[/^\/remote$/,              () => import("../pages/remote/remote") as Promise<PageModule>],
+	[/^\/remote$/,              () => import("../pages/remote") as Promise<PageModule>],
+	[/^\/remote\/room\/([^/]+)$/, () => import("../pages/remote-room") as Promise<PageModule>],
 	[/^\/tournaments$/,         () => import("../pages/tournament/tournaments") as Promise<PageModule>],
 	[/^\/tournaments\/match$/,  () => import("../pages/tournament/tournamentMatch") as Promise<PageModule>],
 	[/^\/tournaments\/waitingroom\/([^/]+)$/, () => import("../pages/tournament/tournamentWaitingRoom") as Promise<PageModule>],
@@ -128,6 +129,9 @@ export function initRouter(root: HTMLElement) {
 			}
 			if (re.source === "^\\/tournaments\\/waitingroom\\/([^/]+)$") {
 				params.tournamentId = v;          // for waiting room
+			}
+			if (re.source === "^\\/remote\\/room\\/([^/]+)$") {
+				params.roomId = v;                // for remote room
 			}
 		}
 

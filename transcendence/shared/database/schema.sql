@@ -38,6 +38,10 @@ CREATE TABLE Users (
   status VARCHAR(20) DEFAULT 'offline',
   current_match_id INTEGER,
   
+  -- Online Status
+  last_seen TEXT DEFAULT CURRENT_TIMESTAMP,
+  is_online INTEGER DEFAULT 0,
+  
   -- Security
   mfa_enabled BOOLEAN DEFAULT 0,
   mfa_secret VARCHAR(255),
@@ -54,6 +58,8 @@ CREATE TABLE Users (
 CREATE INDEX idx_users_username ON Users(username);
 CREATE INDEX idx_users_email ON Users(email);
 CREATE INDEX idx_users_intra_id ON Users(intra_id);
+CREATE INDEX idx_users_online ON Users(is_online);
+CREATE INDEX idx_users_last_seen ON Users(last_seen);
 
 -- -------------------- FRIENDS --------------------
 CREATE TABLE Friends (
@@ -71,6 +77,7 @@ CREATE TABLE Friends (
 
 CREATE INDEX idx_friends_user_id ON Friends(user_id);
 CREATE INDEX idx_friends_friend_id ON Friends(friend_id);
+CREATE INDEX idx_friends_status ON Friends(status);
 
 -- -------------------- BLOCKED USERS --------------------
 CREATE TABLE Blocked_Users (
@@ -259,17 +266,20 @@ CREATE INDEX idx_invitations_status ON Game_Invitations(status);
 CREATE TABLE Notifications (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id INTEGER NOT NULL,
+  actor_id INTEGER,
   
   type VARCHAR(30) NOT NULL,
   title VARCHAR(100),
   content TEXT,
+  payload TEXT,
   link VARCHAR(255),
   
   read BOOLEAN DEFAULT 0,
   
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   
-  FOREIGN KEY (user_id) REFERENCES Users(id) ON DELETE CASCADE
+  FOREIGN KEY (user_id) REFERENCES Users(id) ON DELETE CASCADE,
+  FOREIGN KEY (actor_id) REFERENCES Users(id)
 );
 
 CREATE INDEX idx_notifications_user ON Notifications(user_id);
