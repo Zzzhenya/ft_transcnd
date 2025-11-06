@@ -1,4 +1,4 @@
-// lobby.ts
+// frontend/src/pages/lobby.ts
 import { getAuth } from "@/app/auth";
 import { navigate } from "@/app/router";
 import { getState, subscribe } from "@/app/store";
@@ -28,7 +28,8 @@ export default function (root: HTMLElement) {
 	: mountLobbyScene({
 		host: bgHost,
 		onLocal: () => navigate("/local"),
-		onTournaments: () => navigate("/tournaments")
+		onTournaments: () => navigate("/tournaments"),
+		onRemote: () => navigate("/remote"),
 	});
 
   // Viewport info
