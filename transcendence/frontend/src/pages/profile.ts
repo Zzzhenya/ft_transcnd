@@ -22,7 +22,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
     if (!user) return;
     try {
       const token = getToken();
-      const res = await fetch(`${GATEWAY_BASE}/api/user-service/auth/profile`, {
+      const res = await fetch(`${GATEWAY_BASE}/user-service/auth/profile`, {
         headers: {
           'Authorization': `Bearer ${token || ''}`
         }
@@ -73,23 +73,47 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
 
   // Load incoming friend requests
   async function loadFriendRequests() {
-    if (!user) return;
+    console.log('🎯 loadFriendRequests() START');
+    
+    if (!user) {
+      console.log('❌ No user available, user is:', user);
+      return;
+    }
+    
+    console.log('✅ User found:', user);
+    
     try {
       const token = getToken();
-      const res = await fetch(`${GATEWAY_BASE}/api/user-service/users/${user.id}/friend-requests`, {
+      console.log('Token status:', token ? '✅ Present' : '❌ Missing');
+      
+      const url = `${GATEWAY_BASE}/user-service/users/${user.id}/friend-requests`;
+      console.log('🌐 URL:', url);
+      
+      console.log('📡 Making fetch request...');
+      const res = await fetch(url, {
         headers: {
           'Authorization': `Bearer ${token || ''}`
         }
       });
+      
+      console.log('📄 Response received. Status:', res.status);
+      
       if (res.ok) {
+        console.log('✅ Response OK, parsing JSON...');
         const data = await res.json();
+        console.log('� Data:', data);
         friendRequests = data.requests || [];
+        console.log('� Friend requests count:', friendRequests.length);
         renderFriendRequestsSection();
+        console.log('🎨 Render completed');
+      } else {
+        console.error('❌ Request failed with status:', res.status);
       }
     } catch (error) {
-      console.log('Could not load friend requests:', error);
-      friendRequests = [];
+      console.error('🚫 Exception in loadFriendRequests:', error);
     }
+    
+    console.log('🎯 loadFriendRequests() END');
   }
 
   // Accept or reject friend request
@@ -97,7 +121,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
     if (!user) return;
     try {
       const token = getToken();
-      const res = await fetch(`${GATEWAY_BASE}/api/user-service/users/${user.id}/friend-requests/${requesterId}`, {
+      const res = await fetch(`${GATEWAY_BASE}/user-service/users/${user.id}/friend-requests/${requesterId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -260,7 +284,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
             <div class="flex items-center gap-3">
               <div class="w-3 h-3 rounded-full ${friend.status === 'accepted' ? 'bg-green-400' : friend.status === 'pending' ? 'bg-yellow-400' : 'bg-gray-400'}"></div>
               <div>
-                <span class="font-semibold">Friend ID: ${friend.friend_id}</span>
+                <span class="font-semibold">${friend.username || 'Unknown User'}</span>
                 <div class="text-xs text-gray-500">
                   Status: ${friend.status} • Added: ${new Date(friend.created_at).toLocaleDateString()}
                 </div>
@@ -416,8 +440,23 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
   });
 
   // Load data on page load
-  loadUserProfile();
-  loadFriendRequests();
-  loadFriends();
-  loadOnlineUsers();
+  console.log('🎯 PROFILE PAGE LOADED - Starting data loading...');
+  
+  try {
+    console.log('1️⃣ Loading user profile...');
+    loadUserProfile();
+    
+    console.log('2️⃣ Loading friend requests...');
+    loadFriendRequests();
+    
+    console.log('3️⃣ Loading friends...');
+    loadFriends();
+    
+    console.log('4️⃣ Loading online users...');
+    loadOnlineUsers();
+    
+    console.log('✅ All loading functions called successfully');
+  } catch (error) {
+    console.error('❌ Error during page load:', error);
+  }
 }
