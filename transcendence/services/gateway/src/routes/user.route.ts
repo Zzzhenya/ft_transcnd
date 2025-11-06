@@ -64,10 +64,40 @@ const userRoutes: FastifyPluginAsync = async (fastify) => {
 		return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/users/online`, 'GET');
 	});
 
+	// Get specific user info endpoint
+	fastify.get('/users/:userId', async (request, reply) => {
+		const { userId } = request.params as { userId: string };
+		return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/users/${userId}`, 'GET');
+	});
+
 	// User status endpoint
 	fastify.post('/users/:userId/status', async (request, reply) => {
 		const { userId } = request.params as { userId: string };
-		return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/users/${userId}/status`, 'POST');
+		return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/users/${userId}/online-status`, 'POST');
+	});
+
+	// Invite (notification) endpoint
+	fastify.post('/users/:userId/invite', async (request, reply) => {
+		const { userId } = request.params as { userId: string };
+		return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/users/${userId}/invite`, 'POST');
+	});
+
+	// Notifications for a user
+	fastify.get('/users/:userId/notifications', async (request, reply) => {
+		const { userId } = request.params as { userId: string };
+		return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/users/${userId}/notifications`, 'GET');
+	});
+
+	// Accept notification endpoint
+	fastify.post('/notifications/:notificationId/accept', async (request, reply) => {
+		const { notificationId } = request.params as { notificationId: string };
+		return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/notifications/${notificationId}/accept`, 'POST');
+	});
+
+	// Decline notification endpoint
+	fastify.post('/notifications/:notificationId/decline', async (request, reply) => {
+		const { notificationId } = request.params as { notificationId: string };
+		return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/notifications/${notificationId}/decline`, 'POST');
 	});
 
 }
