@@ -1,5 +1,5 @@
 import { API_BASE } from "./config";
-import { getToken } from "./real-auth";
+import { getToken } from "./auth";
 
 export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   const token = getToken();
