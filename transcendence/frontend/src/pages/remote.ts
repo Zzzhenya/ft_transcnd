@@ -26,7 +26,7 @@ export default function (root: HTMLElement) {
 		try {
 			if (user) {
 				const token = getToken();
-				const res = await fetch(`${GATEWAY_BASE}/user-service/users/${user.id}/friends`, {
+				const res = await fetch(`${GATEWAY_BASE}/api/user-service/users/${user.id}/friends`, {
 					headers: {
 						'Authorization': `Bearer ${token || ''}`
 					}
@@ -47,7 +47,7 @@ export default function (root: HTMLElement) {
 		try {
 			if (user) {
 				const token = getToken();
-				const res = await fetch(`${GATEWAY_BASE}/user-service/users/${user.id}/friends`, {
+				const res = await fetch(`${GATEWAY_BASE}/api/user-service/users/${user.id}/friends`, {
 					method: 'POST',
 					headers: {
 						'Content-Type': 'application/json',
@@ -91,7 +91,7 @@ export default function (root: HTMLElement) {
 	// Load online users for matchmaking
 	async function loadOnlineUsers() {
 		try {
-			const res = await fetch(`${GATEWAY_BASE}/user-service/users/online`);
+			const res = await fetch(`${GATEWAY_BASE}/api/user-service/users/online`);
 			if (res.ok) {
 				const data = await res.json();
 				onlineUsers = data.users || [];
