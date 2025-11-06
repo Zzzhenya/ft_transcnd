@@ -8,6 +8,7 @@ type Options = {
 	host: HTMLElement;
 	onLocal?: () => void;
 	onTournaments?: () => void;
+	onRemote?: () => void;
 };
 
 /* CONSTANTS */
@@ -52,7 +53,7 @@ function makeArcPath(from: BABYLON.Vector3, to: BABYLON.Vector3, lift = 380, ste
 
 /* Mount */
 export function mountLobbyScene({
-	host, onLocal, onTournaments
+	host, onLocal, onRemote, onTournaments
   }: Options) {
 	// Canvas
 	const canvas = document.createElement("canvas");
@@ -271,10 +272,12 @@ export function mountLobbyScene({
 
 	// Paddles: Create two
 	const left = createPaddle("paddleLocal", BABYLON.Color3.FromHexString("#e74c3c"));
+	const center = createPaddle("paddleRemote", BABYLON.Color3.FromHexString("#3498db"));
 	const right = createPaddle("paddleTournaments", BABYLON.Color3.FromHexString("#2ecc71"));
 
   	// Label: Add "Local, Tournaments" on the center of paddles.
 	addGuiLabel("Local", left.rubber, { offsetY: 0 });
+	addGuiLabel("Remote", center.rubber, { offsetY: 0 });
 	addGuiLabel("Tournaments", right.rubber, { offsetY: 0 });
 
 	// Label: Create position in the middle of screen
@@ -291,12 +294,14 @@ export function mountLobbyScene({
 		handle.position.y += dy;				// Move grips only, not ground.
 	}
 	left.root.position = new BABYLON.Vector3(-ICON_X, ICON_Y, ICON_Z);
+	center.root.position = new BABYLON.Vector3(0, ICON_Y, ICON_Z);
 	right.root.position = new BABYLON.Vector3( ICON_X, ICON_Y, ICON_Z);
 	snapHandleToFloor(left.handle, 0);
+	snapHandleToFloor(center.handle, 0);
 	snapHandleToFloor(right.handle, 0);
 
 	// Paddles: Diable receiving shadows for paddle parts
-	[left.root, right.root].forEach(r => r.getChildMeshes().forEach(m => m.receiveShadows = false));
+	[left.root, center.root, right.root].forEach(r => r.getChildMeshes().forEach(m => m.receiveShadows = false));
 
 	// Center_line: Properties
 	const lineMat = new BABYLON.StandardMaterial("mLine", scene);
@@ -362,17 +367,35 @@ export function mountLobbyScene({
 	let isFlying = false;
  
 	function updateAimPreview() {
-    	if (isFlying) return;
+    	if (isFlying)
+			return;
+
+		const x = scene.pointerX;
+		const w = canvas.clientWidth;
+		let targetRoot = left.root;
+		if (x < w / 3)
+			targetRoot = left.root;
+		else if (x < (2 * w) / 3)
+			targetRoot = center.root;
+		else
+			targetRoot = right.root;
+		/* 
     	const isLeftSide = scene.pointerX < (canvas.clientWidth / 2);
     	const targetRoot = isLeftSide ? left.root : right.root;
     	const to = targetRoot.getAbsolutePosition().add(new BABYLON.Vector3(0, 150, 0));
     	const from = ball.position.clone();
-
+		*/
+		const to = targetRoot.getAbsolutePosition().add(new BABYLON.Vector3(0, 150, 0));
+		const from = ball.position.clone();
     	const path = makeArcPath(from, to, BALL_ARC_LIFT);
     	BABYLON.MeshBuilder.CreateTube("aimTube", { path, instance: aimTube });
-		aimMat.emissiveColor = isLeftSide
-			? BABYLON.Color3.FromHexString("#e74c3c")
-			: BABYLON.Color3.FromHexString("#2ecc71");
+
+		if (targetRoot === left.root)
+			aimMat.emissiveColor = BABYLON.Color3.FromHexString("#e74c3c");
+		else if (targetRoot === center.root)
+			aimMat.emissiveColor = BABYLON.Color3.FromHexString("#3498db");
+		else
+			aimMat.emissiveColor = BABYLON.Color3.FromHexString("#2ecc71");
 	}
 
 	function intersectsBall(hit: BABYLON.AbstractMesh) {
@@ -450,6 +473,7 @@ export function mountLobbyScene({
 	const renderingCanvas = engine.getRenderingCanvas()!;
 
 	let leftTarget = BASE.clone();
+	let centerTarget = BASE.clone();
 	let rightTarget = BASE.clone();
 
 	// Event: Tracking pointer.
@@ -466,14 +490,16 @@ export function mountLobbyScene({
 			if (isAiming)
 				updateAimPreview();
 
-			const isLeftHover  = m?.name === "paddleLocal_rubber" || m?.name === "paddleLocal_hit";
+			const isLeftHover = m?.name === "paddleLocal_rubber" || m?.name === "paddleLocal_hit";
+			const isCenterHover = m?.name === "paddleRemote_rubber" || m?.name === "paddleRemote_hit";
     		const isRightHover = m?.name === "paddleTournaments_rubber" || m?.name === "paddleTournaments_hit";
 
     		leftTarget  = isLeftHover  ? HOVER : BASE;
+			centerTarget = isCenterHover ? HOVER : BASE;
     		rightTarget = isRightHover ? HOVER : BASE;
 
     		renderingCanvas.style.cursor = 
-				(onBall || isLeftHover || isRightHover) ? "pointer" : "default";
+				(onBall || isLeftHover || isCenterHover || isRightHover) ? "pointer" : "default";
 		}
 
 		if (pi.type === BABYLON.PointerEventTypes.POINTERPICK) {
@@ -481,6 +507,8 @@ export function mountLobbyScene({
 
 			if (m?.name === "paddleLocal_rubber")
 				launchBallTo(left, onLocal);
+			else if (m?.name === "paddleRemote_rubber")
+				launchBallTo(center, onRemote);
     		else if (m?.name === "paddleTournaments_rubber")
 				launchBallTo(right, onTournaments);
       	}
@@ -508,6 +536,7 @@ export function mountLobbyScene({
 	// Soft effect, when mouse approachs to paddles.
 	scene.registerBeforeRender(() => {
 		left.root.scaling  = BABYLON.Vector3.Lerp(left.root.scaling,  leftTarget,  0.2);
+		center.root.scaling = BABYLON.Vector3.Lerp(center.root.scaling, centerTarget, 0.2);
 		right.root.scaling = BABYLON.Vector3.Lerp(right.root.scaling, rightTarget, 0.2);
 	});
 
