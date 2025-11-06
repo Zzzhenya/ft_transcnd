@@ -6,7 +6,7 @@ fastify.get('/health', async (request, reply) => {
   return { service: 'gateway', status: 'healthy', timestamp: new Date() };
 });
 
-// ⚠️ WICHTIG: Diese Route MUSS VOR der catch-all kommen!
+// Read
 fastify.get('/db/user/:id', async (request, reply) => {
   const { id } = request.params;
   console.log('🟢 DB USER ROUTE - ID:', id);  // Debug log

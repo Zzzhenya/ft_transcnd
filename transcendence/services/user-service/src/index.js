@@ -391,7 +391,7 @@ fastify.get('/health', async (request, reply) => {
 });
 
 // GET full user profile with all details
-fastify.get('/profile/:userId', async (request, reply) => {
+fastify.get('//auth/profile-full/:userId', async (request, reply) => {
   try {
     const { userId } = request.params;
     

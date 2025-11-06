@@ -48,121 +48,93 @@ export default async function (root: HTMLElement) {
     return;
   }
 
-  // Erst Session-Daten zeigen
+  // Zeige erst Session-Daten
   root.innerHTML = `
     <div class="p-8">
-      <h1 class="text-3xl font-bold mb-4">Lade erweiterte Profildaten...</h1>
-      <div class="animate-pulse bg-gray-200 h-32 rounded"></div>
+      <h1 class="text-3xl font-bold mb-4">Lade Profildaten...</h1>
     </div>
   `;
 
   try {
+    // Hole erweiterte Daten über die EXISTIERENDE auth/profile Route!
     const token = JSON.parse(sessionStorage.getItem("ft_transcendence_version1") || "{}").auth?.token;
-      
-      const dbResponse = await fetch(`/api/auth/profile`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-    const dbData = await dbResponse.json();
     
-    console.log("Datenbank Antwort:", dbData);
+    const response = await fetch(`/api/auth/profile-full/${user.id}`,{
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    
+    const profileData = await response.json();
+    console.log("Profile Response:", profileData); // Debug
     
     // Kombiniere Session + DB Daten
-    const fullProfile = dbData.success && dbData.data?.[0] 
-      ? { ...user, ...dbData.data[0] }  // Merge beide Datenquellen
-      : user;  // Fallback zu Session-Daten
+    const fullProfile = profileData.success && profileData.user 
+      ? { ...user, ...profileData.user }
+      : user;
+
+    // Format Datum
+    const formatDate = (dateString) => {
+      if (!dateString) return 'Unbekannt';
+      return new Date(dateString).toLocaleDateString('de-DE');
+    };
 
     root.innerHTML = `
       <section class="py-8 max-w-4xl mx-auto px-4">
-        <h1 class="text-3xl font-bold mb-6">Mein erweitertes Profil</h1>
+        <h1 class="text-3xl font-bold mb-6">Mein Profil</h1>
         
-        <!-- Session Daten (immer verfügbar) -->
-        <div class="bg-blue-50 rounded-lg p-6 mb-4">
-          <h2 class="text-lg font-semibold mb-3">📱 Session Daten:</h2>
-          <p><strong>Email:</strong> ${user.email}</p>
-          <p><strong>Username:</strong> ${user.username}</p>
-          <p><strong>ID:</strong> ${user.id}</p>
-        </div>
-
-        <!-- Datenbank Daten (wenn verfügbar) -->
-        ${dbData.success ? `
-          <div class="bg-green-50 rounded-lg p-6 mb-4">
-            <h2 class="text-lg font-semibold mb-3">💾 Datenbank Daten:</h2>
-            <div class="grid grid-cols-2 gap-4">
-              <div>
-                <p class="text-sm text-gray-600">Display Name:</p>
-                <p class="font-semibold">${fullProfile.display_name || 'Nicht gesetzt'}</p>
-              </div>
-              <div>
-                <p class="text-sm text-gray-600">Bio:</p>
-                <p class="font-semibold">${fullProfile.bio || 'Keine Bio'}</p>
-              </div>
-              <div>
-                <p class="text-sm text-gray-600">Avatar:</p>
-                <p class="font-semibold">${fullProfile.avatar || 'Kein Avatar'}</p>
-              </div>
-              <div>
-                <p class="text-sm text-gray-600">Status:</p>
-                <p class="font-semibold">${fullProfile.status || 'offline'}</p>
-              </div>
-              <div>
-                <p class="text-sm text-gray-600">Registriert:</p>
-                <p class="font-semibold">${fullProfile.created_at || 'Unbekannt'}</p>
-              </div>
-              <div>
-                <p class="text-sm text-gray-600">Letzter Login:</p>
-                <p class="font-semibold">${fullProfile.last_login || 'Nie'}</p>
-              </div>
-              <div>
-                <p class="text-sm text-gray-600">MFA aktiviert:</p>
-                <p class="font-semibold">${fullProfile.mfa_enabled ? '✅ Ja' : '❌ Nein'}</p>
-              </div>
-              <div>
-                <p class="text-sm text-gray-600">Gast Account:</p>
-                <p class="font-semibold">${fullProfile.is_guest ? 'Ja' : 'Nein'}</p>
-              </div>
+        <div class="bg-white rounded-lg shadow-lg p-6">
+          <h2 class="text-2xl font-bold mb-4">${fullProfile.username}</h2>
+          
+          <div class="bg-blue-50 p-4 rounded mb-4">
+            <p class="text-gray-600">E-Mail:</p>
+            <p class="text-xl font-semibold">${fullProfile.email}</p>
+          </div>
+          
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <p class="text-gray-600">User ID:</p>
+              <p class="font-semibold">${fullProfile.id}</p>
+            </div>
+            <div>
+              <p class="text-gray-600">Username:</p>
+              <p class="font-semibold">${fullProfile.username}</p>
+            </div>
+            <div>
+              <p class="text-gray-600">role:</p>
+              <p class="font-semibold">${fullProfile.role}</p>
+            </div>
+            <div>
+              <p class="text-gray-600">Registriert seit:</p>
+              <p class="font-semibold">${fullProfile.created_at}</p>
+            </div>
+            <div>
+              <p class="text-gray-600">Letzter Login:</p>
+              <p class="font-semibold">${formatDate(fullProfile.last_login)}</p>
             </div>
           </div>
-        ` : `
-          <div class="bg-yellow-50 rounded-lg p-6 mb-4">
-            <p>⚠️ Keine erweiterten Daten aus DB verfügbar</p>
-          </div>
-        `}
-
-        <!-- Buttons -->
-        <div class="flex gap-3">
-          <button id="refresh" class="px-4 py-2 bg-blue-600 text-white rounded">
-            🔄 Aktualisieren
-          </button>
-          <button id="logout" class="px-4 py-2 bg-red-600 text-white rounded">
-            🚪 Logout
-          </button>
         </div>
-
-        <!-- Debug Info -->
-        <details class="mt-6 p-4 bg-gray-100 rounded">
-          <summary class="cursor-pointer font-semibold">🔍 Debug Info</summary>
-          <pre class="text-xs mt-4">${JSON.stringify({
-            session: user,
-            database: dbData
-          }, null, 2)}</pre>
+        
+        <button id="logout" class="mt-4 px-4 py-2 bg-red-600 text-white rounded">
+          Logout
+        </button>
+        
+        <!-- Debug -->
+        <details class="mt-4 p-4 bg-gray-100 rounded">
+          <summary>Debug Info</summary>
+          <pre class="text-xs">${JSON.stringify(fullProfile, null, 2)}</pre>
         </details>
       </section>
     `;
-
-    // Event Listeners
-    document.getElementById('refresh')?.addEventListener('click', () => {
-      window.location.reload();
-    });
-
+    
     document.getElementById('logout')?.addEventListener('click', async () => {
       await signOut();
       navigate("/auth");
     });
-
+    
   } catch (error) {
-    console.error("Fehler beim DB-Abruf:", error);
-    // Zeige trotzdem Session-Daten
+    console.error("Error:", error);
+    // Fallback zu Session-Daten
+    root.innerHTML = `<div class="p-8">Fehler: ${error.message}</div>`;
   }
 }
