@@ -1,7 +1,7 @@
+// frontend/src/app/router.ts
 // SPA 라우터: URL ↔ 페이지 모듈 매칭, a[href] 인터셉트, popstate 처리, 포커스 이동, 404 처리
 import { canEnterGame } from "./guards";
 import { getAuth } from "@/app/auth";
-
 
 type Cleanup = (() => void) | (() => Promise<void>);
 type Ctx = { params?: Record<string, string>; url: URL };
@@ -16,10 +16,10 @@ const routes: [RegExp, Importer][] = [
 	[/^\/lobby$/,               () => import("../pages/lobby") as Promise<PageModule>],
 	[/^\/init$/,                () => import("../pages/init") as Promise<PageModule>],
 	[/^\/local$/,               () => import("../pages/local") as Promise<PageModule>],
+	[/^\/remote$/,              () => import("../pages/remote/remote") as Promise<PageModule>],
 	[/^\/tournaments$/,         () => import("../pages/tournament/tournaments") as Promise<PageModule>],
-	[/^\/tournaments\/match$/,   () => import("../pages/tournament/tournamentMatch") as Promise<PageModule>],
+	[/^\/tournaments\/match$/,  () => import("../pages/tournament/tournamentMatch") as Promise<PageModule>],
 	[/^\/tournaments\/waitingroom\/([^/]+)$/, () => import("../pages/tournament/tournamentWaitingRoom") as Promise<PageModule>],
-	//[/^\/tournaments\/next$/,    () => import("../pages/tournament-next") as Promise<PageModule>],
 	[/^\/game\/([^/]+)$/,       () => import("../pages/game") as Promise<PageModule>],
 	[/^\/auth$/,                () => import("../pages/auth") as Promise<PageModule>],
 	[/^\/profile$/,             () => import("../pages/profile") as Promise<PageModule>],
