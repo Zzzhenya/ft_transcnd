@@ -6,9 +6,12 @@ import { getState } from "@/app/store";
 import { GATEWAY_BASE } from "@/app/config";
 
 interface Friend {
-	id: string;
+	friend_id: string;
 	username: string;
 	online: boolean;
+	lastSeen?: string;
+	status: string;
+	created_at: string;
 }
 
 export default function (root: HTMLElement) {
@@ -26,7 +29,7 @@ export default function (root: HTMLElement) {
 		try {
 			if (user) {
 				const token = getToken();
-				const res = await fetch(`${GATEWAY_BASE}/api/user-service/users/${user.id}/friends`, {
+				const res = await fetch(`${GATEWAY_BASE}/user-service/users/${user.id}/friends`, {
 					headers: {
 						'Authorization': `Bearer ${token || ''}`
 					}
@@ -47,7 +50,7 @@ export default function (root: HTMLElement) {
 		try {
 			if (user) {
 				const token = getToken();
-				const res = await fetch(`${GATEWAY_BASE}/api/user-service/users/${user.id}/friends`, {
+				const res = await fetch(`${GATEWAY_BASE}/user-service/users/${user.id}/friends`, {
 					method: 'POST',
 					headers: {
 						'Content-Type': 'application/json',
@@ -91,7 +94,7 @@ export default function (root: HTMLElement) {
 	// Load online users for matchmaking
 	async function loadOnlineUsers() {
 		try {
-			const res = await fetch(`${GATEWAY_BASE}/api/user-service/users/online`);
+			const res = await fetch(`${GATEWAY_BASE}/user-service/users/online`);
 			if (res.ok) {
 				const data = await res.json();
 				onlineUsers = data.users || [];
@@ -212,12 +215,15 @@ export default function (root: HTMLElement) {
 							${friends.length > 0 ? friends.map(friend => `
 								<div class="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/10">
 									<div class="flex items-center gap-3">
-										<div class="w-3 h-3 rounded-full ${friend.online ? 'bg-green-400' : 'bg-gray-500'} animate-pulse"></div>
+										<div class="w-3 h-3 rounded-full ${friend.online ? 'bg-green-400 animate-pulse' : 'bg-gray-500'} "></div>
 										<span class="text-white font-bold">${friend.username}</span>
-										<span class="text-xs text-gray-400">${friend.online ? 'ONLINE' : 'OFFLINE'}</span>
+										<span class="text-xs ${friend.online ? 'text-green-300' : 'text-gray-400'}">${friend.online ? 'ONLINE' : 'OFFLINE'}</span>
+										${friend.lastSeen && !friend.online ? `
+											<span class="text-xs text-gray-500">• Last seen: ${new Date(friend.lastSeen).toLocaleDateString()}</span>
+										` : ''}
 									</div>
 									${friend.online ? `
-										<button class="invite-friend-btn px-4 py-2 rounded-lg bg-blue-500 hover:bg-blue-600 text-white font-semibold transition-all" data-friend-id="${friend.id}">
+										<button class="invite-friend-btn px-4 py-2 rounded-lg bg-blue-500 hover:bg-blue-600 text-white font-semibold transition-all" data-friend-id="${friend.friend_id}">
 											🎮 INVITE
 										</button>
 									` : `
@@ -250,14 +256,6 @@ export default function (root: HTMLElement) {
 								Cancel
 							</button>
 						</div>
-					</div>
-				</div>
-
-				<!-- Invitations -->
-				<div id="invitationsArea" class="hidden mb-8">
-					<div class="bg-gradient-to-r from-green-500/20 to-blue-600/20 backdrop-blur-lg rounded-2xl p-6 border border-green-500/30">
-						<h3 class="text-2xl font-black text-white mb-4">📨 GAME INVITATIONS</h3>
-						<div id="invitationsList"></div>
 					</div>
 				</div>
 
@@ -410,8 +408,11 @@ export default function (root: HTMLElement) {
 
 		// Friend invitations
 		root.querySelectorAll<HTMLButtonElement>('.invite-friend-btn').forEach(btn => {
+			console.log('🎮 Found invite button:', btn);
 			btn.onclick = () => {
+				console.log('🎮 Invite button clicked!');
 				const friendId = btn.getAttribute('data-friend-id');
+				console.log('🎮 friendId from button:', friendId);
 				if (friendId) {
 					inviteFriend(friendId);
 				}
@@ -438,9 +439,36 @@ export default function (root: HTMLElement) {
 	}
 
 	function inviteFriend(friendId: string) {
-		// TODO: Implement friend invitation
-		showStatus(`Invitation sent!`, 'success');
-		setTimeout(hideStatus, 3000);
+		console.log('🎮 inviteFriend called with friendId:', friendId);
+		// Send invitation to backend (creates a notification for the target)
+		(async () => {
+			const user = getAuth();
+			const token = getToken();
+			console.log('🎮 user:', user, 'token:', token);
+			if (!user) { showStatus('You must be signed in to invite', 'error'); return; }
+			try {
+				console.log('🎮 About to send POST request to:', `${GATEWAY_BASE}/user-service/users/${friendId}/invite`);
+				const res = await fetch(`${GATEWAY_BASE}/user-service/users/${friendId}/invite`, {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+						'Authorization': `Bearer ${token || ''}`
+					},
+					body: JSON.stringify({ type: 'game_invite' })
+				});
+				console.log('🎮 Response received:', res.status, res.statusText);
+				if (res.ok) {
+					showStatus('Invitation sent!', 'success');
+				} else {
+					const err = await res.json().catch(() => ({}));
+					console.log('🎮 Error response:', err);
+					showStatus(err.message || 'Failed to send invitation', 'error');
+				}
+			} catch (err) {
+				console.error('🎮 Invite error', err);
+				showStatus('Failed to send invitation', 'error');
+			}
+		})();
 	}
 
 	// Initialize
