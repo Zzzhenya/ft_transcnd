@@ -455,12 +455,60 @@ fastify.get('/users/online', async (request, reply) => {
   }
 });
 
+// Get user information by ID
+fastify.get('/users/:userId', {
+  preHandler: fastify.authenticate
+}, async (request, reply) => {
+  try {
+    const { userId } = request.params;
+    console.log(`👤 GETTING USER INFO FOR ${userId}`);
+    logger.info(`Getting user info for user ${userId}`);
+
+    const response = await fetch('http://database-service:3006/internal/query', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        table: 'Users',
+        columns: ['id', 'username', 'email', 'created_at'],
+        filters: { id: parseInt(userId) },
+        limit: 1
+      })
+    });
+
+    if (!response.ok) {
+      logger.error('Database query failed:', response.status);
+      return reply.code(500).send({ error: 'Database query failed' });
+    }
+
+    const result = await response.json();
+    console.log(`👤 User query result:`, JSON.stringify(result, null, 2));
+
+    if (!result.data || result.data.length === 0) {
+      return reply.code(404).send({ error: 'User not found' });
+    }
+
+    const user = result.data[0];
+    return { 
+      success: true, 
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      created_at: user.created_at
+    };
+
+  } catch (error) {
+    logger.error('Error getting user info:', error);
+    return reply.code(500).send({ error: 'Internal server error' });
+  }
+});
+
 // Get user's friends  
 fastify.get('/users/:userId/friends', {
   preHandler: fastify.authenticate
 }, async (request, reply) => {
   try {
     const { userId } = request.params;
+    console.log(`👥 GETTING FRIENDS FOR USER ${userId} - START`);
     logger.info(`Getting friends for user ${userId}`);
 
     const response = await fetch('http://database-service:3006/internal/query', {
@@ -482,13 +530,44 @@ fastify.get('/users/:userId/friends', {
     const result = await response.json();
     const friends = result.data || [];
     
-    // Get usernames for the friends
+    // Get usernames and online status for the friends
     const friendsWithUsernames = await Promise.all(
       friends.map(async (friend) => {
         const user = await User.findById(friend.friend_id);
+        
+        // Get online status from database
+        const statusResponse = await fetch('http://database-service:3006/internal/query', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            table: 'Users',
+            columns: ['is_online', 'last_seen'],
+            filters: { id: friend.friend_id },
+            limit: 1
+          })
+        });
+        
+        let online = false;
+        let lastSeen = null;
+        if (statusResponse.ok) {
+          const statusResult = await statusResponse.json();
+          const userData = statusResult.data?.[0];
+          online = userData?.is_online === 1;
+          lastSeen = userData?.last_seen;
+          
+          // Debug logging
+          console.log(`🔍 Friend ${friend.friend_id} (${user?.username}) online status: is_online=${userData?.is_online}, calculated=${online}`);
+          logger.info(`Friend ${friend.friend_id} (${user?.username}) online status: is_online=${userData?.is_online}, calculated=${online}`);
+        } else {
+          console.log(`❌ Failed to get online status for friend ${friend.friend_id}: ${statusResponse.status}`);
+          logger.warn(`Failed to get online status for friend ${friend.friend_id}: ${statusResponse.status}`);
+        }
+        
         return {
           ...friend,
-          username: user?.username || 'Unknown User'
+          username: user?.username || 'Unknown User',
+          online: online,
+          lastSeen: lastSeen
         };
       })
     );
@@ -500,6 +579,255 @@ fastify.get('/users/:userId/friends', {
     return reply.code(500).send({ error: 'Internal server error' });
   }
 });
+
+// Create notification / invite for a user (simple, stored in DB)
+console.log('🎯 REGISTERING INVITE ENDPOINT: /users/:userId/invite');
+fastify.post('/users/:userId/invite', {
+  preHandler: fastify.authenticate
+}, async (request, reply) => {
+  console.log('🚀 INVITE ENDPOINT HIT!', request.params, request.body);
+  try {
+    const { userId } = request.params; // This is the user RECEIVING the invitation
+    const { type, payload } = request.body || {};
+    const actorId = request.user.userId; // This is the user SENDING the invitation (from JWT)
+
+    console.log(`📨 User ${actorId} inviting user ${userId}`);
+
+    // Insert notification row into Notifications table via database-service
+    const writePayload = {
+      table: 'Notifications',
+      action: 'insert',
+      values: {
+        user_id: parseInt(userId), // Receiver
+        actor_id: actorId,         // Sender (from JWT)
+        type: type || 'game_invite',
+        payload: payload ? JSON.stringify(payload) : null,
+        read: 0
+      }
+    };
+    
+    console.log('📨 Writing to database:', JSON.stringify(writePayload, null, 2));
+    
+    const writeRes = await fetch('http://database-service:3006/internal/users', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(writePayload)
+    });
+
+    console.log('📨 Database write response status:', writeRes.status);
+
+    if (!writeRes.ok) {
+      const errorText = await writeRes.text();
+      console.error('📨 Failed to write notification:', writeRes.status, errorText);
+      logger.error('Failed to write notification:', writeRes.status, errorText);
+      return reply.code(500).send({ error: 'Failed to create notification', details: errorText });
+    }
+
+    const writeResult = await writeRes.json();
+    console.log('📨 Database write result:', JSON.stringify(writeResult, null, 2));
+
+    // Success - return created
+    console.log('📨 Invitation created successfully');
+    return { success: true, message: 'Invitation created' };
+  } catch (error) {
+    logger.error('Error creating invitation:', error);
+    return reply.code(500).send({ error: 'Internal server error' });
+  }
+});
+
+// Get notifications for a user
+console.log('🔔 REGISTERING NOTIFICATIONS ENDPOINT: /users/:userId/notifications');
+fastify.get('/users/:userId/notifications', {
+  preHandler: fastify.authenticate
+}, async (request, reply) => {
+  console.log('🚀 NOTIFICATIONS ENDPOINT HIT!', request.params);
+  try {
+    const { userId } = request.params;
+    console.log('📨 Getting notifications for user:', userId);
+
+    const queryPayload = {
+      table: 'Notifications',
+      columns: ['id', 'actor_id', 'type', 'payload', 'read', 'created_at'],
+      filters: { user_id: parseInt(userId) },
+      orderBy: { column: 'created_at', direction: 'DESC' },
+      limit: 50
+    };
+    
+    console.log('📨 Query payload:', JSON.stringify(queryPayload, null, 2));
+
+    const response = await fetch('http://database-service:3006/internal/query', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(queryPayload)
+    });
+
+    console.log('📨 Database response status:', response.status);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('📨 Database query failed:', response.status, errorText);
+      logger.error('Database query failed for notifications:', response.status, errorText);
+      return reply.code(500).send({ error: 'Database query failed', details: errorText });
+    }
+
+    const result = await response.json();
+    console.log('📨 Database result:', JSON.stringify(result, null, 2));
+    
+    const responsePayload = { success: true, notifications: result.data || [] };
+    console.log('📨 Sending response:', JSON.stringify(responsePayload, null, 2));
+    
+    return responsePayload;
+  } catch (error) {
+    console.error('📨 NOTIFICATIONS ERROR:', error);
+    logger.error('Error getting notifications:', error);
+    return reply.code(500).send({ error: 'Internal server error', message: error.message });
+  }
+});
+
+// Accept notification/invitation
+console.log('✅ REGISTERING ACCEPT ENDPOINT: /notifications/:notificationId/accept');
+fastify.post('/notifications/:notificationId/accept', {
+  preHandler: fastify.authenticate
+}, async (request, reply) => {
+  console.log('🚀 ACCEPT ENDPOINT HIT!', request.params);
+  try {
+    const { notificationId } = request.params;
+    const userId = request.user.userId; // From JWT
+
+    console.log(`✅ User ${userId} accepting notification ${notificationId}`);
+
+    // First, verify the notification exists and belongs to the user
+    const queryPayload = {
+      table: 'Notifications',
+      columns: ['id', 'user_id', 'type', 'payload'],
+      filters: { 
+        id: parseInt(notificationId),
+        user_id: userId 
+      }
+    };
+
+    const queryRes = await fetch('http://database-service:3006/internal/query', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(queryPayload)
+    });
+
+    if (!queryRes.ok) {
+      console.error('✅ Failed to query notification:', queryRes.status);
+      return reply.code(500).send({ error: 'Failed to verify notification' });
+    }
+
+    const queryResult = await queryRes.json();
+    console.log('✅ Query result:', JSON.stringify(queryResult, null, 2));
+
+    if (!queryResult.data || queryResult.data.length === 0) {
+      console.log('✅ Notification not found or not owned by user');
+      return reply.code(404).send({ error: 'Notification not found' });
+    }
+
+    // Mark notification as read and delete it (accepted)
+    const deletePayload = {
+      table: 'Notifications',
+      action: 'delete',
+      filters: { 
+        id: parseInt(notificationId),
+        user_id: userId 
+      }
+    };
+
+    const deleteRes = await fetch('http://database-service:3006/internal/write', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(deletePayload)
+    });
+
+    if (!deleteRes.ok) {
+      const errorText = await deleteRes.text();
+      console.error('✅ Failed to delete notification:', deleteRes.status, errorText);
+      return reply.code(500).send({ error: 'Failed to accept invitation' });
+    }
+
+    console.log('✅ Invitation accepted successfully');
+    return { success: true, message: 'Invitation accepted' };
+  } catch (error) {
+    console.error('✅ Error accepting invitation:', error);
+    logger.error('Error accepting invitation:', error);
+    return reply.code(500).send({ error: 'Internal server error' });
+  }
+});
+
+// Decline notification/invitation
+console.log('❌ REGISTERING DECLINE ENDPOINT: /notifications/:notificationId/decline');
+fastify.post('/notifications/:notificationId/decline', {
+  preHandler: fastify.authenticate
+}, async (request, reply) => {
+  console.log('🚀 DECLINE ENDPOINT HIT!', request.params);
+  try {
+    const { notificationId } = request.params;
+    const userId = request.user.userId; // From JWT
+
+    console.log(`❌ User ${userId} declining notification ${notificationId}`);
+
+    // First, verify the notification exists and belongs to the user
+    const queryPayload = {
+      table: 'Notifications',
+      columns: ['id', 'user_id', 'type', 'payload'],
+      filters: { 
+        id: parseInt(notificationId),
+        user_id: userId 
+      }
+    };
+
+    const queryRes = await fetch('http://database-service:3006/internal/query', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(queryPayload)
+    });
+
+    if (!queryRes.ok) {
+      console.error('❌ Failed to query notification:', queryRes.status);
+      return reply.code(500).send({ error: 'Failed to verify notification' });
+    }
+
+    const queryResult = await queryRes.json();
+    console.log('❌ Query result:', JSON.stringify(queryResult, null, 2));
+
+    if (!queryResult.data || queryResult.data.length === 0) {
+      console.log('❌ Notification not found or not owned by user');
+      return reply.code(404).send({ error: 'Notification not found' });
+    }
+
+    // Delete the notification (declined)
+    const deletePayload = {
+      table: 'Notifications',
+      action: 'delete',
+      filters: { 
+        id: parseInt(notificationId),
+        user_id: userId 
+      }
+    };
+
+    const deleteRes = await fetch('http://database-service:3006/internal/write', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(deletePayload)
+    });
+
+    if (!deleteRes.ok) {
+      const errorText = await deleteRes.text();
+      console.error('❌ Failed to delete notification:', deleteRes.status, errorText);
+      return reply.code(500).send({ error: 'Failed to decline invitation' });
+    }
+
+    console.log('❌ Invitation declined successfully');
+    return { success: true, message: 'Invitation declined' };
+  } catch (error) {
+    console.error('❌ Error declining invitation:', error);
+    logger.error('Error declining invitation:', error);
+    return reply.code(500).send({ error: 'Internal server error' });
+  }
+});
+ 
 
 // Send friend request
 
@@ -745,19 +1073,30 @@ fastify.put('/test-put', async (request, reply) => {
 
 console.log('TEST PUT ENDPOINT REGISTERED');
 
+// TEST ENDPOINT - just to verify our code is running
+fastify.post('/test-status', async (request, reply) => {
+  console.log('🧪 TEST ENDPOINT HIT!');
+  return { test: 'working' };
+});
+
 // Update user online status
-fastify.post('/users/:userId/status', {
+fastify.post('/users/:userId/online-status', {
   preHandler: fastify.authenticate
 }, async (request, reply) => {
+  console.log('🚀 STATUS ENDPOINT HIT - START OF HANDLER');
   try {
     const { userId } = request.params;
     const { is_online } = request.body;
     
+    console.log(`🟢 ONLINE STATUS UPDATE REQUEST: userId=${userId}, is_online=${is_online}, type=${typeof is_online}`);
+    logger.info(`🟢 ONLINE STATUS UPDATE REQUEST: userId=${userId}, is_online=${is_online}, type=${typeof is_online}`);
+    
     if (typeof is_online !== 'number') {
+      logger.warn(`❌ Invalid is_online type: expected number, got ${typeof is_online}`);
       return reply.code(400).send({ error: 'is_online must be 0 or 1' });
     }
 
-    logger.info(`Updating online status for user ${userId} to ${is_online}`);
+    logger.info(`🔄 Updating online status for user ${userId} to ${is_online}`);
 
     const response = await fetch('http://database-service:3006/internal/write', {
       method: 'POST',
@@ -797,6 +1136,11 @@ const start = async () => {
   try {
     await fastify.listen({ port: PORT, host: '0.0.0.0' });
     logger.info(`🚀 User service running on port ${PORT}`);
+    
+    // Log all registered routes for debugging
+    console.log('🎯 REGISTERED ROUTES:');
+    fastify.printRoutes();
+    
   } catch (err) {
     logger.error('Failed to start:', err);
     fastify.log.error(err);
