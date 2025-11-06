@@ -1,5 +1,5 @@
 // frontend/src/pages/lobby.ts
-import { getAuth } from "@/app/auth";
+import { getAuth, signOut } from "@/app/auth";
 import { navigate } from "@/app/router";
 import { getState, subscribe } from "@/app/store";
 import { mountLobbyScene } from "@/renderers/babylon/lobby-scene";
@@ -48,14 +48,40 @@ export default function (root: HTMLElement) {
 
   // ---- User info ----
   const userInfo = root.querySelector<HTMLElement>("#userInfo")!;
+
+  function displayName(user: any) {
+	return user?.name
+		?? user?.displayName
+		?? user?.username
+		?? user?.alias
+		?? user?.email
+		?? "Player";
+  }
+
   function renderUserInfo() {
     const user = getAuth();
     const state = getState();
+
+	// <span class="font-medium text-gray-800">${displayName(user)}</span>
     if (user) {
       userInfo.innerHTML = `
         <div class="flex items-center gap-1">
-          <span class="text-green-600">●</span>
-          <span class="font-medium">${user.name}</span>
+			<span class="text-green-600"> ● </span>
+		
+			<a href="/profile" id="userProfileLink"
+          		class="font-medium text-gray-800 hover:text-blue-600 transition"
+          		title="View Profile">
+          		${displayName(user)}
+        	</a>
+
+			<span class="mx-1 text-gray-800">|</span>
+
+			<span class="text-red-600"> ● </span>
+			<button id="signOutBtn"
+				class="font-medium text-gray-800 hover:text-black cursor-pointer"
+					title="Sign out">
+            	Sign out
+          	</button>
         </div>`;
     } else if (state.session.alias) {
       userInfo.innerHTML = `
@@ -73,6 +99,16 @@ export default function (root: HTMLElement) {
   }
   renderUserInfo();
 
+  // Sign out click
+  const onUserInfoClick = async (e: MouseEvent) => {
+    const t = e.target as HTMLElement;
+    if (t?.id === "signOutBtn") {
+		await signOut();
+		navigate("/lobby");
+	}
+  };
+  userInfo.addEventListener("click", onUserInfoClick);
+
   const onAuthChanged = () => { renderUserInfo(); };
   window.addEventListener("auth:changed", onAuthChanged);
   const unsubscribeStore = subscribe(() => renderUserInfo());
@@ -80,6 +116,7 @@ export default function (root: HTMLElement) {
   return () => {
     window.removeEventListener("auth:changed", onAuthChanged);
     window.removeEventListener("resize", renderViewport);
+	userInfo.removeEventListener("click", onUserInfoClick);
     unsubscribeStore();
     unmountBg();
   };
