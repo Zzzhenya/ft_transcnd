@@ -1309,7 +1309,7 @@ fastify.put('/users/:userId/update-email', {
 });
 
 // Update user display name
-fastify.put('/users/:userId/display-name', {
+fastify.put('/users/:userId/update-display-name', {
   preHandler: fastify.authenticate
 }, async (request, reply) => {
   try {
@@ -1362,7 +1362,7 @@ fastify.put('/users/:userId/display-name', {
 });
 
 // Update username
-fastify.put('/users/:userId/username', {
+fastify.put('/users/:userId/update-username', {
   preHandler: fastify.authenticate
 }, async (request, reply) => {
   try {
