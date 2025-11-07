@@ -101,6 +101,11 @@ export default function (root: HTMLElement, ctx: any) {
         const data = await response.json();
         bracket = data.bracket; // Extract the bracket object from the response
         tournamentStatus = data.status || 'waiting'; // Get tournament status
+
+        if (tournamentStatus === 'completed' || tournamentStatus === 'interrupted') {
+          sessionStorage.removeItem('tournamentLocalPlayers');
+          sessionStorage.removeItem('tournamentPlayerTypes');
+        }
         // Update maxPlayers from bracket response if available (works even for finished tournaments)
         if (data.size) {
           maxPlayers = data.size;
@@ -413,10 +418,9 @@ export default function (root: HTMLElement, ctx: any) {
     const lobbyBtn = root.querySelector<HTMLButtonElement>("#backBtn");
     lobbyBtn?.addEventListener("click", (e) => {
       e.preventDefault();
-      sessionStorage.removeItem("tournamentPlayers");
-      sessionStorage.removeItem("currentTournamentSize");
-      sessionStorage.removeItem("tournamentLocalPlayers");
-      sessionStorage.removeItem("tournamentPlayerTypes");
+  sessionStorage.removeItem("tournamentPlayers");
+  sessionStorage.removeItem("currentTournamentSize");
+  sessionStorage.removeItem("tournamentPlayerTypes");
       navigate("/tournaments");
     });
 
@@ -424,10 +428,9 @@ export default function (root: HTMLElement, ctx: any) {
     const backToLobbyBtn = root.querySelector<HTMLButtonElement>("#backToLobbyBtn");
     backToLobbyBtn?.addEventListener("click", (e) => {
       e.preventDefault();
-      sessionStorage.removeItem("tournamentPlayers");
-      sessionStorage.removeItem("currentTournamentSize");
-      sessionStorage.removeItem("tournamentLocalPlayers");
-      sessionStorage.removeItem("tournamentPlayerTypes");
+  sessionStorage.removeItem("tournamentPlayers");
+  sessionStorage.removeItem("currentTournamentSize");
+  sessionStorage.removeItem("tournamentPlayerTypes");
       navigate("/tournaments");
     });
 

@@ -35,17 +35,32 @@ export default function (root: HTMLElement) {
     let tournaments: any[] = [];
     let filter: number | "all" = "all";
 
-    // Clean up tournament-specific data when returning to lobby
-    sessionStorage.removeItem("currentTournamentSize");
-    sessionStorage.removeItem("currentTournamentId");
-    sessionStorage.removeItem("tournamentPlayers");
-    sessionStorage.removeItem("tournamentLocalPlayers");
-    sessionStorage.removeItem("tournamentPlayerTypes");
+    const clearTournamentSession = () => {
+        sessionStorage.removeItem("currentTournamentSize");
+        sessionStorage.removeItem("currentTournamentId");
+        sessionStorage.removeItem("tournamentPlayers");
+        sessionStorage.removeItem("tournamentLocalPlayers");
+        sessionStorage.removeItem("tournamentPlayerTypes");
+    };
+
+    const maybeClearTournamentSession = () => {
+        const activeId = sessionStorage.getItem("currentTournamentId");
+        if (!activeId) {
+            clearTournamentSession();
+            return;
+        }
+
+        const activeTournament = tournaments.find(t => t.id === Number(activeId));
+        if (!activeTournament || activeTournament.status === 'completed' || activeTournament.status === 'interrupted') {
+            clearTournamentSession();
+        }
+    };
 
     async function fetchTournaments() {
         const res = await fetch(`${API_BASE}/tournaments`);
         const data = await res.json();
         tournaments = data.tournaments || [];
+        maybeClearTournamentSession();
     }
 
     async function render() {
