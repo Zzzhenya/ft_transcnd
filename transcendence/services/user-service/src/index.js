@@ -1429,20 +1429,46 @@ fastify.put('/users/:userId/username', {
 });
 
 // Avatar Upload Endpoint
+const fs = require('fs').promises;
+const path = require('path');
+
 fastify.post('/users/:userId/avatar', {
   preHandler: fastify.authenticate
 }, async (request, reply) => {
   try {
     const { userId } = request.params;
-    const { imageData } = request.body; // Base64 encoded image
+    const { imageData } = request.body;
     
     // Verify the user is updating their own avatar
     if (parseInt(userId) !== request.user.userId) {
-      return reply.code(403).send({ error: 'Unauthorized' });
+      return reply.code(403).send({ error: 'Unauthorized to update this profile' });
     }
     
-    // Save image logic here (either base64 or file path)
-    const avatarUrl = `/avatars/${userId}.jpg`; // oder mit timestamp für cache-busting
+    if (!imageData) {
+      return reply.code(400).send({ error: 'No image data provided' });
+    }
+    
+    // Extract base64 data
+    const matches = imageData.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+    if (!matches || matches.length !== 3) {
+      return reply.code(400).send({ error: 'Invalid image format' });
+    }
+    
+    const imageBuffer = Buffer.from(matches[2], 'base64');
+    
+    // Create avatars directory if it doesn't exist
+    const avatarsDir = '/app/avatars';
+    await fs.mkdir(avatarsDir, { recursive: true });
+    
+    // Save image
+    const fileName = `${userId}.jpg`;
+    const filePath = path.join(avatarsDir, fileName);
+    await fs.writeFile(filePath, imageBuffer);
+    
+    // Avatar URL that frontend can use
+    const avatarUrl = `/avatars/${fileName}`;
+    
+    logger.info(`Avatar uploaded for user ${userId}: ${avatarUrl}`);
     
     // Update database
     const response = await fetch('http://database-service:3006/internal/write', {
@@ -1457,17 +1483,35 @@ fastify.post('/users/:userId/avatar', {
     });
     
     if (!response.ok) {
-      return reply.code(500).send({ error: 'Failed to update avatar' });
+      logger.error('Database update failed:', response.status);
+      return reply.code(500).send({ error: 'Failed to update avatar in database' });
     }
+    
+    logger.info(`Avatar successfully updated for user ${userId}`);
     
     return { 
       success: true, 
       message: 'Avatar updated successfully',
-      avatarUrl 
+      avatarUrl: avatarUrl
     };
+    
   } catch (error) {
     logger.error('Error updating avatar:', error);
     return reply.code(500).send({ error: 'Internal server error' });
+  }
+});
+
+// Serve avatar files
+fastify.get('/avatars/:filename', async (request, reply) => {
+  try {
+    const { filename } = request.params;
+    const filePath = path.join('/app/avatars', filename);
+    
+    const data = await fs.readFile(filePath);
+    reply.type('image/jpeg').send(data);
+  } catch (error) {
+    // Send default avatar if file not found
+    reply.code(404).send({ error: 'Avatar not found' });
   }
 });
 

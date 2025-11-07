@@ -405,6 +405,29 @@ function handleAvatarSelect(e: Event) {
   }
 }
 
+
+function updateAvatarDisplay() {
+  const mainAvatar = document.getElementById('main-avatar') as HTMLImageElement;
+  if (mainAvatar) {
+    // Nutze Gateway-URL für Avatare
+    mainAvatar.src = userProfile.avatar 
+      ? `${GATEWAY_BASE}/user-service${userProfile.avatar}`
+      : `${GATEWAY_BASE}/user-service/avatars/${userProfile.id}.jpg`;
+  }
+}
+
+// Und in der uploadAvatar() Funktion, ändere die URL:
+const res = await fetch(`${GATEWAY_BASE}/user-service/users/${user.id}/avatar`, {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token || ''}`
+  },
+  body: JSON.stringify({ 
+    imageData: base64
+  })
+});
+
 async function uploadAvatar() {
   if (!selectedAvatarFile) {
     const errorEl = document.getElementById('avatar-error');
@@ -474,22 +497,6 @@ async function uploadAvatar() {
     }
   }
 }
-
-function updateAvatarDisplay() {
-  // Update main avatar
-  const mainAvatar = document.getElementById('main-avatar') as HTMLImageElement;
-  if (mainAvatar) {
-    mainAvatar.src = userProfile.avatar || `/avatars/${userProfile.id}.jpg`;
-  }
-  
-  // Update header avatar
-  const headerAvatar = document.getElementById('header-avatar') as HTMLImageElement;
-  if (headerAvatar) {
-    headerAvatar.src = userProfile.avatar || `/avatars/${userProfile.id}.jpg`;
-  }
-}
-
-
 
   // ========== DISPLAY NAME CHANGE MODAL FUNKTIONEN (OHNE PASSWORT!) ==========
   function createDisplayNameModal() {

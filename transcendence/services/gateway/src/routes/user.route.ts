@@ -120,8 +120,14 @@ const userRoutes: FastifyPluginAsync = async (fastify) => {
 
 	// Avatar upload endpoint
 	fastify.post('/users/:userId/avatar', async (request, reply) => {
-		const { userId } = request.params as { userId: string };
-		return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/users/${userId}/avatar`, 'POST');
+	const { userId } = request.params as { userId: string };
+	return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/users/${userId}/avatar`, 'POST');
+	});
+
+	// Avatar files endpoint
+	fastify.get('/avatars/:filename', async (request, reply) => {
+	const { filename } = request.params as { filename: string };
+	return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/avatars/${filename}`, 'GET');
 	});
 
 }
