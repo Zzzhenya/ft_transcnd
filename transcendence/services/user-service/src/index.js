@@ -1308,4 +1308,125 @@ fastify.put('/users/:userId/update-email', {
   }
 });
 
+// Update user display name
+fastify.put('/users/:userId/display-name', {
+  preHandler: fastify.authenticate
+}, async (request, reply) => {
+  try {
+    const { userId } = request.params;
+    const { displayName } = request.body;
+    
+    // Verify the user is updating their own profile
+    if (parseInt(userId) !== request.user.userId) {
+      return reply.code(403).send({ error: 'Unauthorized to update this profile' });
+    }
+
+    if (!displayName || displayName.trim().length === 0) {
+      return reply.code(400).send({ error: 'Display name cannot be empty' });
+    }
+
+    if (displayName.length > 50) {
+      return reply.code(400).send({ error: 'Display name too long (max 50 characters)' });
+    }
+
+    logger.info(`Updating display name for user ${userId} to ${displayName}`);
+
+    // Update display_name in database
+    const response = await fetch('http://database-service:3006/internal/write', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        table: 'Users',
+        id: parseInt(userId),
+        column: 'display_name',
+        value: displayName.trim()
+      })
+    });
+
+    if (!response.ok) {
+      logger.error('Database update failed:', response.status);
+      return reply.code(500).send({ error: 'Failed to update display name' });
+    }
+
+    logger.info(`Display name updated successfully for user ${userId}`);
+    return { 
+      success: true, 
+      message: 'Display name updated successfully',
+      displayName: displayName.trim()
+    };
+
+  } catch (error) {
+    logger.error('Error updating display name:', error);
+    return reply.code(500).send({ error: 'Internal server error' });
+  }
+});
+
+// Update username
+fastify.put('/users/:userId/username', {
+  preHandler: fastify.authenticate
+}, async (request, reply) => {
+  try {
+    const { userId } = request.params;
+    const { username } = request.body;
+    
+    // Verify the user is updating their own profile
+    if (parseInt(userId) !== request.user.userId) {
+      return reply.code(403).send({ error: 'Unauthorized to update this profile' });
+    }
+
+    if (!username || username.trim().length === 0) {
+      return reply.code(400).send({ error: 'Username cannot be empty' });
+    }
+
+    if (username.length < 3 || username.length > 20) {
+      return reply.code(400).send({ error: 'Username must be between 3 and 20 characters' });
+    }
+
+    // Check if username contains only valid characters (alphanumeric and underscore)
+    if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+      return reply.code(400).send({ error: 'Username can only contain letters, numbers, and underscores' });
+    }
+
+    logger.info(`Updating username for user ${userId} to ${username}`);
+
+    // Check if username already exists
+    const existingUser = await User.findByUsername(username);
+    if (existingUser && existingUser.id !== parseInt(userId)) {
+      return reply.code(409).send({ 
+        error: 'Username already taken',
+        message: 'This username is already in use' 
+      });
+    }
+
+    // Update username in database
+    const response = await fetch('http://database-service:3006/internal/write', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        table: 'Users',
+        id: parseInt(userId),
+        column: 'username',
+        value: username.trim()
+      })
+    });
+
+    if (!response.ok) {
+      logger.error('Database update failed:', response.status);
+      return reply.code(500).send({ error: 'Failed to update username' });
+    }
+
+    logger.info(`Username updated successfully for user ${userId}`);
+    return { 
+      success: true, 
+      message: 'Username updated successfully',
+      username: username.trim()
+    };
+
+  } catch (error) {
+    logger.error('Error updating username:', error);
+    return reply.code(500).send({ error: 'Internal server error' });
+  }
+});
+
+
 start();
