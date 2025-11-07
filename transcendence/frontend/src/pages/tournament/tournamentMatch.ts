@@ -64,6 +64,7 @@ export default function (root: HTMLElement, ctx: any) {
   // Default values for rendering before game starts (only paddle/court dimensions matter)
   let gameConfig: any = {
     paddle: { width: 2, height: 40 },
+    ball: { radius: 2},
     court: { width: 100, height: 200 }
   };
 
@@ -71,6 +72,10 @@ export default function (root: HTMLElement, ctx: any) {
   let lastTime = 0;
   let connectionAttempts = 0;
   const maxConnectionAttempts = 3;
+  
+  // Throttle paddle movement updates to reduce network spam
+  let lastPaddleUpdateTime = 0;
+  const PADDLE_UPDATE_INTERVAL = 50; // Send paddle updates every 50ms (20 times per second)
   
   // Track if match has started and is active
   // These flags determine when to trigger interruption
@@ -173,7 +178,12 @@ export default function (root: HTMLElement, ctx: any) {
       const response = await fetch(`${API_BASE}/pong/game`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ players: [player1Name, player2Name] })
+        body: JSON.stringify({ 
+          player1_id: `tournament_${matchId}_p1`,
+          player1_name: player1Name,
+          player2_id: `tournament_${matchId}_p2`,
+          player2_name: player2Name
+        })
       });
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       const result = await response.json();
@@ -485,10 +495,39 @@ function showWinnerDialog(winner: string) {
 
   function sendPaddleMovement() {
     if (!ws || ws.readyState !== WebSocket.OPEN) return;
-    if (player1Keys.up) ws.send(JSON.stringify({ type: 'MOVE_PADDLE', player: 'player1', direction: 'up' }));
-    if (player1Keys.down) ws.send(JSON.stringify({ type: 'MOVE_PADDLE', player: 'player1', direction: 'down' }));
-    if (player2Keys.up) ws.send(JSON.stringify({ type: 'MOVE_PADDLE', player: 'player2', direction: 'up' }));
-    if (player2Keys.down) ws.send(JSON.stringify({ type: 'MOVE_PADDLE', player: 'player2', direction: 'down' }));
+    
+    // Determine player1's direction
+    let player1Direction = null;
+    if (player1Keys.up && !player1Keys.down) {
+      player1Direction = 'up';
+    } else if (player1Keys.down && !player1Keys.up) {
+      player1Direction = 'down';
+    }
+    
+    // Determine player2's direction
+    let player2Direction = null;
+    if (player2Keys.up && !player2Keys.down) {
+      player2Direction = 'up';
+    } else if (player2Keys.down && !player2Keys.up) {
+      player2Direction = 'down';
+    }
+    
+    // Send only if there's a direction to move
+    if (player1Direction) {
+      ws.send(JSON.stringify({
+        type: 'MOVE_PADDLE',
+        player: 'player1',
+        direction: player1Direction
+      }));
+    }
+    
+    if (player2Direction) {
+      ws.send(JSON.stringify({
+        type: 'MOVE_PADDLE',
+        player: 'player2',
+        direction: player2Direction
+      }));
+    }
   }
 
   function startNetworkGame() {
@@ -501,7 +540,13 @@ function showWinnerDialog(winner: string) {
     const updateNetworkGame = (currentTime: number) => {
       if (lastTime === 0) lastTime = currentTime;
       lastTime = currentTime;
-      sendPaddleMovement();
+      
+      // Throttle paddle movement updates to reduce network spam
+      if (currentTime - lastPaddleUpdateTime >= PADDLE_UPDATE_INTERVAL) {
+        sendPaddleMovement();
+        lastPaddleUpdateTime = currentTime;
+      }
+      
       drawGame();
       if (gameState.gameStatus === 'playing') {
         gameLoop = requestAnimationFrame(updateNetworkGame);

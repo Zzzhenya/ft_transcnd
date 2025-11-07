@@ -314,9 +314,18 @@ export default function (root: HTMLElement, ctx: any) {
                      * Other conditions (only checked if not interrupted):
                      * - match.player1 && match.player2: Both players assigned
                      * - !match.winner: No winner declared yet
+                     * - match.status: Not 'completed', 'interrupted', or 'forfeited'
                      * - hasLocalPlayer: At least one local player in this match
                      */
-                    const canPlayMatch = tournamentStatus !== 'interrupted' && match.player1 && match.player2 && !match.winner && hasLocalPlayer;
+                    const isMatchPlayable = !match.winner && 
+                                           match.status !== 'completed' && 
+                                           match.status !== 'interrupted' && 
+                                           match.status !== 'forfeited';
+                    const canPlayMatch = tournamentStatus !== 'interrupted' && 
+                                        match.player1 && 
+                                        match.player2 && 
+                                        isMatchPlayable && 
+                                        hasLocalPlayer;
                     
                     return `
                     <div class="flex justify-between items-center p-4 rounded-xl border transition-all ${

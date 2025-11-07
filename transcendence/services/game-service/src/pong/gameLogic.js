@@ -5,10 +5,10 @@ export const GAME_CONFIG = {
   paddle: {
     width: 2,    // Not used in collision detection, but sent to frontend for rendering
     height: 40,   // Used in collision detection and sent to frontend
-    speed: 12     // Paddle movement speed
+    speed: 15     // Paddle movement speed
   },
   ball: {
-    radius: 2,    // Ball radius (not critical for collision, sent to frontend)
+    radius: 2,    // Ball radius (used for collision and rendering)
     speed: 2.0,   // Base ball movement speed
     bounceSpeed: 3 // Ball speed after paddle bounce
   },

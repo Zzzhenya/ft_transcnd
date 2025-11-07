@@ -172,7 +172,7 @@ export default function (root: HTMLElement) {
 
                 <!-- Back Button -->
                 <div class="flex justify-center">
-                    <button id="backBtn" class="px-6 py-2 rounded-full bg-white/10 backdrop-blur-sm text-white text-sm font-bold hover:bg-white/20 transition-all">
+                    <button id="backBtnBottom" class="px-6 py-2 rounded-full bg-white/10 backdrop-blur-sm text-white text-sm font-bold hover:bg-white/20 transition-all">
                         ← BACK
                     </button>
                 </div>
@@ -290,6 +290,15 @@ export default function (root: HTMLElement) {
         const lobbyBtn = root.querySelector<HTMLButtonElement>("#backBtn");
         if (lobbyBtn) {
             lobbyBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                navigate("/");
+            });
+        }
+
+        // Add event listener for the bottom back button
+        const lobbyBtnBottom = root.querySelector<HTMLButtonElement>("#backBtnBottom");
+        if (lobbyBtnBottom) {
+            lobbyBtnBottom.addEventListener('click', (e) => {
                 e.preventDefault();
                 navigate("/");
             });

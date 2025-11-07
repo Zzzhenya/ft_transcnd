@@ -21,6 +21,7 @@ export default function (root: HTMLElement) {
   // Default values for rendering before game starts (only paddle/court dimensions matter)
   let gameConfig: any = {
     paddle: { width: 2, height: 40 },
+    ball: { radius: 2 },
     court: { width: 100, height: 200 }
   };
 
@@ -30,6 +31,10 @@ export default function (root: HTMLElement) {
   let lastTime = 0;
   let connectionAttempts = 0;
   const maxConnectionAttempts = 3;
+  
+  // Throttle paddle movement updates to reduce network spam
+  let lastPaddleUpdateTime = 0;
+  const PADDLE_UPDATE_INTERVAL = 50; // Send paddle updates every 50ms (20 times per second)
 
 root.innerHTML = `
 	<section class="py-10 px-4 min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-indigo-900 via-blue-900 to-gray-900"><section class="py-10 px-4 min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-blue-900 via-blue-700 to-blue-500">
@@ -254,45 +259,37 @@ function handleBackendMessage(data: any) {
       return;
     }
     
-    // Send to backend only when keys are pressed
-    let messagesSent = false;
+    // Determine player1's direction
+    let player1Direction = null;
+    if (player1Keys.up && !player1Keys.down) {
+      player1Direction = 'up';
+    } else if (player1Keys.down && !player1Keys.up) {
+      player1Direction = 'down';
+    }
     
-    if (player1Keys.up) {
+    // Determine player2's direction
+    let player2Direction = null;
+    if (player2Keys.up && !player2Keys.down) {
+      player2Direction = 'up';
+    } else if (player2Keys.down && !player2Keys.up) {
+      player2Direction = 'down';
+    }
+    
+    // Send only if there's a direction to move
+    if (player1Direction) {
       ws.send(JSON.stringify({
         type: 'MOVE_PADDLE',
         player: 'player1',
-        direction: 'up'
+        direction: player1Direction
       }));
-      messagesSent = true;
-    }
-    if (player1Keys.down) {
-      ws.send(JSON.stringify({
-        type: 'MOVE_PADDLE',
-        player: 'player1',
-        direction: 'down'
-      }));
-      messagesSent = true;
-    }
-    if (player2Keys.up) {
-      ws.send(JSON.stringify({
-        type: 'MOVE_PADDLE',
-        player: 'player2',
-        direction: 'up'
-      }));
-      messagesSent = true;
-    }
-    if (player2Keys.down) {
-      ws.send(JSON.stringify({
-        type: 'MOVE_PADDLE',
-        player: 'player2',
-        direction: 'down'
-      }));
-      messagesSent = true;
     }
     
-    // Optional: Log when messages are sent for debugging
-    if (messagesSent) {
-      console.log('📤 Sent paddle movement to backend');
+    if (player2Direction) {
+      ws.send(JSON.stringify({
+        type: 'MOVE_PADDLE',
+        player: 'player2',
+        direction: player2Direction
+      }));
     }
   }
 
@@ -313,12 +310,15 @@ function handleBackendMessage(data: any) {
     lastTime = 0;
     const updateNetworkGame = (currentTime: number) => {
       if (lastTime === 0) lastTime = currentTime;
+      const deltaTime = currentTime - lastTime;
       lastTime = currentTime;
       
-      // Send paddle movements continuously while connected
-     
+      // Throttle paddle movement updates to reduce network spam
+      // Only send updates every PADDLE_UPDATE_INTERVAL ms
+      if (currentTime - lastPaddleUpdateTime >= PADDLE_UPDATE_INTERVAL) {
         sendPaddleMovement();
-      
+        lastPaddleUpdateTime = currentTime;
+      }
       
       // Always render the current game state
       drawGame();
