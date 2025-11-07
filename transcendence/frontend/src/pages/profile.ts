@@ -17,6 +17,173 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
   let userProfile: any = user; // Start with cached user data
   let friendRequests: any[] = []; // Incoming friend requests
 
+  // ========== EMAIL CHANGE MODAL FUNKTIONEN ==========
+  function createEmailModal() {
+    const modalHTML = `
+      <div id="email-modal" class="fixed inset-0 z-50 hidden">
+        <!-- Backdrop -->
+        <div id="email-modal-backdrop" class="absolute inset-0 bg-black bg-opacity-50"></div>
+        
+        <!-- Modal -->
+        <div class="relative flex items-center justify-center min-h-screen p-4">
+          <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+            <div class="flex justify-between items-center mb-4">
+              <h3 class="text-xl font-bold text-gray-800">📧 Change Email</h3>
+              <button id="close-email-modal" class="text-gray-400 hover:text-gray-600">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+              </button>
+            </div>
+            
+            <div class="space-y-4">
+              <div>
+                <label for="new-email" class="block text-sm font-medium text-gray-700 mb-1">New Email</label>
+                <input 
+                  type="email" 
+                  id="new-email" 
+                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  placeholder="Enter new email address"
+                />
+                <p id="email-error" class="text-red-500 text-sm mt-1 hidden"></p>
+              </div>
+              
+              <div>
+                <label for="confirm-password" class="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
+                <input 
+                  type="password" 
+                  id="confirm-password" 
+                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  placeholder="Enter your password to confirm"
+                />
+                <p id="password-error" class="text-red-500 text-sm mt-1 hidden"></p>
+              </div>
+            </div>
+            
+            <div class="flex gap-3 mt-6">
+              <button id="cancel-email-btn" class="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 font-semibold transition-colors">
+                Cancel
+              </button>
+              <button id="save-email-btn" class="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors">
+                Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    // Modal zum Body hinzufügen
+    const modalContainer = document.createElement('div');
+    modalContainer.innerHTML = modalHTML;
+    document.body.appendChild(modalContainer.firstElementChild!);
+  }
+
+  function showEmailModal() {
+    const modal = document.getElementById('email-modal');
+    if (modal) {
+      modal.classList.remove('hidden');
+      // Reset form
+      const emailInput = document.getElementById('new-email') as HTMLInputElement;
+      const passwordInput = document.getElementById('confirm-password') as HTMLInputElement;
+      if (emailInput) emailInput.value = '';
+      if (passwordInput) passwordInput.value = '';
+      
+      // Hide errors
+      document.getElementById('email-error')?.classList.add('hidden');
+      document.getElementById('password-error')?.classList.add('hidden');
+    }
+  }
+
+  function hideEmailModal() {
+    const modal = document.getElementById('email-modal');
+    if (modal) {
+      modal.classList.add('hidden');
+    }
+  }
+
+  async function updateEmail() {
+    const emailInput = document.getElementById('new-email') as HTMLInputElement;
+    const passwordInput = document.getElementById('confirm-password') as HTMLInputElement;
+    const emailError = document.getElementById('email-error');
+    const passwordError = document.getElementById('password-error');
+    
+    // Reset errors
+    emailError?.classList.add('hidden');
+    passwordError?.classList.add('hidden');
+    
+    const newEmail = emailInput?.value?.trim();
+    const password = passwordInput?.value;
+    
+    // Validation
+    if (!newEmail) {
+      if (emailError) {
+        emailError.textContent = 'Please enter a new email address';
+        emailError.classList.remove('hidden');
+      }
+      return;
+    }
+    
+    // Email format validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(newEmail)) {
+      if (emailError) {
+        emailError.textContent = 'Please enter a valid email address';
+        emailError.classList.remove('hidden');
+      }
+      return;
+    }
+    
+    if (!password) {
+      if (passwordError) {
+        passwordError.textContent = 'Please enter your password to confirm';
+        passwordError.classList.remove('hidden');
+      }
+      return;
+    }
+    
+    try {
+      const token = getToken();
+      const res = await fetch(`${GATEWAY_BASE}/user-service/users/${user.id}/update-email`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token || ''}`
+        },
+        body: JSON.stringify({ 
+          newEmail, 
+          password 
+        })
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        showMessage('Email updated successfully!', 'success');
+        userProfile.email = newEmail; // Update local data
+        renderUserInfo(); // Re-render user info
+        hideEmailModal();
+      } else {
+        const error = await res.json();
+        if (error.error?.includes('password')) {
+          if (passwordError) {
+            passwordError.textContent = error.error || 'Incorrect password';
+            passwordError.classList.remove('hidden');
+          }
+        } else if (error.error?.includes('already')) {
+          if (emailError) {
+            emailError.textContent = error.error || 'Email already in use';
+            emailError.classList.remove('hidden');
+          }
+        } else {
+          showMessage(error.error || 'Failed to update email', 'error');
+        }
+      }
+    } catch (error) {
+      console.error('Error updating email:', error);
+      showMessage('Failed to update email. Please try again.', 'error');
+    }
+  }
+
   // Load complete user profile from database
   async function loadUserProfile() {
     if (!user) return;
@@ -57,7 +224,14 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
         </div>
         <div>
           <p class="text-sm text-gray-500 mb-1">Email</p>
-          <p class="font-semibold">${userProfile.email || 'N/A'}</p>
+          <div class="flex items-center gap-2">
+            <p class="font-semibold">${userProfile.email || 'N/A'}</p>
+            ${!userProfile.is_guest ? `
+              <button id="change-email-btn" class="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                change
+              </button>
+            ` : ''}
+          </div>
         </div>
         <div>
           <p class="text-sm text-gray-500 mb-1">Member Since</p>
@@ -69,6 +243,11 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
         </div>
       </div>
     `;
+    
+    // Event listener für Change Email Button
+    root.querySelector<HTMLButtonElement>('#change-email-btn')?.addEventListener('click', () => {
+      showEmailModal();
+    });
   }
 
   // Load incoming friend requests
@@ -101,9 +280,9 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
       if (res.ok) {
         console.log('✅ Response OK, parsing JSON...');
         const data = await res.json();
-        console.log('� Data:', data);
+        console.log('📦 Data:', data);
         friendRequests = data.requests || [];
-        console.log('� Friend requests count:', friendRequests.length);
+        console.log('📬 Friend requests count:', friendRequests.length);
         renderFriendRequestsSection();
         console.log('🎨 Render completed');
       } else {
@@ -323,14 +502,10 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
       </div>
 
       <!-- User Info Section -->
-            <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
+      <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
         <div class="flex items-center mb-6">
           <div class="w-20 h-20 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-2xl font-bold mr-4">
             ${userProfile.name?.charAt(0).toUpperCase() || userProfile.username?.charAt(0).toUpperCase() || 'U'}
-          </div>
-          <div>
-            <h2 class="text-2xl font-bold text-gray-800">${userProfile.name || userProfile.username || 'Usuario'}</h2>
-            <p class="text-gray-600">${userProfile.email || 'Sin email'}</p>
           </div>
         </div>
         
@@ -437,6 +612,23 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
   // Refresh friends button
   root.querySelector<HTMLButtonElement>("#refresh-friends-btn")?.addEventListener("click", () => {
     loadFriends();
+  });
+
+  // ========== INIT ==========
+  // Modal erstellen
+  createEmailModal();
+
+  // Modal Event Listeners
+  document.getElementById('close-email-modal')?.addEventListener('click', hideEmailModal);
+  document.getElementById('cancel-email-btn')?.addEventListener('click', hideEmailModal);
+  document.getElementById('email-modal-backdrop')?.addEventListener('click', hideEmailModal);
+  document.getElementById('save-email-btn')?.addEventListener('click', updateEmail);
+
+  // Enter key handler für email modal
+  document.getElementById('confirm-password')?.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+      updateEmail();
+    }
   });
 
   // Load data on page load
