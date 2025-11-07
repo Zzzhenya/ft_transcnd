@@ -1308,59 +1308,30 @@ fastify.put('/users/:userId/update-email', {
   }
 });
 
-// Update user email endpoint (protected)
-fastify.put('/users/:userId/update-display-nam', {
+// Update user display name (KEIN PASSWORT NÖTIG)
+fastify.put('/users/:userId/display-name', {
   preHandler: fastify.authenticate
 }, async (request, reply) => {
   try {
     const { userId } = request.params;
-    const { newEmail, password } = request.body;
+    const { displayName } = request.body;
     
-    // Verify the user is updating their own email
+    // Verify the user is updating their own profile
     if (parseInt(userId) !== request.user.userId) {
-      return reply.code(403).send({ error: 'Unauthorized to update this email' });
+      return reply.code(403).send({ error: 'Unauthorized to update this profile' });
     }
-    
-    logger.info(`Email update requested for user ${userId}`);
-    
-    // Validate inputs
-    if (!newEmail || !password) {
-      return reply.code(400).send({ 
-        error: 'New email and password are required' 
-      });
+
+    if (!displayName || displayName.trim().length === 0) {
+      return reply.code(400).send({ error: 'Display name cannot be empty' });
     }
-    
-    // Validate email format
-    // const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    // if (!emailRegex.test(newEmail)) {
-    //   return reply.code(400).send({ 
-    //     error: 'Invalid email format' 
-    //   });
-    // }
-    
-    // Get current user data to verify password
-    const user = await User.findById(userId);
-    if (!user) {
-      return reply.code(404).send({ error: 'User not found' });
+
+    if (displayName.length > 50) {
+      return reply.code(400).send({ error: 'Display name too long (max 50 characters)' });
     }
-    
-    // Verify password
-    const passwordMatch = await bcrypt.compare(password, user.password);
-    if (!passwordMatch) {
-      return reply.code(401).send({ 
-        error: 'Incorrect password' 
-      });
-    }
-    
-    // Check if email is already taken
-    const existingEmail = await User.findByEmail(newEmail);
-    if (existingEmail && existingEmail.id !== userId) {
-      return reply.code(409).send({ 
-        error: 'Email already in use by another account' 
-      });
-    }
-    
-    // Update email in database
+
+    logger.info(`Updating display name for user ${userId} to ${displayName}`);
+
+    // Update display_name in database
     const response = await fetch('http://database-service:3006/internal/write', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1368,84 +1339,30 @@ fastify.put('/users/:userId/update-display-nam', {
         table: 'Users',
         id: parseInt(userId),
         column: 'display_name',
-        value: newEmail
+        value: displayName.trim()
       })
     });
-    
+
     if (!response.ok) {
       logger.error('Database update failed:', response.status);
-      return reply.code(500).send({ error: 'Failed to update email' });
+      return reply.code(500).send({ error: 'Failed to update display name' });
     }
-    
-    logger.info(`Display Name successfully updated for user ${userId}`);
-    
+
+    logger.info(`Display name updated successfully for user ${userId}`);
     return { 
       success: true, 
-      message: 'Name updated successfully',
-      email: newEmail
+      message: 'Display name updated successfully',
+      displayName: displayName.trim()
     };
-    
+
   } catch (error) {
-    logger.error('Error updating email:', error);
+    logger.error('Error updating display name:', error);
     return reply.code(500).send({ error: 'Internal server error' });
   }
 });
 
-// Update user display name
-// fastify.put('/users/:userId/update-display-name', {
-//   preHandler: fastify.authenticate
-// }, async (request, reply) => {
-//   try {
-//     const { userId } = request.params;
-//     const { displayName } = request.body;
-    
-//     // Verify the user is updating their own profile
-//     if (parseInt(userId) !== request.user.userId) {
-//       return reply.code(403).send({ error: 'Unauthorized to update this profile' });
-//     }
-
-//     if (!displayName || displayName.trim().length === 0) {
-//       return reply.code(400).send({ error: 'Display name cannot be empty' });
-//     }
-
-//     if (displayName.length > 50) {
-//       return reply.code(400).send({ error: 'Display name too long (max 50 characters)' });
-//     }
-
-//     logger.info(`Updating display name for user ${userId} to ${displayName}`);
-
-//     // Update display_name in database
-//     const response = await fetch('http://database-service:3006/internal/write', {
-//       method: 'POST',
-//       headers: { 'Content-Type': 'application/json' },
-//       body: JSON.stringify({
-//         table: 'Users',
-//         id: parseInt(userId),
-//         column: 'display_name',
-//         value: displayName.trim()
-//       })
-//     });
-
-//     if (!response.ok) {
-//       logger.error('Database update failed:', response.status);
-//       return reply.code(500).send({ error: 'Failed to update display name' });
-//     }
-
-//     logger.info(`Display name updated successfully for user ${userId}`);
-//     return { 
-//       success: true, 
-//       message: 'Display name updated successfully',
-//       displayName: displayName.trim()
-//     };
-
-//   } catch (error) {
-//     logger.error('Error updating display name:', error);
-//     return reply.code(500).send({ error: 'Internal server error' });
-//   }
-// });
-
-// Update username
-fastify.put('/users/:userId/update-username', {
+// Update username (KEIN PASSWORT NÖTIG)
+fastify.put('/users/:userId/username', {
   preHandler: fastify.authenticate
 }, async (request, reply) => {
   try {
@@ -1510,6 +1427,5 @@ fastify.put('/users/:userId/update-username', {
     return reply.code(500).send({ error: 'Internal server error' });
   }
 });
-
 
 start();

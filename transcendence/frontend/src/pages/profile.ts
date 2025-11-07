@@ -254,246 +254,244 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
   }
 
   // ========== DISPLAY NAME CHANGE MODAL FUNKTIONEN ==========
-  function createDisplayNameModal() {
-    const modalHTML = `
-      <div id="display-name-modal" class="fixed inset-0 z-50 hidden">
-        <!-- Backdrop -->
-        <div id="display-name-modal-backdrop" class="absolute inset-0 bg-black bg-opacity-50"></div>
-        <!-- Modal -->
-        <div class="relative flex items-center justify-center min-h-screen p-4">
-          <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
-            <div class="flex justify-between items-center mb-4">
-              <h3 class="text-xl font-bold text-gray-800">✏️ Change Display Name</h3>
-              <button id="close-display-name-modal" class="text-gray-400 hover:text-gray-600">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                </svg>
-              </button>
+  // ========== DISPLAY NAME CHANGE MODAL FUNKTIONEN ==========
+function createDisplayNameModal() {
+  const modalHTML = `
+    <div id="display-name-modal" class="fixed inset-0 z-50 hidden">
+      <!-- Backdrop -->
+      <div id="display-name-modal-backdrop" class="absolute inset-0 bg-black bg-opacity-50"></div>
+      <!-- Modal -->
+      <div class="relative flex items-center justify-center min-h-screen p-4">
+        <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="text-xl font-bold text-gray-800">✏️ Change Display Name</h3>
+            <button id="close-display-name-modal" class="text-gray-400 hover:text-gray-600">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+              </svg>
+            </button>
+          </div>
+          <div class="space-y-4">
+            <div>
+              <label for="new-display-name" class="block text-sm font-medium text-gray-700 mb-1">New Display Name</label>
+              <input 
+                type="text" 
+                id="new-display-name" 
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                placeholder="Enter new display name"
+                value="${userProfile.display_name || userProfile.username || ''}"
+                maxlength="50"
+              />
+              <p class="text-xs text-gray-500 mt-1">Max 50 characters</p>
+              <p id="display-name-error" class="text-red-500 text-sm mt-1 hidden"></p>
             </div>
-            <div class="space-y-4">
-              <div>
-                <label for="new-display-name" class="block text-sm font-medium text-gray-700 mb-1">New Display Name</label>
-                <input 
-                  type="text" 
-                  id="new-display-name" 
-                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                  placeholder="Enter new display name"
-                  value="${userProfile.display_name || userProfile.username || ''}"
-                />
-                <p id="display-name-error" class="text-red-500 text-sm mt-1 hidden"></p>
-              </div>
-              <div>
-                <label for="confirm-password-display-name" class="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
-                <input 
-                  type="password" 
-                  id="confirm-password-display-name" 
-                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                  placeholder="Enter your password to confirm"
-                />
-                <p id="password-error-display-name" class="text-red-500 text-sm mt-1 hidden"></p>
-              </div>
-            </div>
-            <div class="flex gap-3 mt-6">
-              <button id="cancel-display-name-btn" class="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 font-semibold transition-colors">
-                Cancel
-              </button>
-              <button id="save-display-name-btn" class="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors">
-                Save Changes
-              </button>
-            </div>
+            <!-- KEIN PASSWORT-FELD MEHR! -->
+          </div>
+          <div class="flex gap-3 mt-6">
+            <button id="cancel-display-name-btn" class="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 font-semibold transition-colors">
+              Cancel
+            </button>
+            <button id="save-display-name-btn" class="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors">
+              Save Changes
+            </button>
           </div>
         </div>
       </div>
-    `;
+    </div>
+  `;
 
-    const container = document.createElement('div');
-    container.innerHTML = modalHTML;
-    document.body.appendChild(container);
+  const container = document.createElement('div');
+  container.innerHTML = modalHTML;
+  document.body.appendChild(container);
 
-    document.getElementById('close-display-name-modal')?.addEventListener('click', hideDisplayNameModal);
-    document.getElementById('display-name-modal-backdrop')?.addEventListener('click', hideDisplayNameModal);
-    document.getElementById('cancel-display-name-btn')?.addEventListener('click', hideDisplayNameModal);
-    document.getElementById('save-display-name-btn')?.addEventListener('click', updateDisplayName);
-  }
+  document.getElementById('close-display-name-modal')?.addEventListener('click', hideDisplayNameModal);
+  document.getElementById('display-name-modal-backdrop')?.addEventListener('click', hideDisplayNameModal);
+  document.getElementById('cancel-display-name-btn')?.addEventListener('click', hideDisplayNameModal);
+  document.getElementById('save-display-name-btn')?.addEventListener('click', updateDisplayName);
+}
 
-  function showDisplayNameModal() {
-    if (!document.getElementById('display-name-modal')) {
-      createDisplayNameModal();
+async function updateDisplayName() {
+  const displayNameInput = document.getElementById('new-display-name') as HTMLInputElement;
+  const displayNameError = document.getElementById('display-name-error');
+
+  displayNameError?.classList.add('hidden');
+
+  const newDisplayName = displayNameInput?.value?.trim();
+
+  if (!newDisplayName) {
+    if (displayNameError) {
+      displayNameError.textContent = 'Please enter a new display name';
+      displayNameError.classList.remove('hidden');
     }
-    document.getElementById('display-name-modal')?.classList.remove('hidden');
+    return;
   }
 
-  function hideDisplayNameModal() {
-    document.getElementById('display-name-modal')?.classList.add('hidden');
+  if (newDisplayName.length > 50) {
+    if (displayNameError) {
+      displayNameError.textContent = 'Display name must be 50 characters or less';
+      displayNameError.classList.remove('hidden');
+    }
+    return;
   }
 
-  
+  try {
+    const token = getToken();
+    // KORRIGIERTE URL: /display-name statt /update-display-name
+    const res = await fetch(`${GATEWAY_BASE}/user-service/users/${user.id}/display-name`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token || ''}`
+      },
+      body: JSON.stringify({ 
+        displayName: newDisplayName  // KORRIGIERT: displayName statt newDisplayName
+        // KEIN password!
+      })
+    });
 
-  // ========== USERNAME CHANGE MODAL FUNKTIONEN ==========
-  function createUsernameModal() {
-    const modalHTML = `
-      <div id="username-modal" class="fixed inset-0 z-50 hidden">
-        <!-- Backdrop -->
-        <div id="username-modal-backdrop" class="absolute inset-0 bg-black bg-opacity-50"></div>
-        <!-- Modal -->
-        <div class="relative flex items-center justify-center min-h-screen p-4">
-          <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
-            <div class="flex justify-between items-center mb-4">
-              <h3 class="text-xl font-bold text-gray-800">👤 Change Username</h3>
-              <button id="close-username-modal" class="text-gray-400 hover:text-gray-600">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                </svg>
-              </button>
+    const data = await res.json();
+
+    if (res.ok && data.success) {
+      showMessage('Display name updated successfully!', 'success');
+      userProfile.display_name = newDisplayName;
+      renderUserInfo();
+      hideDisplayNameModal();
+      return;
+    }
+
+    showMessage(data.error || 'Failed to update display name', 'error');
+  } catch (error) {
+    console.error('Error updating display name:', error);
+    showMessage('Failed to update display name. Please try again.', 'error');
+  }
+}
+
+// ========== USERNAME CHANGE MODAL FUNKTIONEN ==========
+function createUsernameModal() {
+  const modalHTML = `
+    <div id="username-modal" class="fixed inset-0 z-50 hidden">
+      <!-- Backdrop -->
+      <div id="username-modal-backdrop" class="absolute inset-0 bg-black bg-opacity-50"></div>
+      <!-- Modal -->
+      <div class="relative flex items-center justify-center min-h-screen p-4">
+        <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="text-xl font-bold text-gray-800">👤 Change Username</h3>
+            <button id="close-username-modal" class="text-gray-400 hover:text-gray-600">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+              </svg>
+            </button>
+          </div>
+          <div class="space-y-4">
+            <div>
+              <label for="new-username" class="block text-sm font-medium text-gray-700 mb-1">New Username</label>
+              <input 
+                type="text" 
+                id="new-username" 
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                placeholder="Enter new username"
+                value="${userProfile.username || ''}"
+                maxlength="20"
+              />
+              <p class="text-xs text-gray-500 mt-1">3-20 characters, only letters, numbers, and underscores</p>
+              <p id="username-error" class="text-red-500 text-sm mt-1 hidden"></p>
             </div>
-            <div class="space-y-4">
-              <div>
-                <label for="new-username" class="block text-sm font-medium text-gray-700 mb-1">New Username</label>
-                <input 
-                  type="text" 
-                  id="new-username" 
-                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                  placeholder="Enter new username"
-                  value="${userProfile.username || ''}"
-                />
-                <p class="text-xs text-gray-500 mt-1">3-20 characters, only letters, numbers, and underscores</p>
-                <p id="username-error" class="text-red-500 text-sm mt-1 hidden"></p>
-              </div>
-              <div>
-                <label for="confirm-password-username" class="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
-                <input 
-                  type="password" 
-                  id="confirm-password-username" 
-                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                  placeholder="Enter your password to confirm"
-                />
-                <p id="password-error-username" class="text-red-500 text-sm mt-1 hidden"></p>
-              </div>
-            </div>
-            <div class="flex gap-3 mt-6">
-              <button id="cancel-username-btn" class="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 font-semibold transition-colors">
-                Cancel
-              </button>
-              <button id="save-username-btn" class="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors">
-                Save Changes
-              </button>
-            </div>
+            <!-- KEIN PASSWORT-FELD MEHR! -->
+          </div>
+          <div class="flex gap-3 mt-6">
+            <button id="cancel-username-btn" class="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 font-semibold transition-colors">
+              Cancel
+            </button>
+            <button id="save-username-btn" class="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors">
+              Save Changes
+            </button>
           </div>
         </div>
       </div>
-    `;
+    </div>
+  `;
 
-    const container = document.createElement('div');
-    container.innerHTML = modalHTML;
-    document.body.appendChild(container);
+  const container = document.createElement('div');
+  container.innerHTML = modalHTML;
+  document.body.appendChild(container);
 
-    document.getElementById('close-username-modal')?.addEventListener('click', hideUsernameModal);
-    document.getElementById('username-modal-backdrop')?.addEventListener('click', hideUsernameModal);
-    document.getElementById('cancel-username-btn')?.addEventListener('click', hideUsernameModal);
-    document.getElementById('save-username-btn')?.addEventListener('click', updateUsername);
-  }
+  document.getElementById('close-username-modal')?.addEventListener('click', hideUsernameModal);
+  document.getElementById('username-modal-backdrop')?.addEventListener('click', hideUsernameModal);
+  document.getElementById('cancel-username-btn')?.addEventListener('click', hideUsernameModal);
+  document.getElementById('save-username-btn')?.addEventListener('click', updateUsername);
+}
 
-  function showUsernameModal() {
-    if (!document.getElementById('username-modal')) {
-      createUsernameModal();
+async function updateUsername() {
+  const usernameInput = document.getElementById('new-username') as HTMLInputElement;
+  const usernameError = document.getElementById('username-error');
+
+  usernameError?.classList.add('hidden');
+
+  const newUsername = usernameInput?.value?.trim();
+
+  if (!newUsername) {
+    if (usernameError) {
+      usernameError.textContent = 'Please enter a new username';
+      usernameError.classList.remove('hidden');
     }
-    document.getElementById('username-modal')?.classList.remove('hidden');
+    return;
   }
 
-  function hideUsernameModal() {
-    document.getElementById('username-modal')?.classList.add('hidden');
+  if (newUsername.length < 3 || newUsername.length > 20) {
+    if (usernameError) {
+      usernameError.textContent = 'Username must be between 3 and 20 characters';
+      usernameError.classList.remove('hidden');
+    }
+    return;
   }
 
-  async function updateUsername() {
-    const usernameInput = document.getElementById('new-username') as HTMLInputElement;
-    const passwordInput = document.getElementById('confirm-password-username') as HTMLInputElement;
-    const usernameError = document.getElementById('username-error');
-    const passwordError = document.getElementById('password-error-username');
+  if (!/^[a-zA-Z0-9_]+$/.test(newUsername)) {
+    if (usernameError) {
+      usernameError.textContent = 'Username can only contain letters, numbers, and underscores';
+      usernameError.classList.remove('hidden');
+    }
+    return;
+  }
 
-    usernameError?.classList.add('hidden');
-    passwordError?.classList.add('hidden');
+  try {
+    const token = getToken();
+    // KORRIGIERTE URL: /username statt /update-username  
+    const res = await fetch(`${GATEWAY_BASE}/user-service/users/${user.id}/username`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token || ''}`
+      },
+      body: JSON.stringify({ 
+        username: newUsername  // KORRIGIERT: username statt newUsername
+        // KEIN password!
+      })
+    });
 
-    const newUsername = usernameInput?.value?.trim();
-    const password = passwordInput?.value;
+    const data = await res.json();
 
-    if (!newUsername) {
+    if (res.ok && data.success) {
+      showMessage('Username updated successfully!', 'success');
+      userProfile.username = newUsername;
+      renderUserInfo();
+      hideUsernameModal();
+      return;
+    }
+
+    if (data.error?.includes('already')) {
       if (usernameError) {
-        usernameError.textContent = 'Please enter a new username';
+        usernameError.textContent = data.error;
         usernameError.classList.remove('hidden');
       }
-      return;
+    } else {
+      showMessage(data.error || 'Failed to update username', 'error');
     }
-
-    if (newUsername.length < 3 || newUsername.length > 20) {
-      if (usernameError) {
-        usernameError.textContent = 'Username must be between 3 and 20 characters';
-        usernameError.classList.remove('hidden');
-      }
-      return;
-    }
-
-    if (!/^[a-zA-Z0-9_]+$/.test(newUsername)) {
-      if (usernameError) {
-        usernameError.textContent = 'Username can only contain letters, numbers, and underscores';
-        usernameError.classList.remove('hidden');
-      }
-      return;
-    }
-
-    if (!password) {
-      if (passwordError) {
-        passwordError.textContent = 'Please enter your password to confirm';
-        passwordError.classList.remove('hidden');
-      }
-      return;
-    }
-
-    try {
-      const token = getToken();
-      const res = await fetch(`${GATEWAY_BASE}/user-service/users/${user.id}/update-username`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token || ''}`
-        },
-        body: JSON.stringify({ 
-          newUsername, 
-          password 
-        })
-      });
-
-      const data = await res.json();
-
-      if (res.ok && data.success) {
-        showMessage('Username updated successfully!', 'success');
-        userProfile.username = newUsername;
-        renderUserInfo();
-        hideUsernameModal();
-        return;
-      }
-
-      if (data.error) {
-        if (data.error.includes('password')) {
-          if (passwordError) {
-            passwordError.textContent = data.error;
-            passwordError.classList.remove('hidden');
-          }
-        } else if (data.error.includes('already')) {
-          if (usernameError) {
-            usernameError.textContent = data.error;
-            usernameError.classList.remove('hidden');
-          }
-        } else {
-          showMessage(data.error, 'error');
-        }
-      } else {
-        showMessage('Failed to update username', 'error');
-      }
-    } catch (error) {
-      console.error('Error updating username:', error);
-      showMessage('Failed to update username. Please try again.', 'error');
-    }
+  } catch (error) {
+    console.error('Error updating username:', error);
+    showMessage('Failed to update username. Please try again.', 'error');
   }
+}
 
   // Load incoming friend requests
   async function loadFriendRequests() {
