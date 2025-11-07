@@ -3,7 +3,6 @@
 import { navigate } from "@/app/router";
 import { getAuth, getToken } from "@/app/auth";
 import { getState } from "@/app/store";
-import { GATEWAY_BASE } from "@/app/config";
 import { onlineManager } from '../utils/efficient-online-status';
 
 interface Friend {
@@ -53,7 +52,7 @@ export default function (root: HTMLElement) {
 		try {
 			if (user) {
 				const token = getToken();
-				const res = await fetch(`${GATEWAY_BASE}/user-service/users/${user.id}/friends`, {
+				const res = await fetch(`/api/user-service/users/${user.id}/friends`, {
 					method: 'POST',
 					headers: {
 						'Content-Type': 'application/json',
@@ -97,7 +96,7 @@ export default function (root: HTMLElement) {
 	// Load online users for matchmaking
 	async function loadOnlineUsers() {
 		try {
-			const res = await fetch(`${GATEWAY_BASE}/user-service/users/online`);
+			const res = await fetch(`/api/user-service/users/online`);
 			if (res.ok) {
 				const data = await res.json();
 				onlineUsers = data.users || [];
@@ -466,8 +465,16 @@ export default function (root: HTMLElement) {
 			console.log('🎮 user:', user, 'token:', token);
 			if (!user) { showStatus('You must be signed in to invite', 'error'); return; }
 			try {
-				console.log('🎮 About to send POST request to:', `${GATEWAY_BASE}/user-service/users/${friendId}/invite`);
-				const res = await fetch(`${GATEWAY_BASE}/user-service/users/${friendId}/invite`, {
+				console.log('🔥 DEBUG: About to send invite request');
+				console.log('🔥 DEBUG: URL:', `/api/user-service/users/${friendId}/invite`);
+				console.log('🔥 DEBUG: Headers:', {
+					'Content-Type': 'application/json',
+					'Authorization': `Bearer ${token || ''}`,
+				});
+				console.log('🔥 DEBUG: Body:', JSON.stringify({ type: 'game_invite' }));
+				
+				console.log('🎮 About to send POST request to:', `/api/user-service/users/${friendId}/invite`);
+				const res = await fetch(`/api/user-service/users/${friendId}/invite`, {
 					method: 'POST',
 					headers: {
 						'Content-Type': 'application/json',
@@ -475,9 +482,26 @@ export default function (root: HTMLElement) {
 					},
 					body: JSON.stringify({ type: 'game_invite' })
 				});
+				
+				console.log('🔥 DEBUG: Fetch completed');
+				console.log('🔥 DEBUG: Response status:', res.status);
+				console.log('🔥 DEBUG: Response ok:', res.ok);
+				console.log('🔥 DEBUG: Response headers:', res.headers);
+				
 				console.log('🎮 Response received:', res.status, res.statusText);
 				if (res.ok) {
-					showStatus('Invitation sent!', 'success');
+					const result = await res.json();
+					console.log('🎮 Invite result:', result);
+					
+					// 🔥 CHANGED: Just show success message, DON'T go to room yet
+					showStatus('Invitation sent! Waiting for acceptance...', 'success');
+					
+					// Store the room code to join later when invitation is accepted
+					if (result.roomCode) {
+						console.log('🎮 Room code created:', result.roomCode, '- waiting for acceptance');
+						console.log('🎮 Toast notification system will handle acceptance automatically');
+						// The toast-notifications.ts system will automatically detect acceptance and navigate
+					}
 				} else {
 					const err = await res.json().catch(() => ({}));
 					console.log('🎮 Error response:', err);

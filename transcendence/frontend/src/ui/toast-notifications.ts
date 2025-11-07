@@ -69,11 +69,26 @@ class ToastNotificationSystem {
 		this.checkForNewNotifications();
 	}
 
+	// Public method to force check notifications (useful after sending invitations)
+	forceCheck() {
+		console.log('🍞 Force checking notifications...');
+		this.checkForNewNotifications();
+	}
+
+	// Method to stop polling (useful when navigating away)
+	private stopPolling() {
+		if (this.pollInterval) {
+			console.log('🍞 🛑 STOPPING POLLING - Navigation imminent');
+			clearInterval(this.pollInterval);
+			this.pollInterval = null;
+		}
+	}
+
 	private async checkForNewNotifications() {
 		const user = getAuth();
 		const token = getToken();
 		
-		console.log('🍞 Checking notifications...', { user: user?.id, hasToken: !!token });
+		console.log('🍞 Checking notifications...', { user: user?.id, username: user?.username, hasToken: !!token });
 		
 		if (!user || !token) {
 			console.log('🍞 No user or token, skipping notification check');
@@ -81,7 +96,7 @@ class ToastNotificationSystem {
 		}
 
 		try {
-			const response = await fetch(`${GATEWAY_BASE}/user-service/users/${user.id}/notifications`, {
+			const response = await fetch(`/api/user-service/users/${user.id}/notifications`, {
 				headers: { 'Authorization': `Bearer ${token}` }
 			});
 
@@ -100,13 +115,23 @@ class ToastNotificationSystem {
 			// Only show the most recent notification that we haven't seen
 			const latestNotification = notifications[0]; // Notifications are ordered by created_at DESC
 			
-			if (latestNotification && !this.seenNotificationIds.has(latestNotification.id) && latestNotification.type === 'game_invite') {
-				console.log('🍞 Showing toast for latest notification:', latestNotification.id);
+			if (latestNotification && !this.seenNotificationIds.has(latestNotification.id)) {
+				console.log('🍞 Showing toast for latest notification:', latestNotification.id, 'type:', latestNotification.type);
+				console.log('🍞 Full notification object:', latestNotification);
 				
 				// Clear all existing toasts before showing the new one
 				this.clearAllToasts();
 				
-				await this.showInvitationToast(latestNotification);
+				if (latestNotification.type === 'game_invite') {
+					console.log('🍞 📨 Processing GAME_INVITE notification');
+					await this.showInvitationToast(latestNotification);
+				} else if (latestNotification.type === 'invitation_accepted') {
+					console.log('🍞 🎉 Processing INVITATION_ACCEPTED notification - TRIGGERING AUTO-NAVIGATION!');
+					await this.showAcceptedToast(latestNotification);
+				} else {
+					console.log('🍞 ❓ Unknown notification type:', latestNotification.type);
+				}
+				
 				this.seenNotificationIds.add(latestNotification.id);
 			} else {
 				console.log('🍞 No new notifications to show');
@@ -144,13 +169,89 @@ class ToastNotificationSystem {
 		this.showToast(toast);
 	}
 
+	private async showAcceptedToast(notification: Notification) {
+		console.log('🍞 🎉 ===============================');
+		console.log('🍞 🎉 SHOW ACCEPTED TOAST TRIGGERED!');
+		console.log('🍞 🎉 ===============================');
+		console.log('🍞 Notification data:', notification);
+		
+		// Parse payload to get room code and accepter info
+		let roomCode = null;
+		let accepterName = 'Someone';
+		
+		if (notification.payload) {
+			try {
+				const payloadData = JSON.parse(notification.payload);
+				roomCode = payloadData.roomCode;
+				accepterName = payloadData.accepterName || 'Someone';
+				console.log('🍞 Parsed payload - roomCode:', roomCode, 'accepterName:', accepterName);
+			} catch (error) {
+				console.error('🍞 Failed to parse accepted notification payload:', error);
+			}
+		} else {
+			console.log('🍞 ⚠️ No payload found in notification!');
+		}
+
+		// Show a brief success toast
+		const toast: ToastData = {
+			id: `accepted-${notification.id}`,
+			title: '🎉 Invitation Accepted!',
+			message: `${accepterName} accepted your invitation! Joining game...`,
+			type: 'success',
+			duration: 3000, // 3 seconds - shorter since we're auto-navigating
+		};
+
+		this.showToast(toast);
+		
+		// Mark this notification as read
+		this.markNotificationAsRead(notification.id);
+
+		// 🔥 AUTO-NAVIGATE: Automatically redirect to game room after 1.5 seconds
+		console.log('🍞 🚀 AUTO-NAVIGATING to game room in 1.5 seconds');
+		console.log('🍞 🚀 Room code available:', roomCode);
+		
+		// 🛑 STOP POLLING to prevent interference with navigation
+		this.stopPolling();
+		
+		setTimeout(() => {
+			console.log('🍞 🚀 TIMEOUT TRIGGERED - NAVIGATING NOW!');
+			this.removeToast(`accepted-${notification.id}`);
+			if (roomCode) {
+				console.log('🍞 🚀 AUTO-JOINING accepted game room:', roomCode);
+				console.log('🍞 🚀 Navigating to:', `/remote/room/${roomCode}`);
+				window.location.href = `/remote/room/${roomCode}`;
+			} else {
+				console.log('🍞 🚀 AUTO-JOINING fallback to /remote (no roomCode)');
+				window.location.href = '/remote';
+			}
+		}, 1500); // 1.5 second delay to show the toast briefly
+	}
+
+	private async markNotificationAsRead(notificationId: number) {
+		const token = getToken();
+		try {
+			// We don't have a specific "mark as read" endpoint, so we can just delete it
+			// since these acceptance notifications are just for UI feedback
+			await fetch(`/api/user-service/notifications/${notificationId}/decline`, {
+				method: 'POST',
+				headers: { 
+					'Authorization': `Bearer ${token}`,
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({})
+			});
+		} catch (error) {
+			console.error('🍞 Failed to mark notification as read:', error);
+		}
+	}
+
 	private async getSenderUsername(actorId: number): Promise<string> {
 		try {
 			const token = getToken();
 			console.log('🍞 Getting username for actor:', actorId);
 			console.log('🍞 Token available:', !!token);
 			
-			const url = `${GATEWAY_BASE}/user-service/users/${actorId}`;
+			const url = `/api/user-service/users/${actorId}`;
 			console.log('🍞 Full URL:', url);
 			
 			const response = await fetch(url, {
@@ -179,7 +280,7 @@ class ToastNotificationSystem {
 		const token = getToken();
 		console.log('🍞 Accept invitation - token available:', !!token);
 		try {
-			const response = await fetch(`${GATEWAY_BASE}/user-service/notifications/${notificationId}/accept`, {
+			const response = await fetch(`/api/user-service/notifications/${notificationId}/accept`, {
 				method: 'POST',
 				headers: { 
 					'Authorization': `Bearer ${token}`,
@@ -189,14 +290,35 @@ class ToastNotificationSystem {
 			});
 
 			if (response.ok) {
+				const result = await response.json();
+				console.log('🍞 Accept response:', result);
+				console.log('🍞 roomCode in response:', result.roomCode);
+				console.log('🍞 Type of roomCode:', typeof result.roomCode);
+				
 				this.removeToast(`invitation-${notificationId}`);
 				this.showToast({
 					id: `accept-${notificationId}`,
 					title: '✅ Invitation Accepted',
-					message: 'Joining game...',
+					message: 'Joining game room...',
 					type: 'success',
-					duration: 3000
+					duration: 2000
 				});
+				
+				// Use the room code from the response
+				if (result.roomCode) {
+					console.log('🍞 Joining room:', result.roomCode);
+					console.log('🍞 Redirecting to:', `/remote/room/${result.roomCode}`);
+					setTimeout(() => {
+						window.location.href = `/remote/room/${result.roomCode}`;
+					}, 1000);
+				} else {
+					// Fallback to remote page if no room code
+					console.log('🍞 No roomCode found, falling back to /remote');
+					console.log('🍞 Full response object:', JSON.stringify(result, null, 2));
+					setTimeout(() => {
+						window.location.href = '/remote';
+					}, 1000);
+				}
 			} else {
 				const errorData = await response.text();
 				console.error('🍞 Accept invitation error:', response.status, errorData);
@@ -218,7 +340,7 @@ class ToastNotificationSystem {
 		const token = getToken();
 		console.log('🍞 Decline invitation - token available:', !!token);
 		try {
-			const response = await fetch(`${GATEWAY_BASE}/user-service/notifications/${notificationId}/decline`, {
+			const response = await fetch(`/api/user-service/notifications/${notificationId}/decline`, {
 				method: 'POST',
 				headers: { 
 					'Authorization': `Bearer ${token}`,

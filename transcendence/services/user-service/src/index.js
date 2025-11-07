@@ -593,6 +593,17 @@ fastify.post('/users/:userId/invite', {
 
     console.log(`📨 User ${actorId} inviting user ${userId}`);
 
+    // Generate a unique room code for this invitation
+    const roomCode = Math.random().toString(36).substr(2, 6).toUpperCase();
+    console.log(`📨 Generated room code: ${roomCode}`);
+
+    // Create payload with room code
+    const invitationPayload = {
+      roomCode: roomCode,
+      inviterName: request.user.username || `User ${actorId}`,
+      ...(payload || {})
+    };
+
     // Insert notification row into Notifications table via database-service
     const writePayload = {
       table: 'Notifications',
@@ -601,7 +612,7 @@ fastify.post('/users/:userId/invite', {
         user_id: parseInt(userId), // Receiver
         actor_id: actorId,         // Sender (from JWT)
         type: type || 'game_invite',
-        payload: payload ? JSON.stringify(payload) : null,
+        payload: JSON.stringify(invitationPayload),
         read: 0
       }
     };
@@ -626,9 +637,13 @@ fastify.post('/users/:userId/invite', {
     const writeResult = await writeRes.json();
     console.log('📨 Database write result:', JSON.stringify(writeResult, null, 2));
 
-    // Success - return created
+    // Success - return created with room code
     console.log('📨 Invitation created successfully');
-    return { success: true, message: 'Invitation created' };
+    return { 
+      success: true, 
+      message: 'Invitation created',
+      roomCode: roomCode
+    };
   } catch (error) {
     logger.error('Error creating invitation:', error);
     return reply.code(500).send({ error: 'Internal server error' });
@@ -725,6 +740,28 @@ fastify.post('/notifications/:notificationId/accept', {
       return reply.code(404).send({ error: 'Notification not found' });
     }
 
+    const notification = queryResult.data[0];
+    console.log('✅ Found notification:', notification);
+
+    // Parse payload to get room code and inviter info
+    let roomCode = null;
+    let originalInviterId = null;
+    if (notification.payload) {
+      try {
+        const payloadData = JSON.parse(notification.payload);
+        roomCode = payloadData.roomCode;
+        originalInviterId = notification.actor_id; // The user who sent the invitation
+        console.log('✅ Parsed payload:', payloadData);
+        console.log('✅ Extracted room code:', roomCode);
+        console.log('✅ Original inviter ID:', originalInviterId);
+      } catch (error) {
+        console.error('✅ Failed to parse notification payload:', error);
+        console.error('✅ Raw payload was:', notification.payload);
+      }
+    } else {
+      console.log('✅ No payload found in notification');
+    }
+
     // Mark notification as read and delete it (accepted)
     const deletePayload = {
       table: 'Notifications',
@@ -746,8 +783,66 @@ fastify.post('/notifications/:notificationId/accept', {
       return reply.code(500).send({ error: 'Failed to accept invitation' });
     }
 
+    // 🔥 NEW: Send notification to original inviter that invitation was accepted
+    if (originalInviterId && roomCode) {
+      console.log('✅ CREATING ACCEPTANCE NOTIFICATION:');
+      console.log('   - Original inviter ID:', originalInviterId);
+      console.log('   - Room code:', roomCode);
+      console.log('   - Accepter username:', request.user.username);
+      
+      const inviterNotificationPayload = {
+        roomCode: roomCode,
+        accepterName: request.user.username || `User ${userId}`,
+        message: 'Your invitation was accepted!'
+      };
+      console.log('   - Payload:', JSON.stringify(inviterNotificationPayload));
+
+      const writePayload = {
+        table: 'Notifications',
+        action: 'insert',
+        values: {
+          user_id: originalInviterId,     // Notify the original inviter
+          actor_id: userId,               // The user who accepted
+          type: 'invitation_accepted',
+          payload: JSON.stringify(inviterNotificationPayload),
+          read: 0
+        }
+      };
+      
+      console.log('✅ Database write payload:', JSON.stringify(writePayload, null, 2));
+      
+      const writeRes = await fetch('http://database-service:3006/internal/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(writePayload)
+      });
+
+      console.log('✅ Database write response status:', writeRes.status);
+      if (writeRes.ok) {
+        const writeResult = await writeRes.json();
+        console.log('✅ Database write result:', JSON.stringify(writeResult, null, 2));
+        console.log('✅ Successfully notified inviter about acceptance');
+      } else {
+        const errorText = await writeRes.text();
+        console.error('✅ Failed to notify inviter about acceptance:', writeRes.status, errorText);
+      }
+    } else {
+      console.log('✅ NOT creating acceptance notification:', {
+        originalInviterId,
+        roomCode,
+        hasOriginalInviter: !!originalInviterId,
+        hasRoomCode: !!roomCode
+      });
+    }
+
     console.log('✅ Invitation accepted successfully');
-    return { success: true, message: 'Invitation accepted' };
+    const responseData = { 
+      success: true, 
+      message: 'Invitation accepted',
+      roomCode: roomCode 
+    };
+    console.log('✅ Sending response:', JSON.stringify(responseData, null, 2));
+    return responseData;
   } catch (error) {
     console.error('✅ Error accepting invitation:', error);
     logger.error('Error accepting invitation:', error);
@@ -887,26 +982,33 @@ console.log('CHECKPOINT 0: About to register POST /users/:userId/friends endpoin
 fastify.post('/users/:userId/friends', {
   preHandler: fastify.authenticate
 }, async (request, reply) => {
+  console.log('🚀 FRIENDS ENDPOINT HIT! Params:', request.params, 'Body:', request.body);
   try {
     const { userId } = request.params;
     const { friend_id, friendUsername } = request.body;
+    console.log('🚀 Processing friend request:', { userId, friend_id, friendUsername });
     
     let finalFriendId = friend_id;
     
     // If friendUsername is provided, find the user ID
     if (friendUsername && !friend_id) {
+      console.log('🚀 Looking up user by username:', friendUsername);
       const friend = await User.findByUsername(friendUsername);
       if (!friend) {
+        console.log('🚀 User not found:', friendUsername);
         return reply.code(404).send({ error: `User with username '${friendUsername}' not found` });
       }
       finalFriendId = friend.id;
       logger.info(`Found user ${friendUsername} with ID ${finalFriendId}`);
     } else if (!friend_id && !friendUsername) {
+      console.log('🚀 Missing required parameters');
       return reply.code(400).send({ error: 'Either friend_id or friendUsername is required' });
     }
 
+    console.log('🚀 About to create friend request:', { from: userId, to: finalFriendId });
     logger.info(`Creating friend request from ${userId} to ${finalFriendId}`);
 
+    console.log('🚀 Sending request to database-service...');
     const response = await fetch('http://database-service:3006/internal/users', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -921,12 +1023,18 @@ fastify.post('/users/:userId/friends', {
       })
     });
 
+    console.log('🚀 Database response status:', response.status);
+    console.log('🚀 Database response ok:', response.ok);
+
     if (!response.ok) {
+      const errorText = await response.text();
+      console.log('🚀 Database error response:', errorText);
       logger.error('Database insert failed:', response.status);
       return reply.code(500).send({ error: 'Failed to create friend request' });
     }
 
     const result = await response.json();
+    console.log('🚀 Database success result:', result);
     return { success: true, message: 'Friend request sent', id: result.id };
 
   } catch (error) {

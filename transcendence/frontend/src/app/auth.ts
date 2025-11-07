@@ -209,10 +209,7 @@ export async function setOnlineStatus(isOnline: boolean): Promise<{ success: boo
 
     console.log(`🔄 Setting online status for user ${user.id} to ${isOnline}`);
 
-    // Import GATEWAY_BASE directly
-    const { GATEWAY_BASE } = await import('./config');
-    
-    const response = await fetch(`${GATEWAY_BASE}/user-service/users/${user.id}/status`, {
+    const response = await fetch(`/api/user-service/users/${user.id}/status`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

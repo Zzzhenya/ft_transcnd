@@ -1,7 +1,6 @@
 // frontend/src/pages/profile.ts
 import { getAuth, signOut, getToken } from "@/app/auth";
 import { navigate } from "@/app/router";
-import { GATEWAY_BASE } from "@/app/config";
 
 export default function (root: HTMLElement, ctx?: { url?: URL }) {
   const user = getAuth();
@@ -22,7 +21,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
     if (!user) return;
     try {
       const token = getToken();
-      const res = await fetch(`${GATEWAY_BASE}/user-service/auth/profile`, {
+      const res = await fetch(`/api/user-service/auth/profile`, {
         headers: {
           'Authorization': `Bearer ${token || ''}`
         }
@@ -86,7 +85,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
       const token = getToken();
       console.log('Token status:', token ? '✅ Present' : '❌ Missing');
       
-      const url = `${GATEWAY_BASE}/user-service/users/${user.id}/friend-requests`;
+      const url = `/api/user-service/users/${user.id}/friend-requests`;
       console.log('🌐 URL:', url);
       
       console.log('📡 Making fetch request...');
@@ -121,7 +120,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
     if (!user) return;
     try {
       const token = getToken();
-      const res = await fetch(`${GATEWAY_BASE}/user-service/users/${user.id}/friend-requests/${requesterId}`, {
+      const res = await fetch(`/api/user-service/users/${user.id}/friend-requests/${requesterId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -152,7 +151,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
     if (!user) return;
     try {
       const token = getToken();
-      const res = await fetch(`${GATEWAY_BASE}/user-service/users/${user.id}/friends`, {
+      const res = await fetch(`/api/user-service/users/${user.id}/friends`, {
         headers: {
           'Authorization': `Bearer ${token || ''}`
         }
@@ -171,7 +170,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
     if (!user) return;
     try {
       const token = getToken();
-      const res = await fetch(`${GATEWAY_BASE}/user-service/users/${user.id}/friends`, {
+      const res = await fetch(`/api/user-service/users/${user.id}/friends`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -195,7 +194,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
 
   async function loadOnlineUsers() {
     try {
-      const res = await fetch(`${GATEWAY_BASE}/user-service/users/online`);
+      const res = await fetch(`/api/user-service/users/online`);
       if (res.ok) {
         const data = await res.json();
         onlineUsers = data.users || [];

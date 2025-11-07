@@ -7,7 +7,7 @@ const DB_PATH = path.join(__dirname, 'transcendence.db');
 const SCHEMA_PATH = path.join(__dirname, 'schema.sql');
 
 function initDatabase() {
-  console.log('🗄️  Initializing database...');
+  console.log('🗄️  Checking database...');
   console.log('📁 DB Path:', DB_PATH);
   
   // Check if schema exists
@@ -16,11 +16,27 @@ function initDatabase() {
     process.exit(1);
   }
   
-  // Alte DB löschen (NUR für Development!)
+  // 🔥 FIXED: Only create database if it doesn't exist
   if (fs.existsSync(DB_PATH)) {
-    console.log('⚠️  Removing old database...');
-    fs.unlinkSync(DB_PATH);
+    console.log('✅ Database already exists, skipping initialization');
+    console.log('📊 Existing database size:', fs.statSync(DB_PATH).size, 'bytes');
+    
+    // Just ensure permissions are correct for existing database
+    try {
+      fs.chmodSync(DB_PATH, 0o666);
+      const dbDir = path.dirname(DB_PATH);
+      fs.chmodSync(dbDir, 0o777);
+      console.log('✅ Database permissions verified');
+    } catch (chmodErr) {
+      console.error('⚠️  Could not set permissions:', chmodErr.message);
+    }
+    
+    console.log('🎉 Database ready (existing data preserved)!');
+    return;
   }
+  
+  // Only create new database if it doesn't exist
+  console.log('📝 Creating new database...');
   
   // Neue DB erstellen
   const db = new sqlite3.Database(DB_PATH, (err) => {
@@ -28,7 +44,7 @@ function initDatabase() {
       console.error('❌ Error creating database:', err);
       process.exit(1);
     }
-    console.log('✅ Database file created');
+    console.log('✅ New database file created');
   });
   
   // Schema laden
@@ -49,7 +65,7 @@ function initDatabase() {
 }
 
 function insertTestData(db) {
-  console.log('📝 Inserting test data...');
+  console.log('📝 Inserting initial test data for NEW database...');
   
   const testUsers = `
     INSERT INTO Users (username, email, password_hash, display_name, is_guest)
@@ -61,14 +77,14 @@ function insertTestData(db) {
     if (err) {
       console.error('⚠️  Error inserting test data:', err);
     } else {
-      console.log('✅ Test data inserted (4 users)');
+      console.log('✅ Initial test data inserted (1 user: testuser)');
     }
     
     db.close((err) => {
       if (err) {
         console.error('❌ Error closing database:', err);
       } else {
-        console.log('🎉 Database initialization complete!');
+        console.log('🎉 NEW Database initialization complete!');
         
         // ════════════════════════════════════════════════════════════
         // ✨ NEU: PERMISSIONS SETZEN! ✨
@@ -87,7 +103,7 @@ function insertTestData(db) {
           const stats = fs.statSync(DB_PATH);
           console.log('📊 Final file permissions:', (stats.mode & parseInt('777', 8)).toString(8));
         } catch (chmodErr) {
-          console.error('⚠️  Could not c$2b$10$u75P8Zyn1lAb3miGKYPe5.ydJsc.MKrTlrjOfKWr24s ...hange permissions:', chmodErr.message);
+          console.error('⚠️  Could not change permissions:', chmodErr.message);
           console.error('    This will cause write errors in other services!');
         }
         // ════════════════════════════════════════════════════════════

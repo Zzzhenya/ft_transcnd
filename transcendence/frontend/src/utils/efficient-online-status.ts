@@ -1,18 +1,14 @@
 /**
- * EFFICIENT ONLINE STATUS MANAGER
+ * Manages online status and friend list caching
  * 
- * Strategy: Minimize server requests by using browser events + smart caching
- * - No constant polling (3 seconds → 2 minutes)
- * - Cache friend status for 1 minute
- * - Only update on actual user activity
- * - Use sessionStorage for performance
- * 
- * 🚧 TESTING MODE: Tab blur event disabled for single-computer testing
- * TODO: Re-enable blur event once multi-user testing is available
+ * Performance optimizations:
+ * - Caches friend list to avoid repeated requests
+ * - Debounces status updates
+ * - Efficient network usage
  */
 
 import { getAuth, getToken } from '../app/auth';
-import { GATEWAY_BASE } from '../app/config';
+import type { PublicUser } from '../../../shared/types';
 
 interface CachedFriendStatus {
   friends: any[];
@@ -112,7 +108,7 @@ class EfficientOnlineManager {
     if (!user || !token) return;
 
     try {
-      await fetch(`${GATEWAY_BASE}/user-service/users/${user.id}/status`, {
+      await fetch(`/api/user-service/users/${user.id}/status`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -144,7 +140,7 @@ class EfficientOnlineManager {
     // Fetch from server
     console.log('🌐 Fetching fresh friend status');
     try {
-      const response = await fetch(`${GATEWAY_BASE}/user-service/users/${user.id}/friends`, {
+      const response = await fetch(`/api/user-service/users/${user.id}/friends`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
