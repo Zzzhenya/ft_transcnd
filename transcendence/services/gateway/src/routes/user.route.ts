@@ -76,6 +76,12 @@ const userRoutes: FastifyPluginAsync = async (fastify) => {
 		return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/users/${userId}/online-status`, 'POST');
 	});
 
+	// Update email endpoint
+	fastify.put('/users/:userId/update-email', async (request, reply) => {
+    	const { userId } = request.params as { userId: string };
+    	return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/users/${userId}/update-email`, 'PUT');
+	});
+
 	// Invite (notification) endpoint
 	fastify.post('/users/:userId/invite', async (request, reply) => {
 		const { userId } = request.params as { userId: string };
@@ -101,5 +107,8 @@ const userRoutes: FastifyPluginAsync = async (fastify) => {
 	});
 
 }
+
+
+
 
 export default userRoutes
