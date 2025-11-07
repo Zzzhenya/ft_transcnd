@@ -114,6 +114,10 @@ export async function signIn(
 
 // Sign out
 export async function signOut() {
+  // First cleanup online status before removing auth data
+  const { onlineManager } = await import('../utils/efficient-online-status.js');
+  await onlineManager.destroy();
+  
   const s = read();
   if (!s.auth) s.auth = { user: null, token: null };
   s.auth.user = null;

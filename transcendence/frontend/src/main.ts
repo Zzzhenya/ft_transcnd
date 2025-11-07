@@ -3,8 +3,9 @@ import "./styles.css";
 
 // Router setup: History API (f / b) + link interception.
 import { initRouter } from "./app/router";
-import { initOnlineStatusManager, getAuth } from "./app/auth";
+import { getAuth, setOnlineStatus } from "./app/auth";
 import { toastNotifications } from "./ui/toast-notifications";
+import { onlineManager } from "./utils/efficient-online-status";
 
 // Get app's root (main: "app"), start router, render current URL(= home)
 const root = document.querySelector<HTMLElement>("main#app")!;
@@ -19,14 +20,27 @@ let onlineStatusCleanup: (() => void) | null = null;
 function initOnlineStatus() {
   const user = getAuth();
   if (user && !onlineStatusCleanup) {
-    onlineStatusCleanup = initOnlineStatusManager();
+    // Use ONLY the NEW efficient system
+    onlineManager.init(); 
+    
     // Initialize toast notifications when user logs in
     toastNotifications.init();
+    
+    console.log('🚀 Initialized efficient online status system for user:', user.id);
+    
+    // Set cleanup function
+    onlineStatusCleanup = () => {
+      onlineManager.destroy();
+      console.log('🧹 Cleaned up efficient online status system');
+    };
   } else if (!user && onlineStatusCleanup) {
     onlineStatusCleanup();
     onlineStatusCleanup = null;
+    
     // Destroy toast notifications when user logs out
     toastNotifications.destroy();
+    
+    console.log('🧹 Cleaned up online status systems');
   }
 }
 

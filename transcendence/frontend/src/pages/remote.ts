@@ -4,6 +4,7 @@ import { navigate } from "@/app/router";
 import { getAuth, getToken } from "@/app/auth";
 import { getState } from "@/app/store";
 import { GATEWAY_BASE } from "@/app/config";
+import { onlineManager } from '../utils/efficient-online-status';
 
 interface Friend {
 	friend_id: string;
@@ -24,24 +25,26 @@ export default function (root: HTMLElement) {
 	let onlineUsers: any[] = [];
 
 
-	// Load friends list
+	// Load friends list using efficient online manager
 	async function loadFriends() {
 		try {
-			if (user) {
-				const token = getToken();
-				const res = await fetch(`${GATEWAY_BASE}/user-service/users/${user.id}/friends`, {
-					headers: {
-						'Authorization': `Bearer ${token || ''}`
-					}
-				});
-				if (res.ok) {
-					const data = await res.json();
-					friends = data.friends || [];
-				}
-			}
+			console.log('👥 Loading friends with efficient system');
+			friends = await onlineManager.getFriendsStatus();
+			console.log('👥 Loaded friends:', friends.length);
 		} catch (error) {
 			console.log('Could not load friends:', error);
-			friends = []; // Mock data for demo
+			friends = []; // Fallback to empty array
+		}
+	}
+
+	// Force refresh friends (for manual refresh button)
+	async function refreshFriends() {
+		try {
+			console.log('🔄 Force refreshing friends');
+			friends = await onlineManager.refreshFriendsStatus();
+			await render();
+		} catch (error) {
+			console.log('Could not refresh friends:', error);
 		}
 	}
 
@@ -197,7 +200,12 @@ export default function (root: HTMLElement) {
 					<div class="bg-white/5 backdrop-blur-lg rounded-2xl p-6 border border-white/10">
 						<div class="flex items-center justify-between mb-4">
 							<h3 class="text-2xl font-black text-white">🧑‍🤝‍🧑 FRIENDS LIST</h3>
-							<button id="closeFriendsBtn" class="text-white/60 hover:text-white transition-colors text-2xl">✕</button>
+							<div class="flex items-center gap-3">
+								<button id="refreshFriendsBtn" class="text-blue-400 hover:text-blue-300 transition-colors text-xl" title="Refresh friend status">
+									🔄
+								</button>
+								<button id="closeFriendsBtn" class="text-white/60 hover:text-white transition-colors text-2xl">✕</button>
+							</div>
 						</div>
 						
 						<!-- Add Friend Form -->
@@ -327,6 +335,17 @@ export default function (root: HTMLElement) {
 			closeFriendsBtn.onclick = () => {
 				const section = root.querySelector("#friendsSection");
 				section?.classList.add("hidden");
+			};
+		}
+
+		// Refresh Friends Button
+		const refreshFriendsBtn = root.querySelector<HTMLButtonElement>("#refreshFriendsBtn");
+		if (refreshFriendsBtn) {
+			refreshFriendsBtn.onclick = async () => {
+				console.log('🔄 Manual friends refresh clicked');
+				refreshFriendsBtn.textContent = '⏳'; // Show loading
+				await refreshFriends();
+				refreshFriendsBtn.textContent = '🔄'; // Reset icon
 			};
 		}
 
@@ -471,13 +490,14 @@ export default function (root: HTMLElement) {
 		})();
 	}
 
-	// Initialize
+	// Load data (online manager is already initialized in main.ts)
 	Promise.all([loadFriends(), loadOnlineUsers()]).then(() => {
 		render();
 	});
 
 	// Cleanup
 	return () => {
-		// WebSocket cleanup would go here when implemented
+		// Note: Don't destroy online manager here since it's managed globally in main.ts
+		console.log('🧹 Remote page cleanup complete');
 	};
 }

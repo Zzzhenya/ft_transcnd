@@ -728,14 +728,13 @@ fastify.post('/notifications/:notificationId/accept', {
     // Mark notification as read and delete it (accepted)
     const deletePayload = {
       table: 'Notifications',
-      action: 'delete',
       filters: { 
         id: parseInt(notificationId),
         user_id: userId 
       }
     };
 
-    const deleteRes = await fetch('http://database-service:3006/internal/write', {
+    const deleteRes = await fetch('http://database-service:3006/internal/delete', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(deletePayload)
@@ -800,14 +799,13 @@ fastify.post('/notifications/:notificationId/decline', {
     // Delete the notification (declined)
     const deletePayload = {
       table: 'Notifications',
-      action: 'delete',
       filters: { 
         id: parseInt(notificationId),
         user_id: userId 
       }
     };
 
-    const deleteRes = await fetch('http://database-service:3006/internal/write', {
+    const deleteRes = await fetch('http://database-service:3006/internal/delete', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(deletePayload)

@@ -177,10 +177,15 @@ class ToastNotificationSystem {
 
 	private async acceptInvitation(notificationId: number) {
 		const token = getToken();
+		console.log('🍞 Accept invitation - token available:', !!token);
 		try {
 			const response = await fetch(`${GATEWAY_BASE}/user-service/notifications/${notificationId}/accept`, {
 				method: 'POST',
-				headers: { 'Authorization': `Bearer ${token}` }
+				headers: { 
+					'Authorization': `Bearer ${token}`,
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({})
 			});
 
 			if (response.ok) {
@@ -193,7 +198,9 @@ class ToastNotificationSystem {
 					duration: 3000
 				});
 			} else {
-				throw new Error('Failed to accept');
+				const errorData = await response.text();
+				console.error('🍞 Accept invitation error:', response.status, errorData);
+				throw new Error(`Failed to accept (${response.status}): ${errorData}`);
 			}
 		} catch (error) {
 			console.error('Error accepting invitation:', error);
@@ -209,10 +216,15 @@ class ToastNotificationSystem {
 
 	private async declineInvitation(notificationId: number) {
 		const token = getToken();
+		console.log('🍞 Decline invitation - token available:', !!token);
 		try {
 			const response = await fetch(`${GATEWAY_BASE}/user-service/notifications/${notificationId}/decline`, {
 				method: 'POST',
-				headers: { 'Authorization': `Bearer ${token}` }
+				headers: { 
+					'Authorization': `Bearer ${token}`,
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({})
 			});
 
 			if (response.ok) {
@@ -225,7 +237,9 @@ class ToastNotificationSystem {
 					duration: 2000
 				});
 			} else {
-				throw new Error('Failed to decline');
+				const errorData = await response.text();
+				console.error('🍞 Decline invitation error:', response.status, errorData);
+				throw new Error(`Failed to decline (${response.status}): ${errorData}`);
 			}
 		} catch (error) {
 			console.error('Error declining invitation:', error);
