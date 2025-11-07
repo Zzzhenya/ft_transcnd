@@ -82,6 +82,18 @@ const userRoutes: FastifyPluginAsync = async (fastify) => {
     	return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/users/${userId}/update-email`, 'PUT');
 	});
 
+	// Update user display name
+	fastify.put('/users/:userId/display-name', async (request, reply) => {
+		const { userId } = request.params as { userId: string };
+		return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/users/${userId}/display-name`, 'PUT');
+	});
+
+	// Update username
+	fastify.put('/users/:userId/username', async (request, reply) => {
+		const { userId } = request.params as { userId: string };
+		return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/users/${userId}/username`, 'PUT');
+	});
+
 	// Invite (notification) endpoint
 	fastify.post('/users/:userId/invite', async (request, reply) => {
 		const { userId } = request.params as { userId: string };
