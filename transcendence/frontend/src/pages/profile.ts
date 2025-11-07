@@ -3,6 +3,14 @@ import { getAuth, signOut, getToken } from "@/app/auth";
 import { navigate } from "@/app/router";
 import { GATEWAY_BASE } from "@/app/config";
 
+const DEFAULT_AVATAR_SVG = `data:image/svg+xml;base64,${btoa(`
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+    <rect width="200" height="200" fill="#6B7280"/>
+    <circle cx="100" cy="70" r="30" fill="#FFFFFF"/>
+    <ellipse cx="100" cy="150" rx="50" ry="60" fill="#FFFFFF"/>
+  </svg>
+`)}`;
+
 export default function (root: HTMLElement, ctx?: { url?: URL }) {
   const user = getAuth();
   const currentPath = ctx?.url?.pathname || "/profile";
@@ -91,6 +99,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
     `;
 
     // Add event listeners for change buttons
+    document.getElementById('change-avatar-btn')?.addEventListener('click', showAvatarModal);
     document.getElementById('change-email-btn')?.addEventListener('click', showEmailModal);
     document.getElementById('change-display-name-btn')?.addEventListener('click', showDisplayNameModal);
     document.getElementById('change-username-btn')?.addEventListener('click', showUsernameModal);
@@ -252,6 +261,235 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
       showMessage('Failed to update email. Please try again.', 'error');
     }
   }
+
+// ========== AVATAR CHANGE FUNKTIONEN ==========
+let selectedAvatarFile: File | null = null;
+
+function createAvatarModal() {
+  const modalHTML = `
+    <div id="avatar-modal" class="fixed inset-0 z-50 hidden">
+      <div id="avatar-modal-backdrop" class="absolute inset-0 bg-black bg-opacity-50"></div>
+      <div class="relative flex items-center justify-center min-h-screen p-4">
+        <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="text-xl font-bold text-gray-800">📷 Change Avatar</h3>
+            <button id="close-avatar-modal" class="text-gray-400 hover:text-gray-600">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+              </svg>
+            </button>
+          </div>
+          
+          <div class="space-y-4">
+            <!-- Preview -->
+            <div class="flex justify-center">
+              <div class="relative">
+                <img id="avatar-preview" 
+                     src="${userProfile.avatar || `/avatars/${userProfile.id}.jpg`}" 
+                     class="w-32 h-32 rounded-full object-cover border-4 border-gray-200"
+                     onerror="this.src='/avatars/default.jpg'"
+                     alt="Avatar preview" />
+                <div class="absolute bottom-0 right-0 bg-blue-600 rounded-full p-2 cursor-pointer hover:bg-blue-700">
+                  <label for="avatar-input" class="cursor-pointer">
+                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path>
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                    </svg>
+                  </label>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Hidden file input -->
+            <input type="file" 
+                   id="avatar-input" 
+                   accept="image/jpeg,image/jpg,image/png,image/gif" 
+                   class="hidden" />
+            
+            <p class="text-xs text-gray-500 text-center">
+              Click camera icon to select image<br>
+              Max 2MB • JPG, PNG or GIF
+            </p>
+            
+            <p id="avatar-error" class="text-red-500 text-sm text-center hidden"></p>
+          </div>
+          
+          <div class="flex gap-3 mt-6">
+            <button id="cancel-avatar-btn" class="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 font-semibold transition-colors">
+              Cancel
+            </button>
+            <button id="save-avatar-btn" class="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors disabled:bg-gray-400"
+                    disabled>
+              Save Avatar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  const container = document.createElement('div');
+  container.innerHTML = modalHTML;
+  document.body.appendChild(container);
+  
+  // Event listeners
+  document.getElementById('avatar-input')?.addEventListener('change', handleAvatarSelect);
+  document.getElementById('close-avatar-modal')?.addEventListener('click', hideAvatarModal);
+  document.getElementById('avatar-modal-backdrop')?.addEventListener('click', hideAvatarModal);
+  document.getElementById('cancel-avatar-btn')?.addEventListener('click', hideAvatarModal);
+  document.getElementById('save-avatar-btn')?.addEventListener('click', uploadAvatar);
+}
+
+function showAvatarModal() {
+  if (!document.getElementById('avatar-modal')) {
+    createAvatarModal();
+  }
+  document.getElementById('avatar-modal')?.classList.remove('hidden');
+  selectedAvatarFile = null;
+  
+  // Reset save button
+  const saveBtn = document.getElementById('save-avatar-btn') as HTMLButtonElement;
+  if (saveBtn) {
+    saveBtn.disabled = true;
+  }
+}
+
+function hideAvatarModal() {
+  document.getElementById('avatar-modal')?.classList.add('hidden');
+  selectedAvatarFile = null;
+}
+
+function handleAvatarSelect(e: Event) {
+  const input = e.target as HTMLInputElement;
+  const file = input.files?.[0];
+  
+  if (!file) return;
+  
+  const errorEl = document.getElementById('avatar-error');
+  errorEl?.classList.add('hidden');
+  
+  // Validate file size (2MB max)
+  if (file.size > 2 * 1024 * 1024) {
+    if (errorEl) {
+      errorEl.textContent = 'File size must be less than 2MB';
+      errorEl.classList.remove('hidden');
+    }
+    return;
+  }
+  
+  // Validate file type
+  if (!['image/jpeg', 'image/jpg', 'image/png', 'image/gif'].includes(file.type)) {
+    if (errorEl) {
+      errorEl.textContent = 'Please select a JPG, PNG or GIF image';
+      errorEl.classList.remove('hidden');
+    }
+    return;
+  }
+  
+  selectedAvatarFile = file;
+  
+  // Preview
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const preview = document.getElementById('avatar-preview') as HTMLImageElement;
+    if (preview && e.target?.result) {
+      preview.src = e.target.result as string;
+    }
+  };
+  reader.readAsDataURL(file);
+  
+  // Enable save button
+  const saveBtn = document.getElementById('save-avatar-btn') as HTMLButtonElement;
+  if (saveBtn) {
+    saveBtn.disabled = false;
+  }
+}
+
+async function uploadAvatar() {
+  if (!selectedAvatarFile) {
+    const errorEl = document.getElementById('avatar-error');
+    if (errorEl) {
+      errorEl.textContent = 'Please select an image first';
+      errorEl.classList.remove('hidden');
+    }
+    return;
+  }
+  
+  const saveBtn = document.getElementById('save-avatar-btn') as HTMLButtonElement;
+  if (saveBtn) {
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Uploading...';
+  }
+  
+  try {
+    // Convert to base64
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const base64 = e.target?.result as string;
+      
+      const token = getToken();
+      const res = await fetch(`${GATEWAY_BASE}/user-service/users/${user.id}/avatar`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token || ''}`
+        },
+        body: JSON.stringify({ 
+          imageData: base64
+        })
+      });
+      
+      const data = await res.json();
+      
+      if (res.ok && data.success) {
+        showMessage('Avatar updated successfully!', 'success');
+        userProfile.avatar = data.avatarUrl;
+        
+        // Update avatar display everywhere
+        updateAvatarDisplay();
+        hideAvatarModal();
+        selectedAvatarFile = null;
+      } else {
+        const errorEl = document.getElementById('avatar-error');
+        if (errorEl) {
+          errorEl.textContent = data.error || 'Failed to upload avatar';
+          errorEl.classList.remove('hidden');
+        }
+        
+        if (saveBtn) {
+          saveBtn.disabled = false;
+          saveBtn.textContent = 'Save Avatar';
+        }
+      }
+    };
+    
+    reader.readAsDataURL(selectedAvatarFile);
+  } catch (error) {
+    console.error('Error uploading avatar:', error);
+    showMessage('Failed to upload avatar', 'error');
+    
+    if (saveBtn) {
+      saveBtn.disabled = false;
+      saveBtn.textContent = 'Save Avatar';
+    }
+  }
+}
+
+function updateAvatarDisplay() {
+  // Update main avatar
+  const mainAvatar = document.getElementById('main-avatar') as HTMLImageElement;
+  if (mainAvatar) {
+    mainAvatar.src = userProfile.avatar || `/avatars/${userProfile.id}.jpg`;
+  }
+  
+  // Update header avatar
+  const headerAvatar = document.getElementById('header-avatar') as HTMLImageElement;
+  if (headerAvatar) {
+    headerAvatar.src = userProfile.avatar || `/avatars/${userProfile.id}.jpg`;
+  }
+}
+
+
 
   // ========== DISPLAY NAME CHANGE MODAL FUNKTIONEN (OHNE PASSWORT!) ==========
   function createDisplayNameModal() {
@@ -766,9 +1004,21 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
           <div class="w-20 h-20 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-2xl font-bold mr-4">
             ${userProfile.name?.charAt(0).toUpperCase() || userProfile.username?.charAt(0).toUpperCase() || 'U'}
           </div>
-          <div>
-            <h2 class="text-2xl font-bold text-gray-800">${userProfile.name || userProfile.username || 'Usuario'}</h2>
-            <p class="text-gray-600">${userProfile.email || 'Sin email'}</p>
+          <div class="relative group">
+            <img id="main-avatar"
+                src="${userProfile.avatar || `/avatars/${userProfile.id}.jpg`}" 
+                onerror="this.src='${DEFAULT_AVATAR_SVG}'"
+                alt="Avatar" 
+                class="w-24 h-24 rounded-full object-cover border-4 border-gray-200" />
+            ${!userProfile.is_guest ? `
+              <button id="change-avatar-btn" 
+                      class="absolute inset-0 bg-black bg-opacity-50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white font-medium">
+                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path>
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                </svg>
+              </button>
+            ` : ''}
           </div>
         </div>
         
