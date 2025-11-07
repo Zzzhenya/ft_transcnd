@@ -91,7 +91,7 @@ const userRoutes: FastifyPluginAsync = async (fastify) => {
 	// Update username
 	fastify.put('/users/:userId/update-username', async (request, reply) => {
 		const { userId } = request.params as { userId: string };
-		return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/users/${userId}/username`, 'PUT');
+		return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/users/${userId}/update-username`, 'PUT');
 	});
 
 	// Invite (notification) endpoint
