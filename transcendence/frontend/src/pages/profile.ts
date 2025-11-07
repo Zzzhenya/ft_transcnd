@@ -366,6 +366,7 @@ async function updateDisplayName() {
   }
 }
 
+
 // ========== USERNAME CHANGE MODAL FUNKTIONEN ==========
 function createUsernameModal() {
   const modalHTML = `
