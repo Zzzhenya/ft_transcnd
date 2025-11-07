@@ -1308,7 +1308,7 @@ fastify.put('/users/:userId/update-email', {
   }
 });
 
-// Update user display name (KEIN PASSWORT NÖTIG)
+// Update user display name 
 fastify.put('/users/:userId/display-name', {
   preHandler: fastify.authenticate
 }, async (request, reply) => {
@@ -1361,7 +1361,7 @@ fastify.put('/users/:userId/display-name', {
   }
 });
 
-// Update username (KEIN PASSWORT NÖTIG)
+// Update username 
 fastify.put('/users/:userId/username', {
   preHandler: fastify.authenticate
 }, async (request, reply) => {
@@ -1424,6 +1424,49 @@ fastify.put('/users/:userId/username', {
 
   } catch (error) {
     logger.error('Error updating username:', error);
+    return reply.code(500).send({ error: 'Internal server error' });
+  }
+});
+
+// Avatar Upload Endpoint
+fastify.post('/users/:userId/avatar', {
+  preHandler: fastify.authenticate
+}, async (request, reply) => {
+  try {
+    const { userId } = request.params;
+    const { imageData } = request.body; // Base64 encoded image
+    
+    // Verify the user is updating their own avatar
+    if (parseInt(userId) !== request.user.userId) {
+      return reply.code(403).send({ error: 'Unauthorized' });
+    }
+    
+    // Save image logic here (either base64 or file path)
+    const avatarUrl = `/avatars/${userId}.jpg`; // oder mit timestamp für cache-busting
+    
+    // Update database
+    const response = await fetch('http://database-service:3006/internal/write', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        table: 'Users',
+        id: parseInt(userId),
+        column: 'avatar',
+        value: avatarUrl
+      })
+    });
+    
+    if (!response.ok) {
+      return reply.code(500).send({ error: 'Failed to update avatar' });
+    }
+    
+    return { 
+      success: true, 
+      message: 'Avatar updated successfully',
+      avatarUrl 
+    };
+  } catch (error) {
+    logger.error('Error updating avatar:', error);
     return reply.code(500).send({ error: 'Internal server error' });
   }
 });

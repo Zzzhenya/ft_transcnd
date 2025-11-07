@@ -39,6 +39,7 @@ services:
       - database
     volumes:
       - shared-data:/app/shared/
+      - avatar-uploads:/uploads/avatars:ro
     networks:
       - transcendence-network
     healthcheck:
@@ -306,6 +307,7 @@ services:
       - VITE_WS_BASE=${VITE_WS_BASE:-ws://localhost:3000}
     volumes:
       - ./frontend/src:/app/src:ro  # Hot reload for development
+      - avatar-uploads:/app/public/avatars  # Persistentes Volume
     networks:
       - transcendence-network
     depends_on:
@@ -412,6 +414,7 @@ services:
 volumes:
   shared-data:
   elasticsearch-data:
+  avatar-uploads:  
 
 networks:
   transcendence-network:
