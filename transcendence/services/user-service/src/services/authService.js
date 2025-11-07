@@ -8,7 +8,7 @@ const path = require('path');
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
 class AuthService {
-  static async register(username, email, password) {
+  static async register(username, email, password, displayName = null) {
     try {
       // Check if user already exists
       const existingEmail = await User.findByEmail(email);
@@ -29,7 +29,7 @@ class AuthService {
       const newUser = await User.create({
         username,
         email,
-        password: hashedPassword,
+        password: hashedPassword, // User.create will map this to password_hash
         display_name: displayName || username
       });
       
@@ -86,8 +86,7 @@ class AuthService {
           id: newUser.id,
           username: newUser.username,
           email: newUser.email,
-          display_name: newUser.display_name,
-          avatar_url: newUser.avatar_url || null  // NEU: Avatar-URL zurückgeben
+          display_name: newUser.display_name //|| newUser.username
         },
         token
       };

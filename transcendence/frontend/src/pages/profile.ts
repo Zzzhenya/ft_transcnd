@@ -102,7 +102,89 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
     }
   }
 
-  async function updateEmail() {
+  // async function updateEmail() {
+  //   const emailInput = document.getElementById('new-email') as HTMLInputElement;
+  //   const passwordInput = document.getElementById('confirm-password') as HTMLInputElement;
+  //   const emailError = document.getElementById('email-error');
+  //   const passwordError = document.getElementById('password-error');
+    
+  //   // Reset errors
+  //   emailError?.classList.add('hidden');
+  //   passwordError?.classList.add('hidden');
+    
+  //   const newEmail = emailInput?.value?.trim();
+  //   const password = passwordInput?.value;
+    
+  //   // Validation
+  //   if (!newEmail) {
+  //     if (emailError) {
+  //       emailError.textContent = 'Please enter a new email address';
+  //       emailError.classList.remove('hidden');
+  //     }
+  //     return;
+  //   }
+    
+  //   // Email format validation
+  //   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  //   if (!emailRegex.test(newEmail)) {
+  //     if (emailError) {
+  //       emailError.textContent = 'Please enter a valid email address';
+  //       emailError.classList.remove('hidden');
+  //     }
+  //     return;
+  //   }
+    
+  //   if (!password) {
+  //     if (passwordError) {
+  //       passwordError.textContent = 'Please enter your password to confirm';
+  //       passwordError.classList.remove('hidden');
+  //     }
+  //     return;
+  //   }
+    
+  //   try {
+  //     const token = getToken();
+  //     const res = await fetch(`${GATEWAY_BASE}/user-service/users/${user.id}/update-email`, {
+  //       method: 'PUT',
+  //       headers: {
+  //         'Content-Type': 'application/json',
+  //         'Authorization': `Bearer ${token || ''}`
+  //       },
+  //       body: JSON.stringify({ 
+  //         newEmail, 
+  //         password 
+  //       })
+  //     });
+      
+  //     if (res.ok) {
+  //       const data = await res.json();
+  //       showMessage('Email updated successfully!', 'success');
+  //       userProfile.email = newEmail; // Update local data
+  //       renderUserInfo(); // Re-render user info
+  //       hideEmailModal();
+  //     } else {
+  //       const error = await res.json();
+  //       if (error.error?.includes('password')) {
+  //         if (passwordError) {
+  //           passwordError.textContent = error.error || 'Incorrect password';
+  //           passwordError.classList.remove('hidden');
+  //         }
+  //       } else if (error.error?.includes('already')) {
+  //         if (emailError) {
+  //           emailError.textContent = error.error || 'Email already in use';
+  //           emailError.classList.remove('hidden');
+  //         }
+  //       } else {
+  //         showMessage(error.error || 'Failed to update email', 'error');
+  //       }
+  //     }
+  //   } catch (error) {
+  //     console.error('Error updating email:', error);
+  //     showMessage('Failed to update email. Please try again.', 'error');
+  //   }
+  // }
+
+async function updateEmail() {
     const emailInput = document.getElementById('new-email') as HTMLInputElement;
     const passwordInput = document.getElementById('confirm-password') as HTMLInputElement;
     const emailError = document.getElementById('email-error');
@@ -156,28 +238,35 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
         })
       });
       
-      if (res.ok) {
-        const data = await res.json();
+      const data = await res.json();
+      
+      if (res.ok && data.success) {  // ✅ FIX: Check both res.ok AND data.success
         showMessage('Email updated successfully!', 'success');
-        userProfile.email = newEmail; // Update local data
-        renderUserInfo(); // Re-render user info
+        userProfile.email = newEmail;
+        renderUserInfo();
         hideEmailModal();
-      } else {
-        const error = await res.json();
-        if (error.error?.includes('password')) {
+        return;  // ✅ FIX: Early return to prevent further processing
+      }
+      
+      // Handle errors
+      if (data.error) {
+        if (data.error.includes('password')) {
           if (passwordError) {
-            passwordError.textContent = error.error || 'Incorrect password';
+            passwordError.textContent = data.error;
             passwordError.classList.remove('hidden');
           }
-        } else if (error.error?.includes('already')) {
+        } else if (data.error.includes('already')) {
           if (emailError) {
-            emailError.textContent = error.error || 'Email already in use';
+            emailError.textContent = data.error;
             emailError.classList.remove('hidden');
           }
         } else {
-          showMessage(error.error || 'Failed to update email', 'error');
+          showMessage(data.error, 'error');
         }
+      } else {
+        showMessage('Failed to update email', 'error');
       }
+      
     } catch (error) {
       console.error('Error updating email:', error);
       showMessage('Failed to update email. Please try again.', 'error');

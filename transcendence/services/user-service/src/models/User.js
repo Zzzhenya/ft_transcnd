@@ -91,7 +91,7 @@ class User {
     this.username = data.username;
     this.email = data.email;
     // this.password_hash = data.password_hash || data.password;
-    // this.display_name = data.display_name || data.username; // Fallback to username
+    this.display_name = data.display_name || data.username; // Fallback to username
     this.password = data.password_hash; // Map password_hash to password for backward compatibility
     this.password_hash = data.password_hash;
     this.bio = data.bio;
@@ -117,7 +117,8 @@ class User {
           values: {
             username: userData.username,
             email: userData.email,
-            password_hash: userData.password_hash || userData.password
+            password_hash: userData.password_hash || userData.password,
+            display_name: userData.display_name || userData.username 
           } })
         });
 
@@ -182,7 +183,7 @@ class User {
         },
         body: JSON.stringify({
           table: 'Users',
-          columns: ['id', 'username', 'email', 'password_hash', 'created_at', 'is_guest'],
+          columns: ['id', 'username', 'email', 'password_hash', 'created_at', 'display_name', 'is_guest'],
           filters: { id },
           limit: 1
         })
@@ -220,7 +221,7 @@ class User {
       
       const requestBody = {
         table: 'Users',
-        columns: ['id', 'username', 'email', 'password_hash', 'created_at', 'is_guest'],
+        columns: ['id', 'username', 'email', 'password_hash', 'created_at', 'display_name',  'is_guest'],
         filters: { username },
         limit: 1
       };
@@ -273,7 +274,7 @@ class User {
         },
         body: JSON.stringify({
           table: 'Users',
-          columns: ["id","username","email","password_hash"],
+          columns: ["id","username","email","password_hash", "display_name"],
           filters: { email },
           limit: 1
         })
