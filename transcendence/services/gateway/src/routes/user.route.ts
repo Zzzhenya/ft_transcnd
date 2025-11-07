@@ -124,7 +124,7 @@ const userRoutes: FastifyPluginAsync = async (fastify) => {
 	return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/users/${userId}/avatar`, 'POST');
 	});
 
-	// Avatar files endpoint
+	// WICHTIG: Avatar GET endpoint - DAS FEHLT!
 	fastify.get('/avatars/:filename', async (request, reply) => {
 	const { filename } = request.params as { filename: string };
 	return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/avatars/${filename}`, 'GET');
