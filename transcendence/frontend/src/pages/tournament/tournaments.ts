@@ -106,19 +106,25 @@ export default function (root: HTMLElement) {
                             .filter(t => filter === "all" || t.size === filter)
                             .map(t => {
                                 const isInterrupted = t.status === 'interrupted';
+                                const isFinished = t.status === 'finished';
+                                const isSpecialStatus = isInterrupted || isFinished;
                                 return `
-                                <div class="group relative bg-white/5 backdrop-blur-lg rounded-2xl p-4 border ${isInterrupted ? 'border-red-500/50' : 'border-white/10 hover:border-white/30'} ${isInterrupted ? '' : 'hover:bg-white/10'} transition-all duration-300 ${isInterrupted ? 'opacity-70' : ''}">
+                                <div class="group relative bg-white/5 backdrop-blur-lg rounded-2xl p-4 border ${isInterrupted ? 'border-red-500/50' : isFinished ? 'border-green-500/50' : 'border-white/10 hover:border-white/30'} ${isSpecialStatus ? '' : 'hover:bg-white/10'} transition-all duration-300 ${isSpecialStatus ? 'opacity-70' : ''}">
                                     ${isInterrupted ? `
                                         <div class="absolute top-3 left-3 px-3 py-1 rounded-full bg-red-500/30 border border-red-500 backdrop-blur-sm">
                                             <span class="text-xs font-black text-red-200">⚠️ INTERRUPTED</span>
                                         </div>
+                                    ` : isFinished ? `
+                                        <div class="absolute top-3 left-3 px-3 py-1 rounded-full bg-green-500/30 border border-green-500 backdrop-blur-sm">
+                                            <span class="text-xs font-black text-green-200">🏆 FINISHED</span>
+                                        </div>
                                     ` : ''}
                                     <div class="absolute top-3 right-3">
-                                        <div class="w-10 h-10 rounded-full bg-gradient-to-br ${t.size === 4 ? 'from-cyan-500 to-blue-600' : 'from-orange-500 to-pink-600'} flex items-center justify-center text-white font-black shadow-lg ${isInterrupted ? 'opacity-50' : ''}">
+                                        <div class="w-10 h-10 rounded-full bg-gradient-to-br ${t.size === 4 ? 'from-cyan-500 to-blue-600' : 'from-orange-500 to-pink-600'} flex items-center justify-center text-white font-black shadow-lg ${isSpecialStatus ? 'opacity-50' : ''}">
                                             ${t.size}
                                         </div>
                                     </div>
-                                    <div class="mb-3 ${isInterrupted ? 'mt-8' : ''}">
+                                    <div class="mb-3 ${isSpecialStatus ? 'mt-8' : ''}">
                                         <div class="text-purple-300 font-mono text-xs mb-1">TOURNAMENT #${t.id}</div>
                                         <div class="text-2xl font-black text-white mb-1">${t.size} PLAYERS</div>
                                         <div class="flex items-center gap-2 text-sm text-gray-300">
@@ -130,10 +136,14 @@ export default function (root: HTMLElement) {
                                             <div class="mt-2 text-xs text-red-300 font-semibold">
                                                 Match interrupted - Cannot join
                                             </div>
+                                        ` : isFinished ? `
+                                            <div class="mt-2 text-xs text-green-300 font-semibold">
+                                                Tournament completed - View results
+                                            </div>
                                         ` : ''}
                                     </div>
-                                    <a href="/tournaments/waitingroom/${t.id}" data-tournament-size="${t.size}" data-tournament-id="${t.id}" class="join-btn block w-full py-3 rounded-xl font-black text-center transition-all ${isInterrupted ? 'bg-gray-600/50 text-gray-300 hover:bg-gray-600/70 cursor-pointer' : 'bg-white text-gray-900 hover:bg-gray-100 transform hover:scale-105'} ${(!signedIn && !isGuest) ? "opacity-30 pointer-events-none" : ""}">
-                                        ${isInterrupted ? '👁️ VIEW DETAILS' : 'JOIN NOW →'}
+                                    <a href="/tournaments/waitingroom/${t.id}" data-tournament-size="${t.size}" data-tournament-id="${t.id}" class="join-btn block w-full py-3 rounded-xl font-black text-center transition-all ${isInterrupted ? 'bg-gray-600/50 text-gray-300 hover:bg-gray-600/70 cursor-pointer' : isFinished ? 'bg-green-600/50 text-green-200 hover:bg-green-600/70 cursor-pointer' : 'bg-white text-gray-900 hover:bg-gray-100 transform hover:scale-105'} ${(!signedIn && !isGuest) ? "opacity-30 pointer-events-none" : ""}">
+                                        ${isInterrupted ? '👁️ VIEW DETAILS' : isFinished ? '🏆 VIEW RESULTS' : 'JOIN NOW →'}
                                     </a>
                                 </div>
                             `}).join('')
@@ -319,6 +329,8 @@ export default function (root: HTMLElement) {
             window.removeEventListener("auth:changed", onAuthChanged);
         };
     }
+
+    
 
     // Initial load
     fetchTournaments().then(render);

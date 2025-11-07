@@ -17,6 +17,13 @@ export default function (root: HTMLElement) {
   gameStatus: 'waiting'
 };
 
+  // Game configuration received from backend
+  // Default values for rendering before game starts (only paddle/court dimensions matter)
+  let gameConfig: any = {
+    paddle: { width: 2, height: 40 },
+    court: { width: 100, height: 200 }
+  };
+
   let player1Name = 'Player 1';
   let player2Name = 'Player 2';
   let gameLoop: number | null = null;
@@ -213,6 +220,12 @@ function handleBackendMessage(data: any) {
       gameStatus: data.gameState.tournament?.gameStatus || 'playing'
     };
 
+    // Update game configuration from backend if provided
+    if (data.config) {
+      gameConfig = data.config;
+      console.log('📊 Received game config from backend:', gameConfig);
+    }
+
     player1Name = data.gameState.player1_name || player1Name;
     player2Name = data.gameState.player2_name || player2Name;
 
@@ -344,36 +357,44 @@ function drawGame() {
   function toCanvasX(gameX: number) { return (gameX + 50) * scaleX; }
 function toCanvasY(gameY: number) { return (100 - gameY) * scaleY; }
 
-  // Paddle size in game units
-  const paddleWidth = 2;
-  const paddleHeight = 60;
+  // Use paddle dimensions from backend config
+  const paddleWidth = gameConfig.paddle.width;   // Use width from backend config
+  const paddleHeight = gameConfig.paddle.height; // Use height from backend config
 
-  // Draw paddles
+  // Draw paddles with rounded corners
   ctx.fillStyle = '#00ff00';
+  const borderRadius = 5 * scaleX; // Rounded corner radius
 
   // Left paddle (Player 1)
   const leftPaddleX = -50;
-const leftPaddleY = gameState.paddles.player1 + paddleHeight / 2;
-ctx.fillRect(
-  toCanvasX(leftPaddleX),
-  toCanvasY(leftPaddleY),
-  paddleWidth * scaleX,
-  paddleHeight * scaleY
-);
+  const leftPaddleY = gameState.paddles.player1 + paddleHeight / 2;
+  ctx.beginPath();
+  ctx.roundRect(
+    toCanvasX(leftPaddleX),
+    toCanvasY(leftPaddleY),
+    paddleWidth * scaleX,
+    paddleHeight * scaleY,
+    borderRadius
+  );
+  ctx.fill();
 
-const rightPaddleX = 50 - paddleWidth; 
-const rightPaddleY = gameState.paddles.player2 + paddleHeight / 2;
-ctx.fillRect(
-  toCanvasX(rightPaddleX),
-  toCanvasY(rightPaddleY),
-  paddleWidth * scaleX,
-  paddleHeight * scaleY
-);
+  // Right paddle (Player 2)
+  const rightPaddleX = 50 - paddleWidth; 
+  const rightPaddleY = gameState.paddles.player2 + paddleHeight / 2;
+  ctx.beginPath();
+  ctx.roundRect(
+    toCanvasX(rightPaddleX),
+    toCanvasY(rightPaddleY),
+    paddleWidth * scaleX,
+    paddleHeight * scaleY,
+    borderRadius
+  );
+  ctx.fill();
 
 
 
-  // Draw ball
-  const ballRadius = 1; // game units
+  // Draw ball using radius from backend config
+  const ballRadius = gameConfig.ball?.radius || 4; // Use backend config or default to 4
   ctx.shadowColor = '#ffff00';
   ctx.shadowBlur = 15;
   ctx.beginPath();

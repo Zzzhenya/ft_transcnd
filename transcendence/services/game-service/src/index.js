@@ -3,7 +3,6 @@ import websocket from '@fastify/websocket';
 import cors from '@fastify/cors';
 import { registerSingleGameRoutes } from './Routes/gameRoute.js';
 import { registerWebSocketRoutes } from './websocket/websocket.js';
-import { registerDemoRoutes } from './Routes/demoRoute.js';
 import { registerStatsRoutes } from './Routes/statsRoute.js';
 import { healthCheck } from './Routes/healthRoute.js';
 import { broadcastState } from './pong/broadcast.js';
@@ -29,8 +28,6 @@ const wrappedBroadcastState = (gameId) => broadcastState(gameId, games);
 // ========================================
 
 registerSingleGameRoutes(fastify, games, counters, wrappedBroadcastState);
-
-registerDemoRoutes(fastify, games, counters, wrappedBroadcastState);
 
 registerWebSocketRoutes(fastify, games, wrappedBroadcastState);
 

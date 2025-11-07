@@ -47,16 +47,58 @@
 
 export function registerTournamentRoutes(fastify, tournaments, broadcastTournamentUpdate) {
   // List all tournaments (exclude finished tournaments)
+  // fastify.get('/tournaments', async (req, reply) => {
+  //   try {
+  //     const list = Array.from(tournaments.values())
+  //       .filter(t => t.status !== 'finished') // Filter out finished tournaments
+  //       .map(t => ({
+  //         id: t.id,
+  //         name: t.name,
+  //         size: t.size,
+  //         status: t.status,
+  //         players: Array.from(t.playerSet || [])
+  //       }));
+  //     return reply.send({ tournaments: list });
+  //   } catch (err) {
+  //     fastify.log.error('[TournamentService] Failed to list tournaments', err);
+  //     return reply.code(500).send({ error: 'Internal server error' });
+  //   }
+  // });
+
+
   fastify.get('/tournaments', async (req, reply) => {
     try {
+      const FIVE_MINUTES = 5 * 60 * 1000; // 5 minutes in milliseconds
+      const now = Date.now();
+      
       const list = Array.from(tournaments.values())
-        .filter(t => t.status !== 'finished') // Filter out finished tournaments
+        .filter(t => {
+          // Hide finished tournaments older than 5 minutes
+          if (t.status === 'finished' && t.finishedAt) {
+            const age = now - t.finishedAt;
+            if (age > FIVE_MINUTES) {
+              return false; // Hide but DON'T delete
+            }
+          }
+          
+          // Hide interrupted tournaments older than 5 minutes
+          if (t.status === 'interrupted' && t.interruptedAt) {
+            const age = now - t.interruptedAt;
+            if (age > FIVE_MINUTES) {
+              return false; // Hide but DON'T delete
+            }
+          }
+          
+          return true; // Show all other tournaments (waiting, in_progress, recent finished/interrupted)
+        })
         .map(t => ({
           id: t.id,
           name: t.name,
           size: t.size,
           status: t.status,
-          players: Array.from(t.playerSet || [])
+          players: Array.from(t.playerSet || []),
+          interruptedAt: t.interruptedAt, // Include timestamp for countdown
+          finishedAt: t.finishedAt // Include timestamp for countdown
         }));
       return reply.send({ tournaments: list });
     } catch (err) {
@@ -164,6 +206,7 @@ export function registerTournamentRoutes(fastify, tournaments, broadcastTourname
     const finalMatch = t.bracket.rounds.at(-1)[0];
     if (finalMatch.winner) {
       t.status = 'finished';
+      t.finishedAt = Date.now(); // Store timestamp for 5-minute visibility
       fastify.log.info(`🏆 Tournament ${req.params.id} FINISHED! Winner: ${finalMatch.winner}`);
     } else {
       t.status = 'progressing';
@@ -203,7 +246,46 @@ export function registerTournamentRoutes(fastify, tournaments, broadcastTourname
    * - Shows red banner: "TOURNAMENT INTERRUPTED"
    * - Lobby shows tournament with "VIEW ONLY" button
    */
-  fastify.post('/tournaments/:id/interrupt', async (req, reply) => {
+  // fastify.post('/tournaments/:id/interrupt', async (req, reply) => {
+  //   const t = tournaments.get(Number(req.params.id));
+  //   if (!t) {
+  //     fastify.log.error(`Tournament ${req.params.id} not found`);
+  //     return reply.code(404).send({ error: 'Tournament not found' });
+  //   }
+
+  //   const { matchId, reason } = req.body;
+  //   if (!matchId) {
+  //     return reply.code(400).send({ error: 'matchId is required' });
+  //   }
+
+  //   // Find the match in the bracket
+  //   let matchFound = false;
+  //   for (let i = 0; i < t.bracket.rounds.length; i++) {
+  //     const match = t.bracket.rounds[i].find(m => m.matchId === matchId);
+  //     if (match) {
+  //       match.status = 'interrupted';
+  //       match.interruptReason = reason || 'connection_timeout';
+  //       matchFound = true;
+  //       fastify.log.warn(`⚠️ Match ${matchId} in tournament ${req.params.id} marked as interrupted: ${reason}`);
+  //       break;
+  //     }
+  //   }
+
+  //   if (!matchFound) {
+  //     fastify.log.error(`Match ${matchId} not found in tournament ${req.params.id}`);
+  //     return reply.code(404).send({ error: 'Match not found' });
+  //   }
+
+  //   // Mark entire tournament as interrupted - prevents any further matches
+  //   t.status = 'interrupted';
+  //   fastify.log.warn(`⚠️ Tournament ${req.params.id} marked as INTERRUPTED`);
+    
+  //   // Notify all clients about the interruption
+  //   broadcastTournamentUpdate(t.id);
+  //   reply.send({ ok: true, status: t.status, matchId });
+  // });
+
+    fastify.post('/tournaments/:id/interrupt', async (req, reply) => {
     const t = tournaments.get(Number(req.params.id));
     if (!t) {
       fastify.log.error(`Tournament ${req.params.id} not found`);
@@ -235,11 +317,12 @@ export function registerTournamentRoutes(fastify, tournaments, broadcastTourname
 
     // Mark entire tournament as interrupted - prevents any further matches
     t.status = 'interrupted';
-    fastify.log.warn(`⚠️ Tournament ${req.params.id} marked as INTERRUPTED`);
+    t.interruptedAt = Date.now(); // Store timestamp for 5-minute countdown
+    fastify.log.warn(`⚠️ Tournament ${req.params.id} marked as INTERRUPTED at ${new Date(t.interruptedAt).toISOString()}`);
     
     // Notify all clients about the interruption
     broadcastTournamentUpdate(t.id);
-    reply.send({ ok: true, status: t.status, matchId });
+    reply.send({ ok: true, status: t.status, matchId, interruptedAt: t.interruptedAt });
   });
 
   // Forfeit match (player left)
@@ -294,6 +377,7 @@ export function registerTournamentRoutes(fastify, tournaments, broadcastTourname
     const finalMatch = t.bracket.rounds.at(-1)[0];
     if (finalMatch.winner) {
       t.status = 'finished';
+      t.finishedAt = Date.now(); // Store timestamp for 5-minute visibility
       fastify.log.info(`🏆 Tournament ${req.params.id} FINISHED! Winner: ${finalMatch.winner} (by forfeit)`);
     } else {
       t.status = 'progressing';

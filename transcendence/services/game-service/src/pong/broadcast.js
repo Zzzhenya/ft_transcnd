@@ -1,3 +1,4 @@
+import { GAME_CONFIG } from './gameLogic.js';
 
 export function broadcastState(gameId, games) {
   const game = games.get(gameId);
@@ -35,6 +36,7 @@ export function broadcastState(gameId, games) {
     isDemo: game.isDemo || false, // include demo status
     isRegistered: game.isRegistered || false, // include registered status
     gameState: cleanGameState,
+    config: GAME_CONFIG, // Include game configuration (paddle size, ball speed, etc.)
     winner_id: game.winner_id || null,
     final_score: game.final_score || null,
     created_at: game.created_at || null,

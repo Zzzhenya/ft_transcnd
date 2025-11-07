@@ -1,8 +1,26 @@
 import logger from '../utils/logger.js';
 
+// Game configuration - centralized settings sent to frontend
+export const GAME_CONFIG = {
+  paddle: {
+    width: 2,    // Not used in collision detection, but sent to frontend for rendering
+    height: 40,   // Used in collision detection and sent to frontend
+    speed: 12     // Paddle movement speed
+  },
+  ball: {
+    radius: 2,    // Ball radius (not critical for collision, sent to frontend)
+    speed: 2.0,   // Base ball movement speed
+    bounceSpeed: 3 // Ball speed after paddle bounce
+  },
+  court: {
+    width: 100,   // Court width (-50 to +50)
+    height: 200   // Court height (-100 to +100)
+  }
+};
+
 export function movePaddle(gameState, player, direction) {
-  const paddleSpeed = 15;
-  const paddleHeight = 60;
+  const paddleSpeed = GAME_CONFIG.paddle.speed;
+  const paddleHeight = GAME_CONFIG.paddle.height;
   // Game area is -100 to +100, paddle height is 40
   // So paddle center must be between -80 and +80 to keep paddle fully visible
   const topBoundary = -100 + paddleHeight / 2;    // -100 + 20 = -80
@@ -26,11 +44,12 @@ export function moveBall(gameState) {
   if (gameState.tournament.gameStatus !== 'playing') {
     return gameState;
   }
-
-  const paddleHeight = 60;
+  const paddleHeight = GAME_CONFIG.paddle.height;
+  const paddleWidth = GAME_CONFIG.paddle.width;
   const paddleX = 50;       // Paddles are at the boundaries: x = ±50 (same as scoring line)
   const speedIncrement = 0.1;
-  const ballspeed = 1.2; // Base ball speed
+  const ballspeed = GAME_CONFIG.ball.speed; // Base ball speed
+  const ballRadius = GAME_CONFIG.ball.radius; // Ball radius for collision
 
   // Simple ball movement - no speed multiplier
   gameState.ball.x += gameState.ball.dx * (ballspeed + speedIncrement);
@@ -57,7 +76,7 @@ export function moveBall(gameState) {
     logger.debug(`[Bounce] Ball speed before: dx=${gameState.ball.dx}, dy=${gameState.ball.dy}`);
     
     // Keep constant speed - don't increase speed on each hit
-    const baseSpeed = 2; // Constant ball speed
+    const baseSpeed = GAME_CONFIG.ball.bounceSpeed; // Constant ball speed after bounce
     
     gameState.ball.dx = gameState.ball.dx > 0 ? -baseSpeed : baseSpeed; // Reverse direction with constant speed
     gameState.ball.dy = normalizedY * baseSpeed; // Set Y velocity based on paddle hit position
@@ -65,29 +84,35 @@ export function moveBall(gameState) {
     logger.debug(`[Bounce] Ball speed after: dx=${gameState.ball.dx}, dy=${gameState.ball.dy}`);
   }
 
-  // Left paddle collision - ball hits paddle at left boundary
+  // Left paddle collision
+  // Paddle: x=-50 to x=-48 (width=2)
+  // Ball collides when ball.x - ballRadius <= -48
+  const leftPaddleInnerEdge = -paddleX + paddleWidth; // -50 + 2 = -48
   if (
-    gameState.ball.x <= -paddleX + 2 &&
-    gameState.ball.x >= -paddleX &&
+    gameState.ball.x - ballRadius <= leftPaddleInnerEdge &&
+    gameState.ball.x >= -paddleX - 5 && // Don't detect if ball is way past paddle
     gameState.ball.dx < 0 &&
     gameState.ball.y >= gameState.paddles.player1 - paddleHeight / 2 &&
     gameState.ball.y <= gameState.paddles.player1 + paddleHeight / 2
   ) {
-    logger.debug(`[Collision] Left paddle hit! Ball: (${gameState.ball.x}, ${gameState.ball.y}), Paddle1: ${gameState.paddles.player1}`);
-    gameState.ball.x = -paddleX + 3; // Position ball at outer surface of paddle (paddle at -50, ball at -47)
+    logger.info(`[Collision] Left paddle hit! Ball: (${gameState.ball.x}, ${gameState.ball.y}), Paddle1: ${gameState.paddles.player1}, Edge: ${leftPaddleInnerEdge}`);
+    gameState.ball.x = leftPaddleInnerEdge + ballRadius; // Position ball at -48 + 4 = -44
     bounceOffPaddle(gameState.paddles.player1);
   }
 
-  // Right paddle collision - ball hits paddle at right boundary
+  // Right paddle collision
+  // Paddle: x=48 to x=50 (width=2)
+  // Ball collides when ball.x + ballRadius >= 48
+  const rightPaddleInnerEdge = paddleX - paddleWidth; // 50 - 2 = 48
   if (
-    gameState.ball.x >= paddleX - 2 &&
-    gameState.ball.x <= paddleX &&
+    gameState.ball.x + ballRadius >= rightPaddleInnerEdge &&
+    gameState.ball.x <= paddleX + 5 && // Don't detect if ball is way past paddle
     gameState.ball.dx > 0 &&
     gameState.ball.y >= gameState.paddles.player2 - paddleHeight / 2 &&
     gameState.ball.y <= gameState.paddles.player2 + paddleHeight / 2
   ) {
-    logger.debug(`[Collision] Right paddle hit! Ball: (${gameState.ball.x}, ${gameState.ball.y}), Paddle2: ${gameState.paddles.player2}`);
-    gameState.ball.x = paddleX - 3; // Position ball at outer surface of paddle (paddle at +50, ball at +47)
+    logger.info(`[Collision] Right paddle hit! Ball: (${gameState.ball.x}, ${gameState.ball.y}), Paddle2: ${gameState.paddles.player2}, Edge: ${rightPaddleInnerEdge}`);
+    gameState.ball.x = rightPaddleInnerEdge - ballRadius; // Position ball at 48 - 4 = 44
     bounceOffPaddle(gameState.paddles.player2);
   }
 
