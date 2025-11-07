@@ -85,7 +85,7 @@ const userRoutes: FastifyPluginAsync = async (fastify) => {
 	// Update user display name
 	fastify.put('/users/:userId/update-display-name', async (request, reply) => {
 		const { userId } = request.params as { userId: string };
-		return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/users/${userId}/display-name`, 'PUT');
+		return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/users/${userId}/update-display-name`, 'PUT');
 	});
 
 	// Update username
