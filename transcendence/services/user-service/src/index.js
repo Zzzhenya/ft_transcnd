@@ -6,6 +6,8 @@ const bcrypt = require('bcrypt');
 const logger = require('./utils/logger');
 const PORT = parseInt(process.env.USER_SERVICE_PORT || process.env.PORT || '3001');
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-this';
+const fs = require('fs').promises;
+const path = require('path');
 
 // Register CORS
 fastify.register(require('@fastify/cors'), {
@@ -62,210 +64,6 @@ fastify.decorate('authenticate', async function (request, reply) {
     return;
   }
 });
-
-// const withTimeout = (promise, ms, errorMessage = 'Operation timed out') => 
-//   Promise.race([
-//     promise,
-//     new Promise((_, reject) => setTimeout(() => reject(new Error(errorMessage)), ms))
-//   ]);
-
-// fastify.post('/auth/register', async (request, reply) => {
-//   try {
-//     const { username, email, password } = request.body;
-
-//     logger.info('Registration attempt:', { username, email });
-
-//     if (!username || !email || !password) {
-//       logger.warn('Missing fields');
-//       return reply.code(400).send({
-//         success: false,
-//         message: 'Username, email and password are required'
-//       });
-//     }
-
-//     // DB timeout in ms
-//     const DB_TIMEOUT = 3000;
-
-//     // Check if username already exists
-//     const existingUsername = await withTimeout(
-//       User.findByUsername(username),
-//       DB_TIMEOUT,
-//       'Username check timed out'
-//     );
-//     if (existingUsername) {
-//       logger.warn('Username already taken:', username);
-//       return reply.code(409).send({
-//         success: false,
-//         message: `Username "${username}" is already taken. Please choose another.`,
-//         error: 'Username already exists'
-//       });
-//     }
-
-//     // Check if email already exists
-//     const existingEmail = await withTimeout(
-//       User.findByEmail(email),
-//       DB_TIMEOUT,
-//       'Email check timed out'
-//     );
-//     if (existingEmail) {
-//       logger.warn('Email already registered:', email);
-//       return reply.code(409).send({
-//         success: false,
-//         message: `Email "${email}" is already registered. Please use another email or login.`,
-//         error: 'Email already exists'
-//       });
-//     }
-
-//     // Register user
-//     const result = await withTimeout(
-//       AuthService.register(username, email, password),
-//       DB_TIMEOUT,
-//       'User registration timed out'
-//     );
-
-//     logger.info('User registered:', { userId: result.user.id, username });
-
-//     return reply.code(201).send({
-//       success: true,
-//       message: 'User successfully registered',
-//       user: result.user,
-//       token: result.token
-//     });
-
-//   } catch (error) {
-//     console.error('Registration error:', error);
-
-//     if (error.message.includes('already')) {
-//       logger.warn('User already exists:', request.body.username);
-//       return reply.code(409).send({ 
-//         success: false, 
-//         message: error.message 
-//       });
-//     }
-
-//     if (error.message.includes('timed out')) {
-//       logger.error('DB timeout:', error);
-//       return reply.code(504).send({ 
-//         success: false, 
-//         message: 'Database operation timed out', 
-//         error: error.message 
-//       });
-//     }
-
-//     logger.error('Registration failed:', error);
-//     return reply.code(500).send({ 
-//       success: false, 
-//       message: 'Server error', 
-//       error: error.message 
-//     });
-//   }
-// });
-
-// async function proxyUserAction( username, email, password, timeout = 5000) {
-//   try {
-//     const controller = new AbortController();
-//     const timer = setTimeout(() => controller.abort(), timeout);
-
-//     const res = await fetch('http://127.0.0.1:3006/auth/register', {
-//       method: 'POST',
-//       headers: {
-//         'Content-Type': 'application/json',
-//         'x-service-auth': process.env.DB_SERVICE_TOKEN
-//       },
-//       body: JSON.stringify({ username, email, password }),
-//       signal: controller.signal
-//     });
-
-//     clearTimeout(timer);
-
-//     if (!res.ok) {
-//       // Handle HTTP errors (4xx, 5xx)
-//       const errorBody = await res.text();
-//       throw new Error(`Database service responded with status ${res.status}: ${errorBody}`);
-//     }
-
-//     const data = await res.json();
-//     return data;
-
-//   } catch (err) {
-//     if (err.name === 'AbortError') {
-//       throw new Error('Request to database-service timed out');
-//     }
-//     // Network errors or other unexpected issues
-//     throw new Error(`Failed to register user: ${err.message}`);
-//   }
-// }
-
-// Register endpoint
-// fastify.post('/auth/register', async (request, reply) => {
-//   try {
-//     const { username, email, password } = request.body;
-
-//     logger.info('Registration attempt:', { username, email });
-
-//     if (!username || !email || !password) {
-//       logger.warn('Missing fields');
-//       return reply.code(400).send({
-//         success: false,
-//         message: 'Username, email and password are required'
-//       });
-//     }
-
-
-//     // Check if username already exists
-//     const existingUsername = await User.findByUsername(username);
-//     logger.info(existingUsername);
-//     if (existingUsername) {
-//       logger.warn('Username already taken:', username);
-//       return reply.code(409).send({
-//         success: false,
-//         message: `Username "${username}" is already taken. Please choose another.`,
-//         error: 'Username already exists'
-//       });
-//     }
-
-//     // Check if email already exists
-//     const existingEmail = await User.findByEmail(email);
-//     if (existingEmail) {
-//       logger.warn('Email already registered:', email);
-//       return reply.code(409).send({
-//         success: false,
-//         message: `Email "${email}" is already registered. Please use another email or login.`,
-//         error: 'Email already exists'
-//       });
-//     }
-
-//     // Register user
-//     const result = await AuthService.register(username, email, password);
-
-//     logger.info('User registered:', { userId: result.user.id, username });
-
-//     return reply.code(201).send({
-//       success: true,
-//       message: 'User successfully registered',
-//       user: result.user,
-//       token: result.token
-//     });
-
-//   } catch (error) {
-//     console.error('Registration error:', error);
-
-//     if (error.message.includes('already')) {
-//       logger.warn('User already exists:', request.body.username);
-//       return reply.code(409).send({ 
-//         success: false, 
-//         message: error.message 
-//       });
-//     }
-
-//     logger.error('Registration failed:', error);
-//     return reply.code(500).send({ 
-//       success: false, 
-//       message: 'Server error', 
-//       error: error.message 
-//     });
-//   }
-// });
 
 // Register endpoint
 fastify.post('/auth/register', async (request, reply) => {
@@ -1428,10 +1226,8 @@ fastify.put('/users/:userId/username', {
   }
 });
 
-// Avatar Upload Endpoint
-const fs = require('fs').promises;
-const path = require('path');
 
+// Avatar Upload Endpoint
 fastify.post('/users/:userId/avatar', {
   preHandler: fastify.authenticate
 }, async (request, reply) => {
@@ -1501,17 +1297,27 @@ fastify.post('/users/:userId/avatar', {
   }
 });
 
-// Serve avatar files
+// WICHTIG: Avatar GET Endpoint - DAS FEHLT!
 fastify.get('/avatars/:filename', async (request, reply) => {
   try {
     const { filename } = request.params;
     const filePath = path.join('/app/avatars', filename);
     
-    const data = await fs.readFile(filePath);
-    reply.type('image/jpeg').send(data);
+    logger.info(`Serving avatar: ${filePath}`);
+    
+    // Check if file exists
+    try {
+      await fs.access(filePath);
+      const data = await fs.readFile(filePath);
+      reply.type('image/jpeg').send(data);
+    } catch (err) {
+      logger.warn(`Avatar not found: ${filePath}`);
+      // Send a default avatar or 404
+      reply.code(404).send({ error: 'Avatar not found' });
+    }
   } catch (error) {
-    // Send default avatar if file not found
-    reply.code(404).send({ error: 'Avatar not found' });
+    logger.error('Error serving avatar:', error);
+    reply.code(500).send({ error: 'Internal server error' });
   }
 });
 
