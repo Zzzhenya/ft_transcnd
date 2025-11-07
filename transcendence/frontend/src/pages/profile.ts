@@ -84,7 +84,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
             <div>
               <p class="text-sm text-gray-500 mb-1">Display Name</p>
               <div class="flex items-center gap-2">
-                <p class="font-semibold text-lg">${userProfile.display_name || userProfile.username || userProfile.name || 'Unknown'}</p>
+                <p class="font-semibold text-lg">${userProfile.display_name || 'Unknown'}</p>
                 ${!userProfile.is_guest ? `
                   <button id="change-display-name-btn" class="text-blue-600 hover:text-blue-800 text-sm font-medium">
                     change

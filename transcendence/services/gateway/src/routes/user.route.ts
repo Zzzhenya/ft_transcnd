@@ -120,14 +120,34 @@ const userRoutes: FastifyPluginAsync = async (fastify) => {
 
 	// Avatar upload endpoint
 	fastify.post('/users/:userId/avatar', async (request, reply) => {
-	const { userId } = request.params as { userId: string };
-	return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/users/${userId}/avatar`, 'POST');
+		const { userId } = request.params as { userId: string };
+		return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/users/${userId}/avatar`, 'POST');
 	});
 
-	// WICHTIG: Avatar GET endpoint - DAS FEHLT!
+	// Fileupload
 	fastify.get('/avatars/:filename', async (request, reply) => {
 	const { filename } = request.params as { filename: string };
-	return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/avatars/${filename}`, 'GET');
+	
+	try {
+		const response = await fetch(`${USER_SERVICE_URL}/avatars/${filename}`);
+		
+		if (!response.ok) {
+		return reply.code(response.status).send({ error: 'Avatar not found' });
+		}
+		
+		const buffer = await response.arrayBuffer();
+		const contentType = response.headers.get('content-type') || 'image/jpeg';
+		
+		return reply
+		.code(200)
+		.type(contentType)
+		.send(Buffer.from(buffer));
+	} catch (error) {
+		// TypeScript-konform: Error richtig behandeln
+		const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+		fastify.log.error(`Failed to fetch avatar: ${errorMessage}`);
+		return reply.code(500).send({ error: 'Failed to fetch avatar' });
+	}
 	});
 
 }
