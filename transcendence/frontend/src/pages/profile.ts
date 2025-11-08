@@ -57,6 +57,59 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
     }
   }
 
+async function deleteAccount() {
+  if (!user) return;
+  
+  // Confirmation dialog
+  const confirmed = confirm(
+    '⚠️ WARNING: Are you sure you want to delete your account?\n\n' +
+    'This action will:\n' +
+    '- Mark your account as deleted\n' +
+    '- Change your username to "delete_' + user.username + '"\n' +
+    '- Sign you out immediately\n\n' +
+    'Type your password to confirm.'
+  );
+  
+  if (!confirmed) return;
+  
+  // For guest users, skip password check
+  let password = '';
+  if (!user.is_guest) {
+    password = prompt('Enter your password to confirm deletion:') || '';
+    if (!password) {
+      showMessage('Password required to delete account', 'error');
+      return;
+    }
+  }
+  
+  try {
+    const token = getToken();
+    const res = await fetch(`${GATEWAY_BASE}/user-service/users/${user.id}/account`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token || ''}`
+      },
+      body: JSON.stringify({ password })
+    });
+    
+    if (res.ok) {
+      showMessage('Account deleted successfully. Goodbye!', 'success');
+      // Sign out and redirect
+      setTimeout(async () => {
+        await signOut();
+        navigate('/auth');
+      }, 2000);
+    } else {
+      const error = await res.json();
+      showMessage(error.error || 'Failed to delete account', 'error');
+    }
+  } catch (error) {
+    console.log('Could not delete account:', error);
+    showMessage('Failed to delete account', 'error');
+  }
+}
+
   function renderUserInfo() {
     const userInfoContainer = root.querySelector('#user-info-container');
     if (!userInfoContainer) return;
@@ -131,6 +184,25 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
             </div>
           </div>
         </div>
+      </div>
+      <!-- User Info Section -->
+      <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
+        <!-- ... existing content ... -->
+        <div id="user-info-container">
+          <!-- User info will be loaded here -->
+        </div>
+        
+        <!-- Delete Account Button -->
+        ${!userProfile.is_guest ? `
+          <div class="mt-6 pt-6 border-t border-gray-200">
+            <button id="delete-account-btn" class="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white font-semibold transition-colors">
+              🗑️ Delete Account
+            </button>
+            <p class="text-xs text-gray-500 mt-2">
+              ⚠️ This action will mark your account as deleted and sign you out.
+            </p>
+          </div>
+        ` : ''}
       </div>
     `;
 
@@ -1069,6 +1141,10 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
   root.querySelector<HTMLButtonElement>("#backBtn")?.addEventListener("click", (e) => {
     e.preventDefault();
     navigate("/tournaments");
+  });
+
+  root.querySelector<HTMLButtonElement>("#delete-account-btn")?.addEventListener("click", async () => {
+    await deleteAccount();
   });
 
   root.querySelector<HTMLButtonElement>("#add-friend-btn")?.addEventListener("click", async () => {

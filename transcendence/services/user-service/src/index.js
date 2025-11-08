@@ -1022,6 +1022,7 @@ process.on('SIGTERM', async () => {
   process.exit(0);
 });
 
+// addet for changeing User Profil RK
 
 // Update user email endpoint (protected)
 fastify.put('/users/:userId/update-email', {
@@ -1320,5 +1321,98 @@ fastify.get('/avatars/:filename', async (request, reply) => {
     reply.code(500).send({ error: 'Internal server error' });
   }
 });
+
+// Delete account endpoint
+fastify.delete('/users/:userId/account', {
+  preHandler: fastify.authenticate
+}, async (request, reply) => {
+  try {
+    const { userId } = request.params;
+    const { password } = request.body;
+    
+    // Verify the user is deleting their own account
+    if (parseInt(userId) !== request.user.userId) {
+      return reply.code(403).send({ error: 'Unauthorized to delete this account' });
+    }
+    
+    logger.info(`Account deletion requested for user ${userId}`);
+    
+    // Validate password is provided
+    if (!password) {
+      return reply.code(400).send({ 
+        error: 'Password is required to delete account' 
+      });
+    }
+    
+    // Get current user data to verify password
+    const user = await User.findById(userId);
+    if (!user) {
+      return reply.code(404).send({ error: 'User not found' });
+    }
+    
+    // Verify password (skip for guest users)
+    if (!user.is_guest) {
+      const passwordMatch = await bcrypt.compare(password, user.password);
+      if (!passwordMatch) {
+        return reply.code(401).send({ 
+          error: 'Incorrect password' 
+        });
+      }
+    }
+    
+    // Update username to delete_<username>
+    const deletedUsername = `delete_${user.username}`;
+    
+    // Update username
+    const usernameResponse = await fetch('http://database-service:3006/internal/write', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        table: 'Users',
+        id: parseInt(userId),
+        column: 'username',
+        value: deletedUsername
+      })
+    });
+    
+    if (!usernameResponse.ok) {
+      logger.error('Failed to update username during deletion');
+      return reply.code(500).send({ error: 'Failed to delete account' });
+    }
+    
+    // Update status to 'delete'
+    const statusResponse = await fetch('http://database-service:3006/internal/write', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        table: 'Users',
+        id: parseInt(userId),
+        column: 'status',
+        value: 'delete'
+      })
+    });
+    
+    if (!statusResponse.ok) {
+      logger.error('Failed to update status during deletion');
+      return reply.code(500).send({ error: 'Failed to delete account' });
+    }
+    
+    logger.info(`Account successfully marked as deleted for user ${userId}`);
+    
+    return { 
+      success: true, 
+      message: 'Account successfully deleted'
+    };
+    
+  } catch (error) {
+    logger.error('Error deleting account:', error);
+    return reply.code(500).send({ error: 'Internal server error' });
+  }
+});
+
+
+
+
+
 
 start();
