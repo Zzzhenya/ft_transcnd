@@ -298,6 +298,14 @@ fastify.post('/auth/login', async (request, reply) => {
   }
 });
 
+function logHeaders(headers) {
+  if (!headers || Object.keys(headers).length === 0) {
+    console.log('No headers received in this request.');
+  } else {
+    console.log('Incoming request headers:', headers);
+  }
+}
+
 // Guest login endpoint
 fastify.post('/auth/guest', async (request, reply) => {
   try {
@@ -305,7 +313,8 @@ fastify.post('/auth/guest', async (request, reply) => {
 
     fastify.log.info("Alias: "); fastify.log.info(alias);
 
-
+    console.log(`request headers: `)
+    logHeaders(request.headers);
     
     logger.info('Guest login attempt:', { alias });
     

@@ -94,12 +94,33 @@ Fastify.register(cookie, {
 });
 logger.info('cookie registered');
 
+function logCookies(request: FastifyRequest): Record<string, string> {
+  // Parsed cookies via fastify-cookie
+  const cookies = request.cookies as Record<string, string> | undefined;
+
+  if (!cookies || Object.keys(cookies).length === 0) {
+    console.log('No cookies received in this request.');
+  } else {
+    console.log('Parsed cookies:', cookies);
+  }
+
+  // Optional: log raw Cookie header
+  const rawCookieHeader = request.headers['cookie'];
+  console.log('Raw Cookie header:', rawCookieHeader || 'None');
+
+  return cookies || {};
+}
+
 Fastify.addHook('onRequest', async (request, reply) => {
   // Check if session cookie exists
   try {
-    const cookies = request.cookies || {};
-    const sessionId = cookies.sessionId;
-    if (!sessionId) {
+    // const cookies = request.cookies || {};
+    const cookies = logCookies(request)
+    const session = cookies?.session ?? '';
+    const sessionId = cookies?.session_id ?? '';
+
+    console.log(`cookiesAAA: ${cookies} sessionAAA: ${session} sessionIdAAA: ${sessionId}`)
+    if ((!cookies || Object.keys(cookies).length === 0) || !sessionId) { 
       const newSessionId = uuidv4();
       // call your own POST /sessions route internally
 
@@ -124,9 +145,12 @@ Fastify.addHook('onRequest', async (request, reply) => {
         secure: false,
         maxAge: COOKIE_MAX_AGE // 1 hour
       });
+      request.headers['x-session-id'] = newSessionId;
       logger.info(`New sessionId created: ${newSessionId}`);
       Fastify.log.info(`🆕 New sessionId created: ${newSessionId}`);
     } else {
+      // if (!request.headers['x-session-id'])
+      request.headers['x-session-id'] = sessionId;
       logger.info(`Existing sessionId: ${sessionId}`);
       Fastify.log.info(`✅ Existing sessionId: ${sessionId}`);
     }

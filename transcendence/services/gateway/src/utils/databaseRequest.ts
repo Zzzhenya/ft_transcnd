@@ -3,23 +3,20 @@ import gatewayError from './gatewayError.js'; // adjust path
 import logger from './logger.js';
 
 const PROXY_REQUEST_TIMEOUT = parseInt(process.env.PROXY_REQUEST_TIMEOUT || '5000');
+const DB_SERVICE_TOKEN = process.env.DB_SERVICE_TOKEN || 'super_secret_internal_token';
 
-function normalizeHeaders(
-  headers: Record<string, string | string[] | undefined>
-): Record<string, string> {
-  const result: Record<string, string> = {};
-  for (const [key, value] of Object.entries(headers)) {
-    if (!value) continue;           // skip undefined
-    if (Array.isArray(value)) {
-      result[key] = value.join(','); // join arrays with commas
-    } else {
-      result[key] = value;
-    }
-  }
-  return result;
-}
+        //   request body:: 
+    	//	{
+    	//	 table: 'Users',
+        //   action: 'insert',
+        //   values: {
+        //     username: userData.username,
+        //     email: userData.email,
+        //     password_hash: userData.password_hash || userData.password,
+        //     is_guest: userData.is_guest ? 1 : 0
+        //   } }
 
-export async function intermediateRequest(
+export async function databaseRequest(
   fastify: FastifyInstance,
   request: FastifyRequest,
   reply: FastifyReply,
@@ -35,9 +32,9 @@ export async function intermediateRequest(
       {
         method,
         headers: {
-          ...normalizeHeaders(request.headers)
-          // 'Authorization': request.headers['authorization'] || '',
-          // 'Content-Type': 'application/json',
+          'Authorization': request.headers['authorization'] || '',
+          'Content-Type': 'application/json',
+          'x-service-auth': DB_SERVICE_TOKEN
         },
         body: ['POST', 'PUT', 'PATCH'].includes(method)
           ? JSON.stringify(request.body)
