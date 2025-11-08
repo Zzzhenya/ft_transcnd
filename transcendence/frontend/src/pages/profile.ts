@@ -57,59 +57,6 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
     }
   }
 
-async function deleteAccount() {
-  console.log('🗑️ DELETE ACCOUNT CLICKED!');
-  if (!user) return;
-  
-  // Confirmation dialog
-  const confirmed = confirm(
-    '⚠️ WARNING: Are you sure you want to delete your account?\n\n' +
-    'This action will:\n' +
-    '- Mark your account as deleted\n' +
-    '- Change your username to "delete_' + user.username + '"\n' +
-    '- Sign you out immediately\n\n' +
-    'Type your password to confirm.'
-  );
-  
-  if (!confirmed) return;
-  
-  // For guest users, skip password check
-  let password = '';
-  if (!user.is_guest) {
-    password = prompt('Enter your password to confirm deletion:') || '';
-    if (!password) {
-      showMessage('Password required to delete account', 'error');
-      return;
-    }
-  }
-  
-  try {
-    const token = getToken();
-    const res = await fetch(`${GATEWAY_BASE}/user-service/users/${user.id}/account`, {
-      method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token || ''}`
-      },
-      body: JSON.stringify({ password })
-    });
-    
-    if (res.ok) {
-      showMessage('Account deleted successfully. Goodbye!', 'success');
-      // Sign out and redirect
-      setTimeout(async () => {
-        await signOut();
-        navigate('/auth');
-      }, 2000);
-    } else {
-      const error = await res.json();
-      showMessage(error.error || 'Failed to delete account', 'error');
-    }
-  } catch (error) {
-    console.log('Could not delete account:', error);
-    showMessage('Failed to delete account', 'error');
-  }
-}
 
   function renderUserInfo() {
     const userInfoContainer = root.querySelector('#user-info-container');
@@ -192,18 +139,6 @@ async function deleteAccount() {
         <div id="user-info-container">
           <!-- User info will be loaded here -->
         </div>
-        
-        <!-- Delete Account Button -->
-        ${!userProfile.is_guest ? `
-          <div class="mt-6 pt-6 border-t border-gray-200">
-            <button id="delete-account-btn" class="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white font-semibold transition-colors">
-              🗑️ Delete Account
-            </button>
-            <p class="text-xs text-gray-500 mt-2">
-              ⚠️ This action will mark your account as deleted and sign you out.
-            </p>
-          </div>
-        ` : ''}
       </div>
     `;
 
@@ -945,6 +880,53 @@ async function deleteAccount() {
     }
   }
 
+  // DELETE ACCOUNT FUNCTION - NEU
+  async function deleteAccount() {
+    if (!user) return;
+    
+    // Bestätigungs-Dialog
+    const confirmed = confirm(
+      '⚠️ Are you sure you want to delete your account?\n\n' +
+      'This action will:\n' +
+      '• Mark your account as deleted\n' +
+      '• Add "deleted_" prefix to your username\n' +
+      '• Log you out immediately\n\n' +
+      'This action cannot be undone. Do you want to continue?'
+    );
+    
+    if (!confirmed) {
+      showMessage('Account deletion cancelled', 'info');
+      return;
+    }
+    
+    try {
+      const token = getToken();
+      const res = await fetch(`${GATEWAY_BASE}/user-service/auth/account`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token || ''}`
+        }
+      });
+      
+      if (res.ok) {
+        const result = await res.json();
+        showMessage('Account successfully deleted. Logging out...', 'success');
+        
+        // Warte 2 Sekunden, damit der User die Nachricht sieht
+        setTimeout(async () => {
+          await signOut();
+          navigate('/auth');
+        }, 2000);
+      } else {
+        const error = await res.json();
+        showMessage(error.message || 'Failed to delete account', 'error');
+      }
+    } catch (error) {
+      console.error('Delete account error:', error);
+      showMessage('Failed to delete account. Please try again.', 'error');
+    }
+  }
+
   function showMessage(message: string, type: 'success' | 'error' | 'info') {
     const messageEl = document.createElement('div');
     messageEl.className = `fixed top-4 right-4 px-6 py-3 rounded-lg font-semibold z-50 transition-all transform translate-x-0 ${
@@ -1055,6 +1037,9 @@ async function deleteAccount() {
       <div class="flex items-center justify-between">
         <h1 class="text-2xl sm:text-3xl lg:text-4xl font-bold">👤 Profile</h1>
         <div class="flex gap-2">
+          <button id="delete-account-btn" class="px-4 py-2 rounded-lg bg-red-800 hover:bg-red-900 text-white font-semibold transition-colors">
+            🗑️ Delete Account
+          </button>
           <button id="logout" class="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white font-semibold transition-colors">
             Sign Out
           </button>
@@ -1139,14 +1124,16 @@ async function deleteAccount() {
     navigate(`/auth?next=${encodeURIComponent(currentPath)}`);
   });
 
+    // DELETE ACCOUNT BUTTON EVENT LISTENER - NEU
+  root.querySelector<HTMLButtonElement>("#delete-account-btn")?.addEventListener("click", async () => {
+    await deleteAccount();
+  });
+
   root.querySelector<HTMLButtonElement>("#backBtn")?.addEventListener("click", (e) => {
     e.preventDefault();
     navigate("/tournaments");
   });
 
-  root.querySelector<HTMLButtonElement>("#delete-account-btn")?.addEventListener("click", async () => {
-    await deleteAccount();
-  });
 
   root.querySelector<HTMLButtonElement>("#add-friend-btn")?.addEventListener("click", async () => {
     const usernameInput = root.querySelector<HTMLInputElement>("#friend-username-input");
@@ -1167,15 +1154,6 @@ async function deleteAccount() {
 
   root.querySelector<HTMLButtonElement>("#refresh-friends-btn")?.addEventListener("click", () => {
     loadFriends();
-  });
-
-
-  const deleteBtn = root.querySelector<HTMLButtonElement>("#delete-account-btn");
-  console.log('🔍 Delete button found:', deleteBtn);
-
-  deleteBtn?.addEventListener("click", async () => {
-    console.log('🔘 Delete button event listener triggered!');
-    await deleteAccount();
   });
 
   // Load data on page load
