@@ -92,6 +92,7 @@ root.innerHTML = `
       
       const response = await fetch(`${GATEWAY_BASE}/pong/game`, {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           player1_id: 1,

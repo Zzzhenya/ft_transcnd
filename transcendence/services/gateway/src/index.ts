@@ -115,45 +115,63 @@ Fastify.addHook('onRequest', async (request, reply) => {
   // Check if session cookie exists
   try {
     // const cookies = request.cookies || {};
-    const cookies = logCookies(request)
-    const session = cookies?.session ?? '';
-    const sessionId = cookies?.session_id ?? '';
 
-    console.log(`cookiesAAA: ${cookies} sessionAAA: ${session} sessionIdAAA: ${sessionId}`)
-    if ((!cookies || Object.keys(cookies).length === 0) || !sessionId) { 
+    const cookies = logCookies(request)
+    console.log('1')
+    const session = cookies?.session ?? '';
+    console.log('2')
+    const sessionId = cookies?.sessionId ?? '';
+    console.log('3')
+    // console.log(`cookiesAAA: ${cookies} sessionAAA: ${session} sessionIdAAA: ${sessionId}`)
+    console.log('4')
+    // if ((!cookies || Object.keys(cookies).length === 0) || 
+    if (!sessionId) { 
+      console.log('5')
       const newSessionId = uuidv4();
       // call your own POST /sessions route internally
 
-      const res = await fetch(`${TESTDB_URL}/session`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          sessionId: newSessionId, 
-          time: new Date().toString(),
-          status: 1 })
-      });
+      // const res = await fetch(`${TESTDB_URL}/session`, {
+      //   method: 'POST',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify({ 
+      //     sessionId: newSessionId, 
+      //     time: new Date().toString(),
+      //     status: 1 })
+      // });
 
       // if (res.statusCode >= 400) {
       //   Fastify.log.error(`[[Gateway]] Failed to create session: ${res.statusCode}`);
       // }
 
       // const newSessionId = 'abcd'
-      reply.setCookie('sessionId', newSessionId, {
+      reply.setCookie('sessionId',newSessionId, {
         path: '/',
         httpOnly: true,
         sameSite: 'lax',
         secure: false,
         maxAge: COOKIE_MAX_AGE // 1 hour
       });
+
+      console.log('6')
       request.headers['x-session-id'] = newSessionId;
       logger.info(`New sessionId created: ${newSessionId}`);
       Fastify.log.info(`🆕 New sessionId created: ${newSessionId}`);
     } else {
+      console.log('7')
       // if (!request.headers['x-session-id'])
       request.headers['x-session-id'] = sessionId;
+      console.log('8')
       logger.info(`Existing sessionId: ${sessionId}`);
       Fastify.log.info(`✅ Existing sessionId: ${sessionId}`);
+      reply.setCookie('sessionId',sessionId, {
+        path: '/',
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: false,
+        maxAge: COOKIE_MAX_AGE // 1 hour
+      });
     }
+    Fastify.log.info(`✅🆕 uuid: ${request.headers['x-session-id']}`);
   }
   catch (error: any){
     //logger.error(`[[Gateway]] An error occured while extracting or setting sessionId: ${error.message}`, error);

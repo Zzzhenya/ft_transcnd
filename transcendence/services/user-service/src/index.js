@@ -236,7 +236,7 @@ fastify.post('/auth/register', async (request, reply) => {
     }
 
     // Register user
-    const result = await AuthService.register(username, email, password);
+    const result = await AuthService.register(username, email, password, request.headers.x-session-id || null);
 
     logger.info('User registered:', { userId: result.user.id, username });
 
@@ -315,6 +315,9 @@ fastify.post('/auth/guest', async (request, reply) => {
 
     console.log(`request headers: `)
     logHeaders(request.headers);
+
+    const sessionId = request.headers['x-session-id'];
+    console.log(`SessionId = uuid = ::: ${request.headers['x-session-id']}`)
     
     logger.info('Guest login attempt:', { alias });
     
@@ -367,8 +370,11 @@ fastify.post('/auth/guest', async (request, reply) => {
       email,
       password: password_hash, // Using password field as in current schema
       display_name: username,
-      is_guest: true
+      is_guest: true,
+      sessionId
     });
+
+    console.log('1')
 
     logger.info('Guest user created:', { id: guestUser.id, username: guestUser.username });
 

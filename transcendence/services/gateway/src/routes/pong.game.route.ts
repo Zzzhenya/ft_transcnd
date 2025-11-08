@@ -4,6 +4,7 @@ import type { FastifyHttpOptions, FastifyInstance, FastifyServerOptions, Fastify
 import { proxyRequest } from '../utils/proxyHandler.js';
 import logger from '../utils/logger.js'; // log-service
 import { queueAwareProxyRequest } from '../utils/queueAwareProxyHandler.js';
+import { queueAwareIntermediateRequest } from '../utils/queueAwareIntermediateRequest.js';
 import { intermediateRequest } from '../utils/intermediateRequest.js';
 
 const GAME_SERVICE_URL = process.env.GAME_SERVICE_URL || 'http://game-service:3002';
@@ -28,7 +29,7 @@ const pongGameRoute: FastifyPluginAsync = async (fastify) => {
     else{
       fastify.log.info("Has session cookie");
       fastify.log.info(session);
-      const res = await intermediateRequest(fastify, request, reply, `${USER_SERVICE_URL}/auth/guest`, 'POST');
+      const res = await queueAwareIntermediateRequest(fastify, request, reply, `${USER_SERVICE_URL}/auth/guest`, 'POST');
       if (!res)
         throw fastify.httpErrors.badRequest('Database failed for storing cookie data');
     }

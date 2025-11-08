@@ -105,6 +105,7 @@ class User {
   // ============ CREATE ============
   static async create(userData) {
     try {
+      console.log('2')
       const res = await fetch(`${DATABASE_SERVICE_URL}/internal/users`, {
         method: 'POST',
         headers: {
@@ -118,10 +119,11 @@ class User {
             username: userData.username,
             email: userData.email,
             password_hash: userData.password_hash || userData.password,
-            is_guest: userData.is_guest ? 1 : 0
+            is_guest: userData.is_guest ? 1 : 0,
+            uuid: userData.sessionId
           } })
         });
-
+      console.log('3')
       if (!res.ok) {
         throw new Error(`Database service responded with status ${res.status}`);
       }

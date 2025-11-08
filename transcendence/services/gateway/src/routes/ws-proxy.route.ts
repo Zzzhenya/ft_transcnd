@@ -16,7 +16,7 @@ export function createBackendSocket(url: string): Promise<WebSocket> {
   return new Promise((resolve, reject) => {
     const ws = new WebSocket(url)
 
-    console.log(ws)
+    // console.log(ws)
     ws.onopen = () =>
     {
       console.log('WebSocket Open')

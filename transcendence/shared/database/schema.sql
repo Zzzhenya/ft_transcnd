@@ -23,6 +23,7 @@ CREATE TABLE Users (
   is_guest BOOLEAN DEFAULT 0,
   email VARCHAR(100) UNIQUE NOT NULL,
   password_hash VARCHAR(255),
+  uuid VARCHAR(500),
   
   -- OAuth / 42 Integration
   intra_id INTEGER UNIQUE,
