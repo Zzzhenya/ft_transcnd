@@ -29,6 +29,7 @@ class ToastNotificationSystem {
 	private activeToasts: Map<string, HTMLElement> = new Map();
 	private pollInterval: number | null = null;
 	private seenNotificationIds: Set<number> = new Set();
+	private lastErrorStatus: number | null = null;
 
 	init() {
 		console.log('🍞 Toast system initializing...');
@@ -60,6 +61,10 @@ class ToastNotificationSystem {
 	}
 
 	private startPolling() {
+		if (this.pollInterval !== null) {
+			return;
+		}
+
 		// Check for new notifications every 3 seconds
 		this.pollInterval = window.setInterval(() => {
 			this.checkForNewNotifications();
@@ -69,14 +74,21 @@ class ToastNotificationSystem {
 		this.checkForNewNotifications();
 	}
 
+	private stopPolling() {
+		if (this.pollInterval !== null) {
+			clearInterval(this.pollInterval);
+			this.pollInterval = null;
+		}
+	}
+
 	private async checkForNewNotifications() {
 		const user = getAuth();
 		const token = getToken();
 		
-		console.log('🍞 Checking notifications...', { user: user?.id, hasToken: !!token });
+		console.debug('🍞 Checking notifications...', { user: user?.id, hasToken: !!token });
 		
 		if (!user || !token) {
-			console.log('🍞 No user or token, skipping notification check');
+			console.debug('🍞 No user or token, skipping notification check');
 			return;
 		}
 
@@ -85,12 +97,34 @@ class ToastNotificationSystem {
 				headers: { 'Authorization': `Bearer ${token}` }
 			});
 
-			console.log('🍞 Notification response:', response.status);
-
-			if (!response.ok) {
-				console.log('🍞 Bad response:', response.status, response.statusText);
+			if (response.status === 404) {
+				if (this.lastErrorStatus !== 404) {
+					console.warn('🍞 Notifications endpoint unavailable (404). Polling will continue silently.');
+				}
+				this.lastErrorStatus = 404;
 				return;
 			}
+
+			if (response.status === 401 || response.status === 403) {
+				if (this.lastErrorStatus !== response.status) {
+					console.warn('🍞 Unauthorized notifications request. Waiting for session refresh.');
+				}
+				this.lastErrorStatus = response.status;
+				return;
+			}
+
+			if (!response.ok) {
+				if (this.lastErrorStatus !== response.status) {
+					console.warn('🍞 Notification polling failed:', response.status, response.statusText);
+				}
+				this.lastErrorStatus = response.status;
+				return;
+			}
+
+			if (this.lastErrorStatus !== null) {
+				console.info('🍞 Notifications endpoint recovered.');
+			}
+			this.lastErrorStatus = null;
 
 			const result = await response.json();
 			const notifications: Notification[] = result.notifications || [];
@@ -331,13 +365,10 @@ class ToastNotificationSystem {
 	}
 
 	destroy() {
-		if (this.pollInterval) {
-			clearInterval(this.pollInterval);
-			this.pollInterval = null;
-		}
-		
+		this.stopPolling();
+
 		this.activeToasts.clear();
-		
+
 		if (this.container) {
 			this.container.remove();
 			this.container = null;

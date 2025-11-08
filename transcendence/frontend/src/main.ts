@@ -3,7 +3,7 @@ import "./styles.css";
 
 // Router setup: History API (f / b) + link interception.
 import { initRouter } from "./app/router";
-import { initOnlineStatusManager, getAuth } from "./app/auth";
+import { initOnlineStatusManager, getAuth, ensureFreshAuth } from "./app/auth";
 import { toastNotifications } from "./ui/toast-notifications";
 
 // Get app's root (main: "app"), start router, render current URL(= home)
@@ -33,7 +33,10 @@ function initOnlineStatus() {
 // Listen for auth changes to manage online status
 window.addEventListener('auth:changed', initOnlineStatus);
 
-// Initialize on app start
-initOnlineStatus();
+async function bootstrap() {
+  await ensureFreshAuth();
+  initOnlineStatus();
+  render(location.pathname + location.search);
+}
 
-render(location.pathname + location.search);
+bootstrap();

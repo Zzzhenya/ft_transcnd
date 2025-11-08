@@ -1,5 +1,6 @@
 // frontend/src/app/auth.ts
 import { api } from "./api";
+import { API_BASE } from "./config";
 const STORAGE_KEY = "ft_transcendence_version1";
 
 export type AuthUser = {
@@ -120,6 +121,63 @@ export async function signOut() {
   s.auth.token = null;
   write(s);
   dispatchEvent(new CustomEvent("auth:changed"));
+}
+
+export async function ensureFreshAuth(): Promise<void> {
+	const initial = read();
+	const persistedAuth = initial.auth;
+	if (!persistedAuth?.user)
+		return;
+
+	try {
+		const response = await fetch(`${API_BASE}/auth/profile`, {
+			method: "GET",
+			headers: {
+				"Content-Type": "application/json",
+				...(persistedAuth.token ? { Authorization: `Bearer ${persistedAuth.token}` } : {}),
+			},
+		});
+
+		if (response.status === 401 || response.status === 403 || response.status === 404) {
+			await signOut();
+			return;
+		}
+
+		if (!response.ok)
+			return;
+
+		const isJson = response.headers.get("content-type")?.includes("application/json");
+		if (!isJson)
+			return;
+
+		const data = await response.json() as { id: string; username: string; email: string };
+		const previousUser = persistedAuth.user;
+		const nextUser: AuthUser = {
+			...previousUser,
+			id: data.id,
+			username: data.username,
+			email: data.email,
+			name: previousUser?.name ?? data.username,
+			role: previousUser?.role ?? "user",
+		};
+
+		const hasUserChanged = !previousUser ||
+			previousUser.id !== nextUser.id ||
+			previousUser.username !== nextUser.username ||
+			previousUser.email !== nextUser.email;
+
+		const updatedState = read();
+		if (!updatedState.auth) updatedState.auth = { user: null, token: null };
+		updatedState.auth.user = nextUser;
+		updatedState.auth.token = persistedAuth.token ?? null;
+		write(updatedState);
+
+		if (hasUserChanged)
+			dispatchEvent(new CustomEvent("auth:changed"));
+	} catch (error) {
+		console.warn("Failed to verify user session", error);
+		await signOut();
+	}
 }
 
 // Guest Login
