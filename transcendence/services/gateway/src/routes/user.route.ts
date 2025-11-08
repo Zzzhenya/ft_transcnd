@@ -124,6 +124,12 @@ const userRoutes: FastifyPluginAsync = async (fastify) => {
 		return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/users/${userId}/avatar`, 'POST');
 	});
 
+	// Delete account endpoint
+	fastify.delete('/users/:userId/account', async (request, reply) => {
+		const { userId } = request.params as { userId: string };
+		return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/users/${userId}/account`, 'DELETE');
+	});
+
 	// Fileupload
 	fastify.get('/avatars/:filename', async (request, reply) => {
 	const { filename } = request.params as { filename: string };
