@@ -243,11 +243,12 @@ export default function (root: HTMLElement) {
             if (create4Btn) {
                 create4Btn.onclick = async () => {
                     const creator = user ? user.name : state.session.alias;
+                    const creatorId = user ? user.id : null;
                     // Backend will generate the tournament ID
                     const response = await fetch(`${API_BASE}/tournaments`, {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ creator, size: 4 })
+                        body: JSON.stringify({ creator, creatorId, size: 4 })
                     });
                     if (response.ok) {
                         const data = await response.json();
@@ -266,11 +267,12 @@ export default function (root: HTMLElement) {
             if (create8Btn) {
                 create8Btn.onclick = async () => {
                     const creator = user ? user.name : state.session.alias;
+                    const creatorId = user ? user.id : null;
                     // Backend will generate the tournament ID
                     const response = await fetch(`${API_BASE}/tournaments`, {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ creator, size: 8 })
+                        body: JSON.stringify({ creator, creatorId, size: 8 })
                     });
                     if (response.ok) {
                         const data = await response.json();

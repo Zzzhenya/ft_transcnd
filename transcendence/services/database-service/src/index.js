@@ -326,8 +326,8 @@ fastify.post('/internal/users', async (request, reply) => {
       db.transaction(() => dbRun(sql, Object.values(values)))()
     );
 
-    // ✅ Return the same shape as dbRun does
-    return { success: true, id: result.id, changes: result.changes };
+  // ✅ Return lastInsertRowid for inserts
+  return { success: true, id: result.lastInsertRowid, changes: result.changes };
   } catch (err) {
     fastify.log.error(err);
     

@@ -93,10 +93,13 @@ export function registerTournamentRoutes(fastify, tournaments, broadcastTourname
         })
         .map(t => ({
           id: t.id,
+          dbId: t.dbId ?? null,
           name: t.name,
           size: t.size,
           status: t.status,
           players: Array.from(t.playerSet || []),
+          createdBy: t.createdBy ?? null,
+          createdAt: t.createdAt ?? null,
           interruptedAt: t.interruptedAt, // Include timestamp for countdown
           finishedAt: t.finishedAt // Include timestamp for countdown
         }));
@@ -147,6 +150,14 @@ export function registerTournamentRoutes(fastify, tournaments, broadcastTourname
     const { generateBracket } = await import('../tournament/createBracket.js');
     t.bracket = generateBracket(Array.from(t.playerSet));
     t.status = 'progressing';
+    t.startedAt = t.startedAt || new Date().toISOString();
+    if (typeof t.syncSnapshot === 'function') {
+      try {
+        await t.syncSnapshot();
+      } catch (err) {
+        fastify.log.error({ err, tournamentId: t.id }, '[TournamentService] Failed to persist bracket snapshot on start');
+      }
+    }
     
     broadcastTournamentUpdate(t.id);
     reply.send({ ok: true, status: t.status, bracket: t.bracket });
@@ -210,6 +221,13 @@ export function registerTournamentRoutes(fastify, tournaments, broadcastTourname
       fastify.log.info(`🏆 Tournament ${req.params.id} FINISHED! Winner: ${finalMatch.winner}`);
     } else {
       t.status = 'progressing';
+    }
+    if (typeof t.syncSnapshot === 'function') {
+      try {
+        await t.syncSnapshot();
+      } catch (err) {
+        fastify.log.error({ err, tournamentId: t.id }, '[TournamentService] Failed to persist snapshot after advance');
+      }
     }
     fastify.log.info(`Tournament status: ${t.status}`);
     broadcastTournamentUpdate(t.id);
@@ -319,6 +337,13 @@ export function registerTournamentRoutes(fastify, tournaments, broadcastTourname
     t.status = 'interrupted';
     t.interruptedAt = Date.now(); // Store timestamp for 5-minute countdown
     fastify.log.warn(`⚠️ Tournament ${req.params.id} marked as INTERRUPTED at ${new Date(t.interruptedAt).toISOString()}`);
+    if (typeof t.syncSnapshot === 'function') {
+      try {
+        await t.syncSnapshot();
+      } catch (err) {
+        fastify.log.error({ err, tournamentId: t.id }, '[TournamentService] Failed to persist snapshot after interrupt');
+      }
+    }
     
     // Notify all clients about the interruption
     broadcastTournamentUpdate(t.id);
@@ -381,6 +406,13 @@ export function registerTournamentRoutes(fastify, tournaments, broadcastTourname
       fastify.log.info(`🏆 Tournament ${req.params.id} FINISHED! Winner: ${finalMatch.winner} (by forfeit)`);
     } else {
       t.status = 'progressing';
+    }
+    if (typeof t.syncSnapshot === 'function') {
+      try {
+        await t.syncSnapshot();
+      } catch (err) {
+        fastify.log.error({ err, tournamentId: t.id }, '[TournamentService] Failed to persist snapshot after forfeit');
+      }
     }
     
     fastify.log.info(`Tournament status: ${t.status}`);
