@@ -273,7 +273,8 @@ fastify.get('/auth/profile', {
       is_guest: userData.is_guest,
       bio: userData.bio,
       avatar: userData.avatar,
-      status: userData.status
+      status: userData.status,
+      display_name: userData.display_name,
     };
     
     return reply.send(userWithoutSensitive);

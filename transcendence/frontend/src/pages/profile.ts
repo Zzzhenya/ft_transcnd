@@ -29,6 +29,9 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
       });
       if (res.ok) {
         userProfile = await res.json();
+        console.log('🔍 LOADED USER PROFILE:', userProfile);
+        console.log('🔍 display_name value:', userProfile.display_name);
+        console.log('🔍 username value:', userProfile.username);
         renderUserInfo();
         updateAvatarDisplay();
       }
