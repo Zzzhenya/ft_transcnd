@@ -1323,94 +1323,135 @@ fastify.get('/avatars/:filename', async (request, reply) => {
 });
 
 // Delete account endpoint
-fastify.delete('/users/:userId/account', {
+fastify.delete('/auth/account', {
   preHandler: fastify.authenticate
 }, async (request, reply) => {
   try {
-    const { userId } = request.params;
-    const { password } = request.body;
+    const userId = request.user.userId;
+    logger.info('Delete account request for user:', userId);
+
+    const user = await User.findById(userId);
     
-    // Verify the user is deleting their own account
-    if (parseInt(userId) !== request.user.userId) {
-      return reply.code(403).send({ error: 'Unauthorized to delete this account' });
-    }
-    
-    logger.info(`Account deletion requested for user ${userId}`);
-    
-    // Validate password is provided
-    if (!password) {
-      return reply.code(400).send({ 
-        error: 'Password is required to delete account' 
+    if (!user) {
+      return reply.code(404).send({ 
+        success: false,
+        message: 'User not found' 
       });
     }
-    
-    // Get current user data to verify password
-    const user = await User.findById(userId);
-    if (!user) {
-      return reply.code(404).send({ error: 'User not found' });
+
+    if (user.status === 'deleted') {
+      return reply.code(400).send({ 
+        success: false,
+        message: 'Account is already deleted' 
+      });
     }
-    
-    // Verify password (skip for guest users)
-    if (!user.is_guest) {
-      const passwordMatch = await bcrypt.compare(password, user.password);
-      if (!passwordMatch) {
-        return reply.code(401).send({ 
-          error: 'Incorrect password' 
-        });
-      }
+
+    // Neue Werte vorbereiten
+    let newUsername = user.username;
+    if (!newUsername.startsWith('deleted_')) {
+      newUsername = `deleted_${user.username}`;
     }
-    
-    // Update username to delete_<username>
-    const deletedUsername = `delete_${user.username}`;
-    
-    // Update username
-    const usernameResponse = await fetch('http://database-service:3006/internal/write', {
+
+    const timestamp = Date.now();
+    const newEmail = `deleted_${timestamp}_${userId}@deleted.local`;
+
+    logger.info(`Soft deleting user ${userId}: ${user.username} -> ${newUsername}, ${user.email} -> ${newEmail}`);
+
+    // 1. Update Status
+    const statusRes = await fetch('http://database-service:3006/internal/write', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'x-service-auth': 'super_secret_internal_token'
+      },
       body: JSON.stringify({
         table: 'Users',
-        id: parseInt(userId),
-        column: 'username',
-        value: deletedUsername
-      })
-    });
-    
-    if (!usernameResponse.ok) {
-      logger.error('Failed to update username during deletion');
-      return reply.code(500).send({ error: 'Failed to delete account' });
-    }
-    
-    // Update status to 'delete'
-    const statusResponse = await fetch('http://database-service:3006/internal/write', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        table: 'Users',
-        id: parseInt(userId),
+        id: userId,
         column: 'status',
-        value: 'delete'
+        value: 'deleted'
       })
     });
-    
-    if (!statusResponse.ok) {
-      logger.error('Failed to update status during deletion');
-      return reply.code(500).send({ error: 'Failed to delete account' });
+
+    if (!statusRes.ok) {
+      const errorText = await statusRes.text();
+      logger.error('Failed to update status:', statusRes.status, errorText);
+      return reply.code(500).send({ 
+        success: false,
+        error: 'Failed to update account status'
+      });
     }
-    
-    logger.info(`Account successfully marked as deleted for user ${userId}`);
-    
-    return { 
-      success: true, 
-      message: 'Account successfully deleted'
-    };
-    
+
+    // 2. Update Username
+    const usernameRes = await fetch('http://database-service:3006/internal/write', {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'x-service-auth': 'super_secret_internal_token'
+      },
+      body: JSON.stringify({
+        table: 'Users',
+        id: userId,
+        column: 'username',
+        value: newUsername
+      })
+    });
+
+    if (!usernameRes.ok) {
+      const errorText = await usernameRes.text();
+      logger.error('Failed to update username:', usernameRes.status, errorText);
+      return reply.code(500).send({ 
+        success: false,
+        error: 'Failed to update username'
+      });
+    }
+
+    // 3. NEU: Update Email
+    const emailRes = await fetch('http://database-service:3006/internal/write', {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'x-service-auth': 'super_secret_internal_token'
+      },
+      body: JSON.stringify({
+        table: 'Users',
+        id: userId,
+        column: 'email',
+        value: newEmail
+      })
+    });
+
+    if (!emailRes.ok) {
+      const errorText = await emailRes.text();
+      logger.error('Failed to update email:', emailRes.status, errorText);
+      return reply.code(500).send({ 
+        success: false,
+        error: 'Failed to update email'
+      });
+    }
+
+    logger.info(`Account successfully deleted: ${userId}`);
+
+    return reply.code(200).send({
+      success: true,
+      message: 'Account successfully deleted',
+      data: {
+        oldUsername: user.username,
+        newUsername: newUsername,
+        oldEmail: user.email,
+        newEmail: newEmail,
+        status: 'deleted'
+      }
+    });
+
   } catch (error) {
     logger.error('Error deleting account:', error);
-    return reply.code(500).send({ error: 'Internal server error' });
+    return reply.code(500).send({ 
+      success: false,
+      message: 'Internal server error', 
+      error: error.message 
+    });
   }
 });
-
-
 
 
 

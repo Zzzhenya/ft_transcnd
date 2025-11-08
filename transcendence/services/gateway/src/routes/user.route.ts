@@ -124,12 +124,6 @@ const userRoutes: FastifyPluginAsync = async (fastify) => {
 		return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/users/${userId}/avatar`, 'POST');
 	});
 
-	// Delete account endpoint
-	fastify.delete('/users/:userId/account', async (request, reply) => {
-		const { userId } = request.params as { userId: string };
-		return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/users/${userId}/account`, 'DELETE');
-	});
-
 	// Fileupload
 	fastify.get('/avatars/:filename', async (request, reply) => {
 	const { filename } = request.params as { filename: string };
@@ -154,6 +148,12 @@ const userRoutes: FastifyPluginAsync = async (fastify) => {
 		fastify.log.error(`Failed to fetch avatar: ${errorMessage}`);
 		return reply.code(500).send({ error: 'Failed to fetch avatar' });
 	}
+	});
+
+	// Delete account endpoint
+	fastify.delete('/auth/account', async (request, reply) => {
+		fastify.log.info("Gateway received DELETE request for /auth/account");
+		return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/auth/account`, 'DELETE');
 	});
 
 }
