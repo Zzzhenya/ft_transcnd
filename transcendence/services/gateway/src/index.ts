@@ -43,25 +43,25 @@ await registerPlugins(Fastify);
 
 const setupWebSocket = async () => {
   await Fastify.register(websocket);
-  logger.info('[[Gateway]] WebSocket plugin registered');
+  logger.info('WebSocket plugin registered');
 }
 
 const start = async () => {
   try {
-    logger.info('[[Gateway]] Starting gateway', { port: PORT });
+    logger.info('Starting gateway', { port: PORT });
     await Fastify.listen({ port: PORT, host: '0.0.0.0' })
-    logger.info('[[Gateway]] Gateway listening at port: ', { port: PORT });
+    logger.info('Gateway listening at port: ', { port: PORT });
   }
   catch (error: any) {
     // Just stringify the whole error object
-    logger.error('[[Gateway]] Failed to start gateway: ', { error: JSON.stringify(error) });
-    Fastify.log.error('[[Gateway]] Failed to start gateway: ' + error)
+    logger.error('Failed to start gateway: ', { error: JSON.stringify(error) });
+    Fastify.log.error('Failed to start gateway: ' + error)
     process.exit(1)
   }
 }
 
 Fastify.addHook('onRequest', async (request, reply) => {
-  logger.info('[[Gateway]] Request received', {
+  logger.info('Request received', {
     method: request.method,
     url: request.url,
     ip: request.ip
@@ -77,22 +77,22 @@ const setupcors = async () => {
     // origin: 'http://localhost:3004', // <-- your frontend origin 
     credentials: true,                   // <-- allow sending cookies cross-origin
       });
-    logger.info('[[Gateway]] cors settings registered');
+    logger.info('cors settings registered');
 }
 
 try {
   setupcors();
 }
 catch (error: any){
-  logger.error('[[Gateway]] error occured while registering cors settings: ', error);
+  logger.error('error occured while registering cors settings: ', error);
 }
 
-logger.info('[[Gateway]] registering cookie plugin');
+logger.info('registering cookie plugin');
 Fastify.register(cookie, {
   // secret: 'my-secret-key', // Optional (for signed cookies)
 
 });
-logger.info('[[Gateway]] cookie registered');
+logger.info('cookie registered');
 
 Fastify.addHook('onRequest', async (request, reply) => {
   // Check if session cookie exists
@@ -124,49 +124,49 @@ Fastify.addHook('onRequest', async (request, reply) => {
         secure: false,
         maxAge: COOKIE_MAX_AGE // 1 hour
       });
-      logger.info(`[[Gateway]] New sessionId created: ${newSessionId}`);
-      Fastify.log.info(`[[Gateway]] 🆕 New sessionId created: ${newSessionId}`);
+      logger.info(`New sessionId created: ${newSessionId}`);
+      Fastify.log.info(`🆕 New sessionId created: ${newSessionId}`);
     } else {
-      logger.info(`[[Gateway]] Existing sessionId: ${sessionId}`);
-      Fastify.log.info(`[[Gateway]] ✅ Existing sessionId: ${sessionId}`);
+      logger.info(`Existing sessionId: ${sessionId}`);
+      Fastify.log.info(`✅ Existing sessionId: ${sessionId}`);
     }
   }
   catch (error: any){
     //logger.error(`[[Gateway]] An error occured while extracting or setting sessionId: ${error.message}`, error);
-    Fastify.log.error(`[[Gateway]] SessionId error: ${error.message}`, error);
+    Fastify.log.error(`SessionId error: ${error.message}`, error);
   }
 });
 
 setupWebSocket();
 logger.info("port: " + PORT);
 try {
-  logger.info('[[Gateway]] register root route');
+  logger.info('register root route');
   Fastify.register(firstRoute);
-  logger.info('[[Gateway]] register health routes');
+  logger.info('register health routes');
   Fastify.register(healthRoute);
-  logger.info('[[Gateway]] register stats route');
+  logger.info('register stats route');
   Fastify.register(statsRoute);
-  logger.info('[[Gateway]] register ws routes ');
+  logger.info('register ws routes ');
   Fastify.register(wsRoute, { prefix: '/ws' });
-  logger.info('[[Gateway]] register /pong/demo routes ');
+  logger.info('register /pong/demo routes ');
   Fastify.register(pongDemoRoute, { prefix: '/pong/demo' });
-  logger.info('[[Gateway]] register /pong/game routes ');
+  logger.info('register /pong/game routes ');
   Fastify.register(pongGameRoute, { prefix: '/pong/game' });
-  logger.info('[[Gateway]] register game routes ');
+  logger.info('register game routes ');
   Fastify.register(gameRoute)
-  logger.info('[[Gateway]] register user routes ');
+  logger.info('register user routes ');
   Fastify.register(userRoute, { prefix: '/user-service' });
-  logger.info('[[Gateway]] register tournament routes ');
+  logger.info('register tournament routes ');
   Fastify.register(tournamentRoute, { prefix: '/tournaments' });
 }
 catch (error: any) {
-  logger.error('[[Gateway]] an error occured while registering routes', error);
+  logger.error('An error occured while registering routes', error);
 }
 
 
 try {
-  logger.info('[[Gateway]] Launching gateway...');
+  logger.info('Launching gateway...');
   start(); // await start()?
 } catch ( error: any) {
-  logger.error('[[Gateway]] an error occured while launching gateway or at runtime', error);
+  logger.error('An error occured while launching gateway or at runtime', error);
 }
