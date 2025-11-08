@@ -163,6 +163,24 @@ export default function (root: HTMLElement, ctx: any) {
   canvas = root.querySelector('#gameCanvas') as HTMLCanvasElement;
   ctx2d = canvas.getContext('2d')!;
 
+  const START_BTN_ACTIVE_CLASS = "bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-indigo-600 hover:to-blue-500 text-white px-8 py-3 rounded-xl font-bold shadow-lg transition-all duration-200";
+  const START_BTN_DISABLED_CLASS = "bg-gray-600 text-gray-300 px-8 py-3 rounded-xl font-bold shadow-lg transition-all duration-200 cursor-not-allowed";
+
+  function setStartButtonState() {
+    if (!startBtn) return;
+    if (matchStarted) {
+      startBtn.disabled = true;
+      startBtn.className = START_BTN_DISABLED_CLASS;
+      startBtn.innerHTML = `<span class="mr-2">🚀</span>Match In Progress`;
+    } else {
+      startBtn.disabled = false;
+      startBtn.className = START_BTN_ACTIVE_CLASS;
+      startBtn.innerHTML = `<span class="mr-2">🚀</span>Start Match`;
+    }
+  }
+
+  setStartButtonState();
+
   function updateStatus(message: string) {
     gameStatus.textContent = message;
   }
@@ -247,7 +265,9 @@ export default function (root: HTMLElement, ctx: any) {
         } else if (connectionAttempts >= maxConnectionAttempts) {
           updateStatus('❌ Backend connection failed - please try again');
           updateConnectionStatus('❌ Unable to connect to backend');
-          startBtn.disabled = false;
+          matchStarted = false;
+          sessionStorage.removeItem(matchKey);
+          setStartButtonState();
         }
       };
 
@@ -259,7 +279,9 @@ export default function (root: HTMLElement, ctx: any) {
     } catch (error) {
       updateStatus('❌ Failed to connect - please try again');
       updateConnectionStatus('❌ Network connection failed');
-      startBtn.disabled = false;
+      matchStarted = false;
+      sessionStorage.removeItem(matchKey);
+      setStartButtonState();
     }
   }
 
@@ -531,7 +553,7 @@ function showWinnerDialog(winner: string) {
   }
 
   function startNetworkGame() {
-    startBtn.disabled = true;
+    setStartButtonState();
     if (gameLoop) {
       cancelAnimationFrame(gameLoop);
       gameLoop = null;
@@ -720,7 +742,6 @@ function showWinnerDialog(winner: string) {
   }
 
   async function handleStartMatch() {
-    startBtn.disabled = true;
     connectionAttempts = 0;
     matchStarted = true;
     
@@ -729,6 +750,8 @@ function showWinnerDialog(winner: string) {
       status: 'in-progress',
       startTime: Date.now()
     }));
+
+    setStartButtonState();
     
     updateStatus('🔄 Starting tournament match...');
     try {
@@ -738,11 +761,15 @@ function showWinnerDialog(winner: string) {
         connectWebSocket(gameId);
       } else {
         updateStatus('❌ Failed to create match - please try again');
-        startBtn.disabled = false;
+        matchStarted = false;
+        sessionStorage.removeItem(matchKey);
+        setStartButtonState();
       }
     } catch (error) {
       updateStatus('❌ Network error - please try again');
-      startBtn.disabled = false;
+      matchStarted = false;
+      sessionStorage.removeItem(matchKey);
+      setStartButtonState();
     }
   }
 
