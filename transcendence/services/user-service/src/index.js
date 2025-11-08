@@ -236,7 +236,7 @@ fastify.post('/auth/register', async (request, reply) => {
     }
 
     // Register user
-    const result = await AuthService.register(username, email, password, request.headers.x-session-id || null);
+    const result = await AuthService.register(username, email, password, null);
 
     logger.info('User registered:', { userId: result.user.id, username });
 
