@@ -6,6 +6,7 @@ import logger from '../utils/logger.js'; // log-service
 import { queueAwareProxyRequest } from '../utils/queueAwareProxyHandler.js';
 import { queueAwareIntermediateRequest } from '../utils/queueAwareIntermediateRequest.js';
 import { intermediateRequest } from '../utils/intermediateRequest.js';
+// import authPreHandlerPlugin from "../plugins/authPreHandler.plugin.js";
 
 const GAME_SERVICE_URL = process.env.GAME_SERVICE_URL || 'http://game-service:3002';
 const USER_SERVICE_URL = process.env.USER_SERVICE_URL || 'http://user-service:3001';
@@ -17,10 +18,21 @@ interface GameParams {
 const pongGameRoute: FastifyPluginAsync = async (fastify) => {
 
 // Creates a game
-  fastify.post('/', async (request, reply) => {
+  fastify.post('/', {  preHandler: fastify.verifyAuth }, async (request, reply) => {
     fastify.log.info("GAME START~~ >>> POST REQUEST ")
     fastify.log.info("Request headers: ");
     fastify.log.info(request.headers);
+
+    const authHeader = request.headers['authorization'] || '';
+    
+    if (!authHeader.startsWith('Bearer ')) {
+      fastify.log.info("Missing or invalid token ");
+      // return reply.code(401).send({ error: 'Missing or invalid token' });
+    }
+    else{
+      fastify.log.info(`authHeader: ${authHeader}`);
+    }
+
     const session = request.cookies;
     if (!session){
       throw fastify.httpErrors.badRequest('Missing required parameter: no cookies');

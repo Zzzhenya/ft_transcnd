@@ -1,4 +1,5 @@
 const fastify = require('fastify')({ logger: true });
+const cookie = require('fastify-cookie');
 const AuthService = require('./services/authService');
 const User = require('./models/User');
 const jwt = require('jsonwebtoken');
@@ -7,10 +8,18 @@ const logger = require('./utils/logger');
 const PORT = parseInt(process.env.USER_SERVICE_PORT || process.env.PORT || '3001');
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-this';
 
+// 1. Register cookie parsing first
+fastify.register(require('fastify-cookie'), {
+  // secret: process.env.COOKIE_SECRET || 'cookie-secret',
+});
+
+
 // Register CORS
 fastify.register(require('@fastify/cors'), {
-  origin: true
+  origin: true,
+  credentials: true,  // Allow cookies to be sent and received
 });
+
 
 // Global hook to capture all PUT requests
 fastify.addHook('preHandler', async (request, reply) => {
@@ -240,12 +249,24 @@ fastify.post('/auth/register', async (request, reply) => {
 
     logger.info('User registered:', { userId: result.user.id, username });
 
-    return reply.code(201).send({
-      success: true,
-      message: 'User successfully registered',
-      user: result.user,
-      token: result.token
-    });
+    // return reply.code(201).send({
+    //   success: true,
+    //   message: 'User successfully registered',
+    //   user: result.user,
+    //   token: result.token
+    // });
+    reply.setCookie('jwt', result.token, {
+        httpOnly: true,
+        secure: true,        // true in production (requires HTTPS)
+        sameSite: 'lax',     // CSRF protection
+        path: '/'            // available on all routes
+      })
+      .code(201)
+      .send({
+        success: true,
+        message: 'User successfully registered',
+        user: result.user
+      });
 
   } catch (error) {
     console.error('Registration error:', error);
@@ -391,7 +412,25 @@ fastify.post('/auth/guest', async (request, reply) => {
 
     fastify.log.info("jwt token: "); fastify.log.info(token);
 
-    return reply.code(201).send({
+    // return reply.code(201).send({
+    //   success: true,
+    //   message: 'Guest user created',
+    //   user: {
+    //     id: guestUser.id,
+    //     username: guestUser.username,
+    //     email: guestUser.email,
+    //     is_guest: true
+    //   },
+    //   token
+    // });
+    reply.setCookie('jwt', token, {
+      httpOnly: true,
+      secure: true,       // use true in production (HTTPS required)
+      sameSite: 'lax',    // helps mitigate CSRF
+      path: '/',          // cookie is valid for all routes
+    })
+    .code(201)
+    .send({
       success: true,
       message: 'Guest user created',
       user: {
@@ -399,8 +438,7 @@ fastify.post('/auth/guest', async (request, reply) => {
         username: guestUser.username,
         email: guestUser.email,
         is_guest: true
-      },
-      token
+      }
     });
   } catch (error) {
     logger.error('Guest login error:', error);

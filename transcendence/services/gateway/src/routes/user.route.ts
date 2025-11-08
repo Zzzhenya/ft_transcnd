@@ -2,6 +2,7 @@
 import gatewayError from '../utils/gatewayError.js';
 import logger from '../utils/logger.js'; // log-service
 import { proxyRequest } from '../utils/proxyHandler.js';
+// import { authPreHandlerPlugin } from '../plugins/authPreHandler.plugin.js';
 
 import type { FastifyHttpOptions, FastifyInstance, FastifyServerOptions, FastifyPluginAsync } from "fastify"
 
@@ -20,8 +21,8 @@ const userRoutes: FastifyPluginAsync = async (fastify) => {
 		return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/auth/register`, 'POST');
 	});
 
-	fastify.post('/auth/login', async (request, reply) => {
-		// fastify.log.info("Gateway received POST request for /register")
+	fastify.post('/auth/login', {  preHandler: fastify.verifyAuth }, async (request, reply) => {
+		// fastify.log.info("Gatewa{ preHandler: authPreHandler }y received POST request for /register")
 		// fastify.log.info({ body: request.body }, "Request body")
 		return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/auth/login`, 'POST');
 	});

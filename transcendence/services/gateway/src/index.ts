@@ -112,12 +112,30 @@ function logCookies(request: FastifyRequest): Record<string, string> {
 }
 
 Fastify.addHook('onRequest', async (request, reply) => {
-  // Check if session cookie exists
+  
   try {
-    // const cookies = request.cookies || {};
 
     const cookies = logCookies(request)
     console.log('1')
+
+    // check whether JWT token exists
+
+    const token = cookies?.jwt ?? '';
+
+    console.log('1.1')
+    if (!token){
+      console.log('1.2')
+      Fastify.log.info("JWT token missing")
+    } else {
+      console.log('1.3')
+      Fastify.log.info("JWT token available")
+      // const decoded = await request.jwtVerify();
+      console.log('1.4')
+      // request.user = decoded;
+      return;
+    }
+
+    // Check if session cookie exists
     const session = cookies?.session ?? '';
     console.log('2')
     const sessionId = cookies?.sessionId ?? '';
