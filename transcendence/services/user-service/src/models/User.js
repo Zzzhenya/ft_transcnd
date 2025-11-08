@@ -91,7 +91,7 @@ class User {
     this.username = data.username;
     this.email = data.email;
     // this.password_hash = data.password_hash || data.password;
-    this.display_name = data.display_name || data.username; // Fallback to username
+    this.display_name = data.display_name //|| data.username; // Fallback to username
     this.password = data.password_hash; // Map password_hash to password for backward compatibility
     this.password_hash = data.password_hash;
     this.bio = data.bio;
