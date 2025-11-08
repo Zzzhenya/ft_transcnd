@@ -58,6 +58,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
   }
 
 async function deleteAccount() {
+  console.log('🗑️ DELETE ACCOUNT CLICKED!');
   if (!user) return;
   
   // Confirmation dialog
@@ -1166,6 +1167,15 @@ async function deleteAccount() {
 
   root.querySelector<HTMLButtonElement>("#refresh-friends-btn")?.addEventListener("click", () => {
     loadFriends();
+  });
+
+
+  const deleteBtn = root.querySelector<HTMLButtonElement>("#delete-account-btn");
+  console.log('🔍 Delete button found:', deleteBtn);
+
+  deleteBtn?.addEventListener("click", async () => {
+    console.log('🔘 Delete button event listener triggered!');
+    await deleteAccount();
   });
 
   // Load data on page load
