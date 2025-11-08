@@ -273,7 +273,7 @@ fastify.get('/auth/profile', {
       is_guest: userData.is_guest,
       bio: userData.bio,
       avatar: userData.avatar,
-      user_status: userData.user_status,
+      status: userData.status,
       display_name: userData.display_name,
     };
     
