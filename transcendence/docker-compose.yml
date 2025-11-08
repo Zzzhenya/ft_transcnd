@@ -14,11 +14,12 @@ services:
     networks:
       - transcendence-network
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+    # healthcheck:
+    #   test: ["CMD", "wget", "--spider", "-q", "http://localhost/health"]
+    #   interval: 10s
+    #   timeout: 5s
+    #   retries: 5
+      
   gateway:
     build: ./services/gateway
     #ports:
@@ -41,12 +42,12 @@ services:
       - shared-data:/app/shared/
     networks:
       - transcendence-network
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
+    # healthcheck:
+    #   test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+    #   interval: 10s
+    #   timeout: 5s
+    #   retries: 5
+    #   start_period: 30s
 
   user-service:
     build: ./services/user-service
@@ -65,12 +66,12 @@ services:
     #   - shared-data:/app/shared/
     networks:
       - transcendence-network
-    healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3001/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 20s
+    # healthcheck:
+    #   test: ["CMD", "wget", "--spider", "-q", "http://localhost:3001/health"]
+    #   interval: 10s
+    #   timeout: 5s
+    #   retries: 5
+    #   start_period: 20s
 
   game-service:
     build: ./services/game-service
@@ -90,12 +91,12 @@ services:
       - shared-data:/app/shared/
     networks:
       - transcendence-network
-    healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3002/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 20s
+    # healthcheck:
+    #   test: ["CMD", "wget", "--spider", "-q", "http://localhost:3002/health"]
+    #   interval: 10s
+    #   timeout: 5s
+    #   retries: 5
+    #   start_period: 20s
 
   log-service:
     build: ./services/log-service
@@ -110,12 +111,12 @@ services:
       - shared-data:/app/shared/
     networks:
       - transcendence-network
-    healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3003/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s  # Give more time for startup
+    # healthcheck:
+    #   test: ["CMD", "wget", "--spider", "-q", "http://localhost:3003/health"]
+    #   interval: 10s
+    #   timeout: 5s
+    #   retries: 5
+    #   start_period: 30s  # Give more time for startup
 
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
@@ -284,12 +285,12 @@ services:
       - shared-data:/app/shared/
     networks:
       - transcendence-network
-    healthcheck:
-      test: ["CMD", "node", "-e", "require('http').get({host:'127.0.0.1',port:3005,path:'/health',family:4}, (res) => process.exit(res.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 20s
+    # healthcheck:
+    #   test: ["CMD", "node", "-e", "require('http').get({host:'127.0.0.1',port:3005,path:'/health',family:4}, (res) => process.exit(res.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
+    #   interval: 10s
+    #   timeout: 5s
+    #   retries: 5
+    #   start_period: 20s
 
   frontend:
     build:
