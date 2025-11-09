@@ -19,7 +19,7 @@ services:
     #   interval: 10s
     #   timeout: 5s
     #   retries: 5
-      
+
   gateway:
     build: ./services/gateway
     #ports:
@@ -406,9 +406,7 @@ services:
     networks:
       - transcendence-network
     depends_on:
-      - gateway
-      - user-service
-      - game-service
+      - nginx
 
 volumes:
   shared-data:
