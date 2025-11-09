@@ -3,6 +3,7 @@ import gatewayError from '../utils/gatewayError.js';
 import logger from '../utils/logger.js'; // log-service
 import { proxyRequest } from '../utils/proxyHandler.js';
 import { queueAwareIntermediateRequest } from '../utils/queueAwareIntermediateRequest.js';
+import { queueAwareProxyRequest } from '../utils/queueAwareProxyHandler.js';
 // import { authPreHandlerPlugin } from '../plugins/authPreHandler.plugin.js';
 
 import type { FastifyHttpOptions, FastifyInstance, FastifyServerOptions, FastifyPluginAsync } from "fastify"
@@ -19,27 +20,28 @@ const userRoutes: FastifyPluginAsync = async (fastify) => {
 	fastify.post('/auth/register', async (request, reply) => {
 	// fastify.log.info("Gateway received POST request for /register")
 	// fastify.log.info({ body: request.body }, "Request body")
-		const res = await queueAwareIntermediateRequest(fastify, request, reply, `${USER_SERVICE_URL}/auth/register`, 'POST');
-		if (!res)
-			throw fastify.httpErrors.badRequest('Database failed for storing cookie data');
-		reply.setCookie('token', res.token, {
-			httpOnly: true,
-			secure: true,           // ✅ Only HTTPS for production
-			sameSite: 'lax',       // ✅ Required for cross-origin if frontend is on another domain
-			path: '/',              // ✅ Valid across all routes
-		})
+		// const res = await queueAwareIntermediateRequest(fastify, request, reply, `${USER_SERVICE_URL}/auth/register`, 'POST');
+		// if (!res)
+		// 	throw fastify.httpErrors.badRequest('Database failed for storing cookie data');
+		// reply.setCookie('token', res.token, {
+		// 	httpOnly: true,
+		// 	secure: true,           // ✅ Only HTTPS for production
+		// 	sameSite: 'lax',       // ✅ Required for cross-origin if frontend is on another domain
+		// 	path: '/',              // ✅ Valid across all routes
+		// })
 		// return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/auth/register`, 'POST');
-		reply.send(res);
+		// reply.send(res);
+		return queueAwareProxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/auth/register`, 'POST');
 	});
 
-	fastify.post('/auth/login', {  preHandler: fastify.verifyAuth }, async (request, reply) => {
+	fastify.post('/auth/login', async (request, reply) => {
 		// fastify.log.info("Gatewa{ preHandler: authPreHandler }y received POST request for /register")
 		// fastify.log.info({ body: request.body }, "Request body")
 		return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/auth/login`, 'POST');
 	});
 
 	// Guest login route
-	fastify.post('/auth/guest', async (request, reply) => {
+	fastify.post('/auth/guest', {  preHandler: fastify.verifyAuth }, async (request, reply) => {
 		fastify.log.info("Gateway received POST request for /auth/guest");
 		fastify.log.info({ body: request.body }, "Guest login request body");
 		return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/auth/guest`, 'POST');
