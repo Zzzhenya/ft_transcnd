@@ -10,17 +10,18 @@ export async function registerPlugins(fastify: FastifyInstance) {
 
   // Sensible adds app.httpErrors.*, app.to(), etc.
   await fastify.register(sensible);
-  await fastify.register(fetchPlugin);
 
   await fastify.register(fastifyJwt, {
     secret: process.env.JWT_SECRET || 'supersecretkey', // use env variable in production
     cookie: {
-      cookieName: 'jwt', // cookie name
-      signed: true      // set to true if you want cookie signing
+      cookieName: 'token', // cookie name
+      signed: false      // set to true if you want cookie signing
     }
   });
 
   // // Register preHandler plugin for JWT verification
-  // await fastify.register(authPreHandlerPlugin);
+  await fastify.register(authPreHandlerPlugin);
+
+  await fastify.register(fetchPlugin);
 
 }

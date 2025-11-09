@@ -135,7 +135,10 @@ class User {
   } catch (error) {
     console.error('❌ Error creating user:', error);
     throw error;
-    /* // This block is about the password-passwordhash as well queries are moved to dbservice
+  }
+  }
+
+      /* // This block is about the password-passwordhash as well queries are moved to dbservice
     const { username, email, password, password_hash } = userData;
     // Use password_hash if provided, otherwise use password
     const hashToStore = password_hash || password;
@@ -158,14 +161,12 @@ class User {
       console.error('Error creating user:', error);
       throw error;
     }*/
-  }
 
-    //   return await User.findById(result.id);
+      //   return await User.findById(result.id);
     // } catch (error) {
     //   console.error('❌ Error creating user:', error);
     //   throw error;
     // }
-  }
 
   // ============ FIND BY ID ============
   static async findById(id) {
@@ -214,7 +215,44 @@ class User {
 }
 
 
+
+        username,
+        email,
+        password: password_hash, // Using password field as in current schema
+        display_name: username,
+        is_guest: true,
+        sessionId
+
   */
+
+  // ============ FIND BY ID ============
+  static async findByUuid(uuid) {
+    try {
+      const res = await fetch(`${DATABASE_SERVICE_URL}/internal/query`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-service-auth': DB_SERVICE_TOKEN
+        },
+        body: JSON.stringify({
+          table: 'Users',
+          columns: ['id', 'username', 'email', 'password_hash', 'created_at', 'is_guest', 'uuid'],
+          filters: { uuid },
+          limit: 1
+        })
+      });
+      if (!res.ok) {
+        throw new Error(`Database service responded with status ${res.status}`);
+      }
+      const data = await res.json();
+      // data.data is assumed to be an array of rows
+      console.log( data.data && data.data.length > 0 ? data.data[0] : null)
+      return data.data && data.data.length > 0 ? new User(data.data[0]) : null;
+    } catch (error) {
+      console.error('❌ Error finding user by id:', error);
+      throw error;
+    }
+  }
 
   // ============ FIND BY USERNAME ============
   static async findByUsername(username) {
@@ -295,26 +333,75 @@ class User {
     }
   }
 
-/* Commenting out to rule out direct db access
+
+        // username,
+        // email,
+        // password: password_hash, // Using password field as in current schema
+        // display_name: username,
+        // is_guest: true,
+        // sessionId
+
 
   // ============ UPDATE ============
-  static async update(id, updateData) {
-    try {
-      const fields = Object.keys(updateData);
-      const values = Object.values(updateData);
-      const setClause = fields.map(field => `${field} = ?`).join(', ');
 
-      await dbRun(
-        `UPDATE Users SET ${setClause} WHERE id = ?`,
-        [...values, id]
-      );
+// static async update(id, updateData) {
+//   try {
+//     console.log('🔄 Updating user...');
 
-      return await User.findById(id);
-    } catch (error) {
-      console.error('❌ Error updating user:', error);
-      throw error;
-    }
-  }
+//     const res = await fetch(`${DATABASE_SERVICE_URL}/internal/users`, {
+//       method: 'POST',
+//       headers: {
+//         'Content-Type': 'application/json',
+//         'x-service-auth': DB_SERVICE_TOKEN
+//       },
+//       body: JSON.stringify({
+//         table: 'Users',
+//         action: 'update',
+//         values:  {
+//           "username": updateData.username,
+//           "email": updateData.email,
+//           "password": updateData.password,
+//           "is_guest": 0
+//           // "uuid": updateData.sessionId
+//         },
+//         where: { id }
+//       })
+//     });
+
+//     if (!res.ok) {
+//       throw new Error(`Database service responded with status ${res.status}`);
+//     }
+
+//     const result = await res.json();
+//     console.log('✅ User updated successfully');
+
+//     // Return updated user
+//       return await User.findByUsername(userData.username);
+//   } catch (error) {
+//     console.error('❌ Error updating user:', error);
+//     throw error;
+//   }
+// }
+
+  // static async update(id, updateData) {
+  //   try {
+  //     const fields = Object.keys(updateData);
+  //     const values = Object.values(updateData);
+  //     const setClause = fields.map(field => `${field} = ?`).join(', ');
+
+  //     await dbRun(
+  //       `UPDATE Users SET ${setClause} WHERE id = ?`,
+  //       [...values, id]
+  //     );
+
+  //     return await User.findById(id);
+  //   } catch (error) {
+  //     console.error('❌ Error updating user:', error);
+  //     throw error;
+  //   }
+  // }
+
+/* Commenting out to rule out direct db access
 
   // ============ DELETE ============
   static async delete(id) {

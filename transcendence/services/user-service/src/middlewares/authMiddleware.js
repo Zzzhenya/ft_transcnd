@@ -19,6 +19,7 @@ const authenticateJWT = (req, res, next) => {
       req.user = {
         userId: payload.userId,
         username: payload.username
+        isGuest: payload.isGuest
       };
       
       next();

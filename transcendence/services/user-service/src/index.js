@@ -249,24 +249,25 @@ fastify.post('/auth/register', async (request, reply) => {
 
     logger.info('User registered:', { userId: result.user.id, username });
 
-    // return reply.code(201).send({
-    //   success: true,
-    //   message: 'User successfully registered',
-    //   user: result.user,
-    //   token: result.token
-    // });
-    reply.setCookie('jwt', result.token, {
-        httpOnly: true,
-        secure: true,        // true in production (requires HTTPS)
-        sameSite: 'lax',     // CSRF protection
-        path: '/'            // available on all routes
-      })
-      .code(201)
-      .send({
-        success: true,
-        message: 'User successfully registered',
-        user: result.user
-      });
+    return reply.code(201).send({
+      success: true,
+      message: 'User successfully registered',
+      user: result.user,
+      token: result.token
+    });
+    // reply.setCookie('token', result.token, {
+    //     httpOnly: true,
+    //     secure: true,        // true in production (requires HTTPS)
+    //     sameSite: 'lax',     // CSRF protection
+    //     path: '/'            // available on all routes
+    //   })
+    //   .code(201)
+    //   .send({
+    //     success: true,
+    //     message: 'User successfully registered',
+    //     user: result.user,
+    //     token: result.token
+    //   });
 
   } catch (error) {
     console.error('Registration error:', error);
@@ -327,12 +328,60 @@ function logHeaders(headers) {
   }
 }
 
+async function tempVerifyJwt(token) {
+  try {
+    const payload = jwt.verify(token, JWT_SECRET);
+    return payload; // { userId, username, isGuest }
+  } catch (err) {
+    throw new Error('Invalid token');
+  }
+}
+
+// verification end point
+
+fastify.post('/auth/verify', async (request, reply) => {
+  try {
+    const user = request.user || null;
+    fastify.log(`user : ${user}`)
+    const token = user.jwt;
+
+    if (!user)
+      throw new Error('user does not exists');
+    const payload = await tempVerifyJwt(token);
+    if (user.isGuest){
+      // authenticate guest
+      if (!payload.isGuest) throw new Error('Maybe you need to login')
+    } else {
+      // authenticate user
+      if (payload.isGuest) throw new Error('Only registered users can access')
+    }
+  return reply.code(201).send({
+      success: true,
+      message: 'User token verified',
+      token
+    });
+  } catch (error){
+    return reply.code(500).send({ 
+      success: false,
+      message: 'Failed to verify user', 
+      error: error.message
+    });
+  }
+});
+
 // Guest login endpoint
 fastify.post('/auth/guest', async (request, reply) => {
   try {
     const { alias } = request.body || {};
 
     fastify.log.info("Alias: "); fastify.log.info(alias);
+
+    const myUuid = request.headers['x-session-id'] || null;
+    let oldUser = null;
+    if (myUuid){
+      oldUser = await User.findByUuid(myUuid);
+    }
+
 
     console.log(`request headers: `)
     logHeaders(request.headers);
@@ -385,15 +434,21 @@ fastify.post('/auth/guest', async (request, reply) => {
 
     fastify.log.info("password hash with guestId: "); fastify.log.info(password_hash);
 
+    let guestUser;
     // Create guest user
-    const guestUser = await User.create({
-      username,
-      email,
-      password: password_hash, // Using password field as in current schema
-      display_name: username,
-      is_guest: true,
-      sessionId
-    });
+    if (!oldUser)
+    {
+      guestUser = await User.create({
+        username,
+        email,
+        password: password_hash, // Using password field as in current schema
+        display_name: username,
+        is_guest: true,
+        sessionId
+      });
+    } else {
+      guestUser = oldUser;
+    }
 
     console.log('1')
 
@@ -412,25 +467,7 @@ fastify.post('/auth/guest', async (request, reply) => {
 
     fastify.log.info("jwt token: "); fastify.log.info(token);
 
-    // return reply.code(201).send({
-    //   success: true,
-    //   message: 'Guest user created',
-    //   user: {
-    //     id: guestUser.id,
-    //     username: guestUser.username,
-    //     email: guestUser.email,
-    //     is_guest: true
-    //   },
-    //   token
-    // });
-    reply.setCookie('jwt', token, {
-      httpOnly: true,
-      secure: true,       // use true in production (HTTPS required)
-      sameSite: 'lax',    // helps mitigate CSRF
-      path: '/',          // cookie is valid for all routes
-    })
-    .code(201)
-    .send({
+    return reply.code(201).send({
       success: true,
       message: 'Guest user created',
       user: {
@@ -438,8 +475,27 @@ fastify.post('/auth/guest', async (request, reply) => {
         username: guestUser.username,
         email: guestUser.email,
         is_guest: true
-      }
+      },
+      token
     });
+    // reply.setCookie('token', token, {
+    //   httpOnly: true,
+    //   secure: true,       // use true in production (HTTPS required)
+    //   sameSite: 'lax',    // helps mitigate CSRF
+    //   path: '/',          // cookie is valid for all routes
+    // })
+    // .code(201)
+    // .send({
+    //   success: true,
+    //   message: 'Guest user created',
+    //   user: {
+    //     id: guestUser.id,
+    //     username: guestUser.username,
+    //     email: guestUser.email,
+    //     is_guest: true,
+    //   },
+    //   token
+    // });
   } catch (error) {
     logger.error('Guest login error:', error);
     

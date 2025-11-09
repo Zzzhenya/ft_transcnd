@@ -37,7 +37,7 @@ class AuthService {
         throw new Error('User create failed')
       // Generate JWT
       const token = jwt.sign(
-        { userId: newUser.id, username: newUser.username },
+        { userId: newUser.id, username: newUser.username, isGuest:false },
         JWT_SECRET,
         { expiresIn: '24h' }
       );

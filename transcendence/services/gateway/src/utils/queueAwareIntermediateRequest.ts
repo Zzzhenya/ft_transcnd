@@ -137,8 +137,15 @@ export async function queueAwareIntermediateRequest(
       };
     }
 
+    reply.setCookie('token', data.token, {
+          httpOnly: true,
+          secure: true,           // ✅ Only HTTPS for production
+          sameSite: 'lax',       // ✅ Required for cross-origin if frontend is on another domain
+          path: '/',              // ✅ Valid across all routes
+        })  
     // For successful responses, set the status code
     reply.status(response.status);
+    // return data;
     return data;
 
   } catch (error: any) {

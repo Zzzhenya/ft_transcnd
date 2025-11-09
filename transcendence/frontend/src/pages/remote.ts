@@ -32,7 +32,8 @@ export default function (root: HTMLElement) {
 				const res = await fetch(`${GATEWAY_BASE}/user-service/users/${user.id}/friends`, {
 					headers: {
 						'Authorization': `Bearer ${token || ''}`
-					}
+					},
+					credentials: 'include'
 				});
 				if (res.ok) {
 					const data = await res.json();
@@ -56,6 +57,7 @@ export default function (root: HTMLElement) {
 						'Content-Type': 'application/json',
 						'Authorization': `Bearer ${token || ''}`
 					},
+					credentials: 'include',
 					body: JSON.stringify({ friendUsername: username })
 				});
 				
@@ -454,6 +456,7 @@ export default function (root: HTMLElement) {
 						'Content-Type': 'application/json',
 						'Authorization': `Bearer ${token || ''}`
 					},
+					credentials: 'include',
 					body: JSON.stringify({ type: 'game_invite' })
 				});
 				console.log('🎮 Response received:', res.status, res.statusText);

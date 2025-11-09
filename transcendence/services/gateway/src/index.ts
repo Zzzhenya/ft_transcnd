@@ -120,7 +120,7 @@ Fastify.addHook('onRequest', async (request, reply) => {
 
     // check whether JWT token exists
 
-    const token = cookies?.jwt ?? '';
+    const token = cookies?.token ?? '';
 
     console.log('1.1')
     if (!token){

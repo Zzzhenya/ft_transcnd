@@ -214,6 +214,7 @@ export async function setOnlineStatus(isOnline: boolean): Promise<{ success: boo
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token || ''}`
       },
+      credentials: 'include',
       body: JSON.stringify({ is_online: isOnline ? 1 : 0 }),
     });
 

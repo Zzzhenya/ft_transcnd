@@ -10,6 +10,7 @@ import { intermediateRequest } from '../utils/intermediateRequest.js';
 
 const GAME_SERVICE_URL = process.env.GAME_SERVICE_URL || 'http://game-service:3002';
 const USER_SERVICE_URL = process.env.USER_SERVICE_URL || 'http://user-service:3001';
+const DATABASE_SERVICE_URL = process.env.DATABASE_SERVICE_URL || 'http://database-service:3006';
 
 interface GameParams {
   gameId: string;
@@ -25,7 +26,7 @@ const pongGameRoute: FastifyPluginAsync = async (fastify) => {
 
     const authHeader = request.headers['authorization'] || '';
     
-    if (!authHeader.startsWith('Bearer ')) {
+    if (!authHeader.startsWith('Bearer')) {
       fastify.log.info("Missing or invalid token ");
       // return reply.code(401).send({ error: 'Missing or invalid token' });
     }
@@ -33,18 +34,51 @@ const pongGameRoute: FastifyPluginAsync = async (fastify) => {
       fastify.log.info(`authHeader: ${authHeader}`);
     }
 
-    const session = request.cookies;
-    if (!session){
+  //   const res = await queueAwareIntermediateRequest(fastify, request, reply, `${USER_SERVICE_URL}/auth/register`, 'POST');
+  //   if (!res)
+  //     throw fastify.httpErrors.badRequest('Database failed for storing cookie data');
+  //   reply.setCookie('token', res.token, {
+  //     httpOnly: true,
+  //     secure: true,           // ✅ Only HTTPS for production
+  //     sameSite: 'lax',       // ✅ Required for cross-origin if frontend is on another domain
+  //     path: '/',              // ✅ Valid across all routes
+  //   })
+  //   // return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/auth/register`, 'POST');
+  //   reply.send(res);
+  // });
+
+
+
+    // const session = request.cookies;
+    const user: any = request.user || null;
+    // if (!session){
+    if (!user){
       throw fastify.httpErrors.badRequest('Missing required parameter: no cookies');
       fastify.log.info("400: No session cookie");
     }
-    else{
-      fastify.log.info("Has session cookie");
-      fastify.log.info(session);
-      const res = await queueAwareIntermediateRequest(fastify, request, reply, `${USER_SERVICE_URL}/auth/guest`, 'POST');
-      if (!res)
-        throw fastify.httpErrors.badRequest('Database failed for storing cookie data');
-    }
+    else {
+      fastify.log.info("Has user: ");
+      fastify.log.info(user);
+      var res = null;
+      if (user.role && user.role === 'registered'){
+        fastify.log.info("user already exists")
+        // returning guest user or guest user
+        const res = await queueAwareIntermediateRequest(fastify, request, reply, `${USER_SERVICE_URL}/auth/verify`, 'POST');
+        if (!res)
+          throw fastify.httpErrors.badRequest('Database failed to authenticate user id');
+      } else {
+      // create guest user
+        if (user.role && user.role === 'unregistred'){
+          res = await queueAwareIntermediateRequest(fastify, request, reply, `${USER_SERVICE_URL}/auth/guest`, 'POST');
+          if (!res){
+            throw fastify.httpErrors.badRequest('Database failed for storing cookie data');
+          }
+        } else {
+          fastify.log.info("This is a registered user");
+        }
+      }
+    }  
+
     return proxyRequest(fastify, request, reply, `${GAME_SERVICE_URL}/pong/game`, 'POST');
   });
 

@@ -82,7 +82,7 @@ class ToastNotificationSystem {
 
 		try {
 			const response = await fetch(`${GATEWAY_BASE}/user-service/users/${user.id}/notifications`, {
-				headers: { 'Authorization': `Bearer ${token}` }
+				headers: { 'Authorization': `Bearer ${token}` }, credentials: 'include'
 			});
 
 			console.log('🍞 Notification response:', response.status);
@@ -154,7 +154,8 @@ class ToastNotificationSystem {
 			console.log('🍞 Full URL:', url);
 			
 			const response = await fetch(url, {
-				headers: { 'Authorization': `Bearer ${token}` }
+				headers: { 'Authorization': `Bearer ${token}` },
+				credentials: 'include'
 			});
 
 			console.log('🍞 Username response status:', response.status);
@@ -180,6 +181,7 @@ class ToastNotificationSystem {
 		try {
 			const response = await fetch(`${GATEWAY_BASE}/user-service/notifications/${notificationId}/accept`, {
 				method: 'POST',
+				credentials: 'include',
 				headers: { 'Authorization': `Bearer ${token}` }
 			});
 
@@ -212,6 +214,7 @@ class ToastNotificationSystem {
 		try {
 			const response = await fetch(`${GATEWAY_BASE}/user-service/notifications/${notificationId}/decline`, {
 				method: 'POST',
+				credentials: 'include',
 				headers: { 'Authorization': `Bearer ${token}` }
 			});
 

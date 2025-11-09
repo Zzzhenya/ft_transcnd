@@ -300,44 +300,69 @@ fastify.get('/internal/read', async (request, reply) => {
 
 // ✏️ /internal/users
 fastify.post('/internal/users', async (request, reply) => {
-  const { table, action, values } = request.body;
+  const { table, action, values, where } = request.body;
 
-  fastify.log.info(table)
-  fastify.log.info(action)
-  fastify.log.info(values)
+  fastify.log.info(`📥 /internal/users called with action: ${action}`);
 
-  if (!table || action !== 'insert' || !values) {
-    return reply.code(400).send({ error: 'Missing or invalid parameters' });
+  if (!table || !action || !values) {
+    return reply.code(400).send({ error: 'Missing required parameters: table, action, and values' });
   }
 
   if (!allowedTables[table]) {
     return reply.code(400).send({ error: 'Invalid table name' });
   }
 
-  // Validate all provided columns
+  // ✅ Common column validation
   const cols = Object.keys(values);
   const invalidCols = cols.filter(c => !validateTableColumn(table, c));
   if (invalidCols.length > 0) {
     return reply.code(400).send({ error: 'Invalid column(s)', invalidCols });
   }
 
-  // Build SQL dynamically
-  const placeholders = cols.map(() => '?').join(', ');
-  const sql = `INSERT INTO ${safeIdentifier(table)} (${cols.map(safeIdentifier).join(', ')}) VALUES (${placeholders})`;
   try {
-    const result = await addToQueue(() =>
-      db.transaction(() => dbRun(sql, Object.values(values)))()
-    );
+    // ============= INSERT ACTION =============
+    if (action === 'insert') {
+      const placeholders = cols.map(() => '?').join(', ');
+      const sql = `INSERT INTO ${safeIdentifier(table)} (${cols.map(safeIdentifier).join(', ')}) VALUES (${placeholders})`;
 
-    // ✅ Return the same shape as dbRun does
-    return { success: true, id: result.id, changes: result.changes };
+      const result = await addToQueue(() =>
+        db.transaction(() => dbRun(sql, Object.values(values)))()
+      );
+
+      return { success: true, id: result.lastInsertRowid, changes: result.changes };
+    }
+
+    // ============= UPDATE ACTION =============
+    else if (action === 'update') {
+      if (!where || !where.id) {
+        return reply.code(400).send({ error: 'Missing "where.id" for update' });
+      }
+
+      const setClause = cols.map(c => `${safeIdentifier(c)} = ?`).join(', ');
+      const sql = `UPDATE ${safeIdentifier(table)} SET ${setClause} WHERE id = ?`;
+
+      const result = await addToQueue(() =>
+        db.transaction(() => dbRun(sql, [...Object.values(values), where.id]))()
+      );
+
+      if (result.changes === 0)
+        return reply.code(404).send({ error: 'Record not found or unchanged' });
+
+      return { success: true, message: 'Record updated successfully', changes: result.changes };
+    }
+
+    // ============= UNKNOWN ACTION =============
+    else {
+      return reply.code(400).send({ error: `Unsupported action: ${action}` });
+    }
+
   } catch (err) {
     fastify.log.error(err);
-    
-    // Handle timeout errors specifically
+
+    // Handle timeout errors
     if (err.name === 'TimeoutError') {
-      return reply.code(504).send({ 
-        error: 'Database operation timed out', 
+      return reply.code(504).send({
+        error: 'Database operation timed out',
         details: 'Request took longer than expected to process',
         queueStatus: {
           size: writeQueue.size,
@@ -345,11 +370,11 @@ fastify.post('/internal/users', async (request, reply) => {
         }
       });
     }
-    
-    // Handle queue full errors
+
+    // Handle queue full
     if (err.message.includes('Queue full')) {
-      return reply.code(503).send({ 
-        error: 'Service temporarily unavailable', 
+      return reply.code(503).send({
+        error: 'Service temporarily unavailable',
         details: err.message,
         queueStatus: {
           size: writeQueue.size,
@@ -357,8 +382,12 @@ fastify.post('/internal/users', async (request, reply) => {
         }
       });
     }
-    
-    return reply.code(500).send({ error: 'Database insert failed', details: err.message });
+
+    // General error
+    return reply.code(500).send({
+      error: 'Database operation failed',
+      details: err.message
+    });
   }
 });
 

@@ -25,7 +25,8 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
       const res = await fetch(`${GATEWAY_BASE}/user-service/auth/profile`, {
         headers: {
           'Authorization': `Bearer ${token || ''}`
-        }
+        },
+        credentials: 'include'
       });
       if (res.ok) {
         userProfile = await res.json();
@@ -93,7 +94,8 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
       const res = await fetch(url, {
         headers: {
           'Authorization': `Bearer ${token || ''}`
-        }
+        },
+        credentials: 'include'
       });
       
       console.log('📄 Response received. Status:', res.status);
@@ -127,6 +129,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token || ''}`
         },
+        credentials: 'include',
         body: JSON.stringify({ action })
       });
       
@@ -155,7 +158,8 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
       const res = await fetch(`${GATEWAY_BASE}/user-service/users/${user.id}/friends`, {
         headers: {
           'Authorization': `Bearer ${token || ''}`
-        }
+        },
+        credentials: 'include',
       });
       if (res.ok) {
         const data = await res.json();
@@ -177,6 +181,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token || ''}`
         },
+        credentials: 'include',
         body: JSON.stringify({ friendUsername: username })
       });
       
