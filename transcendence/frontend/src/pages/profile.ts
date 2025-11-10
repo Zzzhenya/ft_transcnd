@@ -1125,6 +1125,9 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
 
       <!-- Navigation Section -->
       <div class="flex flex-wrap gap-3">
+        <button id="dashboard-btn" class="px-6 py-3 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-semibold transition-colors">
+          📊 Dashboard
+        </button>
         <a href="/" class="px-6 py-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold transition-colors">
           🏠 Go to Lobby
         </a>
@@ -1154,6 +1157,10 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
     navigate("/tournaments");
   });
 
+  root.querySelector<HTMLButtonElement>("#dashboard-btn")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    navigate("/dashboard");
+  });
 
   root.querySelector<HTMLButtonElement>("#add-friend-btn")?.addEventListener("click", async () => {
     const usernameInput = root.querySelector<HTMLInputElement>("#friend-username-input");

@@ -158,7 +158,4 @@ const userRoutes: FastifyPluginAsync = async (fastify) => {
 
 }
 
-
-
-
-export default userRoutes
+export default userRoutesga
