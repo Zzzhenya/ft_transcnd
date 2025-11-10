@@ -88,6 +88,11 @@ const userRoutes: FastifyPluginAsync = async (fastify) => {
 		return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/users/${userId}/notifications`, 'GET');
 	});
 
+	// Get unread notifications (for polling)
+	fastify.get('/notifications/unread', async (request, reply) => {
+		return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/notifications/unread`, 'GET');
+	});
+
 	// Accept notification endpoint
 	fastify.post('/notifications/:notificationId/accept', async (request, reply) => {
 		const { notificationId } = request.params as { notificationId: string };

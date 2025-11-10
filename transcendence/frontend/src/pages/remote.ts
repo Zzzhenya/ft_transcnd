@@ -4,6 +4,7 @@ import { navigate } from "@/app/router";
 import { getAuth, getToken } from "@/app/auth";
 import { getState } from "@/app/store";
 import { onlineManager } from '../utils/efficient-online-status';
+import { simpleNotificationPoller } from "../ui/simple-notification-polling";
 
 interface Friend {
 	friend_id: string;
@@ -230,7 +231,7 @@ export default function (root: HTMLElement) {
 										` : ''}
 									</div>
 									${friend.online ? `
-										<button class="invite-friend-btn px-4 py-2 rounded-lg bg-blue-500 hover:bg-blue-600 text-white font-semibold transition-all" data-friend-id="${friend.friend_id}">
+										<button class="invite-friend-btn px-4 py-2 rounded-lg bg-blue-500 hover:bg-blue-600 text-white font-semibold transition-all" data-friend-id="${friend.friend_id}" data-friend-username="${friend.username}">
 											🎮 INVITE
 										</button>
 									` : `
@@ -430,9 +431,10 @@ export default function (root: HTMLElement) {
 			btn.onclick = () => {
 				console.log('🎮 Invite button clicked!');
 				const friendId = btn.getAttribute('data-friend-id');
-				console.log('🎮 friendId from button:', friendId);
-				if (friendId) {
-					inviteFriend(friendId);
+				const friendUsername = btn.getAttribute('data-friend-username');
+				console.log('🎮 friendId from button:', friendId, 'username:', friendUsername);
+				if (friendId && friendUsername) {
+					inviteFriend(friendId, friendUsername);
 				}
 			};
 		});
@@ -456,8 +458,8 @@ export default function (root: HTMLElement) {
 		return Math.random().toString(36).substr(2, 6).toUpperCase();
 	}
 
-	function inviteFriend(friendId: string) {
-		console.log('🎮 inviteFriend called with friendId:', friendId);
+	function inviteFriend(friendId: string, friendUsername: string) {
+		console.log('🎮 inviteFriend called with friendId:', friendId, 'username:', friendUsername);
 		// Send invitation to backend (creates a notification for the target)
 		(async () => {
 			const user = getAuth();
@@ -493,14 +495,16 @@ export default function (root: HTMLElement) {
 					const result = await res.json();
 					console.log('🎮 Invite result:', result);
 					
-					// 🔥 CHANGED: Just show success message, DON'T go to room yet
-					showStatus('Invitation sent! Waiting for acceptance...', 'success');
-					
-					// Store the room code to join later when invitation is accepted
+					// Show countdown for 10 seconds
 					if (result.roomCode) {
-						console.log('🎮 Room code created:', result.roomCode, '- waiting for acceptance');
-						console.log('🎮 Toast notification system will handle acceptance automatically');
-						// The toast-notifications.ts system will automatically detect acceptance and navigate
+						console.log('🎮 Room code created:', result.roomCode, '- showing countdown');
+						simpleNotificationPoller.showInvitationCountdown(friendUsername, result.roomCode, 10000);
+						
+						// Also show status message
+						showStatus('Invitation sent! Waiting for response...', 'success');
+					} else {
+						// Fallback if no room code
+						showStatus('Invitation sent! Waiting for acceptance...', 'success');
 					}
 				} else {
 					const err = await res.json().catch(() => ({}));

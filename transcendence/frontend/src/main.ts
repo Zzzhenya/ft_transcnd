@@ -3,9 +3,14 @@ import "./styles.css";
 
 // Router setup: History API (f / b) + link interception.
 import { initRouter } from "./app/router";
-import { getAuth, setOnlineStatus } from "./app/auth";
-import { toastNotifications } from "./ui/toast-notifications";
+import { getAuth, getToken } from "./app/auth";
+import { notificationWS } from "./ui/notification-websocket";
+import { simpleNotificationPoller } from "./ui/simple-notification-polling";
 import { onlineManager } from "./utils/efficient-online-status";
+
+// Make auth functions available globally for debugging
+(window as any).getAuth = getAuth;
+(window as any).getToken = getToken;
 
 // Get app's root (main: "app"), start router, render current URL(= home)
 const root = document.querySelector<HTMLElement>("main#app")!;
@@ -23,22 +28,35 @@ function initOnlineStatus() {
     // Use ONLY the NEW efficient system
     onlineManager.init(); 
     
-    // Initialize toast notifications when user logs in
-    toastNotifications.init();
+    // 🔔 Initialize simple polling notifications system (fallback)
+    console.log('🔔 Initializing simple polling notifications...');
+    simpleNotificationPoller.start();
+    console.log('🔔 ✅ Simple polling notifications started');
+
+    // 🔔 Keep polling active - WebSocket experimental only
+    console.log('🔔 Initializing real-time notifications...');
+    notificationWS.connect().then((connected) => {
+      if (connected) {
+        console.log('🔔 ✅ Real-time notifications connected (experimental)');
+        // Keep polling as backup for now
+        console.log('🔔 Keeping polling active as backup');
+      } else {
+        console.log('🔔 ❌ Real-time notifications failed, using polling');
+      }
+    });
     
     console.log('🚀 Initialized efficient online status system for user:', user.id);
     
     // Set cleanup function
     onlineStatusCleanup = () => {
       onlineManager.destroy();
+      notificationWS.disconnect();
+      simpleNotificationPoller.stop();
       console.log('🧹 Cleaned up efficient online status system');
     };
   } else if (!user && onlineStatusCleanup) {
     onlineStatusCleanup();
     onlineStatusCleanup = null;
-    
-    // Destroy toast notifications when user logs out
-    toastNotifications.destroy();
     
     console.log('🧹 Cleaned up online status systems');
   }

@@ -7,10 +7,46 @@ const logger = require('./utils/logger');
 const PORT = parseInt(process.env.USER_SERVICE_PORT || process.env.PORT || '3001');
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-this';
 
+// Register WebSocket support FIRST
+fastify.register(require('@fastify/websocket'));
+
 // Register CORS
 fastify.register(require('@fastify/cors'), {
   origin: true
 });
+
+// Global map to store active WebSocket connections for real-time notifications
+const userConnections = new Map(); // userId -> WebSocket
+
+// Helper function to send real-time notifications
+function sendLiveNotification(userId, notification) {
+  console.log(`📨 Attempting to send live notification to user ${userId}`);
+  console.log(`📨 Current connections: ${Array.from(userConnections.keys()).join(', ')}`);
+  
+  const ws = userConnections.get(parseInt(userId));
+  console.log(`📨 WebSocket for user ${userId}:`, ws ? 'EXISTS' : 'NOT FOUND');
+  
+  if (ws && typeof ws.send === 'function' && ws.readyState === 1) { // WebSocket.OPEN = 1
+    try {
+      ws.send(JSON.stringify({
+        type: 'live_notification',
+        data: notification
+      }));
+      console.log(`📨 ✅ Live notification sent to user ${userId}`);
+      logger.info(`Live notification sent to user ${userId}`, notification);
+      return true;
+    } catch (error) {
+      console.error(`📨 ❌ Error sending notification to user ${userId}:`, error);
+      // Remove broken connection
+      userConnections.delete(parseInt(userId));
+      return false;
+    }
+  }
+  
+  console.log(`📨 ❌ User ${userId} not connected or socket invalid (readyState: ${ws?.readyState})`);
+  logger.info(`User ${userId} not connected to WebSocket, notification stored in DB only`);
+  return false;
+}
 
 // Global hook to capture all PUT requests
 fastify.addHook('preHandler', async (request, reply) => {
@@ -422,6 +458,226 @@ fastify.get('/health', async (request, reply) => {
   return { service: 'user-service', status: 'healthy', timestamp: new Date() };
 });
 
+// DEBUG: WebSocket connections status
+fastify.get('/debug/websocket-connections', async (request, reply) => {
+  const connections = Array.from(userConnections.entries()).map(([userId, ws]) => ({
+    userId,
+    readyState: ws.readyState,
+    connected: ws.readyState === 1
+  }));
+  
+  return {
+    totalConnections: userConnections.size,
+    connections,
+    connectionUserIds: Array.from(userConnections.keys())
+  };
+});
+
+// =============== WEBSOCKET NOTIFICATIONS ===============
+
+// WebSocket endpoint for real-time notifications
+console.log('🔔 REGISTERING WEBSOCKET NOTIFICATIONS ENDPOINT: /ws/notifications');
+fastify.get('/ws/notifications', { websocket: true }, (connection, req) => {
+  console.log('🚀 WEBSOCKET NOTIFICATIONS CONNECTION ATTEMPT');
+  
+  // Following game-service pattern: use connection.socket directly
+  const ws = connection.socket;
+  
+  if (!ws) {
+    console.log('🔔 ❌ No socket found in connection');
+    return;
+  }
+  
+  console.log('🔔 ✅ Socket found, readyState:', ws.readyState);
+  
+  // Get token from query parameters
+  let token = null;
+  let isAuthenticated = false;
+  let userId = null;
+  let username = null;
+  
+  // Try to extract token from URL (various methods)
+  console.log('🔔 DEBUG: Starting token extraction...');
+  console.log('🔔 DEBUG: req.url:', req.url);
+  console.log('🔔 DEBUG: req.query:', req.query);
+  
+  // Method 1: Direct query parameter (preferred)
+  if (req.query && req.query.token) {
+    token = req.query.token;
+    console.log('🔔 ✅ Token found via req.query.token');
+  }
+  
+  // Method 2: Parse URL manually
+  if (!token && req.url && req.url.includes('token=')) {
+    try {
+      const urlParts = req.url.split('token=');
+      if (urlParts.length > 1) {
+        token = decodeURIComponent(urlParts[1].split('&')[0]);
+        console.log('🔔 ✅ Token found via manual URL parsing');
+      }
+    } catch (error) {
+      console.log('🔔 DEBUG: Error in manual URL parsing:', error.message);
+    }
+  }
+  
+  console.log('🔔 DEBUG: Final token result:', token ? `Found (${token.length} chars)` : 'NOT FOUND');
+  
+  // Try authentication if we have a token
+  if (token) {
+    try {
+      const payload = jwt.verify(token, JWT_SECRET);
+      userId = payload.userId;
+      username = payload.username;
+      isAuthenticated = true;
+      
+      console.log(`🔔 ✅ WebSocket authenticated: userId=${userId}, username=${username}`);
+      logger.info(`WebSocket notification connection authenticated for user ${userId} (${username})`);
+      
+      // Store the socket in userConnections
+      userConnections.set(userId, ws);
+      console.log(`🔔 ✅ Stored socket for user ${userId}. Total connections: ${userConnections.size}`);
+      console.log(`🔔 📊 Current connections map:`, Array.from(userConnections.keys()));
+      
+      // Send welcome message
+      ws.send(JSON.stringify({
+        type: 'connected',
+        message: 'Connected to notification system',
+        userId: userId,
+        username: username
+      }));
+      console.log(`🔔 ✅ Welcome message sent to user ${userId}`);
+      
+    } catch (error) {
+      console.log('🔔 ❌ Invalid token:', error.message);
+      logger.warn('WebSocket notification connection with invalid token:', error.message);
+      try {
+        if (ws && typeof ws.close === 'function' && ws.readyState === 1) {
+          ws.close(1008, 'Invalid token');
+        }
+      } catch (closeError) {
+        console.log('🔔 ⚠️ Error closing WebSocket:', closeError.message);
+      }
+      return;
+    }
+  } else {
+    console.log('🔔 ⚠️ No token found in URL, waiting for auth message...');
+    
+    // Set up a timeout for authentication
+    const authTimeout = setTimeout(() => {
+      if (!isAuthenticated) {
+        console.log('🔔 ❌ Authentication timeout - no auth message received');
+        try {
+          if (ws && typeof ws.close === 'function' && ws.readyState === 1) {
+            ws.close(1008, 'Authentication timeout');
+          }
+        } catch (error) {
+          console.log('🔔 ⚠️ Error closing WebSocket:', error.message);
+        }
+      }
+    }, 10000); // Increased to 10 second timeout for auth
+    
+    // Listen for auth message
+    const authHandler = (data) => {
+      console.log('🔔 📨 Received WebSocket message during auth phase:', data.toString().substring(0, 100));
+      try {
+        const message = JSON.parse(data.toString());
+        console.log('🔔 📨 Parsed auth phase message:', message.type);
+        
+        if (message.type === 'auth' && message.token) {
+          console.log('🔔 🔑 Processing auth message with token length:', message.token.length);
+          clearTimeout(authTimeout);
+          
+          try {
+            const payload = jwt.verify(message.token, JWT_SECRET);
+            userId = payload.userId;
+            username = payload.username;
+            isAuthenticated = true;
+            
+            console.log(`🔔 ✅ WebSocket authenticated via message: userId=${userId}, username=${username}`);
+            logger.info(`WebSocket notification connection authenticated via message for user ${userId} (${username})`);
+            
+            // Store the socket in userConnections
+            userConnections.set(userId, ws);
+            console.log(`🔔 ✅ Stored socket for user ${userId}. Total connections: ${userConnections.size}`);
+            console.log(`🔔 📊 Current connections map:`, Array.from(userConnections.keys()));
+            
+            // Send welcome message
+            ws.send(JSON.stringify({
+              type: 'connected',
+              message: 'Connected to notification system',
+              userId: userId,
+              username: username
+            }));
+            
+            // Remove this auth handler and set up normal handler
+            ws.off('message', authHandler);
+            setupMessageHandler();
+            
+          } catch (authError) {
+            console.log('🔔 ❌ Invalid token in auth message:', authError.message);
+            try {
+              if (ws && typeof ws.close === 'function' && ws.readyState === 1) {
+                ws.close(1008, 'Invalid token');
+              }
+            } catch (closeError) {
+              console.log('🔔 ⚠️ Error closing WebSocket:', closeError.message);
+            }
+          }
+        }
+      } catch (parseError) {
+        console.log('🔔 DEBUG: Ignoring non-JSON or non-auth message during auth phase');
+      }
+    };
+    
+    ws.on('message', authHandler);
+  }
+  
+  // Function to setup normal message handling after authentication
+  function setupMessageHandler() {
+    ws.on('message', (data) => {
+      try {
+        const message = JSON.parse(data.toString());
+        console.log(`🔔 Message from user ${userId}:`, message.type);
+        
+        if (message.type === 'ping') {
+          ws.send(JSON.stringify({
+            type: 'pong',
+            timestamp: Date.now()
+          }));
+        }
+      } catch (error) {
+        console.error(`🔔 Error parsing message from user ${userId}:`, error);
+      }
+    });
+  }
+  
+  // Set up message handler immediately if already authenticated
+  if (isAuthenticated) {
+    setupMessageHandler();
+  }
+  
+  // Handle connection close
+  ws.on('close', () => {
+    if (userId) {
+      userConnections.delete(userId);
+      console.log(`🔔 ❌ User ${userId} disconnected from notifications. Total connections: ${userConnections.size}`);
+      console.log(`🔔 📊 Remaining connections:`, Array.from(userConnections.keys()));
+      logger.info(`WebSocket notification disconnection for user ${userId}`);
+    } else {
+      console.log(`🔔 ❌ Unauthenticated connection closed`);
+    }
+  });
+  
+  // Handle connection errors
+  ws.on('error', (error) => {
+    if (userId) {
+      console.error(`🔔 WebSocket error for user ${userId}:`, error);
+      logger.error(`WebSocket notification error for user ${userId}:`, error);
+      userConnections.delete(userId);
+    }
+  });
+});
+
 // =============== FRIENDS ENDPOINTS ===============
 
 // Get online users
@@ -637,12 +893,27 @@ fastify.post('/users/:userId/invite', {
     const writeResult = await writeRes.json();
     console.log('📨 Database write result:', JSON.stringify(writeResult, null, 2));
 
+    // 🔥 NEW: Send real-time notification if user is connected
+    const liveNotification = {
+      id: writeResult.id || Date.now(), // Use DB ID if available, fallback to timestamp
+      type: type || 'game_invite',
+      from: request.user.username || `User ${actorId}`,
+      fromId: actorId,
+      roomCode: roomCode,
+      payload: invitationPayload,
+      timestamp: new Date().toISOString()
+    };
+
+    const sentLive = sendLiveNotification(userId, liveNotification);
+    console.log(`📨 Live notification ${sentLive ? 'sent successfully' : 'queued for DB only'}`);
+
     // Success - return created with room code
     console.log('📨 Invitation created successfully');
     return { 
       success: true, 
       message: 'Invitation created',
-      roomCode: roomCode
+      roomCode: roomCode,
+      sentLive: sentLive // Include info about live delivery
     };
   } catch (error) {
     logger.error('Error creating invitation:', error);
@@ -699,6 +970,83 @@ fastify.get('/users/:userId/notifications', {
   }
 });
 
+// Get unread notifications for a user (for polling)
+console.log('🔔 *** ABOUT TO REGISTER UNREAD ENDPOINT ***');
+console.log('🔔 REGISTERING UNREAD NOTIFICATIONS ENDPOINT: /notifications/unread');
+fastify.get('/notifications/unread', {
+  preHandler: fastify.authenticate
+}, async (request, reply) => {
+  console.log('🚀 UNREAD NOTIFICATIONS ENDPOINT HIT!');
+  try {
+    const userId = request.user.userId; // From JWT
+
+    console.log('📨 Getting unread notifications for user:', userId);
+    
+    const queryPayload = {
+      table: 'Notifications',
+      columns: ['id', 'user_id', 'actor_id', 'type', 'payload', 'created_at', 'read'],
+      filters: {
+        user_id: userId,
+        read: 0  // Only unread notifications
+      },
+      orderBy: 'created_at DESC',
+      limit: 50
+    };
+
+    const response = await fetch('http://database-service:3006/internal/query', {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'x-service-auth': 'super_secret_internal_token'
+      },
+      body: JSON.stringify(queryPayload)
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Database query failed for unread notifications:', response.status, errorText);
+      logger.error('Database query failed for unread notifications:', response.status, errorText);
+      return reply.code(500).send({ error: 'Database query failed' });
+    }
+
+    const result = await response.json();
+    console.log('📨 Database returned unread notifications:', result.data?.length || 0);
+    
+    // Format notifications with proper data
+    const formattedNotifications = (result.data || []).map(notification => {
+      let payload = null;
+      try {
+        payload = JSON.parse(notification.payload || '{}');
+      } catch (e) {
+        payload = {};
+      }
+      
+      return {
+        id: notification.id,
+        type: notification.type,
+        from: payload.inviterName || 'Unknown',
+        fromId: notification.actor_id,
+        roomCode: payload.roomCode,
+        payload: payload,
+        timestamp: notification.created_at,
+        read: notification.read === 1
+      };
+    });
+
+    const responsePayload = { 
+      success: true, 
+      notifications: formattedNotifications
+    };
+    
+    console.log('📨 Returning formatted unread notifications:', formattedNotifications.length);
+    return responsePayload;
+  } catch (error) {
+    console.error('📨 UNREAD NOTIFICATIONS ERROR:', error);
+    logger.error('Error getting unread notifications:', error);
+    return reply.code(500).send({ error: 'Internal server error', message: error.message });
+  }
+});
+
 // Accept notification/invitation
 console.log('✅ REGISTERING ACCEPT ENDPOINT: /notifications/:notificationId/accept');
 fastify.post('/notifications/:notificationId/accept', {
@@ -712,12 +1060,13 @@ fastify.post('/notifications/:notificationId/accept', {
     console.log(`✅ User ${userId} accepting notification ${notificationId}`);
 
     // First, verify the notification exists and belongs to the user
+    // DESPUÉS
     const queryPayload = {
       table: 'Notifications',
-      columns: ['id', 'user_id', 'type', 'payload'],
-      filters: { 
+      columns: ['id', 'user_id', 'actor_id', 'type', 'payload'],  // ✅ Agregado actor_id
+      filters: {
         id: parseInt(notificationId),
-        user_id: userId 
+        user_id: userId
       }
     };
 
@@ -865,7 +1214,7 @@ fastify.post('/notifications/:notificationId/decline', {
     // First, verify the notification exists and belongs to the user
     const queryPayload = {
       table: 'Notifications',
-      columns: ['id', 'user_id', 'type', 'payload'],
+      columns: ['id', 'user_id', 'actor_id', 'type', 'payload'], // Added actor_id
       filters: { 
         id: parseInt(notificationId),
         user_id: userId 
@@ -891,6 +1240,21 @@ fastify.post('/notifications/:notificationId/decline', {
       return reply.code(404).send({ error: 'Notification not found' });
     }
 
+    const notification = queryResult.data[0];
+    const originalInviterId = notification.actor_id; // Who sent the original invitation
+    let roomCode = null;
+
+    // Extract room code from payload if it's a game invitation
+    if (notification.payload) {
+      try {
+        const payload = JSON.parse(notification.payload);
+        roomCode = payload.roomCode;
+        console.log('❌ Extracted room code for decline notification:', roomCode);
+      } catch (err) {
+        console.log('❌ No valid payload found in notification');
+      }
+    }
+
     // Delete the notification (declined)
     const deletePayload = {
       table: 'Notifications',
@@ -912,6 +1276,58 @@ fastify.post('/notifications/:notificationId/decline', {
       return reply.code(500).send({ error: 'Failed to decline invitation' });
     }
 
+    // 🔥 NEW: Send notification to original inviter that invitation was declined
+    if (originalInviterId && roomCode) {
+      console.log('❌ CREATING DECLINE NOTIFICATION:');
+      console.log('   - Original inviter ID:', originalInviterId);
+      console.log('   - Room code:', roomCode);
+      console.log('   - Decliner username:', request.user.username);
+      
+      const inviterNotificationPayload = {
+        roomCode: roomCode,
+        declinerName: request.user.username || `User ${userId}`,
+        message: 'Your invitation was declined.'
+      };
+      console.log('   - Payload:', JSON.stringify(inviterNotificationPayload));
+
+      const writePayload = {
+        table: 'Notifications',
+        action: 'insert',
+        values: {
+          user_id: originalInviterId,     // Notify the original inviter
+          actor_id: userId,               // The user who declined
+          type: 'invitation_declined',
+          payload: JSON.stringify(inviterNotificationPayload),
+          read: 0
+        }
+      };
+      
+      console.log('❌ Database write payload:', JSON.stringify(writePayload, null, 2));
+      
+      const writeRes = await fetch('http://database-service:3006/internal/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(writePayload)
+      });
+
+      console.log('❌ Database write response status:', writeRes.status);
+      if (writeRes.ok) {
+        const writeResult = await writeRes.json();
+        console.log('❌ Database write result:', JSON.stringify(writeResult, null, 2));
+        console.log('❌ Successfully notified inviter about decline');
+      } else {
+        const errorText = await writeRes.text();
+        console.error('❌ Failed to notify inviter about decline:', writeRes.status, errorText);
+      }
+    } else {
+      console.log('❌ NOT creating decline notification:', {
+        originalInviterId,
+        roomCode,
+        hasOriginalInviter: !!originalInviterId,
+        hasRoomCode: !!roomCode
+      });
+    }
+
     console.log('❌ Invitation declined successfully');
     return { success: true, message: 'Invitation declined' };
   } catch (error) {
@@ -921,6 +1337,39 @@ fastify.post('/notifications/:notificationId/decline', {
   }
 });
  
+
+// Temporary debug endpoint to check active WebSocket connections
+fastify.get('/debug/ws-connections', async (request, reply) => {
+  const activeConnections = Array.from(userConnections.keys());
+  return {
+    totalConnections: userConnections.size,
+    activeUserIds: activeConnections,
+    timestamp: new Date().toISOString()
+  };
+});
+
+// Temporary endpoint to test live notifications
+fastify.post('/debug/test-notification/:userId', async (request, reply) => {
+  const { userId } = request.params;
+  
+  const testNotification = {
+    id: Date.now(),
+    type: 'friend_request',
+    from: 'Test User',
+    fromId: 999,
+    payload: { message: 'This is a test notification!' },
+    timestamp: new Date().toISOString()
+  };
+  
+  console.log(`🧪 Testing notification to user ${userId}`);
+  const sent = sendLiveNotification(parseInt(userId), testNotification);
+  
+  return {
+    success: true,
+    sent: sent,
+    message: `Test notification ${sent ? 'sent successfully' : 'queued for DB only'}`
+  };
+});
 
 // Send friend request
 
@@ -1242,6 +1691,7 @@ const start = async () => {
   try {
     await fastify.listen({ port: PORT, host: '0.0.0.0' });
     logger.info(`🚀 User service running on port ${PORT}`);
+    console.log(`🔔 WebSocket notifications endpoint: ws://localhost:${PORT}/ws/notifications`);
     
     // Log all registered routes for debugging
     console.log('🎯 REGISTERED ROUTES:');
@@ -1254,11 +1704,11 @@ const start = async () => {
   }
 };
 
+start();
+
 // Graceful shutdown
 process.on('SIGTERM', async () => {
   logger.info('Shutting down...');
   await fastify.close();
   process.exit(0);
 });
-
-start();

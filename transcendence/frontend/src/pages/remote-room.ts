@@ -31,7 +31,7 @@ export default function (root: HTMLElement, ctx: { params?: { roomId?: string } 
 
 	const user = getAuth();
 	const state = getState();
-	const playerId = user?.id || `guest_${Date.now()}`;
+	const playerId = user?.id ? `${user.id}_${Date.now()}_${Math.random().toString(36).substring(2)}` : `guest_${Date.now()}_${Math.random().toString(36).substring(2)}`;
 	const username = user?.name || state.session.alias || 'Anonymous';
 
 	gameState = {
