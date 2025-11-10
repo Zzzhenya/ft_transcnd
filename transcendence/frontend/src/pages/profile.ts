@@ -28,10 +28,10 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
         }
       });
       if (res.ok) {
-        userProfile = await res.json();
-        console.log('🔍 LOADED USER PROFILE:', userProfile);
-        console.log('🔍 display_name value:', userProfile.display_name);
-        console.log('🔍 username value:', userProfile.username);
+        // userProfile = await res.json();
+        // console.log('🔍 LOADED USER PROFILE:', userProfile);
+        // console.log('🔍 display_name value:', userProfile.display_name);
+        // console.log('🔍 username value:', userProfile.username);
         renderUserInfo();
         updateAvatarDisplay();
       }
@@ -41,20 +41,25 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
     }
   }
 
-  function updateAvatarDisplay() {
-    const mainAvatar = document.getElementById('main-avatar') as HTMLImageElement;
-    if (mainAvatar) {
-      mainAvatar.src = userProfile.avatar 
-        ? `${GATEWAY_BASE}/user-service${userProfile.avatar}`
-        : `${GATEWAY_BASE}/user-service/avatars/${userProfile.id}.jpg`;
-    }
-    
-    const headerAvatar = document.getElementById('header-avatar') as HTMLImageElement;
-    if (headerAvatar) {
-      headerAvatar.src = userProfile.avatar 
-        ? `${GATEWAY_BASE}/user-service${userProfile.avatar}`
-        : `${GATEWAY_BASE}/user-service/avatars/${userProfile.id}.jpg`;
-    }
+
+    function updateAvatarDisplay() {
+      const timestamp = Date.now(); 
+      const currentUser = getAuth();
+      if (!currentUser) return;
+      
+      const mainAvatar = document.getElementById('main-avatar') as HTMLImageElement;
+      if (mainAvatar) {
+        mainAvatar.src = userProfile.avatar 
+          ? `${GATEWAY_BASE}/user-service${userProfile.avatar}?t=${timestamp}`
+          : `${GATEWAY_BASE}/user-service/avatars/${currentUser.id}.jpg?t=${timestamp}`;
+      }
+      
+      const headerAvatar = document.getElementById('header-avatar') as HTMLImageElement;
+      if (headerAvatar) {
+        headerAvatar.src = userProfile.avatar 
+          ? `${GATEWAY_BASE}/user-service${userProfile.avatar}?t=${timestamp}`
+          : `${GATEWAY_BASE}/user-service/avatars/${currentUser.id}.jpg?t=${timestamp}`;
+      }
   }
 
 
@@ -151,6 +156,11 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
 
   // ========== AVATAR CHANGE MODAL FUNKTIONEN ==========
   function createAvatarModal() {
+    const currentUser = getAuth();
+    if (!currentUser) return;
+    
+    const timestamp = Date.now();
+    
     const modalHTML = `
       <div id="avatar-modal" class="fixed inset-0 z-50 hidden">
         <div id="avatar-modal-backdrop" class="absolute inset-0 bg-black bg-opacity-50"></div>
@@ -170,10 +180,10 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
               <div class="flex justify-center">
                 <div class="relative">
                   <img id="avatar-preview" 
-                       src="${userProfile.avatar ? `${GATEWAY_BASE}/user-service${userProfile.avatar}` : `${GATEWAY_BASE}/user-service/avatars/${userProfile.id}.jpg`}" 
-                       class="w-32 h-32 rounded-full object-cover border-4 border-gray-200"
-                       onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyMDAgMjAwIj4KICAgIDxyZWN0IHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIiBmaWxsPSIjNkI3MjgwIi8+CiAgICA8Y2lyY2xlIGN4PSIxMDAiIGN5PSI3MCIgcj0iMzAiIGZpbGw9IiNGRkZGRkYiLz4KICAgIDxlbGxpcHNlIGN4PSIxMDAiIGN5PSIxNTAiIHJ4PSI1MCIgcnk9IjYwIiBmaWxsPSIjRkZGRkZGIi8+CiAgPC9zdmc+'"
-                       alt="Avatar preview" />
+                      src="${userProfile.avatar ? `${GATEWAY_BASE}/user-service${userProfile.avatar}?t=${timestamp}` : `${GATEWAY_BASE}/user-service/avatars/${currentUser.id}.jpg?t=${timestamp}`}" 
+                      class="w-32 h-32 rounded-full object-cover border-4 border-gray-200"
+                      onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyMDAgMjAwIj4KICAgIDxyZWN0IHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIiBmaWxsPSIjNkI3MjgwIi8+CiAgICA8Y2lyY2xlIGN4PSIxMDAiIGN5PSI3MCIgcj0iMzAiIGZpbGw9IiNGRkZGRkYiLz4KICAgIDxlbGxpcHNlIGN4PSIxMDAiIGN5PSIxNTAiIHJ4PSI1MCIgcnk9IjYwIiBmaWxsPSIjRkZGRkZGIi8+CiAgPC9zdmc+'"
+                      alt="Avatar preview" />
                   <div class="absolute bottom-0 right-0 bg-blue-600 rounded-full p-2 cursor-pointer hover:bg-blue-700">
                     <label for="avatar-input" class="cursor-pointer">
                       <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -187,9 +197,9 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
               
               <!-- Hidden file input -->
               <input type="file" 
-                     id="avatar-input" 
-                     accept="image/jpeg,image/jpg,image/png,image/gif" 
-                     class="hidden" />
+                    id="avatar-input" 
+                    accept="image/jpeg,image/jpg,image/png,image/gif" 
+                    class="hidden" />
               
               <p class="text-xs text-gray-500 text-center">
                 Click camera icon to select image<br>
@@ -226,6 +236,10 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
   }
 
   function showAvatarModal() {
+    const existingModal = document.getElementById('avatar-modal');
+    if (existingModal) {
+      existingModal.remove();
+    }
     if (!document.getElementById('avatar-modal')) {
       createAvatarModal();
     }
@@ -300,6 +314,13 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
       return;
     }
     
+    // ⭐ WICHTIG: Aktuelle User-ID holen!
+    const currentUser = getAuth();
+    if (!currentUser) {
+      showMessage('Not authenticated', 'error');
+      return;
+    }
+    
     const saveBtn = document.getElementById('save-avatar-btn') as HTMLButtonElement;
     if (saveBtn) {
       saveBtn.disabled = true;
@@ -307,13 +328,13 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
     }
     
     try {
-      // Convert to base64
       const reader = new FileReader();
       reader.onload = async (e) => {
         const base64 = e.target?.result as string;
         
         const token = getToken();
-        const res = await fetch(`${GATEWAY_BASE}/user-service/users/${user.id}/avatar`, {
+        // ⭐ HIER: currentUser.id verwenden!
+        const res = await fetch(`${GATEWAY_BASE}/user-service/users/${currentUser.id}/avatar`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -328,11 +349,10 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
         
         if (res.ok && data.success) {
           showMessage('Avatar updated successfully!', 'success');
-          userProfile.avatar = data.avatarUrl;
           
-          // Update avatar display everywhere
-          renderUserInfo();
-          updateAvatarDisplay();
+          // Profil neu laden
+          await loadUserProfile();
+          
           hideAvatarModal();
           selectedAvatarFile = null;
         } else {
@@ -473,7 +493,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
 
     try {
       const token = getToken();
-      const res = await fetch(`${GATEWAY_BASE}/user-service/users/${user.id}/update-email`, {
+      const res = await fetch(`${GATEWAY_BASE}/user-service/users/${userProfile.id}/update-email`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -608,7 +628,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
 
     try {
       const token = getToken();
-      const res = await fetch(`${GATEWAY_BASE}/user-service/users/${user.id}/display-name`, {
+      const res = await fetch(`${GATEWAY_BASE}/user-service/users/${userProfile.id}/display-name`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -734,7 +754,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
 
     try {
       const token = getToken();
-      const res = await fetch(`${GATEWAY_BASE}/user-service/users/${user.id}/username`, {
+      const res = await fetch(`${GATEWAY_BASE}/user-service/users/${userProfile.id}/username`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -775,7 +795,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
     
     try {
       const token = getToken();
-      const res = await fetch(`${GATEWAY_BASE}/user-service/users/${user.id}/friend-requests`, {
+      const res = await fetch(`${GATEWAY_BASE}/user-service/users/${userProfile.id}/friend-requests`, {
         headers: {
           'Authorization': `Bearer ${token || ''}`
         }
@@ -796,7 +816,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
     if (!user) return;
     try {
       const token = getToken();
-      const res = await fetch(`${GATEWAY_BASE}/user-service/users/${user.id}/friend-requests/${requesterId}`, {
+      const res = await fetch(`${GATEWAY_BASE}/user-service/users/${userProfile.id}/friend-requests/${requesterId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -827,7 +847,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
     if (!user) return;
     try {
       const token = getToken();
-      const res = await fetch(`${GATEWAY_BASE}/user-service/users/${user.id}/friends`, {
+      const res = await fetch(`${GATEWAY_BASE}/user-service/users/${userProfile.id}/friends`, {
         headers: {
           'Authorization': `Bearer ${token || ''}`
         }
@@ -846,7 +866,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
     if (!user) return;
     try {
       const token = getToken();
-      const res = await fetch(`${GATEWAY_BASE}/user-service/users/${user.id}/friends`, {
+      const res = await fetch(`${GATEWAY_BASE}/user-service/users/${userProfile.id}/friends`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
