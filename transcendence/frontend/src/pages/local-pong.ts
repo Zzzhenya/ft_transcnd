@@ -1,3 +1,4 @@
+// local-pong.ts
 export default function (root: HTMLElement) {
   let canvas: HTMLCanvasElement;
   let ctx: CanvasRenderingContext2D;
