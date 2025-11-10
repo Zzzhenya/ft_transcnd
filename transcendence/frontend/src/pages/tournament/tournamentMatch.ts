@@ -57,6 +57,7 @@ export default function (root: HTMLElement, ctx: any) {
     paddles: { player1: 0, player2: 0 },
     score: { player1: 0, player2: 0 },
     tournament: { roundsWon: { player1: 0, player2: 0 }, winner: null, currentRound: 1 },
+    totalScore: { player1: 0, player2: 0 },
     gameStatus: 'waiting'
   };
 
@@ -478,11 +479,15 @@ function showWinnerDialog(winner: string) {
 
   function handleBackendMessage(data: any) {
     if (data.type === 'STATE_UPDATE' && data.gameState) {
+      // Debug: log backend-provided totalScore so we can confirm server is sending it
+      console.log('DEBUG: received totalScore from server (tournament):', data.gameState.totalScore, 'top-level:', data.player1_totalScore, data.player2_totalScore);
       gameState = {
         ball: data.gameState.ball || gameState.ball,
         paddles: data.gameState.paddles || gameState.paddles,
         score: data.gameState.score || gameState.score,
         tournament: data.gameState.tournament || gameState.tournament,
+        // totalScore may be sent inside gameState or as top-level compatibility fields
+        totalScore: data.gameState.totalScore || { player1: data.player1_totalScore ?? gameState.totalScore?.player1 ?? 0, player2: data.player2_totalScore ?? gameState.totalScore?.player2 ?? 0 },
         gameStatus: data.gameState.tournament?.gameStatus || 'playing'
       };
 
@@ -674,6 +679,14 @@ function showWinnerDialog(winner: string) {
       30,
       65
     );
+    ctx2d.font = '16px Arial';
+    ctx2d.fillStyle = '#00bfff';
+    ctx2d.textAlign = 'left';
+    ctx2d.fillText(
+      `Total Score: ${gameState.totalScore?.player1 ?? gameState.totalscore?.player1 ?? 0}`,
+      30,
+      85
+    );
 
     ctx2d.font = '20px Arial';
     ctx2d.fillStyle = '#00ffcc';
@@ -686,6 +699,14 @@ function showWinnerDialog(winner: string) {
       `Rounds Won: ${gameState.tournament?.roundsWon?.player2 || 0}`,
       canvas.width - 30,
       65
+    );
+    ctx2d.font = '16px Arial';
+    ctx2d.fillStyle = '#00bfff';
+    ctx2d.textAlign = 'right';
+    ctx2d.fillText(
+      `Total Score: ${gameState.totalScore?.player2 ?? gameState.totalscore?.player2 ?? 0}`,
+      canvas.width - 30,
+      85
     );
 
     ctx2d.font = 'bold 24px Arial';
