@@ -148,7 +148,7 @@ try {
   logger.info('[[Gateway]] register stats route');
   Fastify.register(statsRoute);
   logger.info('[[Gateway]] register remote-only ws routes ');
-  Fastify.register(remoteOnlyRoute, { prefix: '/ws' });
+  Fastify.register(remoteOnlyRoute);
   logger.info('[[Gateway]] register user-service ws routes ');
   // Register WebSocket for internal calls
   Fastify.register(wsRoute, { prefix: '/user-service/ws' });

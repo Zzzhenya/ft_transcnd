@@ -4,7 +4,6 @@ import { navigate } from "@/app/router";
 import { getAuth, getToken } from "@/app/auth";
 import { getState } from "@/app/store";
 import { onlineManager } from '../utils/efficient-online-status';
-import { simpleNotificationPoller } from "../ui/simple-notification-polling";
 
 interface Friend {
 	friend_id: string;
@@ -495,16 +494,19 @@ export default function (root: HTMLElement) {
 					const result = await res.json();
 					console.log('🎮 Invite result:', result);
 					
-					// Show countdown for 10 seconds
 					if (result.roomCode) {
-						console.log('🎮 Room code created:', result.roomCode, '- showing countdown');
-						simpleNotificationPoller.showInvitationCountdown(friendUsername, result.roomCode, 10000);
+						console.log('🎮 ✅ Room created:', result.roomCode);
 						
-						// Also show status message
-						showStatus('Invitation sent! Waiting for response...', 'success');
+						// ✅ FIX: El que invita VA INMEDIATAMENTE a la room
+						showStatus('🎮 Room created! Entering...', 'success');
+						
+						// Esperar 500ms para que el mensaje se vea
+						setTimeout(() => {
+							navigate(`/remote/room/${result.roomCode}`);
+						}, 500);
+						
 					} else {
-						// Fallback if no room code
-						showStatus('Invitation sent! Waiting for acceptance...', 'success');
+						showStatus('Invitation sent but no room code received', 'error');
 					}
 				} else {
 					const err = await res.json().catch(() => ({}));

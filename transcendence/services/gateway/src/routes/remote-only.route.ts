@@ -6,9 +6,15 @@ export default async function remoteOnlyRoute(fastify: FastifyInstance) {
   
   // Log when this plugin is loaded
   fastify.log.info('🎮 Loading remote-only WebSocket route...')
+  console.log('🎮 REMOTE-ONLY ROUTE: Plugin loaded and ready!')
   
   // WebSocket route for remote players
-  fastify.get('/remote', { websocket: true }, async (connection, req) => {
+  fastify.get('/ws/remote', { websocket: true }, async (connection, req) => {
+    console.log('🎮 REMOTE-ONLY: WebSocket connection received!')
+    console.log('🎮 REMOTE-ONLY: URL:', req.url)
+    console.log('🎮 REMOTE-ONLY: Headers:', req.headers)
+    fastify.log.info('🎮 REMOTE-ONLY: WebSocket connection received for: ' + req.url)
+    
     const clientSocket = connection
     
     // Extract query parameters from URL
@@ -32,20 +38,12 @@ export default async function remoteOnlyRoute(fastify: FastifyInstance) {
     fastify.log.info(`🎮 Remote WebSocket connection: roomId=${roomId}, playerId=${playerId}, username=${username}`)
 
     try {
-      // Connect to game-service
-      const gameServiceUrl = 'ws://game-service:3002/remote-player'
+      // Connect to game-service with query parameters
+      const gameServiceUrl = `ws://game-service:3002/ws/remote?roomId=${roomId}&playerId=${playerId}&username=${encodeURIComponent(username)}`
       const backendSocket = new WebSocket(gameServiceUrl)
 
       backendSocket.on('open', () => {
         fastify.log.info(`🎮 ✅ Connected to game-service for roomId: ${roomId}`)
-        
-        // Send initial connection data
-        backendSocket.send(JSON.stringify({
-          type: 'connect',
-          roomId: roomId,
-          playerId: playerId,
-          username: username
-        }))
         
         // Forward messages from client to backend
         clientSocket.on('message', (message) => {

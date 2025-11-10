@@ -162,11 +162,18 @@ root.innerHTML = `
         }, 500);
       };
       
-      ws.onmessage = (event) => {
+      ws.onmessage = async (event) => {
         try {
-          const data = JSON.parse(event.data);
-          console.log('📨 Backend message:', data);
-          handleBackendMessage(data);
+          let data = event.data;
+          
+          // Handle Blob data
+          if (data instanceof Blob) {
+            data = await data.text();
+          }
+          
+          const parsedData = JSON.parse(data);
+          console.log('📨 Backend message:', parsedData);
+          handleBackendMessage(parsedData);
         } catch (error) {
           console.error('❌ Error parsing backend message:', error);
         }

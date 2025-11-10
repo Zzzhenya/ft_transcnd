@@ -191,9 +191,20 @@ function connectToRoom(root: HTMLElement, roomId: string, playerId: string, user
 		updateStatus(root, '✅ Connected to room!', 'success');
 	};
 
-	ws.onmessage = (event) => {
-		const message = JSON.parse(event.data);
-		handleServerMessage(root, message);
+	ws.onmessage = async (event) => {
+		try {
+			let data = event.data;
+			
+			// Handle Blob data
+			if (data instanceof Blob) {
+				data = await data.text();
+			}
+			
+			const message = JSON.parse(data);
+			handleServerMessage(root, message);
+		} catch (err) {
+			console.error('❌ Error parsing WebSocket message:', err, 'Raw data:', event.data);
+		}
 	};
 
 	ws.onerror = () => {
@@ -317,7 +328,7 @@ function startGameUI(root: HTMLElement, initialState: any) {
 	root.querySelector('#waitingRoom')?.classList.add('hidden');
 	root.querySelector('#gameContainer')?.classList.remove('hidden');
 
-	canvas = root.querySelector<HTMLCanvasElement>('#gameCanvas')!;
+	canvas = root.querySelector('#gameCanvas') as unknown as HTMLCanvasElement;
 	ctx = canvas.getContext('2d')!;
 
 	root.querySelector('#yourRole')!.textContent = `Player ${gameState.playerNumber}`;

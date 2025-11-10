@@ -89,10 +89,17 @@ export class NotificationWebSocket {
         resolve(true);
       };
 
-      this.ws.onmessage = (event) => {
+      this.ws.onmessage = async (event) => {
         console.log('🔔 📨 Raw WebSocket message received:', event.data);
         try {
-          const message = JSON.parse(event.data);
+          let data = event.data;
+          
+          // Handle Blob data
+          if (data instanceof Blob) {
+            data = await data.text();
+          }
+          
+          const message = JSON.parse(data);
           console.log('🔔 📨 Parsed message:', message);
           this.handleMessage(message);
         } catch (error) {
