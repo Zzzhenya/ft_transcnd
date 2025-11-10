@@ -1,6 +1,7 @@
 // Real-time notification WebSocket client
 import { getAuth, getToken } from '../app/auth';
 import { GATEWAY_BASE } from '../app/config';
+import { navigate } from '../app/router';
 
 export interface LiveNotification {
   id: number;
@@ -231,12 +232,13 @@ export class NotificationWebSocket {
           <div class="flex gap-4 justify-center">
             <button 
               class="accept-btn px-8 py-4 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl font-black text-lg hover:from-green-400 hover:to-emerald-500 transition-all transform hover:scale-105 shadow-lg hover:shadow-green-500/50"
-              onclick="notificationWS.acceptInvitation(${notification.id}, '${notification.roomCode}')">
+              data-notification-id="${notification.id}" 
+              data-room-code="${notification.roomCode}">
               ✅ ACCEPT
             </button>
             <button 
               class="decline-btn px-8 py-4 bg-gradient-to-r from-red-500 to-pink-600 text-white rounded-xl font-black text-lg hover:from-red-400 hover:to-pink-500 transition-all transform hover:scale-105 shadow-lg hover:shadow-red-500/50"
-              onclick="notificationWS.declineInvitation(${notification.id})">
+              data-notification-id="${notification.id}">
               ❌ DECLINE
             </button>
           </div>
@@ -285,6 +287,28 @@ export class NotificationWebSocket {
       console.log('🔔 🎮 ✅ Modal successfully added to DOM!');
       console.log('🔔 🎮 📋 document.body children count after:', document.body.children.length);
       console.log('🔔 🎮 📋 Modal is in DOM:', !!document.getElementById(`live-invitation-${notification.id}`));
+      
+      // Add event listeners for buttons
+      const acceptBtn = modal.querySelector('.accept-btn');
+      const declineBtn = modal.querySelector('.decline-btn');
+      
+      if (acceptBtn) {
+        acceptBtn.addEventListener('click', () => {
+          const notificationId = acceptBtn.getAttribute('data-notification-id');
+          const roomCode = acceptBtn.getAttribute('data-room-code');
+          console.log('🔔 🎮 Accept button clicked:', { notificationId, roomCode });
+          this.acceptInvitation(parseInt(notificationId || '0'), roomCode || '');
+        });
+      }
+      
+      if (declineBtn) {
+        declineBtn.addEventListener('click', () => {
+          const notificationId = declineBtn.getAttribute('data-notification-id');
+          console.log('🔔 🎮 Decline button clicked:', { notificationId });
+          this.declineInvitation(parseInt(notificationId || '0'));
+        });
+      }
+      
     } catch (error) {
       console.error('🔔 🎮 ❌ ERROR adding modal to DOM:', error);
     }
@@ -365,8 +389,8 @@ export class NotificationWebSocket {
         // Navigate to game room
         if (result.roomCode) {
           console.log('🔔 🎮 Navigating to room:', result.roomCode);
-          // Use your router to navigate to the game room
-          (window as any).router?.navigate(`/remote-room?roomId=${result.roomCode}`);
+          // Use proper router navigation with path parameter
+          navigate(`/remote/room/${result.roomCode}`);
         }
         
       } else {

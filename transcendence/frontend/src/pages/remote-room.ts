@@ -21,10 +21,21 @@ let canvas: HTMLCanvasElement;
 let ctx: CanvasRenderingContext2D;
 let keysPressed: Set<string> = new Set();
 
-export default function (root: HTMLElement, ctx: { params?: { roomId?: string } }) {
-	const roomId = ctx.params?.roomId ?? '';
+export default function (root: HTMLElement, ctx: { params?: { roomId?: string }; url: URL }) {
+	// Get roomId from router params (which includes query parameters)
+	let roomId = ctx.params?.roomId ?? '';
+	
+	// Fallback: If not found in params, try URL query parameters directly
+	if (!roomId && ctx.url) {
+		roomId = ctx.url.searchParams.get('roomId') ?? '';
+	}
+	
+	console.log('🎮 Remote Room - roomId extracted:', roomId);
+	console.log('🎮 Remote Room - ctx.params:', ctx.params);
+	console.log('🎮 Remote Room - ctx.url.search:', ctx.url?.search);
 
 	if (!roomId) {
+		console.log('🎮 Remote Room - No roomId found, redirecting to /remote');
 		navigate('/remote');
 		return () => { };
 	}
