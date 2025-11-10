@@ -1,6 +1,9 @@
 import { GATEWAY_BASE, WS_BASE } from '../app/config.js'
 
 export default function (root: HTMLElement) {
+  // Elements for total score display
+  let player1TotalEl: HTMLSpanElement | null = null;
+  let player2TotalEl: HTMLSpanElement | null = null;
   let gameId: string | null = null;
   let ws: WebSocket | null = null;
   let canvas: HTMLCanvasElement;
@@ -14,7 +17,8 @@ export default function (root: HTMLElement) {
   paddles: { player1: 0, player2: 0 },
   score: { player1: 0, player2: 0 },
   tournament: { roundsWon: { player1: 0, player2: 0 }, winner: null, currentRound: 1 },
-  gameStatus: 'waiting'
+  gameStatus: 'waiting',
+  totalScore: { player1: 0, player2: 0 }
 };
 
   // Game configuration received from backend
@@ -75,6 +79,13 @@ root.innerHTML = `
   const startBtn = root.querySelector('#startBtn') as HTMLButtonElement;
   const restartBtn = root.querySelector('#restartBtn') as HTMLButtonElement;
   const lobbyBtn = root.querySelector('#lobbyBtn') as HTMLButtonElement;
+    player1TotalEl = root.querySelector('#player1Total') as HTMLSpanElement;
+    player2TotalEl = root.querySelector('#player2Total') as HTMLSpanElement;
+  function updateTotalScoresUI() {
+  // Prefer `totalScore` (backend), fall back to legacy `totalscore` if present
+  if (player1TotalEl) player1TotalEl.textContent = (gameState.totalScore?.player1 ?? gameState.totalscore?.player1 ?? 0).toString();
+  if (player2TotalEl) player2TotalEl.textContent = (gameState.totalScore?.player2 ?? gameState.totalscore?.player2 ?? 0).toString();
+  }
   const gameStatus = root.querySelector('#gameStatus') as HTMLDivElement;
   const connectionStatus = root.querySelector('#connectionStatus') as HTMLParagraphElement;
   const el = document.getElementById('gameCanvas');
@@ -222,6 +233,7 @@ function handleBackendMessage(data: any) {
       paddles: data.gameState.paddles || gameState.paddles,
       score: data.gameState.score || gameState.score,
       tournament: data.gameState.tournament || gameState.tournament,
+      totalScore: data.gameState.totalScore || gameState.totalScore, 
       gameStatus: data.gameState.tournament?.gameStatus || 'playing'
     };
 
@@ -233,6 +245,8 @@ function handleBackendMessage(data: any) {
 
     player1Name = data.gameState.player1_name || player1Name;
     player2Name = data.gameState.player2_name || player2Name;
+
+    updateTotalScoresUI();
 
     if (gameState.gameStatus === 'playing') {
       updateStatus('🎮 Game active - Player 1: W/S, Player 2: ↑/↓');
@@ -310,8 +324,7 @@ function handleBackendMessage(data: any) {
     lastTime = 0;
     const updateNetworkGame = (currentTime: number) => {
       if (lastTime === 0) lastTime = currentTime;
-      const deltaTime = currentTime - lastTime;
-      lastTime = currentTime;
+  lastTime = currentTime;
       
       // Throttle paddle movement updates to reduce network spam
       // Only send updates every PADDLE_UPDATE_INTERVAL ms
@@ -431,6 +444,7 @@ function toCanvasY(gameY: number) { return (100 - gameY) * scaleY; }
 
 
  // Draw player names and rounds won on each side
+  // Player 1 info (left)
   ctx.font = '20px Arial';
   ctx.fillStyle = '#00ffcc';
   ctx.textAlign = 'left';
@@ -443,7 +457,16 @@ function toCanvasY(gameY: number) { return (100 - gameY) * scaleY; }
     30,
     65 // 25px below the name
   );
+  ctx.font = '16px Arial';
+  ctx.fillStyle = '#00bfff';
+  ctx.textAlign = 'left';
+  ctx.fillText(
+  `Total Score: ${ gameState.totalScore?.player1 ?? gameState.totalscore?.player1 ?? 0}`,
+    30,
+    85 // 20px below rounds won
+  );
 
+  // Player 2 info (right)
   ctx.font = '20px Arial';
   ctx.fillStyle = '#00ffcc';
   ctx.textAlign = 'right';
@@ -454,7 +477,15 @@ function toCanvasY(gameY: number) { return (100 - gameY) * scaleY; }
   ctx.fillText(
     `Rounds Won: ${gameState.tournament?.roundsWon?.player2 || 0}`,
     canvas.width - 30,
-    65 // 25px below the
+    65 // 25px below the name
+  );
+  ctx.font = '16px Arial';
+  ctx.fillStyle = '#00bfff';
+  ctx.textAlign = 'right';
+  ctx.fillText(
+  `Total Score: ${gameState.totalScore?.player2 ?? gameState.totalscore?.player2 ?? 0}`,
+    canvas.width - 30,
+    85 // 20px below rounds won
   );
 
   // Draw score
@@ -467,16 +498,27 @@ ctx.fillText(
   50
 );
 
-// Draw current round number under the score
-ctx.font = 'bold 24px Arial';
-ctx.fillStyle = '#00ffcc';
-ctx.textAlign = 'center';
-const currentRound = gameState.tournament?.currentRound || 1;
-ctx.fillText(
-  `Round ${currentRound}`,
-  canvas.width / 2,
-  85 // 35px below the score
-);
+  // Draw current round number under the score
+  ctx.font = 'bold 24px Arial';
+  ctx.fillStyle = '#00ffcc';
+  ctx.textAlign = 'center';
+  const currentRound = gameState.tournament?.currentRound || 1;
+  ctx.fillText(
+    `Round ${currentRound}`,
+    canvas.width / 2,
+    85 // 35px below the score
+  );
+  // Update total scores display
+  updateTotalScoresUI();
+  // (example) round-end handling is handled by the backend and propagated via STATE_UPDATE
+
+  // Example: Call handleRoundEnd when a round ends (replace with actual event logic)
+  // ws.onmessage = (event) => {
+  //   const data = JSON.parse(event.data);
+  //   if (data.type === 'ROUND_END') {
+  //     handleRoundEnd(data.winner);
+  //   }
+  // };
 
 }
 

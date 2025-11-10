@@ -9,6 +9,8 @@ export function broadcastState(gameId, games) {
     score: game.state.score,
     ball: game.state.ball,
     paddles: game.state.paddles,
+    // Include totalScore in the gameState so frontend handlers can read it from data.gameState.totalScore
+    totalScore: game.state.totalScore,
     tournament: {
       currentRound: game.state.tournament.currentRound,
       maxRounds: game.state.tournament.maxRounds,
@@ -33,17 +35,18 @@ export function broadcastState(gameId, games) {
     player2_name: game.player2_name, // include player2_name
     gameType: game.gameType || 'normal', // include game type
     tournamentId: game.tournamentId || null, // include tournament ID if applicable
-    isDemo: game.isDemo || false, // include demo status
     isRegistered: game.isRegistered || false, // include registered status
     gameState: cleanGameState,
     config: GAME_CONFIG, // Include game configuration (paddle size, ball speed, etc.)
     winner_id: game.winner_id || null,
     final_score: game.final_score || null,
+    player1_totalScore: game.state.totalScore.player1 || 0,
+    player2_totalScore: game.state.totalScore.player2 || 0,
     created_at: game.created_at || null,
     finished_at: game.finished_at || null
   });
 
-  const gameTypeLabel = game.isDemo ? 'DEMO' : (game.gameType === 'tournament' ? 'TOURNAMENT' : 'NORMAL');
+  const gameTypeLabel = game.gameType === 'tournament' ? 'TOURNAMENT' : 'NORMAL';
   console.log(
     `[Broadcast] Sending state to ${game.clients.size} clients in ${gameTypeLabel} game ${gameId}`
   );

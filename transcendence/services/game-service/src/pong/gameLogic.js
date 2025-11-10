@@ -1,4 +1,6 @@
+import { lstat } from 'fs';
 import logger from '../utils/logger.js';
+import { games } from './createGame.js';
 
 // Game configuration - centralized settings sent to frontend
 export const GAME_CONFIG = {
@@ -158,10 +160,14 @@ function checkRoundEnd(gameState) {
   if (gameState.score.player1 >= scoreLimit) {
     // Player 1 wins the round
     gameState.tournament.roundsWon.player1++;
+    gameState.totalScore.player1 += (gameState.score.player1 || 0);
+    gameState.totalScore.player2 += (gameState.score.player2 || 0);
     endRound(gameState, 'player1');
   } else if (gameState.score.player2 >= scoreLimit) {
     // Player 2 wins the round
     gameState.tournament.roundsWon.player2++;
+    gameState.totalScore.player1 += (gameState.score.player1 || 0);
+    gameState.totalScore.player2 += (gameState.score.player2 || 0);
     endRound(gameState, 'player2');
   }
 }
@@ -234,6 +240,8 @@ function restartGame(gameState) {
     gameState.gameLoopInterval = null;
   }
   
+  gameState.totalScore.player1 = 0;
+  gameState.totalScore.player2 = 0;
   gameState.score.player1 = 0;
   gameState.score.player2 = 0;
   gameState.paddles.player1 = 0;  // Reset paddle positions
@@ -315,7 +323,9 @@ function startGameLoop(gameState, broadcastState, moveBall, getClientCount) {
       // Update last values for next comparison
       lastBallX = gameState.ball.x;
       lastBallY = gameState.ball.y;
+      //lastTotalScore1 = gameState.totalScore.player1 + gameState.score.player1;
       lastScore1 = gameState.score.player1;
+     // lastTotalScore2 = gameState.totalScore.player2 + gameState.score.player2;
       lastScore2 = gameState.score.player2;
       lastPaddle1 = gameState.paddles.player1;
       lastPaddle2 = gameState.paddles.player2;
@@ -329,6 +339,7 @@ function startGameLoop(gameState, broadcastState, moveBall, getClientCount) {
 // Game state
 function initialGameState() {
   return {
+    totalScore: { player1: 0, player2: 0 },
     score: { player1: 0, player2: 0 },
     ball: { x: 0, y: 0, dx: 2, dy: 2 },
     paddles: { player1: 0, player2: 0 },
