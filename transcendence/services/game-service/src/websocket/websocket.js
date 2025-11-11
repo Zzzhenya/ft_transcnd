@@ -99,6 +99,7 @@ function createInitialStateMessage(game, gameId) {
     score: game.state.score,
     ball: game.state.ball,
     paddles: game.state.paddles,
+    totalScore: game.state.totalScore,
     tournament: {
       currentRound: game.state.tournament.currentRound,
       maxRounds: game.state.tournament.maxRounds,
@@ -131,7 +132,11 @@ function createInitialStateMessage(game, gameId) {
     isRegistered: game.isRegistered || false,
     round: game.round || null,
     matchNumber: game.matchNumber || null,
-    gameState: cleanGameState
+    gameState: cleanGameState,
+    // timestamps
+    createdAt: game.createdAt || null,
+    startedAt: game.startedAt || null,
+    completedAt: game.completedAt || null
   });
 }
 

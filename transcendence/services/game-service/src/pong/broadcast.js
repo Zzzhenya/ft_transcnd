@@ -26,6 +26,14 @@ export function broadcastState(gameId, games) {
     // Exclude gameLoopInterval - it's not serializable
   };
 
+  // Ensure timestamps reflect game state transitions
+  if (game.state?.tournament?.gameStatus === 'playing' && !game.startedAt) {
+    game.startedAt = new Date();
+  }
+  if (game.state?.tournament?.gameStatus === 'gameEnd' && !game.completedAt) {
+    game.completedAt = new Date();
+  }
+
   const payload = JSON.stringify({
     type: 'STATE_UPDATE',
     gameId,               // include gameId
@@ -42,8 +50,10 @@ export function broadcastState(gameId, games) {
     final_score: game.final_score || null,
     player1_totalScore: game.state.totalScore.player1 || 0,
     player2_totalScore: game.state.totalScore.player2 || 0,
-    created_at: game.created_at || null,
-    finished_at: game.finished_at || null
+    // Provide timestamps (camelCase) from the game object
+    createdAt: game.createdAt || null,
+    startedAt: game.startedAt || null,
+    completedAt: game.completedAt || null
   });
 
   const gameTypeLabel = game.gameType === 'tournament' ? 'TOURNAMENT' : 'NORMAL';
