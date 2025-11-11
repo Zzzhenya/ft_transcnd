@@ -30,9 +30,9 @@ CREATE TABLE Users (
   email_verified BOOLEAN DEFAULT 0,
   
   -- Profile
-  display_name VARCHAR(100),
+  display_name VARCHAR(100), 
   avatar VARCHAR(255),
-  bio TEXT,
+  bio TEXT, 
   
   -- Status
   status VARCHAR(20) DEFAULT 'offline',

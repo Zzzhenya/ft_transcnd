@@ -16,7 +16,7 @@ Table Users {
   email_verified boolean [default: false]
   
   // Profile
-  display_name varchar(100)
+  display_name varchar(100) [unique]
   avatar varchar(255)
   bio text
   
@@ -72,14 +72,14 @@ Table Blocked_Users {
 }
 
 // -------------------- MATCHES --------------------
-Table Matches {
+Table Matches_Tournament {
   id integer [primary key, increment]
   tournament_id integer [note: 'NULL = normal 1v1 match']
   
   // Tournament Info
   round integer [note: 'Tournament round number']
   match_number integer [note: 'Match number within round']
-  bracket_type varchar(20) [note: 'winner, loser, placement']
+  //bracket_type varchar(20) [note: 'winner, loser, placement']
   
   // Players
   player1_id integer [not null]
@@ -87,15 +87,15 @@ Table Matches {
   
   // Results
   winner_id integer
-  loser_id integer
+  //loser_id integer
   player1_score integer [default: 0]
   player2_score integer [default: 0]
   
   // Match Details
-  status varchar(20) [default: 'waiting', note: 'waiting, in_progress, finished, cancelled']
-  game_mode varchar(20) [default: 'normal', note: 'normal, ranked, custom']
-  match_type varchar(20) [note: '1v1, tournament']
-  duration integer [note: 'Duration in seconds']
+  status varchar(20) [default: 'waiting', note: 'waiting, in_progress, finished, interrupted']
+  //game_mode varchar(20) [default: 'normal', note: 'normal, ranked, custom']
+  //match_type varchar(20) [note: '1v1, tournament']
+  //duration integer [note: 'Duration in seconds']
   
   // Timestamps
   created_at timestamp [default: `now()`]
@@ -110,13 +110,36 @@ Table Matches {
   }
 }
 
-// -------------------- TOURNAMENTS --------------------
-Table Tournament_Singlematches {
+Table Remote_Match {
   id integer [primary key, increment]
-  name varchar(100) [not null]
-  description text
-  Tournament bool [note: '1 tournament; 0 - singlematch' ]
   
+  // Players
+  player1_id integer [not null]
+  player2_id integer [not null]
+  
+  // Results
+  winner_id integer
+
+  player1_score integer [default: 0]
+  player2_score integer [default: 0]
+  
+  // Match Details
+  status varchar(20) [default: 'waiting', note: 'waiting, in_progress, finished, interrupted']
+
+
+  // Timestamps
+  created_at timestamp [default: `now()`]
+  started_at timestamp
+  finished_at timestamp
+
+}
+
+// -------------------- TOURNAMENTS --------------------
+Table Tournament{
+  id integer [primary key, increment]
+  name varchar(100) 
+  description text
+    
   status varchar(20) [default: 'registration', note: 'registration, in_progress, finished, cancelled']
   player_count integer [not null, note: '4 or 8 players']
   current_players integer [default: 0]
@@ -211,8 +234,10 @@ Table Game_Invitations {
   id integer [primary key, increment]
   from_user_id integer [not null]
   to_user_id integer [not null]
+
+  is_tournament bool [default: `false`]
   
-  match_id integer [note: 'Created when accepted']
+  game_id integer [note: 'Created when accepted']
   game_mode varchar(20) [default: 'normal']
   
   status varchar(20) [default: 'pending', note: 'pending, accepted, declined, expired, cancelled']
@@ -262,16 +287,15 @@ Ref: Blocked_Users.user_id > Users.id [delete: cascade]
 Ref: Blocked_Users.blocked_user_id > Users.id [delete: cascade]
 
 // Matches
-Ref: Matches.tournament_id > Tournament_Singlematches.id [delete: cascade]
-Ref: Matches.player1_id > Users.id
-Ref: Matches.player2_id > Users.id
-Ref: Matches.winner_id > Users.id
-Ref: Matches.loser_id > Users.id
-Ref: Users.current_match_id > Matches.id
+Ref: Matches_Tournament.tournament_id > Tournament.id [delete: cascade]
+Ref: Matches_Tournament.player1_id > Users.id
+Ref: Matches_Tournament.player2_id > Users.id
+Ref: Matches_Tournament.winner_id > Users.id
+Ref: Users.current_match_id > Matches_Tournament.id
 
 // Tournaments
-Ref: Tournament_Singlematches.winner_id > Users.id
-Ref: Tournament_Players.tournament_id > Tournament_Singlematches.id [delete: cascade]
+Ref: Tournament.winner_id > Users.id
+Ref: Tournament_Players.tournament_id > Tournament.id [delete: cascade]
 Ref: Tournament_Players.user_id > Users.id
 
 // Chat
@@ -285,7 +309,8 @@ Ref: Messages.receiver_id > Users.id
 // Game Invitations
 Ref: Game_Invitations.from_user_id > Users.id [delete: cascade]
 Ref: Game_Invitations.to_user_id > Users.id [delete: cascade]
-Ref: Game_Invitations.match_id > Matches.id
+Ref: Game_Invitations.game_id > Tournament.id
+Ref: Game_Invitations.game_id >  Remote_Match.id
 
 // Notifications
 Ref: Notifications.user_id > Users.id [delete: cascade]
