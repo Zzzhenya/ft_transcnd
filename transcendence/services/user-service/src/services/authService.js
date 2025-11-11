@@ -6,7 +6,7 @@ const logger = require('../utils/logger');
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
 class AuthService {
-  static async register(username, email, password) {
+  static async register(username, email, password, displayName = null) {
     try {
       // Check if user already exists
       const existingEmail = await User.findByEmail(email);
@@ -29,7 +29,8 @@ class AuthService {
       const newUser = await User.create({
         username,
         email,
-        password: hashedPassword // User.create will map this to password_hash
+        password: hashedPassword, // User.create will map this to password_hash
+        display_name: displayName || username
       });
 
       if (!newUser)
@@ -46,7 +47,7 @@ class AuthService {
           id: newUser.id,
           username: newUser.username,
           email: newUser.email,
-          display_name: newUser.display_name || newUser.username
+          display_name: newUser.display_name //|| newUser.username
         },
         token
       };

@@ -24,6 +24,9 @@ const routes: [RegExp, Importer][] = [
 	[/^\/game\/([^/]+)$/,       () => import("../pages/game") as Promise<PageModule>],
 	[/^\/auth$/,                () => import("../pages/auth") as Promise<PageModule>],
 	[/^\/profile$/,             () => import("../pages/profile") as Promise<PageModule>],
+	[/^\/dashboard$/,           () => import("../pages/dashboard") as Promise<PageModule>],
+	
+	
 ];
 
 export function initRouter(root: HTMLElement) {
