@@ -11,15 +11,27 @@ interface RemoteGameState {
 	playerNumber: number | null;
 	ws: WebSocket | null;
 	connected: boolean;
+	serverIdReady: boolean;
+	wsConnectedRoomId?: string;
 	gameStarted: boolean;
 	score: { player1: number; player2: number };
 	players: Array<{ playerId: string; playerNumber: number; username: string; ready: boolean }>;
 }
 
 let gameState: RemoteGameState | null = null;
+// track open state helper
+function isWsOpen() {
+	// In some browsers/proxies readyState may briefly report CONNECTING during init dispatch;
+	// prefer our own connected flag once onopen fired.
+	return !!gameState?.connected;
+}
 let canvas: HTMLCanvasElement;
 let ctx: CanvasRenderingContext2D;
 let keysPressed: Set<string> = new Set();
+
+// Global mount/connect guards to prevent duplicate WS connections on re-mounts
+let didMountRemoteRoom = false;
+let isConnectingRemoteRoom = false;
 
 export default function (root: HTMLElement, ctx: { params?: { roomId?: string }; url: URL }) {
 	// Get roomId from router params (which includes query parameters)
@@ -42,7 +54,9 @@ export default function (root: HTMLElement, ctx: { params?: { roomId?: string };
 
 	const user = getAuth();
 	const state = getState();
-	const playerId = user?.id ? `${user.id}_${Date.now()}_${Math.random().toString(36).substring(2)}` : `guest_${Date.now()}_${Math.random().toString(36).substring(2)}`;
+	// Generate a playerId once per page instance; prevent accidental duplicates on remounts
+	// If the server later echoes/assigns a canonical playerId, we will switch to it.
+	const playerId = `${user?.id ?? 'guest'}_${Date.now()}_${Math.random().toString(36).substring(2)}`;
 	const username = user?.name || state.session.alias || 'Anonymous';
 
 	gameState = {
@@ -51,10 +65,19 @@ export default function (root: HTMLElement, ctx: { params?: { roomId?: string };
 		playerNumber: null,
 		ws: null,
 		connected: false,
+		serverIdReady: false,
+		wsConnectedRoomId: undefined,
 		gameStarted: false,
 		score: { player1: 0, player2: 0 },
 		players: []
 	};
+
+	// Prevent duplicate mount/connect
+	if (didMountRemoteRoom || isConnectingRemoteRoom) {
+		console.warn('⚠️ Remote room already mounted/connecting, skipping duplicate setup');
+	} else {
+		isConnectingRemoteRoom = true;
+	}
 
 	root.innerHTML = `
     <section class="py-6 md:py-8 space-y-6 max-w-6xl mx-auto px-4">
@@ -128,26 +151,38 @@ export default function (root: HTMLElement, ctx: { params?: { roomId?: string };
     </section>
   `;
 
-	connectToRoom(root, roomId, playerId, username);
+	// Only connect once
+	if (!didMountRemoteRoom) {
+		connectToRoom(root, roomId, playerId, username);
+		didMountRemoteRoom = true;
+	}
 	setupRoomEventListeners(root);
 
 	return () => {
-		if (gameState?.ws) {
-			gameState.ws.close();
-		}
+		try {
+			if (gameState?.ws) {
+				const s = gameState.ws;
+				(gameState as any).ws = null;
+				if (s.readyState === WebSocket.OPEN || s.readyState === WebSocket.CONNECTING) {
+					s.close();
+				}
+			}
+		} catch {}
 		window.removeEventListener('keydown', handleKeyDown);
 		window.removeEventListener('keyup', handleKeyUp);
 		gameState = null;
+		didMountRemoteRoom = false;
+		isConnectingRemoteRoom = false;
 	};
 }
 
 function setupRoomEventListeners(root: HTMLElement) {
 	root.querySelector('#leaveRoom')?.addEventListener('click', () => {
 		if (confirm('Leave this game?')) {
-			if (gameState?.ws) {
-				gameState.ws.send(JSON.stringify({ type: 'leave' }));
-				gameState.ws.close();
+			if (gameState?.ws && gameState.ws.readyState === WebSocket.OPEN) {
+				try { gameState.ws.send(JSON.stringify({ type: 'leave' })); } catch {}
 			}
+			try { gameState?.ws?.close(); } catch {}
 			navigate('/remote');
 		}
 	});
@@ -162,33 +197,99 @@ function setupRoomEventListeners(root: HTMLElement) {
 	});
 
 	root.querySelector('#readyBtn')?.addEventListener('click', () => {
-		if (gameState?.ws && gameState.ws.readyState === WebSocket.OPEN) {
-			gameState.ws.send(JSON.stringify({ type: 'ready' }));
-
-			const btn = root.querySelector<HTMLButtonElement>('#readyBtn')!;
+		const btn = root.querySelector<HTMLButtonElement>('#readyBtn')!;
+		const ws = gameState?.ws || null;
+		console.log('🖱️ Ready clicked by', gameState?.playerId, 'ws state=', ws?.readyState);
+		if (!gameState?.connected) {
+			console.warn('⚠️ Not connected, cannot send ready');
+			return;
+		}
+		if (!gameState.serverIdReady) {
+			console.warn('⚠️ Server playerId not synced yet; delaying ready');
+			updateStatus(root, 'Syncing with server, please try again…', 'info');
+			setTimeout(() => refreshReadyButtonState(root), 100);
+			return;
+		}
+		try {
+			if (ws && ws.readyState === WebSocket.OPEN) {
+				ws.send(JSON.stringify({ type: 'ready' }));
+				console.log('📨 Sent ready message (immediate)');
+			} else {
+				// Fallback: slight delay, give ws a moment if reference swapped during init
+				const uname = (getAuth()?.name) || (getState().session.alias) || 'Anonymous';
+				setTimeout(() => {
+					const w2 = gameState?.ws;
+					if (w2 && w2.readyState === WebSocket.OPEN) {
+						w2.send(JSON.stringify({ type: 'ready' }));
+						console.log('📨 Sent ready message (delayed)');
+					} else {
+						console.warn('⚠️ WS still not open after delay, attempting HTTP fallback');
+						httpFallbackReady(root, uname).catch(err => console.error('❌ HTTP fallback failed:', err));
+					}
+				}, 50);
+			}
 			btn.disabled = true;
 			btn.textContent = '⏳ Waiting for opponent...';
 			btn.classList.add('bg-gray-400');
+		} catch (e) {
+			console.error('❌ Failed to send ready:', e);
 		}
 	});
+
+async function httpFallbackReady(root: HTMLElement, uname: string) {
+	try {
+		if (!gameState) return;
+		const { roomId, playerId, wsConnectedRoomId, playerNumber } = gameState as any;
+		const rid = wsConnectedRoomId || roomId;
+		console.log('🌐 HTTP fallback Ready', { rid, playerId, playerNumber, username: uname });
+		const res = await fetch(`/api/game/rooms/${encodeURIComponent(rid)}/players/${encodeURIComponent(playerId)}/ready`, {
+			method: 'POST',
+			credentials: 'include',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ username: uname, playerNumber })
+		});
+		if (!res.ok) {
+			console.warn('⚠️ HTTP fallback ready failed with status', res.status);
+			updateStatus(root, '⚠️ Ready fallback failed', 'error');
+			return;
+		}
+		console.log('✅ HTTP fallback ready succeeded');
+	} catch (err) {
+		console.error('❌ HTTP fallback error', err);
+		updateStatus(root, '❌ Ready fallback error', 'error');
+	}
+}
 
 	window.addEventListener('keydown', handleKeyDown);
 	window.addEventListener('keyup', handleKeyUp);
 }
 
 function connectToRoom(root: HTMLElement, roomId: string, playerId: string, username: string) {
+	// Prevent duplicate WebSocket connections if already connecting/connected
+	if (gameState?.ws && (gameState.ws.readyState === WebSocket.CONNECTING || gameState.ws.readyState === WebSocket.OPEN)) {
+		console.warn('⚠️ WebSocket already connecting/connected, skipping duplicate connect');
+		return;
+	}
+
 	const wsUrl = `${WS_BASE}/remote?roomId=${roomId}&playerId=${playerId}&username=${encodeURIComponent(username)}`;
+	if (gameState) gameState.wsConnectedRoomId = roomId;
+	console.log('🔗 WS connect params', { roomIdUsed: roomId, playerIdUsed: playerId });
+	// Debug identity keys to diagnose duplicate P2/self-detection issues
+	console.log('🪪 Identity', { localPlayerId: playerId, username });
 
 	console.log('🔌 Connecting:', wsUrl);
 	updateStatus(root, '🔄 Connecting...', 'info');
 
 	const ws = new WebSocket(wsUrl);
 	if (gameState) gameState.ws = ws;
+	isConnectingRemoteRoom = false;
 
 	ws.onopen = () => {
-		console.log('✅ Connected');
-		if (gameState) gameState.connected = true;
-		updateStatus(root, '✅ Connected to room!', 'success');
+	console.log('✅ Connected');
+	if (gameState) gameState.connected = true;
+	updateStatus(root, '✅ Connected to room!', 'success');
+	// attempt enabling Ready button after connection
+	refreshReadyButtonState(root);
 	};
 
 	ws.onmessage = async (event) => {
@@ -212,8 +313,17 @@ function connectToRoom(root: HTMLElement, roomId: string, playerId: string, user
 	};
 
 	ws.onclose = () => {
-		if (gameState) gameState.connected = false;
-		updateStatus(root, '⚠️ Disconnected', 'error');
+	if (gameState) gameState.connected = false;
+	updateStatus(root, '⚠️ Disconnected', 'error');
+	try {
+	const btn = root.querySelector<HTMLButtonElement>('#readyBtn');
+	if (btn) {
+	btn.disabled = true;
+	btn.textContent = '⏳ Waiting for opponent...';
+	btn.classList.add('bg-gray-300');
+	btn.classList.remove('bg-yellow-500');
+	}
+	} catch {}
 	};
 }
 
@@ -224,45 +334,70 @@ function handleServerMessage(root: HTMLElement, message: any) {
 
 	switch (message.type) {
 		case 'init':
+			// Prefer server authoritative identity if provided
+			if (message.playerId && gameState.playerId !== message.playerId) {
+				console.log('🪪 Updating local playerId from server', { old: gameState.playerId, new: message.playerId });
+				gameState.playerId = message.playerId;
+			}
+			gameState.serverIdReady = !!message.playerId;
 			gameState.playerNumber = message.playerNumber;
 			updateStatus(root, `You are Player ${message.playerNumber}`, 'success');
-			gameState.players = message.roomInfo.players || [];
+			{
+				// Adopt server-authoritative roomId if provided
+				if (message.roomInfo && typeof message.roomInfo.roomId === 'string' && message.roomInfo.roomId) {
+					gameState.wsConnectedRoomId = message.roomInfo.roomId;
+					console.log('🔁 Adopted server roomId', message.roomInfo.roomId);
+				}
+				const serverPlayers = Array.isArray(message.roomInfo?.players) ? message.roomInfo.players : [];
+				// Deduplicate by playerId and playerNumber to avoid double P2/P1 entries
+				const dedupMap = new Map<string, any>();
+				for (const p of serverPlayers) {
+					const key = `${p.playerNumber}:${p.playerId}`;
+					if (!dedupMap.has(key)) dedupMap.set(key, p);
+				}
+				let players = Array.from(dedupMap.values());
+				// Ensure self is present exactly once
+				const hasSelf = players.some((p: any) => p.playerId === gameState.playerId);
+				if (!hasSelf) {
+					players.push({
+						playerId: gameState.playerId,
+						playerNumber: message.playerNumber,
+						username: 'You',
+						ready: false,
+					});
+				}
+				gameState.players = players;
+			}
 			updatePlayersList(root);
+			// Re-evaluate ready state right after init processing
+			setTimeout(() => refreshReadyButtonState(root), 0);
 			break;
 
 		case 'playerJoined':
-			const idx = gameState.players.findIndex(p => p.playerId === message.playerId);
-			const newPlayer = {
-				playerId: message.playerId,
-				playerNumber: message.playerNumber,
-				username: message.playerInfo.username,
-				ready: false
-			};
-
-			if (idx >= 0) {
-				gameState.players[idx] = newPlayer;
-			} else {
-				gameState.players.push(newPlayer);
+			{
+				const idx = gameState.players.findIndex(p => p.playerId === message.playerId);
+				const newPlayer = {
+					playerId: message.playerId,
+					playerNumber: message.playerNumber,
+					username: message.playerInfo.username,
+					ready: false
+				};
+				if (idx >= 0) gameState.players[idx] = newPlayer; else gameState.players.push(newPlayer);
 			}
-
 			updatePlayersList(root);
 			updateStatus(root, `${message.playerInfo.username} joined!`, 'info');
-
-			if (message.totalPlayers === 2) {
-				const btn = root.querySelector<HTMLButtonElement>('#readyBtn')!;
-				btn.disabled = false;
-				btn.textContent = '✅ Ready!';
-				btn.classList.remove('bg-gray-300');
-				btn.classList.add('bg-yellow-500');
-			}
+			refreshReadyButtonState(root);
 			break;
 
 		case 'playerReady':
-			const player = gameState.players.find(p => p.playerId === message.playerId);
-			if (player) {
-				player.ready = true;
-				updatePlayersList(root);
+			{
+				const player = gameState.players.find(p => p.playerId === message.playerId);
+				if (player) {
+					player.ready = true;
+					updatePlayersList(root);
+				}
 			}
+			refreshReadyButtonState(root);
 			break;
 
 		case 'countdown':
@@ -300,7 +435,9 @@ function updatePlayersList(root: HTMLElement) {
 	if (!gameState) return;
 
 	const container = root.querySelector('#playersList')!;
-	container.innerHTML = gameState.players.map(p => `
+	// Sort by playerNumber for stable display
+	const players = [...gameState.players].sort((a, b) => a.playerNumber - b.playerNumber);
+	container.innerHTML = players.map(p => `
     <div class="flex items-center gap-3 p-3 rounded ${p.ready ? 'bg-green-100 border-2 border-green-400' : 'bg-gray-100'}">
       <div class="w-10 h-10 rounded-full ${p.playerNumber === 1 ? 'bg-blue-500' : 'bg-red-500'} 
                   flex items-center justify-center text-white font-bold">
@@ -319,6 +456,33 @@ function showCountdown(root: HTMLElement, count: number) {
 	const display = root.querySelector('#countdownDisplay')!;
 	display.textContent = count > 0 ? count.toString() : 'GO!';
 	if (count === 0) setTimeout(() => display.textContent = '', 1000);
+}
+
+function refreshReadyButtonState(root: HTMLElement) {
+	if (!gameState) return;
+	const btn = root.querySelector<HTMLButtonElement>('#readyBtn');
+	if (!btn) return;
+	// Opponent presence: exactly one P1 and one P2 assigned by role
+	const p1 = gameState.players.find(p => p.playerNumber === 1);
+	const p2 = gameState.players.find(p => p.playerNumber === 2);
+	const twoRolesAssigned = !!p1 && !!p2;
+	const wsOpen = isWsOpen();
+	// Identify self by server-authoritative playerId
+	const me = gameState.players.find(p => p.playerId === gameState.playerId) || null;
+	const meNotReady = me ? !me.ready : true; // if not in list yet, allow ready once connected
+	const enable = twoRolesAssigned && wsOpen && meNotReady && !gameState.gameStarted && !!gameState.serverIdReady;
+	btn.disabled = !enable;
+	btn.textContent = enable ? '✅ Ready!' : '⏳ Waiting for opponent...';
+	btn.classList.toggle('bg-yellow-500', enable);
+	btn.classList.toggle('bg-gray-300', !enable);
+	// Debug why disabled
+	console.log('🧪 Ready gating', {
+		wsOpen,
+		twoRolesAssigned,
+		me: me && { id: me.playerId, num: me.playerNumber, ready: me.ready },
+		enable,
+		players: gameState.players.map(p => ({ id: p.playerId, num: p.playerNumber, u: p.username, ready: p.ready }))
+	});
 }
 
 function startGameUI(root: HTMLElement, initialState: any) {

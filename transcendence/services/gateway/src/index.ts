@@ -22,6 +22,7 @@ import statsRoute from './routes/stats.route.js'
 import userRoute from './routes/user.route.js'
 import tournamentRoute from './routes/tournament.route.js'
 import gameRoute from './routes/game.route.js'
+import readyRoute from './routes/ready.route.js'
 // import cookiePlugin from './plugins/cookie.plugin.js';
 // import onRequestHook from './hooks/on-request.hook.js';
 import cookie from '@fastify/cookie';
@@ -159,6 +160,9 @@ try {
   Fastify.register(pongDemoRoute, { prefix: '/pong/demo' });
   logger.info('[[Gateway]] register /pong/game routes ');
   Fastify.register(pongGameRoute, { prefix: '/pong/game' });
+  // Register ready fallback first with a specific prefix to avoid conflicts
+  logger.info('[[Gateway]] register ready fallback route ');
+  Fastify.register(readyRoute, { prefix: '/api/game' })
   logger.info('[[Gateway]] register game routes ');
   Fastify.register(gameRoute)
   logger.info('[[Gateway]] register user routes ');
