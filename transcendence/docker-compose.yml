@@ -19,6 +19,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+      
   gateway:
     build: ./services/gateway
     #ports:
@@ -39,6 +40,7 @@ services:
       - database
     volumes:
       - shared-data:/app/shared/
+      - avatar-uploads:/uploads/avatars:ro
     networks:
       - transcendence-network
     healthcheck:
@@ -60,9 +62,10 @@ services:
       - LOG_SERVICE_URL=${LOG_SERVICE_URL:-http://log-service:3003}
     depends_on:
       - database
-    # volumes:
-    #   # - shared-data:/app/shared/database/
-    #   - shared-data:/app/shared/
+    volumes:
+      # - shared-data:/app/shared/database/
+      - shared-data:/app/shared/
+      - avatar-uploads:/app/avatars
     networks:
       - transcendence-network
     healthcheck:
@@ -306,6 +309,8 @@ services:
       - VITE_WS_BASE=${VITE_WS_BASE:-ws://localhost:3000}
     volumes:
       - ./frontend/src:/app/src:ro  # Hot reload for development
+      - avatar-uploads:/app/public/avatars  # Persistentes Volume
+      - ./frontend/public:/app/public 
     networks:
       - transcendence-network
     depends_on:
@@ -412,6 +417,7 @@ services:
 volumes:
   shared-data:
   elasticsearch-data:
+  avatar-uploads:  
 
 networks:
   transcendence-network:
