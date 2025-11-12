@@ -17,6 +17,9 @@ RUN npm install
 
 # Copy application code
 COPY . .
+RUN mkdir -p /app/avatars
+COPY avatars/default.jpg /app/avatars/default.jpg
+
 
 # Create data directory for SQLite
 RUN mkdir -p /app/data
