@@ -49,7 +49,7 @@ CREATE TABLE Users (
   
   -- Timestamps
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  last_login TIMESTAMP,
+  last_login TIMESTAMP
 
 );
 
