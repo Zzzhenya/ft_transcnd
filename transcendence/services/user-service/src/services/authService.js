@@ -29,7 +29,7 @@ class AuthService {
       const newUser = await User.create({
         username,
         email,
-        password: hashedPassword, // User.create will map this to password_hash
+        password: hashedPassword,
         display_name: displayName || username
       });
       
@@ -86,7 +86,8 @@ class AuthService {
           id: newUser.id,
           username: newUser.username,
           email: newUser.email,
-          display_name: newUser.display_name //|| newUser.username
+          display_name: newUser.display_name,
+          avatar_url: newUser.avatar_url || null  // NEU: Avatar-URL zurückgeben
         },
         token
       };
