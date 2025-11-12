@@ -2,7 +2,6 @@
 -- FT_TRANSCENDENCE - Your Exact DBML Schema
 -- ============================================
 
-<<<<<<< HEAD
 -- Drop existing tables (if any)
 DROP TABLE IF EXISTS Notifications;
 DROP TABLE IF EXISTS Game_Invitations;
@@ -35,7 +34,7 @@ CREATE TABLE Users (
   bio TEXT,
   
   -- Status
-  user_status VARCHAR(20) DEFAULT 'offline',
+  status VARCHAR(20) DEFAULT 'offline',
   current_match_id INTEGER,
   
   -- Online Status
@@ -49,43 +48,8 @@ CREATE TABLE Users (
   
   -- Timestamps
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  last_login TIMESTAMP
+  last_login TIMESTAMP,
 
-=======
--- ============ USERS ============
-CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    username VARCHAR(50) UNIQUE NOT NULL,
-    is_guest BOOLEAN DEFAULT 0,
-    email VARCHAR(100) UNIQUE NOT NULL,
-    password_hash VARCHAR(255),
-    
-    -- OAuth / 42 Integration
-    intra_id INTEGER UNIQUE,
-    oauth_provider VARCHAR(20),
-    email_verified BOOLEAN DEFAULT 0,
-    
-    -- Profile
-    display_name VARCHAR(100) UNIQUE,
-    avatar_url VARCHAR(255),
-    bio TEXT,
-    
-    -- Status
-    status VARCHAR(20) DEFAULT 'offline',
-    current_match_id INTEGER,
-    
-    -- Security
-    mfa_enabled BOOLEAN DEFAULT 0,
-    mfa_secret VARCHAR(255),
-    mfa_backup_codes TEXT,
-    
-    -- Timestamps
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    last_login TIMESTAMP,
-    
-    jwt VARCHAR(512),
-    tocken VARCHAR(512)
->>>>>>> 4919fefe (update db schma.sql)
 );
 
 CREATE INDEX idx_users_username ON Users(username);
