@@ -172,6 +172,7 @@ coverage/
 uploads/
 !avatars/default.jpg
 avatars/
+!avatars/default.jpg
 user-data/
 
 # Session data
