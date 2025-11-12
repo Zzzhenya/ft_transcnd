@@ -35,7 +35,7 @@ CREATE TABLE Users (
   bio TEXT,
   
   -- Status
-  status VARCHAR(20) DEFAULT 'offline',
+  user_status VARCHAR(20) DEFAULT 'offline',
   current_match_id INTEGER,
   
   -- Online Status
@@ -49,10 +49,8 @@ CREATE TABLE Users (
   
   -- Timestamps
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  last_login TIMESTAMP,
-  
-  -- JWT Token
-  jwt_token VARCHAR(500)
+  last_login TIMESTAMP
+
 );
 
 CREATE INDEX idx_users_username ON Users(username);

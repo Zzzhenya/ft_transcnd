@@ -98,7 +98,7 @@ class User {
     this.avatar = data.avatar;
     this.bio = data.bio;
     this.is_guest = data.is_guest;
-    this.status = data.status;
+    this.user_status = data.user_status;
     this.created_at = data.created_at;
   }
 
@@ -334,7 +334,7 @@ class User {
   static async getAllUsers(limit = 50, offset = 0) {
     try {
       const rows = await dbAll(
-        `SELECT id, username, email, display_name, avatar, bio, status, is_guest, created_at 
+        `SELECT id, username, email, display_name, avatar, bio, user_status, is_guest, created_at 
          FROM Users 
          ORDER BY created_at DESC 
          LIMIT ? OFFSET ?`,

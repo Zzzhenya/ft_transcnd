@@ -21,6 +21,7 @@ export default function (root: HTMLElement, ctx: { url: URL }) {
           <button id="logout" class="px-3 py-2 rounded bg-slate-700 text-white">Sign out</button>
         ` : `
           <!-- Guest Play Option -->
+          <!--
           <div class="space-y-3 pb-4 border-b border-gray-200">
             <h2 class="text-lg font-semibold text-green-700">🎮 Play as Guest</h2>
             <p class="text-sm text-gray-600">Jump right into the game without creating an account. Your progress won't be saved.</p>
@@ -41,6 +42,7 @@ export default function (root: HTMLElement, ctx: { url: URL }) {
           <div class="text-center py-2">
             <p class="text-gray-500 text-sm">or create an account to save your progress</p>
           </div>
+          -->
 
           <div class="space-y-4">
             <div>
@@ -62,14 +64,17 @@ export default function (root: HTMLElement, ctx: { url: URL }) {
                 <input id="register-password" type="password" class="border rounded px-3 py-2 w-full" placeholder="Password" required />
                 <button type="submit" class="px-3 py-2 rounded bg-green-600 text-white w-full">Register</button>
               </form>
+              <!--
               <p class="text-xs text-gray-500 mt-1">Your alias is how others will see you in the game</p>
-            </div>
+              -->
+              </div>
           </div>
         `}
       </div>
-
+      <!--
       <p class="mt-4"><a href="/" class="underline text-blue-600">← Lobby</a></p>
-    </section>
+      -->
+      </section>
   `;
 
   // Sign in form handler
