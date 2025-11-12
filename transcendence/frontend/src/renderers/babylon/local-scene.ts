@@ -40,6 +40,11 @@ export function createLocalScene(canvas: HTMLCanvasElement): LocalSceneControlle
 		new BABYLON.Vector3(0, -0.5, 0), // 2nd param: court's y-axis.
 		scene
 	);
+	// Expose scene and camera on the canvas for optional external adjustments (e.g., remote page)
+	try {
+		(canvas as any).__babylonScene = scene;
+		(canvas as any).__babylonCamera = camera;
+	} catch {}
 	camera.inputs.clear();
 	camera.panningSensibility = 0;
 	camera.minZ = 0.1;

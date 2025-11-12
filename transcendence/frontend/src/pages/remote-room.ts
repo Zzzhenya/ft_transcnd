@@ -4,6 +4,7 @@ import { navigate } from "@/app/router";
 import { getAuth } from "@/app/auth";
 import { getState } from "@/app/store";
 import { WS_BASE } from "@/app/config";
+import { createLocalScene } from "@/renderers/babylon/local-scene";
 
 interface RemoteGameState {
 	roomId: string;
@@ -28,6 +29,11 @@ function isWsOpen() {
 let canvas: HTMLCanvasElement;
 let ctx: CanvasRenderingContext2D;
 let keysPressed: Set<string> = new Set();
+// Babylon scene controller (from createLocalScene)
+let sceneController: { update: (state: any) => void; dispose: () => void } | null = null;
+// Keep last server-render state to drive a steady RAF render loop
+let lastRenderState: any | null = null;
+let rafId: number | null = null;
 
 // Global mount/connect guards to prevent duplicate WS connections on re-mounts
 let didMountRemoteRoom = false;
@@ -136,14 +142,17 @@ export default function (root: HTMLElement, ctx: { params?: { roomId?: string };
           </div>
         </div>
         
-        <canvas id="gameCanvas" width="800" height="600" 
-          class="border-4 border-gray-800 bg-black mx-auto shadow-2xl max-w-full"></canvas>
+        <div class="mx-auto" style="width: 1200px; max-width: 100%;">
+        <canvas id="gameCanvas" width="1200" height="800" class="bg-black block w-full h-auto"></canvas>
+        </div>
         
         <div class="bg-gray-100 p-4 rounded-lg text-center">
           <p class="text-sm">
-            <kbd class="px-2 py-1 bg-white border rounded">↑</kbd> 
-            <kbd class="px-2 py-1 bg-white border rounded">↓</kbd> to move
-            | You are <span id="yourRole" class="font-bold"></span>
+            <kbd class="px-2 py-1 bg-white border rounded">↑</kbd>
+            <kbd class="px-2 py-1 bg-white border rounded">↓</kbd> or
+            <kbd class="px-2 py-1 bg-white border rounded">W</kbd>
+            <kbd class="px-2 py-1 bg-white border rounded">S</kbd>
+            to move | You are <span id="yourRole" class="font-bold"></span>
           </p>
         </div>
       </div>
@@ -159,22 +168,26 @@ export default function (root: HTMLElement, ctx: { params?: { roomId?: string };
 	setupRoomEventListeners(root);
 
 	return () => {
-		try {
-			if (gameState?.ws) {
-				const s = gameState.ws;
-				(gameState as any).ws = null;
-				if (s.readyState === WebSocket.OPEN || s.readyState === WebSocket.CONNECTING) {
-					s.close();
-				}
-			}
-		} catch {}
-		window.removeEventListener('keydown', handleKeyDown);
-		window.removeEventListener('keyup', handleKeyUp);
-		gameState = null;
-		didMountRemoteRoom = false;
-		isConnectingRemoteRoom = false;
+	try {
+	if (gameState?.ws) {
+	const s = gameState.ws;
+	(gameState as any).ws = null;
+	if (s.readyState === WebSocket.OPEN || s.readyState === WebSocket.CONNECTING) {
+	s.close();
+	}
+	}
+	} catch {}
+	try { sceneController?.dispose(); } catch {}
+	sceneController = null;
+	if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+	lastRenderState = null;
+	window.removeEventListener('keydown', handleKeyDown);
+	window.removeEventListener('keyup', handleKeyUp);
+	gameState = null;
+	didMountRemoteRoom = false;
+	isConnectingRemoteRoom = false;
 	};
-}
+	}
 
 function setupRoomEventListeners(root: HTMLElement) {
 	root.querySelector('#leaveRoom')?.addEventListener('click', () => {
@@ -486,26 +499,90 @@ function refreshReadyButtonState(root: HTMLElement) {
 }
 
 function startGameUI(root: HTMLElement, initialState: any) {
-	if (!gameState) return;
+if (!gameState) return;
 
-	gameState.gameStarted = true;
-	root.querySelector('#waitingRoom')?.classList.add('hidden');
-	root.querySelector('#gameContainer')?.classList.remove('hidden');
+gameState.gameStarted = true;
+root.querySelector('#waitingRoom')?.classList.add('hidden');
+root.querySelector('#gameContainer')?.classList.remove('hidden');
+canvas = root.querySelector('#gameCanvas') as unknown as HTMLCanvasElement;
+// Force canvas sizing to ensure Babylon has a real render surface
+try {
+  // Use the explicit container sizing to guide Babylon canvas size
+  canvas.width = canvas.clientWidth || 1200;
+  canvas.height = canvas.clientHeight || 800;
+} catch {}
+// Initialize Babylon scene using same renderer as local game
+try {
+console.log('🎥 Initializing Babylon on canvas', { w: canvas.width, h: canvas.height });
+sceneController = createLocalScene(canvas) as any;
+// Remote-only: pull camera back a bit so the scene appears further
+try {
+  const cam = (canvas as any).__babylonCamera;
+  if (cam) {
+    cam.radius = 20;
+    cam.lowerRadiusLimit = 20;
+    cam.upperRadiusLimit = 20;
+    cam.fov = 0.52; // slightly wider view but a bit further
+  }
+} catch {}
+// Start a RAF loop to keep rendering smooth with last server state
+const tick = () => {
+  if (!sceneController) return;
+  if (lastRenderState) {
+    try { sceneController.update(lastRenderState); } catch {}
+  }
+  rafId = requestAnimationFrame(tick);
+};
+rafId = requestAnimationFrame(tick);
+} catch (e) {
+console.error('Failed to create Babylon scene, falling back to 2D', e);
+ctx = canvas.getContext('2d')!;
+}
 
-	canvas = root.querySelector('#gameCanvas') as unknown as HTMLCanvasElement;
-	ctx = canvas.getContext('2d')!;
-
-	root.querySelector('#yourRole')!.textContent = `Player ${gameState.playerNumber}`;
-	gameState.score = initialState.score;
-	updateScoreDisplay(root);
-	updateStatus(root, '🎮 Game started!', 'success');
+const roleEl = root.querySelector('#yourRole');
+if (roleEl) roleEl.textContent = `Player ${gameState.playerNumber}`;
+gameState.score = initialState.score || { player1: 0, player2: 0 };
+updateScoreDisplay(root);
+updateStatus(root, '🎮 Game started!', 'success');
 }
 
 function updateGameState(root: HTMLElement, state: any) {
-	if (!gameState) return;
-	gameState.score = state.score;
-	updateScoreDisplay(root);
-	drawGame(state);
+if (!gameState) return;
+gameState.score = state.score;
+updateScoreDisplay(root);
+
+// Map server state to Babylon GameRenderState and update scene
+if (sceneController && typeof sceneController.update === 'function') {
+try {
+const renderState = {
+  ball: {
+    x: state.ball?.x ?? 0,
+    y: state.ball?.y ?? 0,
+  },
+  paddles: {
+    player1: state.paddles?.player1 ?? 0,
+    player2: state.paddles?.player2 ?? 0,
+  },
+  score: {
+    player1: state.score?.player1 ?? 0,
+    player2: state.score?.player2 ?? 0,
+  },
+  match: {
+    roundsWon: { player1: 0, player2: 0 },
+    winner: null,
+    currentRound: 1,
+  },
+  gameStatus: 'playing',
+};
+lastRenderState = renderState;
+try { sceneController.update(renderState as any); } catch {}
+return;
+} catch (e) {
+console.warn('Babylon update failed, using 2D fallback', e);
+}
+}
+// 2D fallback if Babylon scene unavailable
+drawGame(state);
 }
 
 function drawGame(state: any) {
@@ -546,29 +623,41 @@ function drawGame(state: any) {
 }
 
 function handleKeyDown(e: KeyboardEvent) {
-	if (!gameState?.gameStarted || !gameState?.ws || gameState.ws.readyState !== WebSocket.OPEN) return;
+  if (!gameState?.ws || gameState.ws.readyState !== WebSocket.OPEN) return;
+  // Guard: only assigned players can send input (allow pre-start for testing responsiveness)
+  if (gameState.playerNumber !== 1 && gameState.playerNumber !== 2) return;
 
-	if (e.key === 'ArrowUp' && !keysPressed.has('ArrowUp')) {
-		keysPressed.add('ArrowUp');
-		gameState.ws.send(JSON.stringify({ type: 'paddleMove', direction: 'up' }));
-		e.preventDefault();
-	} else if (e.key === 'ArrowDown' && !keysPressed.has('ArrowDown')) {
-		keysPressed.add('ArrowDown');
-		gameState.ws.send(JSON.stringify({ type: 'paddleMove', direction: 'down' }));
-		e.preventDefault();
-	}
+  const isUp = e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W';
+  const isDown = e.key === 'ArrowDown' || e.key === 's' || e.key === 'S';
+
+  if (isUp && !keysPressed.has('up')) {
+    keysPressed.add('up');
+    gameState.ws.send(JSON.stringify({ type: 'paddleMove', direction: 'up' }));
+    e.preventDefault();
+    e.stopPropagation();
+  } else if (isDown && !keysPressed.has('down')) {
+    keysPressed.add('down');
+    gameState.ws.send(JSON.stringify({ type: 'paddleMove', direction: 'down' }));
+    e.preventDefault();
+    e.stopPropagation();
+  }
 }
 
 function handleKeyUp(e: KeyboardEvent) {
-	if (!gameState?.gameStarted || !gameState?.ws) return;
+  if (!gameState?.ws) return;
+  // Guard: only assigned players can send input
+  if (gameState.playerNumber !== 1 && gameState.playerNumber !== 2) return;
 
-	if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
-		keysPressed.delete(e.key);
-		if (gameState.ws.readyState === WebSocket.OPEN) {
-			gameState.ws.send(JSON.stringify({ type: 'paddleMove', direction: 'stop' }));
-		}
-		e.preventDefault();
-	}
+  const isHandled = e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'w' || e.key === 'W' || e.key === 's' || e.key === 'S';
+  if (isHandled) {
+    keysPressed.delete('up');
+    keysPressed.delete('down');
+    if (gameState.ws.readyState === WebSocket.OPEN) {
+      gameState.ws.send(JSON.stringify({ type: 'paddleMove', direction: 'stop' }));
+    }
+    e.preventDefault();
+    e.stopPropagation();
+  }
 }
 
 function updateScoreDisplay(root: HTMLElement) {
@@ -589,13 +678,10 @@ function endGame(root: HTMLElement, data: any) {
 		isYouWinner ? 'success' : 'info'
 	);
 
+	// Auto-return to remote page after short delay
 	setTimeout(() => {
-		if (confirm('Play again?')) {
-			window.location.reload();
-		} else {
-			navigate('/remote');
-		}
-	}, 3000);
+		navigate('/remote');
+	}, 1500);
 }
 
 function updateStatus(root: HTMLElement, message: string, type: 'info' | 'success' | 'error') {
