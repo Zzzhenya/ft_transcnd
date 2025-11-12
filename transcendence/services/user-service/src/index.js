@@ -407,7 +407,8 @@ fastify.get('/auth/profile', {
       is_guest: userData.is_guest,
       bio: userData.bio,
       avatar: userData.avatar,
-      status: userData.status
+      user_status: userData.user_status,
+      display_name: userData.display_name,
     };
     
     return reply.send(userWithoutSensitive);
@@ -1154,5 +1155,440 @@ process.on('SIGTERM', async () => {
   await fastify.close();
   process.exit(0);
 });
+
+// addet for changeing User Profil RK
+
+// Update user email endpoint (protected)
+fastify.put('/users/:userId/update-email', {
+  preHandler: fastify.authenticate
+}, async (request, reply) => {
+  try {
+    const { userId } = request.params;
+    const { newEmail, password } = request.body;
+    
+    // Verify the user is updating their own email
+    if (parseInt(userId) !== request.user.userId) {
+      return reply.code(403).send({ error: 'Unauthorized to update this email' });
+    }
+    
+    logger.info(`Email update requested for user ${userId}`);
+    
+    // Validate inputs
+    if (!newEmail || !password) {
+      return reply.code(400).send({ 
+        error: 'New email and password are required' 
+      });
+    }
+    
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(newEmail)) {
+      return reply.code(400).send({ 
+        error: 'Invalid email format' 
+      });
+    }
+    
+    // Get current user data to verify password
+    const user = await User.findById(userId);
+    if (!user) {
+      return reply.code(404).send({ error: 'User not found' });
+    }
+    
+    // Verify password
+    const passwordMatch = await bcrypt.compare(password, user.password);
+    if (!passwordMatch) {
+      return reply.code(401).send({ 
+        error: 'Incorrect password' 
+      });
+    }
+    
+    // Check if email is already taken
+    const existingEmail = await User.findByEmail(newEmail);
+    if (existingEmail && existingEmail.id !== userId) {
+      return reply.code(409).send({ 
+        error: 'Email already in use by another account' 
+      });
+    }
+    
+    // Update email in database
+    const response = await fetch('http://database-service:3006/internal/write', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        table: 'Users',
+        id: parseInt(userId),
+        column: 'email',
+        value: newEmail
+      })
+    });
+    
+    if (!response.ok) {
+      logger.error('Database update failed:', response.status);
+      return reply.code(500).send({ error: 'Failed to update email' });
+    }
+    
+    logger.info(`Email successfully updated for user ${userId}`);
+    
+    return { 
+      success: true, 
+      message: 'Email updated successfully',
+      email: newEmail
+    };
+    
+  } catch (error) {
+    logger.error('Error updating email:', error);
+    return reply.code(500).send({ error: 'Internal server error' });
+  }
+});
+
+// Update user display name 
+fastify.put('/users/:userId/display-name', {
+  preHandler: fastify.authenticate
+}, async (request, reply) => {
+  try {
+    const { userId } = request.params;
+    const { displayName } = request.body;
+    
+    // Verify the user is updating their own profile
+    if (parseInt(userId) !== request.user.userId) {
+      return reply.code(403).send({ error: 'Unauthorized to update this profile' });
+    }
+
+    if (!displayName || displayName.trim().length === 0) {
+      return reply.code(400).send({ error: 'Display name cannot be empty' });
+    }
+
+    if (displayName.length > 50) {
+      return reply.code(400).send({ error: 'Display name too long (max 50 characters)' });
+    }
+
+    logger.info(`Updating display name for user ${userId} to ${displayName}`);
+
+    // Update display_name in database
+    const response = await fetch('http://database-service:3006/internal/write', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        table: 'Users',
+        id: parseInt(userId),
+        column: 'display_name',
+        value: displayName.trim()
+      })
+    });
+
+    if (!response.ok) {
+      logger.error('Database update failed:', response.status);
+      return reply.code(500).send({ error: 'Failed to update display name' });
+    }
+
+    logger.info(`Display name updated successfully for user ${userId}`);
+    return { 
+      success: true, 
+      message: 'Display name updated successfully',
+      displayName: displayName.trim()
+    };
+
+  } catch (error) {
+    logger.error('Error updating display name:', error);
+    return reply.code(500).send({ error: 'Internal server error' });
+  }
+});
+
+// Update username 
+fastify.put('/users/:userId/username', {
+  preHandler: fastify.authenticate
+}, async (request, reply) => {
+  try {
+    const { userId } = request.params;
+    const { username } = request.body;
+    
+    // Verify the user is updating their own profile
+    if (parseInt(userId) !== request.user.userId) {
+      return reply.code(403).send({ error: 'Unauthorized to update this profile' });
+    }
+
+    if (!username || username.trim().length === 0) {
+      return reply.code(400).send({ error: 'Username cannot be empty' });
+    }
+
+    if (username.length < 3 || username.length > 20) {
+      return reply.code(400).send({ error: 'Username must be between 3 and 20 characters' });
+    }
+
+    // Check if username contains only valid characters (alphanumeric and underscore)
+    if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+      return reply.code(400).send({ error: 'Username can only contain letters, numbers, and underscores' });
+    }
+
+    logger.info(`Updating username for user ${userId} to ${username}`);
+
+    // Check if username already exists
+    const existingUser = await User.findByUsername(username);
+    if (existingUser && existingUser.id !== parseInt(userId)) {
+      return reply.code(409).send({ 
+        error: 'Username already taken',
+        message: 'This username is already in use' 
+      });
+    }
+
+    // Update username in database
+    const response = await fetch('http://database-service:3006/internal/write', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        table: 'Users',
+        id: parseInt(userId),
+        column: 'username',
+        value: username.trim()
+      })
+    });
+
+    if (!response.ok) {
+      logger.error('Database update failed:', response.status);
+      return reply.code(500).send({ error: 'Failed to update username' });
+    }
+
+    logger.info(`Username updated successfully for user ${userId}`);
+    return { 
+      success: true, 
+      message: 'Username updated successfully',
+      username: username.trim()
+    };
+
+  } catch (error) {
+    logger.error('Error updating username:', error);
+    return reply.code(500).send({ error: 'Internal server error' });
+  }
+});
+
+
+// Avatar Upload Endpoint
+fastify.post('/users/:userId/avatar', {
+  preHandler: fastify.authenticate
+}, async (request, reply) => {
+  try {
+    const { userId } = request.params;
+    const { imageData } = request.body;
+    
+    // Verify the user is updating their own avatar
+    if (parseInt(userId) !== request.user.userId) {
+      return reply.code(403).send({ error: 'Unauthorized to update this profile' });
+    }
+    
+    if (!imageData) {
+      return reply.code(400).send({ error: 'No image data provided' });
+    }
+    
+    // Extract base64 data
+    const matches = imageData.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+    if (!matches || matches.length !== 3) {
+      return reply.code(400).send({ error: 'Invalid image format' });
+    }
+    
+    const imageBuffer = Buffer.from(matches[2], 'base64');
+    
+    // Create avatars directory if it doesn't exist
+    const avatarsDir = '/app/avatars';
+    await fs.mkdir(avatarsDir, { recursive: true });
+    
+    // Save image
+    const fileName = `${userId}.jpg`;
+    const filePath = path.join(avatarsDir, fileName);
+    await fs.writeFile(filePath, imageBuffer);
+    
+    // Avatar URL that frontend can use
+    const avatarUrl = `/avatars/${fileName}`;
+    
+    logger.info(`Avatar uploaded for user ${userId}: ${avatarUrl}`);
+    
+    // Update database
+    const response = await fetch('http://database-service:3006/internal/write', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        table: 'Users',
+        id: parseInt(userId),
+        column: 'avatar',
+        value: avatarUrl
+      })
+    });
+    
+    if (!response.ok) {
+      logger.error('Database update failed:', response.status);
+      return reply.code(500).send({ error: 'Failed to update avatar in database' });
+    }
+    
+    logger.info(`Avatar successfully updated for user ${userId}`);
+    
+    return { 
+      success: true, 
+      message: 'Avatar updated successfully',
+      avatarUrl: avatarUrl
+    };
+    
+  } catch (error) {
+    logger.error('Error updating avatar:', error);
+    return reply.code(500).send({ error: 'Internal server error' });
+  }
+});
+
+// WICHTIG: Avatar GET Endpoint - DAS FEHLT!
+fastify.get('/avatars/:filename', async (request, reply) => {
+  try {
+    const { filename } = request.params;
+    const filePath = path.join('/app/avatars', filename);
+    
+    logger.info(`Serving avatar: ${filePath}`);
+    
+    // Check if file exists
+    try {
+      await fs.access(filePath);
+      const data = await fs.readFile(filePath);
+      reply.type('image/jpeg').send(data);
+    } catch (err) {
+      logger.warn(`Avatar not found: ${filePath}`);
+      // Send a default avatar or 404
+      reply.code(404).send({ error: 'Avatar not found' });
+    }
+  } catch (error) {
+    logger.error('Error serving avatar:', error);
+    reply.code(500).send({ error: 'Internal server error' });
+  }
+});
+
+// Delete account endpoint
+fastify.delete('/auth/account', {
+  preHandler: fastify.authenticate
+}, async (request, reply) => {
+  try {
+    const userId = request.user.userId;
+    logger.info('Delete account request for user:', userId);
+
+    const user = await User.findById(userId);
+    
+    if (!user) {
+      return reply.code(404).send({ 
+        success: false,
+        message: 'User not found' 
+      });
+    }
+
+    if (user.user_status === 'deleted') {
+      return reply.code(400).send({ 
+        success: false,
+        message: 'Account is already deleted' 
+      });
+    }
+
+    // Neue Werte vorbereiten
+    let newUsername = user.username;
+    const timestamp = Date.now();
+    if (!newUsername.startsWith('deleted_')) {
+      newUsername = `deleted_${timestamp}_${user.username}`;
+    }
+
+    
+    const newEmail = `deleted_${timestamp}_${userId}@deleted.local`;
+
+    logger.info(`Soft deleting user ${userId}: ${user.username} -> ${newUsername}, ${user.email} -> ${newEmail}`);
+
+    // 1. Update Status
+    const statusRes = await fetch('http://database-service:3006/internal/write', {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'x-service-auth': 'super_secret_internal_token'
+      },
+      body: JSON.stringify({
+        table: 'Users',
+        id: userId,
+        column: 'user_status',
+        value: 'deleted'
+      })
+    });
+
+    if (!statusRes.ok) {
+      const errorText = await statusRes.text();
+      logger.error('Failed to update status:', statusRes.status, errorText);
+      return reply.code(500).send({ 
+        success: false,
+        error: 'Failed to update account status'
+      });
+    }
+
+    // 2. Update Username
+    const usernameRes = await fetch('http://database-service:3006/internal/write', {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'x-service-auth': 'super_secret_internal_token'
+      },
+      body: JSON.stringify({
+        table: 'Users',
+        id: userId,
+        column: 'username',
+        value: newUsername
+      })
+    });
+
+    if (!usernameRes.ok) {
+      const errorText = await usernameRes.text();
+      logger.error('Failed to update username:', usernameRes.status, errorText);
+      return reply.code(500).send({ 
+        success: false,
+        error: 'Failed to update username'
+      });
+    }
+
+    // 3. NEU: Update Email
+    const emailRes = await fetch('http://database-service:3006/internal/write', {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'x-service-auth': 'super_secret_internal_token'
+      },
+      body: JSON.stringify({
+        table: 'Users',
+        id: userId,
+        column: 'email',
+        value: newEmail
+      })
+    });
+
+    if (!emailRes.ok) {
+      const errorText = await emailRes.text();
+      logger.error('Failed to update email:', emailRes.status, errorText);
+      return reply.code(500).send({ 
+        success: false,
+        error: 'Failed to update email'
+      });
+    }
+
+    logger.info(`Account successfully deleted: ${userId}`);
+
+    return reply.code(200).send({
+      success: true,
+      message: 'Account successfully deleted',
+      data: {
+        oldUsername: user.username,
+        newUsername: newUsername,
+        oldEmail: user.email,
+        newEmail: newEmail,
+        user_status: 'deleted'
+      }
+    });
+
+  } catch (error) {
+    logger.error('Error deleting account:', error);
+    return reply.code(500).send({ 
+      success: false,
+      message: 'Internal server error', 
+      error: error.message 
+    });
+  }
+});
+
+
+
 
 start();
