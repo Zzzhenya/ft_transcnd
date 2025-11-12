@@ -1,5 +1,6 @@
 // frontend/src/app/auth.ts
 import { api } from "./api";
+import { reportOnlineOnce, reportOffline } from "@/utils/efficient-online-status";
 const STORAGE_KEY = "ft_transcendence_version1";
 
 export type AuthUser = {
@@ -101,7 +102,9 @@ export async function signIn(
 	s.auth.token = data.token;
 	write(s);
 	dispatchEvent(new CustomEvent("auth:changed"));
-
+	// Mark user online once on successful login (no multi-tab interference)
+	await reportOnlineOnce();
+	
 	return { success: true };
   } catch (error) {
 	console.error("Sign in error:", error);
@@ -114,9 +117,8 @@ export async function signIn(
 
 // Sign out
 export async function signOut() {
-  // First cleanup online status before removing auth data
-  const { onlineManager } = await import('../utils/efficient-online-status.js');
-  await onlineManager.destroy();
+  // Report offline first (centralized here so all callers inherit it)
+  try { await reportOffline(); } catch {}
   
   const s = read();
   if (!s.auth) s.auth = { user: null, token: null };
@@ -156,9 +158,11 @@ export async function guestLogin(alias?: string): Promise<{ success: boolean; er
 		s.auth.token = data.token;
 		write(s);
 		dispatchEvent(new CustomEvent("auth:changed"));
+		// Mark user online once on successful guest login
+		await reportOnlineOnce();
 		return { success: true };
-	} 
-	catch (error) {
+		} 
+		catch (error) {
 		console.error('❌ Guest login error:', error);
 		return {
 			success: false,
@@ -198,7 +202,7 @@ export async function getProfile(): Promise<{
   }
 }
 
-// Online status management
+// Online status management (legacy). Presence is now handled explicitly via reportOnlineOnce/reportOffline
 export async function setOnlineStatus(isOnline: boolean): Promise<{ success: boolean; error?: string }> {
   try {
     const user = getAuth();
@@ -245,48 +249,6 @@ export async function setUserOffline(): Promise<void> {
 
 // Auto-manage online status
 export function initOnlineStatusManager(): () => void {
-  const user = getAuth();
-  if (!user) return () => {};
-
-  // Set online immediately
-  setUserOnline();
-
-  // Set offline on page unload
-  const handleUnload = () => {
-    setUserOffline();
-  };
-
-  // Handle visibility change (tab switching)
-  const handleVisibilityChange = () => {
-    if (document.hidden) {
-      // User switched tabs or minimized window
-      setTimeout(() => {
-        if (document.hidden) {
-          setUserOffline();
-        }
-      }, 30000); // Wait 30 seconds before setting offline
-    } else {
-      // User came back to the tab
-      setUserOnline();
-    }
-  };
-
-  // Add event listeners
-  window.addEventListener('beforeunload', handleUnload);
-  document.addEventListener('visibilitychange', handleVisibilityChange);
-
-  // Heartbeat to keep user online (every 5 minutes)
-  const heartbeat = setInterval(() => {
-    if (!document.hidden) {
-      setUserOnline();
-    }
-  }, 5 * 60 * 1000); // 5 minutes
-
-  // Return cleanup function
-  return () => {
-    window.removeEventListener('beforeunload', handleUnload);
-    document.removeEventListener('visibilitychange', handleVisibilityChange);
-    clearInterval(heartbeat);
-    setUserOffline();
-  };
+// Disabled to avoid multi-tab interference during testing; presence handled in signIn/signOut
+return () => {};
 }

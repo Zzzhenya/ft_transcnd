@@ -160,9 +160,9 @@ try {
   Fastify.register(pongDemoRoute, { prefix: '/pong/demo' });
   logger.info('[[Gateway]] register /pong/game routes ');
   Fastify.register(pongGameRoute, { prefix: '/pong/game' });
-  // Register ready fallback first with a specific prefix to avoid conflicts
+  // Register Ready proxy so it matches /game/rooms/:roomId/players/:playerId/ready
   logger.info('[[Gateway]] register ready fallback route ');
-  Fastify.register(readyRoute, { prefix: '/api/game' })
+  Fastify.register(readyRoute, { prefix: '/game' })
   logger.info('[[Gateway]] register game routes ');
   Fastify.register(gameRoute)
   logger.info('[[Gateway]] register user routes ');

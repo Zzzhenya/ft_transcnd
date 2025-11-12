@@ -1,6 +1,7 @@
 // frontend/src/pages/profile.ts
 import { getAuth, signOut, getToken } from "@/app/auth";
 import { navigate } from "@/app/router";
+const GATEWAY_BASE = import.meta.env.VITE_GATEWAY_BASE || '/api';
 
 export default function (root: HTMLElement, ctx?: { url?: URL }) {
   const user = getAuth();

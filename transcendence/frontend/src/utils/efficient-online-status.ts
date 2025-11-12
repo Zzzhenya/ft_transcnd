@@ -37,15 +37,10 @@ class EfficientOnlineManager {
 
   init() {
     console.log('🎯 Initializing efficient online status manager');
-    
-    // IMPORTANT: Set user online immediately when initializing
-    this.setUserOnline(true);
+    // Presence reporting disabled here to avoid multi-tab interference during tests
     this.isUserActive = true;
     this.lastActivity = Date.now();
-    
-    this.setupActivityDetection();
-    this.setupWindowEvents();
-    this.startActivityMonitoring();
+    // Do not auto-wire activity/window/monitoring for presence during remote-player testing
   }
 
   private setupActivityDetection() {
@@ -67,58 +62,15 @@ class EfficientOnlineManager {
   }
 
   private setupWindowEvents() {
-    // Tab focus/blur
-    window.addEventListener('focus', () => {
-      console.log('🔍 Tab focused');
-      this.setUserOnline(true);
-      this.invalidateFriendsCache();
-    });
-
-    // TEMPORARILY DISABLED FOR TESTING - Single computer can't test with multiple tabs
-    // TODO: Re-enable this once multi-user testing is possible
-    // window.addEventListener('blur', () => {
-    //   console.log('😴 Tab blurred');
-    //   this.setUserOnline(false);
-    // });
-
-    // Page unload - keep this active for proper cleanup
-    window.addEventListener('beforeunload', () => {
-      console.log('👋 Page unloading');
-      this.setUserOnline(false);
-    });
+    // Presence events disabled to avoid multi-tab interference during testing
   }
 
   private startActivityMonitoring() {
-    // Check for inactivity every 2 minutes (not every 3 seconds!)
-    this.activityCheckInterval = window.setInterval(() => {
-      const timeSinceActivity = Date.now() - this.lastActivity;
-      
-      if (timeSinceActivity > EfficientOnlineManager.ACTIVITY_CHECK && this.isUserActive) {
-        console.log('😴 User inactive for 2+ minutes, setting offline');
-        this.setUserOnline(false);
-        this.isUserActive = false;
-      }
-    }, EfficientOnlineManager.ACTIVITY_CHECK);
+    // Disabled during testing to prevent automatic offline toggles
   }
 
-  private async setUserOnline(isOnline: boolean) {
-    const user = getAuth();
-    const token = getToken();
-    
-    if (!user || !token) return;
-
-    try {
-      await fetch(`/api/user-service/users/${user.id}/status`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ is_online: isOnline ? 1 : 0 })
-      });
-    } catch (error) {
-      console.error('❌ Failed to update online status:', error);
-    }
+  private async setUserOnline(_isOnline: boolean) {
+    // Disabled during testing; use explicit helpers reportOnlineOnce/reportOffline instead
   }
 
   // SMART FRIENDS STATUS WITH CACHING
@@ -212,3 +164,49 @@ class EfficientOnlineManager {
 }
 
 export const onlineManager = EfficientOnlineManager.getInstance();
+
+// Explicit presence helpers for login/logout flows (non-intrusive for multi-tab testing)
+let didReportOnline = false;
+const GATEWAY_BASE: string = (import.meta as any).env?.VITE_GATEWAY_BASE || '/api';
+
+export async function reportOnlineOnce(): Promise<void> {
+  try {
+    if (didReportOnline) return;
+    const user = getAuth();
+    const token = getToken();
+    if (!user || !token) return;
+
+    // Use legacy endpoint the backend expects
+    await fetch(`${GATEWAY_BASE}/user-service/users/${user.id}/status`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ is_online: 1 })
+    });
+    didReportOnline = true;
+  } catch {
+    // ignore during testing
+  }
+}
+
+export async function reportOffline(): Promise<void> {
+  try {
+    const user = getAuth();
+    const token = getToken();
+    if (!user || !token) return;
+
+    // Use legacy endpoint the backend expects
+    await fetch(`${GATEWAY_BASE}/user-service/users/${user.id}/status`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ is_online: 0 })
+    });
+  } catch {
+    // ignore during testing
+  }
+}
