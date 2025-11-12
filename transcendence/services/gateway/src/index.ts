@@ -70,7 +70,7 @@ Fastify.addHook('onRequest', async (request, reply) => {
       request.headers['x-token'] = token;
     } else {
       logger.info(`No JWT token`)
-      logger.info(`Setting the token as x-token = null`)
+      logger.info(`Setting the token as x-token = empty`)
      request.headers['x-token'] = '';
     }
 
@@ -116,6 +116,14 @@ Fastify.addHook('onRequest', async (request, reply) => {
   }
   catch (error: any){
     logger.error(`[[Gateway]] An error occured while extracting or setting sessionId/token: ${error.message}`, error);
+    if (!request.headers['x-token'] ||  request.headers['x-token'] === ''){
+      logger.info(`Setting the token as x-token = empty`)
+      request.headers['x-token'] !== '';
+    }
+    if (!request.headers['x-session-id'] ||  request.headers['x-session-id'] === ''){
+      logger.info(`Setting the token as x-session-id = empty`)
+      request.headers['x-session-id'] !== '';
+    }
   }
 });
 
