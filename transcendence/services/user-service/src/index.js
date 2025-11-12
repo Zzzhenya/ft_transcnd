@@ -369,10 +369,34 @@ fastify.post('/auth/verify', async (request, reply) => {
   }
 });
 
+function logCookies(request) {
+  // Parsed cookies via fastify-cookie
+  const cookies = request.cookies || {};
+
+  if (!cookies || Object.keys(cookies).length === 0) {
+    console.log('No cookies received in this request.');
+  } else {
+    console.log('Parsed cookies:', cookies);
+  }
+
+  // Optional: log raw Cookie header
+  const rawCookieHeader = request.headers['cookie'];
+  console.log('Raw Cookie header:', rawCookieHeader || 'None');
+
+  return cookies;
+}
+
+
+
 // Guest login endpoint
 fastify.post('/auth/guest', async (request, reply) => {
   try {
     const { alias } = request.body || {};
+
+    console.log(request.body)
+
+    const kekse = logCookies(request);
+    console.log(`User: ${request.user}`)
 
     fastify.log.info("Alias: "); fastify.log.info(alias);
 
@@ -380,13 +404,14 @@ fastify.post('/auth/guest', async (request, reply) => {
     let oldUser = null;
     if (myUuid){
       oldUser = await User.findByUuid(myUuid);
+      console.log(`🔍 /auth/guest old user: ${oldUser}`);
     }
 
 
     console.log(`request headers: `)
     logHeaders(request.headers);
 
-    const sessionId = request.headers['x-session-id'];
+    const sessionId = request.headers['x-session-id'] || null;
     console.log(`SessionId = uuid = ::: ${request.headers['x-session-id']}`)
     
     logger.info('Guest login attempt:', { alias });
@@ -444,9 +469,10 @@ fastify.post('/auth/guest', async (request, reply) => {
         password: password_hash, // Using password field as in current schema
         display_name: username,
         is_guest: true,
-        sessionId
+        sessionId: myUuid
       });
     } else {
+      console.log('🔍 Maybe we update the user??!');
       guestUser = oldUser;
     }
 
@@ -476,7 +502,8 @@ fastify.post('/auth/guest', async (request, reply) => {
         email: guestUser.email,
         is_guest: true
       },
-      token
+      token,
+      sessionId: myUuid
     });
     // reply.setCookie('token', token, {
     //   httpOnly: true,

@@ -102,6 +102,7 @@ class User {
     this.created_at = data.created_at;
   }
 
+
   // ============ CREATE ============
   static async create(userData) {
     try {
@@ -177,6 +178,8 @@ class User {
     //   console.error('❌ Error finding user by id:', error);
     //   throw error;
     // }
+
+
     try {
       const res = await fetch(`${DATABASE_SERVICE_URL}/internal/query`, {
         method: 'POST',
@@ -225,9 +228,17 @@ class User {
 
   */
 
+
+            // username: userData.username,
+            // email: userData.email,
+            // password_hash: userData.password_hash || userData.password,
+            // is_guest: userData.is_guest ? 1 : 0,
+            // uuid: userData.sessionId
+
   // ============ FIND BY ID ============
   static async findByUuid(uuid) {
     try {
+      console.log('🔍 Finding user by uuid:', uuid);
       const res = await fetch(`${DATABASE_SERVICE_URL}/internal/query`, {
         method: 'POST',
         headers: {
@@ -236,18 +247,30 @@ class User {
         },
         body: JSON.stringify({
           table: 'Users',
-          columns: ['id', 'username', 'email', 'password_hash', 'created_at', 'is_guest', 'uuid'],
+          columns: ['username', 'email', 'password_hash', 'is_guest', 'uuid', 'id'],
           filters: { uuid },
           limit: 1
         })
       });
+      console.log('🔍 detch completed');
       if (!res.ok) {
+        console.log('🔍 Res Not OK!');
         throw new Error(`Database service responded with status ${res.status}`);
       }
+      console.log('🔍 Res OK!');
       const data = await res.json();
+      console.log('0001')
+      console.log(data)
+      console.log(data.data)
+      console.log('001.1: stringyfy')
+      console.log( JSON.stringify(data))
+      console.log('0002')
+      console.log(data.data && data.data.length > 0 ? new User(data.data[0]) : null)
+      console.log('0003')
       // data.data is assumed to be an array of rows
       console.log( data.data && data.data.length > 0 ? data.data[0] : null)
-      return data.data && data.data.length > 0 ? new User(data.data[0]) : null;
+
+      // return data.data && data.data.length > 0 ? new User(data.data[0]) : null;
     } catch (error) {
       console.error('❌ Error finding user by id:', error);
       throw error;
