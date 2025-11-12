@@ -36,6 +36,89 @@ const Fastify = fastify({logger:true});
 const PORT = parseInt(process.env.GATEWAY_PORT || '3000')
 
 
+function logCookies(request: FastifyRequest): Record<string, string> {
+  // Parsed cookies via fastify-cookie
+  const cookies = request.cookies as Record<string, string> | undefined;
+
+  if (!cookies || Object.keys(cookies).length === 0) {
+    console.log('No cookies received in this request.');
+  } else {
+    console.log('Parsed cookies:', cookies);
+  }
+
+  // Optional: log raw Cookie header
+  const rawCookieHeader = request.headers['cookie'];
+  console.log('Raw Cookie header:', rawCookieHeader || 'None');
+
+  return cookies || {};
+}
+
+Fastify.addHook('onRequest', async (request, reply) => {
+  
+  try {
+
+    logger.info(`onRequest handler hook`)
+    const cookies = logCookies(request)
+    // check whether JWT token exists
+
+    logger.info(`Checking for jwt token cookie`)
+
+    const token = cookies?.token ?? null;
+    if (token){
+      logger.info(`JWT token cookie exists: ${token}`)
+      logger.info(`Setting the token as x-token`)
+      request.headers['x-token'] = token;
+    } else {
+      logger.info(`No JWT token`)
+      logger.info(`Setting the token as x-token = null`)
+     request.headers['x-token'] = '';
+    }
+
+    logger.info(`Checking for sessionId cookie`)
+
+    const sessionId = cookies?.sessionId ?? null;
+
+    if (sessionId){
+      logger.info(`sessionId cookie exists: ${sessionId}`)
+      logger.info(`Setting sessionId as x-session-id`)
+      request.headers['x-session-id'] = sessionId;
+
+      logger.info(`Setting sessionId cookie for reply`)
+
+      reply.setCookie('sessionId',sessionId, {
+        path: '/',
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: false,
+        maxAge: COOKIE_MAX_AGE // 1 hour
+      });
+    } else {
+      logger.info(`sessionId does not exists`)
+
+      logger.info(`Generating new sessionId`)
+      const newSessionId = uuidv4();
+
+      logger.info(`Setting new sessionId as x-session-id`)
+      request.headers['x-session-id'] = newSessionId;
+
+      logger.info(`Setting new sessionId cookie for reply`)
+      reply.setCookie('sessionId',newSessionId, {
+        path: '/',
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: false,
+        maxAge: COOKIE_MAX_AGE // 1 hour
+      });
+
+    }
+
+    logger.info(`🍪 uuid: ${request.headers['x-session-id']}`);
+  }
+  catch (error: any){
+    logger.error(`[[Gateway]] An error occured while extracting or setting sessionId/token: ${error.message}`, error);
+  }
+});
+
 await registerPlugins(Fastify);
 
 // Fastify.log.info('🎯'+ process.env);
@@ -94,108 +177,6 @@ Fastify.register(cookie, {
 });
 logger.info('cookie registered');
 
-function logCookies(request: FastifyRequest): Record<string, string> {
-  // Parsed cookies via fastify-cookie
-  const cookies = request.cookies as Record<string, string> | undefined;
-
-  if (!cookies || Object.keys(cookies).length === 0) {
-    console.log('No cookies received in this request.');
-  } else {
-    console.log('Parsed cookies:', cookies);
-  }
-
-  // Optional: log raw Cookie header
-  const rawCookieHeader = request.headers['cookie'];
-  console.log('Raw Cookie header:', rawCookieHeader || 'None');
-
-  return cookies || {};
-}
-
-Fastify.addHook('onRequest', async (request, reply) => {
-  
-  try {
-
-    const cookies = logCookies(request)
-    console.log('1')
-
-    // check whether JWT token exists
-
-    const token = cookies?.token ?? '';
-
-    console.log('1.1')
-    if (!token){
-      console.log('1.2')
-      Fastify.log.info("JWT token missing")
-    } else {
-      console.log('1.3')
-      Fastify.log.info("JWT token available")
-      // const decoded = await request.jwtVerify();
-      console.log('1.4')
-      // request.user = decoded;
-      return;
-    }
-
-    // Check if session cookie exists
-    const session = cookies?.session ?? '';
-    console.log('2')
-    const sessionId = cookies?.sessionId ?? '';
-    console.log('3')
-    // console.log(`cookiesAAA: ${cookies} sessionAAA: ${session} sessionIdAAA: ${sessionId}`)
-    console.log('4')
-    // if ((!cookies || Object.keys(cookies).length === 0) || 
-    if (!sessionId) { 
-      console.log('5')
-      const newSessionId = uuidv4();
-      // call your own POST /sessions route internally
-
-      // const res = await fetch(`${TESTDB_URL}/session`, {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ 
-      //     sessionId: newSessionId, 
-      //     time: new Date().toString(),
-      //     status: 1 })
-      // });
-
-      // if (res.statusCode >= 400) {
-      //   Fastify.log.error(`[[Gateway]] Failed to create session: ${res.statusCode}`);
-      // }
-
-      // const newSessionId = 'abcd'
-      reply.setCookie('sessionId',newSessionId, {
-        path: '/',
-        httpOnly: true,
-        sameSite: 'lax',
-        secure: false,
-        maxAge: COOKIE_MAX_AGE // 1 hour
-      });
-
-      console.log('6')
-      request.headers['x-session-id'] = newSessionId;
-      logger.info(`New sessionId created: ${newSessionId}`);
-      Fastify.log.info(`🆕 New sessionId created: ${newSessionId}`);
-    } else {
-      console.log('7')
-      // if (!request.headers['x-session-id'])
-      request.headers['x-session-id'] = sessionId;
-      console.log('8')
-      logger.info(`Existing sessionId: ${sessionId}`);
-      Fastify.log.info(`✅ Existing sessionId: ${sessionId}`);
-      reply.setCookie('sessionId',sessionId, {
-        path: '/',
-        httpOnly: true,
-        sameSite: 'lax',
-        secure: false,
-        maxAge: COOKIE_MAX_AGE // 1 hour
-      });
-    }
-    Fastify.log.info(`✅🆕 uuid: ${request.headers['x-session-id']}`);
-  }
-  catch (error: any){
-    //logger.error(`[[Gateway]] An error occured while extracting or setting sessionId: ${error.message}`, error);
-    Fastify.log.error(`SessionId error: ${error.message}`, error);
-  }
-});
 
 setupWebSocket();
 logger.info("port: " + PORT);
