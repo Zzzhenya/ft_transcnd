@@ -170,8 +170,8 @@ coverage/
 # ================================
 # User uploads
 uploads/
-avatars/
 !avatars/default.jpg
+# avatars/
 user-data/
 
 # Session data
