@@ -35,7 +35,7 @@ CREATE TABLE Users (
   bio TEXT,
   
   -- Status
-  status VARCHAR(20) DEFAULT 'offline',
+  user_status VARCHAR(20) DEFAULT 'offline',
   current_match_id INTEGER,
   
   -- Online Status
