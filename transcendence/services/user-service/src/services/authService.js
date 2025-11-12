@@ -2,6 +2,8 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const logger = require('../utils/logger');
+const fs = require('fs').promises;
+const path = require('path');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
@@ -13,28 +15,65 @@ class AuthService {
       if (existingEmail) {
         throw new Error('Email already registered');
       }
-
+      
       const existingUsername = await User.findByUsername(username);
-
       logger.info(existingUsername);
-
       if (existingUsername) {
         throw new Error('Username already taken');
       }
-
+      
       // Hash password
       const hashedPassword = await bcrypt.hash(password, 10);
-
+      
       // Create user
       const newUser = await User.create({
         username,
         email,
-        password: hashedPassword, // User.create will map this to password_hash
+        password: hashedPassword,
         display_name: displayName || username
       });
-
+      
       if (!newUser)
-        throw new Error('User create failed')
+        throw new Error('User create failed');
+
+      // ========== NEU: Default Avatar kopieren ==========
+      try {
+        const defaultAvatarPath = '/app/avatars/default.jpg';
+        const userAvatarPath = `/app/avatars/${newUser.id}.jpg`;
+        const avatarUrl = `/avatars/${newUser.id}.jpg`;
+
+        // Prüfe ob default.jpg existiert
+        await fs.access(defaultAvatarPath);
+        
+        // Kopiere default.jpg zu {userId}.jpg
+        await fs.copyFile(defaultAvatarPath, userAvatarPath);
+        logger.info(`✅ Avatar copied: ${userAvatarPath}`);
+
+        // Update user in DB mit avatar_url
+        const updateResponse = await fetch('http://database-service:3006/internal/write', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            table: 'Users',
+            id: newUser.id,
+            column: 'avatar',  // Oder 'avatar' - prüfe dein Schema!
+            value: avatarUrl
+          })
+        });
+
+        if (updateResponse.ok) {
+          logger.info(`✅ Avatar URL updated for user ${newUser.id}`);
+          newUser.avatar_url = avatarUrl; // Update auch im Objekt
+        } else {
+          logger.warn(`⚠️ Failed to update avatar URL for user ${newUser.id}`);
+        }
+
+      } catch (avatarError) {
+        logger.error('⚠️ Error setting up avatar:', avatarError);
+        // Avatar-Fehler ist nicht kritisch - User wurde trotzdem erstellt
+      }
+      // ========== ENDE NEU ==========
+
       // Generate JWT
       const token = jwt.sign(
         { userId: newUser.id, username: newUser.username },
@@ -47,10 +86,12 @@ class AuthService {
           id: newUser.id,
           username: newUser.username,
           email: newUser.email,
-          display_name: newUser.display_name //|| newUser.username
+          display_name: newUser.display_name,
+          avatar_url: newUser.avatar_url || null  // NEU: Avatar-URL zurückgeben
         },
         token
       };
+      
     } catch (error) {
       console.error('Error in register:', error);
       throw error;
