@@ -4,6 +4,21 @@ import logger from './logger.js';
 
 const PROXY_REQUEST_TIMEOUT = parseInt(process.env.PROXY_REQUEST_TIMEOUT || '5000');
 
+function normalizeHeaders(
+  headers: Record<string, string | string[] | undefined>
+): Record<string, string> {
+  const result: Record<string, string> = {};
+  for (const [key, value] of Object.entries(headers)) {
+    if (!value) continue;           // skip undefined
+    if (Array.isArray(value)) {
+      result[key] = value.join(','); // join arrays with commas
+    } else {
+      result[key] = value;
+    }
+  }
+  return result;
+}
+
 export async function proxyRequest(
   fastify: FastifyInstance,
   request: FastifyRequest,
@@ -20,9 +35,14 @@ export async function proxyRequest(
       {
         method,
         headers: {
-          'Authorization': request.headers['authorization'] || '',
-          'Content-Type': 'application/json',
+          ...normalizeHeaders(request.headers)
+          // 'Authorization': request.headers['authorization'] || '',
+          // 'Content-Type': 'application/json',
         },
+        // headers: {
+        //   'Authorization': request.headers['authorization'] || '',
+        //   'Content-Type': 'application/json',
+        // },
         body: ['POST', 'PUT', 'PATCH'].includes(method)
           ? JSON.stringify(request.body)
           : null,
@@ -54,6 +74,15 @@ export async function proxyRequest(
 
     if (data.token) {
       reply.setCookie('token', data.token, {
+        httpOnly: true,
+        secure: true,           // ✅ Only HTTPS for production
+        sameSite: 'lax',       // ✅ Required for cross-origin if frontend is on another domain
+        path: '/',              // ✅ Valid across all routes
+      });
+    }
+
+    if (data.sessionId) {
+      reply.setCookie('sessionId', data.sessionId, {
         httpOnly: true,
         secure: true,           // ✅ Only HTTPS for production
         sameSite: 'lax',       // ✅ Required for cross-origin if frontend is on another domain

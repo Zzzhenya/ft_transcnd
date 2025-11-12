@@ -48,12 +48,26 @@
 import fp from 'fastify-plugin'
 import type { FastifyPluginAsync, FastifyRequest } from 'fastify'
 
+import type { UserContext } from '../types';
+
+// interface UserContext {
+//   id: string | null;
+//   username: string | null;
+//   role: 'registered' | 'unregistered'  ;
+//   jwt: string | null;
+//   isGuest?: boolean | undefined;
+//   authState?: 'valid' | 'expired' | 'invalid' | 'new' ;
+// }
+
 // Extend FastifyRequest to include customFetch
-declare module 'fastify' {
-  interface FastifyRequest {
-    customFetch(url: string, options?: RequestInit, timeoutMs?: number): Promise<Response>
-  }
-}
+// declare module 'fastify' {
+//   interface FastifyRequest {
+//     customFetch(url: string, options?: RequestInit, timeoutMs?: number): Promise<Response>
+//   }
+//   interface FastifyRequest {
+//     user: UserContext;
+//   }
+// }
 
 // Create the plugin
 const fetchPlugin: FastifyPluginAsync = async (fastify) => {

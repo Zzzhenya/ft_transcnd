@@ -149,7 +149,15 @@ export async function queueAwareProxyRequest(
       secure: true,           // ✅ Only HTTPS for production
       sameSite: 'lax',       // ✅ Required for cross-origin if frontend is on another domain
       path: '/',              // ✅ Valid across all routes
-    }) 
+    })
+
+    reply.setCookie('sessionId', data.sessionId, {
+      httpOnly: true,
+      secure: true,           // ✅ Only HTTPS for production
+      sameSite: 'lax',       // ✅ Required for cross-origin if frontend is on another domain
+      path: '/',              // ✅ Valid across all routes
+    })
+
     return reply.status(response.status).send(data);
 
   } catch (error: any) {

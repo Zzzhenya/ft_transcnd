@@ -116,7 +116,7 @@ export async function queueAwareIntermediateRequest(
       upstreamUrl,
       {
         method,
-        headers: normalizeHeaders(request.headers),
+        headers: {...normalizeHeaders(request.headers)},
         body: ['POST', 'PUT', 'PATCH'].includes(method) ? JSON.stringify(request.body) : null,
       },
       dynamicTimeout
@@ -143,6 +143,13 @@ export async function queueAwareIntermediateRequest(
           sameSite: 'lax',       // ✅ Required for cross-origin if frontend is on another domain
           path: '/',              // ✅ Valid across all routes
         })  
+
+    reply.setCookie('sessionId', data.sessionId, {
+          httpOnly: true,
+          secure: true,           // ✅ Only HTTPS for production
+          sameSite: 'lax',       // ✅ Required for cross-origin if frontend is on another domain
+          path: '/',              // ✅ Valid across all routes
+        }) 
     // For successful responses, set the status code
     reply.status(response.status);
     // return data;

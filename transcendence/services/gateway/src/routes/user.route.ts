@@ -41,10 +41,11 @@ const userRoutes: FastifyPluginAsync = async (fastify) => {
 	});
 
 	// Guest login route
-	fastify.post('/auth/guest', {  preHandler: fastify.verifyAuth }, async (request, reply) => {
+	fastify.post('/auth/guest', {  preHandler: fastify.verifyAuth },  async (request, reply) => { // {  preHandler: fastify.verifyAuth }
 		fastify.log.info("Gateway received POST request for /auth/guest");
 		fastify.log.info({ body: request.body }, "Guest login request body");
-		return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/auth/guest`, 'POST');
+		return queueAwareProxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/auth/guest`, 'POST');
+		// return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/auth/guest`, 'POST');
 	});
 
 	fastify.get('/auth/profile', async (request, reply) => {

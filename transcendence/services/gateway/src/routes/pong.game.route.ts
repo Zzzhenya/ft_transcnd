@@ -6,6 +6,7 @@ import logger from '../utils/logger.js'; // log-service
 import { queueAwareProxyRequest } from '../utils/queueAwareProxyHandler.js';
 import { queueAwareIntermediateRequest } from '../utils/queueAwareIntermediateRequest.js';
 import { intermediateRequest } from '../utils/intermediateRequest.js';
+
 // import authPreHandlerPlugin from "../plugins/authPreHandler.plugin.js";
 
 const GAME_SERVICE_URL = process.env.GAME_SERVICE_URL || 'http://game-service:3002';
