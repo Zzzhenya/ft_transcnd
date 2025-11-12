@@ -64,14 +64,17 @@ export default function (root: HTMLElement, ctx: { url: URL }) {
                 <input id="register-password" type="password" class="border rounded px-3 py-2 w-full" placeholder="Password" required />
                 <button type="submit" class="px-3 py-2 rounded bg-green-600 text-white w-full">Register</button>
               </form>
+              <!--
               <p class="text-xs text-gray-500 mt-1">Your alias is how others will see you in the game</p>
-            </div>
+              -->
+              </div>
           </div>
         `}
       </div>
-
+      <!--
       <p class="mt-4"><a href="/" class="underline text-blue-600">← Lobby</a></p>
-    </section>
+      -->
+      </section>
   `;
 
   // Sign in form handler
