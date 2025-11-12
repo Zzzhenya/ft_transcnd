@@ -273,7 +273,7 @@ fastify.get('/auth/profile', {
       is_guest: userData.is_guest,
       bio: userData.bio,
       avatar: userData.avatar,
-      status: userData.status,
+      user_status: userData.user_status,
       display_name: userData.display_name,
     };
     
@@ -1339,7 +1339,7 @@ fastify.delete('/auth/account', {
       });
     }
 
-    if (user.status === 'deleted') {
+    if (user.user_status === 'deleted') {
       return reply.code(400).send({ 
         success: false,
         message: 'Account is already deleted' 
@@ -1348,11 +1348,12 @@ fastify.delete('/auth/account', {
 
     // Neue Werte vorbereiten
     let newUsername = user.username;
+    const timestamp = Date.now();
     if (!newUsername.startsWith('deleted_')) {
-      newUsername = `deleted_${user.username}`;
+      newUsername = `deleted_${timestamp}_${user.username}`;
     }
 
-    const timestamp = Date.now();
+    
     const newEmail = `deleted_${timestamp}_${userId}@deleted.local`;
 
     logger.info(`Soft deleting user ${userId}: ${user.username} -> ${newUsername}, ${user.email} -> ${newEmail}`);
@@ -1367,7 +1368,7 @@ fastify.delete('/auth/account', {
       body: JSON.stringify({
         table: 'Users',
         id: userId,
-        column: 'status',
+        column: 'user_status',
         value: 'deleted'
       })
     });
@@ -1439,7 +1440,7 @@ fastify.delete('/auth/account', {
         newUsername: newUsername,
         oldEmail: user.email,
         newEmail: newEmail,
-        status: 'deleted'
+        user_status: 'deleted'
       }
     });
 
