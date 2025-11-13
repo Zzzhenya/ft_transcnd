@@ -95,7 +95,7 @@ CREATE TABLE Tournament (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   T_name VARCHAR(100) NOT NULL,
   T_description TEXT,
-  is_tournament BOOLEAN DEFAULT 1,
+  -- is_tournament BOOLEAN DEFAULT 1,
   
   Tournament_status VARCHAR(20) DEFAULT 'registration',
   player_count INTEGER NOT NULL,
