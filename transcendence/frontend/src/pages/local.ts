@@ -7,20 +7,7 @@ export default function (root: HTMLElement) {
   let ws: WebSocket | null = null;
   let player1Keys = { up: false, down: false };
   let player2Keys = { up: false, down: false };
-  let player1Keys = { up: false, down: false };
-  let player2Keys = { up: false, down: false };
 
-  let gameState: GameRenderState = {
-    ball: { x: 0, y: 0 },
-    paddles: { player1: 0, player2: 0 },
-    score: { player1: 0, player2: 0 },
-    match: {
-      roundsWon: { player1: 0, player2: 0 },
-      winner: null,
-      currentRound: 1,
-    },
-    gameStatus: 'waiting',
-  };
   let gameState: GameRenderState = {
     ball: { x: 0, y: 0 },
     paddles: { player1: 0, player2: 0 },
@@ -40,49 +27,8 @@ export default function (root: HTMLElement) {
   const maxConnectionAttempts = 3;
   let hasSentStartGame = false;
   let matchFinished = false;
-  let hasSentStartGame = false;
-  let matchFinished = false;
 
-// <div class="text-center text-indigo-200 text-base space-y-2 mb-2">
-  root.innerHTML = `
-    <section class="fixed inset-0 overflow-hidden bg-black">
-	  <canvas id="gameCanvas"
-		class="fixed inset-0 z-0 block">
-	  </canvas>
-
-	  <div id="hudCenter"
-        class="pointer-events-none fixed top-4 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 text-white z-10">
-        <div id="roundText" class="text-4xl font-bold">
-          Round 1
-        </div>
-        <div id="scoreText" class="text-3xl font-bold">
-          0 - 0
-        </div>
-		<p> 🏆 First to 3 points wins a round.</p>
-      </div>
-
-      <div id="hudWonP1"
-        class="pointer-events-none fixed left-5 bottom-11 text-sm text-white z-10">
-        Won: 0
-      </div>
-      <div id="hudWonP2"
-        class="pointer-events-none fixed right-5 bottom-11 text-sm text-white z-10 text-right">
-        Won: 0
-      </div>
-
-	  <div id="hudCtrlP1"
-        class="pointer-events-none fixed left-5 bottom-6 text-sm text-gray-400 z-10">
-        Player 1 (W/S)
-      </div>
-      <div id="hudCtrlP2"
-        class="pointer-events-none fixed right-5 bottom-6 text-sm text-gray-400 z-10 text-right">
-        Player 2 (↑/↓)
-      </div>
-
-      <div class="pointer-events-auto fixed bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-3">
-        <button id="startBtn"
-          class="bg-[#5E2DD4] hover:bg-[#4e25b3] text-white px-4 py-2 rounded-xl font-semibold shadow">
-          <span class="mr-2">🚀</span>Start
+// ...existing code...
 // <div class="text-center text-indigo-200 text-base space-y-2 mb-2">
   root.innerHTML = `
     <section class="fixed inset-0 overflow-hidden bg-black">
@@ -124,78 +70,36 @@ export default function (root: HTMLElement) {
           class="bg-[#5E2DD4] hover:bg-[#4e25b3] text-white px-4 py-2 rounded-xl font-semibold shadow">
           <span class="mr-2">🚀</span>Start
         </button>
-        <button id="lobbyBtn"
-          class="bg-[#F6C343] hover:bg-[#e0b43b] text-black px-4 py-2 rounded-xl font-semibold shadow">
-        <button id="lobbyBtn"
-          class="bg-[#F6C343] hover:bg-[#e0b43b] text-black px-4 py-2 rounded-xl font-semibold shadow">
-          <span class="mr-2">🏠</span>Lobby
-        </button>
-      </div>
-
-      <div id="gameStatus"
-        class="fixed bottom-16 left-1/2 -translate-x-1/2 text-zinc-200 text-sm md:text-base font-semibold text-center">
-        🏓 Click "Start" to play ping pong
-
-      <div id="gameStatus"
-        class="fixed bottom-16 left-1/2 -translate-x-1/2 text-zinc-200 text-sm md:text-base font-semibold text-center">
-        🏓 Click "Start" to play ping pong
-      </div>
-
-
-      <footer class="mt-8 text-gray-500 text-xs text-center">
-        <span>Made with <span class="text-white-400">TEAM.SHIRT</span></span>
-        <span>Made with <span class="text-white-400">TEAM.SHIRT</span></span>
-      </footer>
-    </section>
-  `;
+// ...existing code...
 
   const startBtn = root.querySelector('#startBtn') as HTMLButtonElement;
   const lobbyBtn = root.querySelector('#lobbyBtn') as HTMLButtonElement;
-  const gameStatusEl = root.querySelector('#gameStatus') as HTMLDivElement;
-  const connectionStatusEl = root.querySelector('#connectionStatus') as HTMLParagraphElement;
-  const el = root.querySelector('#gameCanvas');
-
-  // HUD elements
-  const roundTextEl = root.querySelector('#roundText') as HTMLDivElement;
-  const scoreTextEl = root.querySelector('#scoreText') as HTMLDivElement;
-  const hudWonP1El = root.querySelector('#hudWonP1') as HTMLDivElement;
-  const hudWonP2El = root.querySelector('#hudWonP2') as HTMLDivElement;
+// ...existing code...
 
   const gameStatusEl = root.querySelector('#gameStatus') as HTMLDivElement;
   const connectionStatusEl = root.querySelector('#connectionStatus') as HTMLParagraphElement;
   const el = root.querySelector('#gameCanvas');
-
-  // HUD elements
   const roundTextEl = root.querySelector('#roundText') as HTMLDivElement;
   const scoreTextEl = root.querySelector('#scoreText') as HTMLDivElement;
   const hudWonP1El = root.querySelector('#hudWonP1') as HTMLDivElement;
   const hudWonP2El = root.querySelector('#hudWonP2') as HTMLDivElement;
-
   if (!(el instanceof HTMLCanvasElement)) {
     throw new Error('Canvas element #gameCanvas not found or not a <canvas>');
-    throw new Error('Canvas element #gameCanvas not found or not a <canvas>');
   }
-
   const gameCanvas: HTMLCanvasElement = el;
 
   function isMatchOver(): boolean {
     const roundsWonP1 = gameState.match?.roundsWon?.player1 ?? 0;
     const roundsWonP2 = gameState.match?.roundsWon?.player2 ?? 0;
     const currentRound = gameState.match?.currentRound ?? 1;
-
-    // 3라운드 제한 + 2선승 규칙
     if (roundsWonP1 >= 2 || roundsWonP2 >= 2) return true;
     if (currentRound > 3) return true;
-
     return false;
   }
-
   function handleMatchEndIfNeeded() {
     if (!isMatchOver()) return;
-
     const roundsWonP1 = gameState.match?.roundsWon?.player1 ?? 0;
     const roundsWonP2 = gameState.match?.roundsWon?.player2 ?? 0;
-
     let winnerName: string;
     if (roundsWonP1 > roundsWonP2) {
       winnerName = player1Name;
@@ -204,30 +108,20 @@ export default function (root: HTMLElement) {
     } else {
       winnerName = 'No one';
     }
-
-    // Won must 2. It's fixed.
     const finalP1 = Math.min(2, roundsWonP1);
     const finalP2 = Math.min(2, roundsWonP2);
-
     hudWonP1El.textContent = `Won: ${finalP1}`;
     hudWonP2El.textContent = `Won: ${finalP2}`;
-
-    // Status message.
     if (winnerName === 'No one') {
       updateStatus('🏁 Match over. It\'s a draw.');
     } else {
       updateStatus(`🏆 Match over! ${winnerName} wins the series.`);
     }
-
-	matchFinished = true;
-
-    // Block not to push startBtn anymore.
+    matchFinished = true;
     if (startBtn) {
       startBtn.disabled = true;
       startBtn.classList.add('opacity-50', 'cursor-not-allowed');
     }
-
-    // 네트워크/루프 정리
     if (ws) {
       ws.close();
       ws = null;
@@ -236,81 +130,6 @@ export default function (root: HTMLElement) {
       cancelAnimationFrame(gameLoop);
       gameLoop = null;
     }
-
-    // Go back to lobby.
-    setTimeout(() => {
-      window.location.href = '/lobby';
-    }, 3500);
-  }
-
-
-
-
-  // Babylon 3D scene starts
-  const scene3d = createLocalScene(gameCanvas);
-
-  const gameCanvas: HTMLCanvasElement = el;
-
-  function isMatchOver(): boolean {
-    const roundsWonP1 = gameState.match?.roundsWon?.player1 ?? 0;
-    const roundsWonP2 = gameState.match?.roundsWon?.player2 ?? 0;
-    const currentRound = gameState.match?.currentRound ?? 1;
-
-    // 3라운드 제한 + 2선승 규칙
-    if (roundsWonP1 >= 2 || roundsWonP2 >= 2) return true;
-    if (currentRound > 3) return true;
-
-    return false;
-  }
-
-  function handleMatchEndIfNeeded() {
-    if (!isMatchOver()) return;
-
-    const roundsWonP1 = gameState.match?.roundsWon?.player1 ?? 0;
-    const roundsWonP2 = gameState.match?.roundsWon?.player2 ?? 0;
-
-    let winnerName: string;
-    if (roundsWonP1 > roundsWonP2) {
-      winnerName = player1Name;
-    } else if (roundsWonP2 > roundsWonP1) {
-      winnerName = player2Name;
-    } else {
-      winnerName = 'No one';
-    }
-
-    // Won must 2. It's fixed.
-    const finalP1 = Math.min(2, roundsWonP1);
-    const finalP2 = Math.min(2, roundsWonP2);
-
-    hudWonP1El.textContent = `Won: ${finalP1}`;
-    hudWonP2El.textContent = `Won: ${finalP2}`;
-
-    // Status message.
-    if (winnerName === 'No one') {
-      updateStatus('🏁 Match over. It\'s a draw.');
-    } else {
-      updateStatus(`🏆 Match over! ${winnerName} wins the series.`);
-    }
-
-	matchFinished = true;
-
-    // Block not to push startBtn anymore.
-    if (startBtn) {
-      startBtn.disabled = true;
-      startBtn.classList.add('opacity-50', 'cursor-not-allowed');
-    }
-
-    // 네트워크/루프 정리
-    if (ws) {
-      ws.close();
-      ws = null;
-    }
-    if (gameLoop) {
-      cancelAnimationFrame(gameLoop);
-      gameLoop = null;
-    }
-
-    // Go back to lobby.
     setTimeout(() => {
       window.location.href = '/lobby';
     }, 3500);
