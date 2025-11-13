@@ -19,18 +19,18 @@ echo "✅ Container found"
 
 # Clearing data
 echo "🗑️  Clearing..."
-docker exec $DB_CONTAINER sqlite3 $DB_PATH "DELETE FROM Matches; DELETE FROM Tournament_Players; DELETE FROM Tournament_Singlematches; DELETE FROM users; DELETE FROM sqlite_sequence;"
+docker exec $DB_CONTAINER sqlite3 $DB_PATH "DELETE FROM Matches; DELETE FROM Tournament_Players; DELETE FROM Tournament; DELETE FROM users; DELETE FROM sqlite_sequence;"
 
 # Creating users (all with password "123")
 echo "👥 Creating users (password: 123)..."
-docker exec $DB_CONTAINER sqlite3 $DB_PATH "INSERT INTO users (id, username, email, password_hash, is_guest, status) VALUES (1, 'player1', 'p1@p1.de', '$HASH', 0, 'offline');"
-docker exec $DB_CONTAINER sqlite3 $DB_PATH "INSERT INTO users (id, username, email, password_hash, is_guest, status) VALUES (2, 'player2', 'p2@p2.de', '$HASH', 0, 'offline');"
-docker exec $DB_CONTAINER sqlite3 $DB_PATH "INSERT INTO users (id, username, email, password_hash, is_guest, status) VALUES (3, 'player3', 'p3@p3.de', '$HASH', 0, 'offline');"
-docker exec $DB_CONTAINER sqlite3 $DB_PATH "INSERT INTO users (id, username, email, password_hash, is_guest, status) VALUES (4, 'player4', 'p4@p4.de', '$HASH', 0, 'offline');"
-docker exec $DB_CONTAINER sqlite3 $DB_PATH "INSERT INTO users (id, username, email, password_hash, is_guest, status) VALUES (5, 'player5', 'p5@p5.de', '$HASH', 0, 'offline');"
-docker exec $DB_CONTAINER sqlite3 $DB_PATH "INSERT INTO users (id, username, email, password_hash, is_guest, status) VALUES (6, 'player6', 'p6@p6.de', '$HASH', 0, 'offline');"
-docker exec $DB_CONTAINER sqlite3 $DB_PATH "INSERT INTO users (id, username, email, password_hash, is_guest, status) VALUES (7, 'player7', 'p7@p7.de', '$HASH', 0, 'offline');"
-docker exec $DB_CONTAINER sqlite3 $DB_PATH "INSERT INTO users (id, username, email, password_hash, is_guest, status) VALUES (8, 'player8', 'p8@p8.de', '$HASH', 0, 'offline');"
+docker exec $DB_CONTAINER sqlite3 $DB_PATH "INSERT INTO Users (id, username, email, password_hash, is_guest, user_status) VALUES (1, 'player1', 'p1@p1.de', '$HASH', 0, 'offline');"
+docker exec $DB_CONTAINER sqlite3 $DB_PATH "INSERT INTO users (id, username, email, password_hash, is_guest, user_status) VALUES (2, 'player2', 'p2@p2.de', '$HASH', 0, 'offline');"
+docker exec $DB_CONTAINER sqlite3 $DB_PATH "INSERT INTO users (id, username, email, password_hash, is_guest, user_status) VALUES (3, 'player3', 'p3@p3.de', '$HASH', 0, 'offline');"
+docker exec $DB_CONTAINER sqlite3 $DB_PATH "INSERT INTO users (id, username, email, password_hash, is_guest, user_status) VALUES (4, 'player4', 'p4@p4.de', '$HASH', 0, 'offline');"
+docker exec $DB_CONTAINER sqlite3 $DB_PATH "INSERT INTO users (id, username, email, password_hash, is_guest, user_status) VALUES (5, 'player5', 'p5@p5.de', '$HASH', 0, 'offline');"
+docker exec $DB_CONTAINER sqlite3 $DB_PATH "INSERT INTO users (id, username, email, password_hash, is_guest, user_status) VALUES (6, 'player6', 'p6@p6.de', '$HASH', 0, 'offline');"
+docker exec $DB_CONTAINER sqlite3 $DB_PATH "INSERT INTO users (id, username, email, password_hash, is_guest, user_status) VALUES (7, 'player7', 'p7@p7.de', '$HASH', 0, 'offline');"
+docker exec $DB_CONTAINER sqlite3 $DB_PATH "INSERT INTO users (id, username, email, password_hash, is_guest, user_status) VALUES (8, 'player8', 'p8@p8.de', '$HASH', 0, 'offline');"
 
 # Creating tournaments
 echo "🏆 Creating tournaments..."
