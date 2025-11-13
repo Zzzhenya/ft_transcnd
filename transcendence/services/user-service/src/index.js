@@ -1071,6 +1071,139 @@ fastify.get('/users/:userId/remote-matches', {
   }
 });
 
+// Get user's tournament participation history
+fastify.get('/users/:userId/tournaments', {
+  preHandler: fastify.authenticate
+}, async (request, reply) => {
+  try {
+    const { userId } = request.params;
+    
+    console.log(`🏆 Getting tournament history for user ${userId}`);
+    logger.info(`Getting tournament history for user ${userId}`);
+
+    // Query Tournament_Players table
+    const response = await fetch('http://database-service:3006/internal/query', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        table: 'Tournament_Players',
+        columns: ['tournament_id', 'joined_at'],
+        filters: { user_id: parseInt(userId) },
+        orderBy: { column: 'joined_at', direction: 'DESC' },
+        limit: 50
+      })
+    });
+
+    if (!response.ok) {
+      logger.error('Database query failed:', response.status);
+      return reply.code(500).send({ error: 'Database query failed' });
+    }
+
+    const result = await response.json();
+    const tournaments = result.data || [];
+
+    console.log(`✅ Found ${tournaments.length} tournaments for user ${userId}`);
+
+    return { 
+      success: true, 
+      tournaments: tournaments.map(t => ({
+        tournamentId: t.tournament_id,
+        joinedAt: t.joined_at
+      })),
+      total: tournaments.length
+    };
+
+  } catch (error) {
+    logger.error('Error getting tournament history:', error);
+    return reply.code(500).send({ error: 'Internal server error' });
+  }
+});
+
+// Get matches for a specific tournament
+fastify.get('/tournaments/:tournamentId/matches', {
+  preHandler: fastify.authenticate
+}, async (request, reply) => {
+  try {
+    const { tournamentId } = request.params;
+    
+    console.log(`🏆 Getting matches for tournament ${tournamentId}`);
+    logger.info(`Getting matches for tournament ${tournamentId}`);
+
+    // Query Tournament_Matches table
+    const response = await fetch('http://database-service:3006/internal/query', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        table: 'Tournament_Matches',
+        columns: [
+          'id', 'tournament_id', 'round', 'match_number',
+          'player1_id', 'player2_id', 'winner_id', 'loser_id',
+          'player1_score', 'player2_score', 'matches_status',
+          'started_at', 'finished_at'
+        ],
+        filters: { tournament_id: parseInt(tournamentId) },
+        orderBy: { column: 'round', direction: 'ASC' },
+        limit: 100
+      })
+    });
+
+    if (!response.ok) {
+      logger.error('Database query failed:', response.status);
+      return reply.code(500).send({ error: 'Database query failed' });
+    }
+
+    const result = await response.json();
+    const matches = result.data || [];
+
+    console.log(`✅ Found ${matches.length} matches for tournament ${tournamentId}`);
+
+    // Enrich matches with player usernames
+    const enrichedMatches = await Promise.all(
+      matches.map(async (match) => {
+        const player1 = await User.findById(match.player1_id);
+        const player2 = await User.findById(match.player2_id);
+        const winner = match.winner_id ? await User.findById(match.winner_id) : null;
+
+        return {
+          id: match.id,
+          round: match.round,
+          matchNumber: match.match_number,
+          player1: {
+            id: match.player1_id,
+            name: player1?.display_name || player1?.username || 'Unknown'
+          },
+          player2: {
+            id: match.player2_id,
+            name: player2?.display_name || player2?.username || 'Unknown'
+          },
+          winner: winner ? {
+            id: match.winner_id,
+            name: winner.display_name || winner.username
+          } : null,
+          score: {
+            player1: match.player1_score,
+            player2: match.player2_score
+          },
+          status: match.matches_status,
+          startedAt: match.started_at,
+          finishedAt: match.finished_at
+        };
+      })
+    );
+
+    return { 
+      success: true, 
+      tournamentId: parseInt(tournamentId),
+      matches: enrichedMatches,
+      total: enrichedMatches.length
+    };
+
+  } catch (error) {
+    logger.error('Error getting tournament matches:', error);
+    return reply.code(500).send({ error: 'Internal server error' });
+  }
+});
+
 //===================================================Profil Changes=========================================================
 
 // Update user email endpoint
