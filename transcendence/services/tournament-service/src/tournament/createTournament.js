@@ -29,7 +29,7 @@ async function persistTournamentRecord({ serviceTournamentId, name, creatorName,
     // Prepare payload for database insert
     // Inserts a new row into Tournament_Singlematches with metadata as description
   const payload = {
-    table: 'Tournament_Singlematches',
+    table: 'Tournament',
     action: 'insert',
     values: {
       name,
