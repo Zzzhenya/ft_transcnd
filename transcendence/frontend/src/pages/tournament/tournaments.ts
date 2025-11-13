@@ -201,9 +201,19 @@ export default function (root: HTMLElement) {
             userInfo.innerHTML = `
                 <div class="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-white/10 backdrop-blur-sm border border-white/20">
                     <span class="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
-                    <span class="text-white font-bold">${user.name}</span>
+                    <button id="userProfileBtn" class="text-white font-bold bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded transition" title="Go to your profile">
+                        ${user.name}
+                    </button>
                 </div>
             `;
+            setTimeout(() => {
+                const btn = userInfo.querySelector<HTMLButtonElement>("#userProfileBtn");
+                if (btn) {
+                    btn.addEventListener("click", () => {
+                        navigate(`/profile`);
+                    });
+                }
+            }, 0);
         } else if (isGuest) {
             userInfo.innerHTML = `
                 <div class="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-white/10 backdrop-blur-sm border border-white/20">
