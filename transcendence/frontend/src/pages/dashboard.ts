@@ -49,6 +49,7 @@ interface RemoteMatch {
   id: number;
   opponentId: number;
   opponentName: string;
+  opponentUserName: string;
   userScore: number;
   opponentScore: number;
   result: 'won' | 'lost' | 'draw';
@@ -100,7 +101,10 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
                   Match #
                 </th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Opponent
+                  Opponent Alias
+                </th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Opponent Username
                 </th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Score
@@ -147,9 +151,18 @@ async function loadRemoteMatches(userId: number) {
   const tbodyEl = document.getElementById('matches-tbody');
 
   try {
+    // ✅ RICHTIG: Verwende getToken() statt localStorage
+    const { getToken } = await import('@/app/auth');
+    const token = getToken();
+    
+    if (!token) {
+      console.error('❌ No token found!');
+      throw new Error('Not authenticated');
+    }
+
     const response = await fetch(`/api/user-service/users/${userId}/remote-matches`, {
       headers: {
-        'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+        'Authorization': `Bearer ${token}`
       }
     });
 
@@ -185,6 +198,9 @@ async function loadRemoteMatches(userId: number) {
             </td>
             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
               ${match.opponentName}
+            </td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+              ${match.opponentUserName}
             </td>
             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
               <span class="font-semibold">${match.userScore}</span> - <span class="font-semibold">${match.opponentScore}</span>
