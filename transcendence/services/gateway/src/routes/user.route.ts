@@ -106,6 +106,12 @@ const userRoutes: FastifyPluginAsync = async (fastify) => {
 		return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/users/${userId}/notifications`, 'GET');
 	});
 
+	// Get user's remote match history
+	fastify.get('/users/:userId/remote-matches', async (request, reply) => {
+			const { userId } = request.params as { userId: string };
+			return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/users/${userId}/remote-matches`, 'GET');
+	});
+
 	// Accept notification endpoint
 	fastify.post('/notifications/:notificationId/accept', async (request, reply) => {
 		const { notificationId } = request.params as { notificationId: string };
