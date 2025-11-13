@@ -72,23 +72,23 @@ export async function proxyRequest(
 
     const data = await response.json();
 
-    if (data.token) {
-      reply.setCookie('token', data.token, {
-        httpOnly: true,
-        secure: true,           // ✅ Only HTTPS for production
-        sameSite: 'lax',       // ✅ Required for cross-origin if frontend is on another domain
-        path: '/',              // ✅ Valid across all routes
-      });
-    }
+    // if (data.token) {
+    //   reply.setCookie('token', data.token, {
+    //     httpOnly: true,
+    //     secure: true,           // ✅ Only HTTPS for production
+    //     sameSite: 'lax',       // ✅ Required for cross-origin if frontend is on another domain
+    //     path: '/',              // ✅ Valid across all routes
+    //   });
+    // }
 
-    if (data.sessionId) {
-      reply.setCookie('sessionId', data.sessionId, {
-        httpOnly: true,
-        secure: true,           // ✅ Only HTTPS for production
-        sameSite: 'lax',       // ✅ Required for cross-origin if frontend is on another domain
-        path: '/',              // ✅ Valid across all routes
-      });
-    }
+    // if (data.sessionId) {
+    //   reply.setCookie('sessionId', data.sessionId, {
+    //     httpOnly: true,
+    //     secure: true,           // ✅ Only HTTPS for production
+    //     sameSite: 'lax',       // ✅ Required for cross-origin if frontend is on another domain
+    //     path: '/',              // ✅ Valid across all routes
+    //   });
+    // }
 
     return reply.status(response.status).send(data);
 
