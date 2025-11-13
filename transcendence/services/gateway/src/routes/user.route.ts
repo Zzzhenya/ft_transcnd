@@ -112,6 +112,18 @@ const userRoutes: FastifyPluginAsync = async (fastify) => {
 			return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/users/${userId}/remote-matches`, 'GET');
 	});
 
+	// Get user's tournament history
+	fastify.get('/users/:userId/tournaments', async (request, reply) => {
+			const { userId } = request.params as { userId: string };
+			return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/users/${userId}/tournaments`, 'GET');
+	});
+
+		// Get matches for a specific tournament
+	fastify.get('/tournaments/:tournamentId/matches', async (request, reply) => {
+			const { tournamentId } = request.params as { tournamentId: string };
+			return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/tournaments/${tournamentId}/matches`, 'GET');
+	});
+
 	// Accept notification endpoint
 	fastify.post('/notifications/:notificationId/accept', async (request, reply) => {
 		const { notificationId } = request.params as { notificationId: string };
