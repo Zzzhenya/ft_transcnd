@@ -996,8 +996,6 @@ fastify.get('/users/:userId/remote-matches', {
     
     console.log(`🎮 Getting remote matches for user ${userId}`);
     logger.info(`Getting remote matches for user ${userId}`);
-    console.log(`🎮 Getting remote matches for user ${userId}`);
-    logger.info(`Getting remote matches for user ${userId}`);
 
     // Query for all finished remote matches
     const response = await fetch('http://database-service:3006/internal/query', {
