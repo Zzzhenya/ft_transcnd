@@ -80,7 +80,7 @@ Table Tournament {
   id integer [primary key, increment]
   T_name varchar(100) [not null]
   T_description text
-  is_tournament boolean [default: 1]
+  // is_tournament boolean [default: 1]
   
   Tournament_status varchar(20) [default: 'registration']
   player_count integer [not null]
