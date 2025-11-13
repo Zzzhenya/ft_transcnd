@@ -43,7 +43,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
   root.innerHTML = `
     <section class="py-6 md:py-8 lg:py-10 space-y-6">
       <div class="flex items-center justify-between">
-        <h1 class="text-2xl sm:text-3xl lg:text-4xl font-bold">📊 Dashboard</h1>
+        <h1 class="text-2xl sm:text-3xl lg:text-4xl font-bold">📊 Dashboard ${user.username} </h1>
       </div>
 
       <!-- Remote Match History -->
@@ -78,9 +78,11 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Opponent Alias
                 </th>
+                <!--
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Opponent Username
                 </th>
+                -->
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Score
                 </th>
@@ -240,9 +242,11 @@ async function loadRemoteMatches(userId: number) {
             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
               ${match.opponentName}
             </td>
+            <!--
             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
               ${match.opponentUserName}
             </td>
+            -->
             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
               <span class="font-semibold">${match.userScore}</span> - <span class="font-semibold">${match.opponentScore}</span>
             </td>
@@ -339,14 +343,15 @@ async function loadTournaments(userId: number) {
     if (listEl) {
       listEl.innerHTML = tournaments.map(tournament => {
         return `
-          <li class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+          <li class="tournament-item flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
+              data-tournament-id="${tournament.tournamentId}">
             <span class="text-2xl">🏆</span>
             <span class="text-sm font-medium text-gray-900">Tournament #${tournament.tournamentId}</span>
           </li>
         `;
       }).join('');
-    
 
+      // Event listeners hinzufügen
       document.querySelectorAll('.tournament-item').forEach(item => {
         item.addEventListener('click', () => {
           const tournamentId = item.getAttribute('data-tournament-id');
