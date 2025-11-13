@@ -6,55 +6,59 @@
 Table Users {
   id integer [primary key, increment]
   username varchar(50) [unique, not null]
-  Guest bool
+  is_guest boolean [default: 0]
   email varchar(100) [unique, not null]
-  password_hash varchar(255) [note: 'bcrypt hash']
+  password_hash varchar(255)
   
   // OAuth / 42 Integration
-  intra_id integer [unique, note: '42 Intra User ID']
-  oauth_provider varchar(20) [note: 'e.g., 42, google']
-  email_verified boolean [default: false]
+  intra_id integer [unique]
+  oauth_provider varchar(20)
+  email_verified boolean [default: 0]
   
   // Profile
-  display_name varchar(100) [unique]
+  display_name varchar(100)
   avatar varchar(255)
   bio text
   
   // Status
-  status varchar(20) [default: 'offline', note: 'online, offline, in_game, in_queue']
+  user_status varchar(20) [default: 'offline']
   current_match_id integer
   
+  // Online Status
+  last_seen text [default: `CURRENT_TIMESTAMP`]
+  is_online integer [default: 0]
+  
   // Security
-  mfa_enabled boolean [default: false]
+  mfa_enabled boolean [default: 0]
   mfa_secret varchar(255)
-  mfa_backup_codes text [note: 'JSON array of backup codes']
+  mfa_backup_codes text
   
   // Timestamps
-  created_at timestamp [default: `now()`]
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
   last_login timestamp
   
-  jwt varchar [note: "hash"]
-  tocken varchar [note: 'hash']
-
   Indexes {
     username [unique]
     email [unique]
     intra_id [unique]
+    is_online
+    last_seen
   }
 }
-
-
 
 // -------------------- FRIENDS --------------------
 Table Friends {
   id integer [primary key, increment]
   user_id integer [not null]
   friend_id integer [not null]
-  status varchar(20) [default: 'pending', note: 'pending, accepted, blocked']
-  created_at timestamp [default: `now()`]
+  friends_status varchar(20) [default: 'pending']
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
   accepted_at timestamp
   
   Indexes {
+    user_id
+    friend_id
+    friends_status
     (user_id, friend_id) [unique]
   }
 }
@@ -64,22 +68,59 @@ Table Blocked_Users {
   id integer [primary key, increment]
   user_id integer [not null]
   blocked_user_id integer [not null]
-  blocked_at timestamp [default: `now()`]
+  blocked_at timestamp [default: `CURRENT_TIMESTAMP`]
   
   Indexes {
     (user_id, blocked_user_id) [unique]
   }
 }
 
-// -------------------- MATCHES --------------------
+// -------------------- TOURNAMENTS --------------------
+Table Tournament {
+  id integer [primary key, increment]
+  T_name varchar(100) [not null]
+  T_description text
+  // is_tournament boolean [default: 1]
+  
+  Tournament_status varchar(20) [default: 'registration']
+  player_count integer [not null]
+  current_players integer [default: 0]
+  
+  winner_id integer
+  winner_username varchar(50)
+  
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  started_at timestamp
+  finished_at timestamp
+  
+  Indexes {
+    Tournament_status
+  }
+}
+
+// -------------------- TOURNAMENT PARTICIPANTS --------------------
+Table Tournament_Players {
+  id integer [primary key, increment]
+  tournament_id integer [not null]
+  user_id integer [not null]
+  tournament_alias varchar(50) [not null]
+  
+  joined_at timestamp [default: `CURRENT_TIMESTAMP`]
+  
+  Indexes {
+    tournament_id
+    (tournament_id, user_id) [unique]
+  }
+}
+
+// -------------------- TOURNAMENT MATCHES --------------------
 Table Matches_Tournament {
   id integer [primary key, increment]
-  tournament_id integer [note: 'NULL = normal 1v1 match']
+  tournament_id integer
   
   // Tournament Info
-  round integer [note: 'Tournament round number']
-  match_number integer [note: 'Match number within round']
-  //bracket_type varchar(20) [note: 'winner, loser, placement']
+  round integer
+  match_number integer
   
   // Players
   player1_id integer [not null]
@@ -87,29 +128,29 @@ Table Matches_Tournament {
   
   // Results
   winner_id integer
-  //loser_id integer
+  loser_id integer
   player1_score integer [default: 0]
   player2_score integer [default: 0]
   
   // Match Details
-  status varchar(20) [default: 'waiting', note: 'waiting, in_progress, finished, interrupted']
-  //game_mode varchar(20) [default: 'normal', note: 'normal, ranked, custom']
-  //match_type varchar(20) [note: '1v1, tournament']
-  //duration integer [note: 'Duration in seconds']
+  matches_status varchar(20) [default: 'waiting']
+  game_mode varchar(20) [default: 'normal']
+  match_type varchar(20)
+  duration integer
   
   // Timestamps
-  created_at timestamp [default: `now()`]
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
   started_at timestamp
   finished_at timestamp
   
   Indexes {
     tournament_id
-    player1_id
-    player2_id
-    status
+    (player1_id, player2_id)
+    matches_status
   }
 }
 
+// -------------------- REMOTE MATCHES --------------------
 Table Remote_Match {
   id integer [primary key, increment]
   
@@ -119,160 +160,124 @@ Table Remote_Match {
   
   // Results
   winner_id integer
-
   player1_score integer [default: 0]
   player2_score integer [default: 0]
   
   // Match Details
-  status varchar(20) [default: 'waiting', note: 'waiting, in_progress, finished, interrupted']
-
-
+  Remote_status varchar(20) [default: 'waiting']
+  
   // Timestamps
-  created_at timestamp [default: `now()`]
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
   started_at timestamp
   finished_at timestamp
-
-}
-
-// -------------------- TOURNAMENTS --------------------
-Table Tournament{
-  id integer [primary key, increment]
-  name varchar(100) 
-  description text
-    
-  status varchar(20) [default: 'registration', note: 'registration, in_progress, finished, cancelled']
-  player_count integer [not null, note: '4 or 8 players']
-  current_players integer [default: 0]
-  
-  winner_id integer
-  winner_username varchar
-  
-  created_at timestamp [default: `now()`]
-  started_at timestamp
-  finished_at timestamp
-}
-
-// -------------------- TOURNAMENT PARTICIPANTS --------------------
-Table Tournament_Players {
-  id integer [primary key, increment]
-  tournament_id integer [not null]
-  user_id integer [not null]
-  tournament_alias varchar(50) [not null, note: 'Display name in tournament']
-  
-  //placement integer [note: '1-8 final placement']
-  //eliminated_in_round integer
-  
-  joined_at timestamp [default: `now()`]
   
   Indexes {
-    (tournament_id, user_id) [unique]
+    (player1_id, player2_id)
+    Remote_status
   }
 }
 
-// // -------------------- CHANNELS (CHAT) --------------------
-// Table Channels {
-//   id integer [primary key, increment]
-//   name varchar(100) [unique, not null]
-//   type varchar(20) [default: 'public', note: 'public, private, protected, direct']
-//   password_hash varchar(255) [note: 'Only for protected channels']
+// -------------------- CHANNELS (CHAT) --------------------
+Table Channels {
+  id integer [primary key, increment]
+  C_name varchar(100) [unique, not null]
+  C_type varchar(20) [default: 'public']
+  password_hash varchar(255)
   
-//   owner_id integer [not null]
-//   description text
+  owner_id integer [not null]
+  C_description text
   
-//   created_at timestamp [default: `now()`]
-//   updated_at timestamp [default: `now()`]
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  updated_at timestamp [default: `CURRENT_TIMESTAMP`]
   
-//   Indexes {
-//     name [unique]
-//     owner_id
-//   }
-// }
+  Indexes {
+    C_name [unique]
+    owner_id
+  }
+}
 
-// // -------------------- CHANNEL MEMBERS --------------------
-// Table Channel_Members {
-//   id integer [primary key, increment]
-//   channel_id integer [not null]
-//   user_id integer [not null]
+// -------------------- CHANNEL MEMBERS --------------------
+Table Channel_Members {
+  id integer [primary key, increment]
+  channel_id integer [not null]
+  user_id integer [not null]
   
-//   role varchar(20) [default: 'member', note: 'owner, admin, member']
+  CM_role varchar(20) [default: 'member']
+  muted_until timestamp
+  banned boolean [default: 0]
   
-//   muted_until timestamp [note: 'NULL = not muted']
-//   banned boolean [default: false]
+  joined_at timestamp [default: `CURRENT_TIMESTAMP`]
   
-//   joined_at timestamp [default: `now()`]
-  
-//   Indexes {
-//     (channel_id, user_id) [unique]
-//     channel_id
-//     user_id
-//   }
-// }
+  Indexes {
+    (channel_id, user_id) [unique]
+  }
+}
 
-// // -------------------- MESSAGES --------------------
-// Table Messages {
-//   id integer [primary key, increment]
-//   channel_id integer [note: 'NULL for direct messages']
-//   sender_id integer [not null]
-//   receiver_id integer [note: 'Only for direct messages']
+// -------------------- MESSAGES --------------------
+Table Messages {
+  id integer [primary key, increment]
+  channel_id integer
+  sender_id integer [not null]
+  receiver_id integer
   
-//   content text [not null]
-//   edited boolean [default: false]
+  content text [not null]
+  edited boolean [default: 0]
   
-//   created_at timestamp [default: `now()`]
-//   edited_at timestamp
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
+  edited_at timestamp
   
-//   Indexes {
-//     channel_id
-//     sender_id
-//     receiver_id
-//     created_at
-//   }
-// }
+  Indexes {
+    channel_id
+    sender_id
+    created_at
+  }
+}
 
 // -------------------- GAME INVITATIONS --------------------
 Table Game_Invitations {
   id integer [primary key, increment]
   from_user_id integer [not null]
   to_user_id integer [not null]
-
-  is_tournament bool [default: `false`]
   
-  game_id integer [note: 'Created when accepted']
-  game_mode varchar(20) [default: 'normal']
+    
+  tournament_id integer          // NULL für Remote Matches
+  remote_match_id integer        // NULL für Tournaments
   
-  status varchar(20) [default: 'pending', note: 'pending, accepted, declined, expired, cancelled']
+  GI_status varchar(20) [default: 'pending']
   
-  created_at timestamp [default: `now()`]
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
   expires_at timestamp
   responded_at timestamp
   
   Indexes {
     from_user_id
     to_user_id
-    status
+    GI_status
   }
 }
 
-// // -------------------- NOTIFICATIONS --------------------
-// Table Notifications {
-//   id integer [primary key, increment]
-//   user_id integer [not null]
+// -------------------- NOTIFICATIONS --------------------
+Table Notifications {
+  id integer [primary key, increment]
+  user_id integer [not null]
+  actor_id integer
   
-//   type varchar(30) [not null, note: 'friend_request, game_invite, tournament_start, message, achievement']
-//   title varchar(100)
-//   content text
-//   link varchar(255) [note: 'Link to relevant resource']
+  Noti_type varchar(30) [not null]
+  title varchar(100)
+  content text
+  payload text
+  link varchar(255)
   
-//   read boolean [default: false]
+  Noti_read boolean [default: 0]
   
-//   created_at timestamp [default: `now()`]
+  created_at timestamp [default: `CURRENT_TIMESTAMP`]
   
-//   Indexes {
-//     user_id
-//     read
-//     created_at
-//   }
-// }
+  Indexes {
+    user_id
+    Noti_read
+    created_at
+  }
+}
 
 // ============================================
 // FOREIGN KEY RELATIONSHIPS
@@ -286,38 +291,43 @@ Ref: Friends.friend_id > Users.id [delete: cascade]
 Ref: Blocked_Users.user_id > Users.id [delete: cascade]
 Ref: Blocked_Users.blocked_user_id > Users.id [delete: cascade]
 
-// Matches
+// Tournament
+Ref: Tournament.winner_id > Users.id
+
+// Tournament Players
+Ref: Tournament_Players.tournament_id > Tournament.id [delete: cascade]
+Ref: Tournament_Players.user_id > Users.id
+
+// Tournament Matches
 Ref: Matches_Tournament.tournament_id > Tournament.id [delete: cascade]
 Ref: Matches_Tournament.player1_id > Users.id
 Ref: Matches_Tournament.player2_id > Users.id
 Ref: Matches_Tournament.winner_id > Users.id
-Ref: Users.current_match_id > Matches_Tournament.id
 
-// Tournaments
-Ref: Tournament.winner_id > Users.id
-Ref: Tournament_Players.tournament_id > Tournament.id [delete: cascade]
-Ref: Tournament_Players.user_id > Users.id
+// Remote Matches
+Ref: Remote_Match.player1_id > Users.id
+Ref: Remote_Match.player2_id > Users.id
+Ref: Remote_Match.winner_id > Users.id
 
-// Chat
-//Ref: Channels.owner_id > Users.id
-//Ref: Channel_Members.channel_id > Channels.id [delete: cascade]
-//Ref: Channel_Members.user_id > Users.id [delete: cascade]
-//Ref: Messages.channel_id > Channels.id [delete: cascade]
-// Ref: Messages.sender_id > Users.id
-// Ref: Messages.receiver_id > Users.id
+// Channels
+Ref: Channels.owner_id > Users.id
+
+// Channel Members
+Ref: Channel_Members.channel_id > Channels.id [delete: cascade]
+Ref: Channel_Members.user_id > Users.id [delete: cascade]
+
+// Messages
+Ref: Messages.channel_id > Channels.id [delete: cascade]
+Ref: Messages.sender_id > Users.id
+Ref: Messages.receiver_id > Users.id
 
 // Game Invitations
 Ref: Game_Invitations.from_user_id > Users.id [delete: cascade]
 Ref: Game_Invitations.to_user_id > Users.id [delete: cascade]
-Ref: Game_Invitations.game_id > Tournament.id
-Ref: Game_Invitations.game_id >  Remote_Match.id
-
-// Remote Match
-Ref: Remote_Match.player1_id <> Users.id
-Ref: Remote_Match.player2_id <> Users.id
-Ref: Remote_Match.winner_id <> Users.id
+// Ref: Game_Invitations.match_id > Matches_Tournament.id
+Ref: Game_Invitations.tournament_id > Tournament.id
+Ref: Game_Invitations.remote_match_id > Remote_Match.id
 
 // Notifications
-// Ref: Notifications.user_id > Users.id [delete: cascade]
-
-// 
+Ref: Notifications.user_id > Users.id [delete: cascade]
+Ref: Notifications.actor_id > Users.id
