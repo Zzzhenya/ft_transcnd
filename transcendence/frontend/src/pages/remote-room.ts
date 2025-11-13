@@ -508,8 +508,8 @@ canvas = root.querySelector('#gameCanvas') as unknown as HTMLCanvasElement;
 // Force canvas sizing to ensure Babylon has a real render surface
 try {
   // Use the explicit container sizing to guide Babylon canvas size
-  canvas.width = canvas.clientWidth || 1200;
-  canvas.height = canvas.clientHeight || 800;
+  canvas.width = canvas.clientWidth || 1000;
+  canvas.height = canvas.clientHeight || 600;
 } catch {}
 // Initialize Babylon scene using same renderer as local game
 try {

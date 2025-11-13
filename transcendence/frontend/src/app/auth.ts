@@ -66,6 +66,8 @@ export async function register(
 			s.auth.token = data.token;
 			write(s);
 			dispatchEvent(new CustomEvent("auth:changed"));
+			// Mark online immediately after a successful register (session is established)
+			await reportOnlineOnce();
 			return { success: true };
 		}
 		return { success: true };
