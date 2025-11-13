@@ -985,6 +985,94 @@ fastify.setErrorHandler(async (error, request, reply) => {
   });
 });
 
+
+//===================================================Dashbord===============================================================
+// Get user's remote match history
+fastify.get('/users/:userId/remote-matches', {
+  preHandler: fastify.authenticate
+}, async (request, reply) => {
+  try {
+    const { userId } = request.params;
+    
+    console.log(`🎮 Getting remote matches for user ${userId}`);
+    logger.info(`Getting remote matches for user ${userId}`);
+    console.log(`🎮 Getting remote matches for user ${userId}`);
+    logger.info(`Getting remote matches for user ${userId}`);
+
+    // Query for all finished remote matches
+    const response = await fetch('http://database-service:3006/internal/query', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        table: 'Remote_Match',
+        columns: ['id', 'player1_id', 'player2_id', 'winner_id', 'player1_score', 'player2_score', 'Remote_status', 'finished_at'],
+        filters: { Remote_status: 'finished' },
+        orderBy: { column: 'finished_at', direction: 'DESC' },
+        limit: 100
+      })
+    });
+
+    if (!response.ok) {
+      logger.error('Database query failed:', response.status);
+      return reply.code(500).send({ error: 'Database query failed' });
+    }
+
+    const result = await response.json();
+    let matches = result.data || [];
+
+    // Filter matches where user participated
+    matches = matches.filter(match => 
+      match.player1_id === parseInt(userId) || match.player2_id === parseInt(userId)
+    );
+
+    console.log(`📊 Found ${matches.length} matches for user ${userId}`);
+
+    // Enrich matches with opponent data
+    const enrichedMatches = await Promise.all(
+      matches.map(async (match) => {
+        const isPlayer1 = match.player1_id === parseInt(userId);
+        const opponentId = isPlayer1 ? match.player2_id : match.player1_id;
+        const userScore = isPlayer1 ? match.player1_score : match.player2_score;
+        const opponentScore = isPlayer1 ? match.player2_score : match.player1_score;
+
+        // Get opponent username
+        const opponent = await User.findById(opponentId);
+        const opponentName = opponent?.username || 'Unknown';
+
+        // Determine result
+        let result = 'draw';
+        if (match.winner_id === parseInt(userId)) {
+          result = 'won';
+        } else if (match.winner_id === opponentId) {
+          result = 'lost';
+        }
+
+        return {
+          id: match.id,
+          opponentId: opponentId,
+          opponentName: opponentName,
+          userScore: userScore,
+          opponentScore: opponentScore,
+          result: result,
+          finishedAt: match.finished_at
+        };
+      })
+    );
+
+    return { 
+      success: true, 
+      matches: enrichedMatches,
+      total: enrichedMatches.length
+    };
+
+  } catch (error) {
+    logger.error('Error getting remote matches:', error);
+    return reply.code(500).send({ error: 'Internal server error' });
+  }
+});
+
+//===================================================Profil Changes=========================================================
+
 // Update user email endpoint
 fastify.put('/users/:userId/update-email', {
   preHandler: fastify.authenticate
