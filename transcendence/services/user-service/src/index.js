@@ -1035,7 +1035,8 @@ fastify.get('/users/:userId/remote-matches', {
 
         // Get opponent username
         const opponent = await User.findById(opponentId);
-        const opponentName = opponent?.username || 'Unknown';
+        const opponentName = opponent?.display_name || opponent?.username || 'Unknown';
+        const opponentUserName = opponent?.username || 'Unknown';
 
         // Determine result
         let result = 'draw';
@@ -1049,6 +1050,7 @@ fastify.get('/users/:userId/remote-matches', {
           id: match.id,
           opponentId: opponentId,
           opponentName: opponentName,
+          opponentUserName: opponentUserName,
           userScore: userScore,
           opponentScore: opponentScore,
           result: result,
