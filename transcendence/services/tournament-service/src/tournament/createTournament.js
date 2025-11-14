@@ -27,7 +27,7 @@ async function persistTournamentRecord({ serviceTournamentId, name, creatorName,
   };
 
     // Prepare payload for database insert
-    // Inserts a new row into Tournament_Singlematches with metadata as description
+    // Inserts a new row into Tournament with metadata as description
   const payload = {
     table: 'Tournament',
     action: 'insert',
@@ -69,6 +69,134 @@ async function persistTournamentRecord({ serviceTournamentId, name, creatorName,
   return { dbId, metadata };
 }
 
+// Helper: insert one row into Tournament_Players
+async function insertTournamentPlayerRow({ tournamentId, userId, alias }) {
+  const payload = {
+    table: 'Tournament_Players',
+    action: 'insert',
+    values: {
+      tournament_id: tournamentId,
+      user_id: userId,              // can be null for guests
+      tournament_alias: alias,
+    },
+  };
+
+  const response = await fetch(`${DATABASE_SERVICE_URL}/internal/users`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-service-auth': DB_SERVICE_TOKEN,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => response.statusText);
+    throw new Error(
+      `Failed to insert tournament player: ${response.status} ${errorText}`
+    );
+  }
+}
+
+// Public: insert all players for a tournament
+// players = [{ alias, userId }, ...]
+export async function insertTournamentPlayers(tournamentId, players) {
+  const inserts = players.map(p =>
+    insertTournamentPlayerRow({
+      tournamentId,
+      userId: p.userId ?? null,
+      alias: p.alias,
+    })
+  );
+  await Promise.all(inserts);
+}
+// Helper: insert one row into Matches_Tournament
+async function insertMatchRow({
+  tournamentId,
+  round,
+  matchNumber,
+  player1Alias,
+  player2Alias,
+  player1Id,
+  player2Id,
+}) {
+  const payload = {
+    table: 'Matches_Tournament',
+    action: 'insert',
+    values: {
+      tournament_id: tournamentId,
+      round,
+      match_number: matchNumber,
+      // IDs can be null (guests / TBD)
+      player1_id: player1Id,
+      player2_id: player2Id,
+      // ✅ new alias columns (must be included explicitly)
+      player1_alias: player1Alias ?? null,
+      player2_alias: player2Alias ?? null,
+      status: 'waiting',
+    },
+  };
+
+  const response = await fetch(`${DATABASE_SERVICE_URL}/internal/users`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-service-auth': DB_SERVICE_TOKEN,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => response.statusText);
+    throw new Error(
+      `Failed to insert tournament match: ${response.status} ${errorText}`
+    );
+  }
+}
+
+// Public: insert all matches for a bracket
+// bracket = { rounds: [...] }
+// players = [{ alias, userId }, ...]
+export async function insertTournamentMatches(tournamentId, bracket, players) {
+  if (!bracket || !Array.isArray(bracket.rounds)) return;
+
+  // Map alias -> userId (may be null)
+  const aliasToUserId = new Map();
+  players.forEach(p => {
+    aliasToUserId.set(p.alias, p.userId ?? null);
+  });
+
+  const inserts = [];
+
+  bracket.rounds.forEach((roundMatches, roundIndex) => {
+    roundMatches.forEach((match, matchIndex) => {
+      // 👇 These come straight from your generateBracket() output
+      const player1Alias = match.player1 ?? null;
+      const player2Alias = match.player2 ?? null;
+
+      const player1Id =
+        player1Alias != null ? aliasToUserId.get(player1Alias) ?? null : null;
+      const player2Id =
+        player2Alias != null ? aliasToUserId.get(player2Alias) ?? null : null;
+
+      inserts.push(
+        insertMatchRow({
+          tournamentId,
+          round: roundIndex + 1,
+          matchNumber: matchIndex + 1,
+          player1Alias,
+          player2Alias,
+          player1Id,
+          player2Id,
+        })
+      );
+    });
+  });
+
+  await Promise.all(inserts);
+}
+
+
 async function updateTournamentColumn(dbId, column, value) {
   const response = await fetch(`${DATABASE_SERVICE_URL}/internal/write`, {
     method: 'POST',
@@ -77,7 +205,7 @@ async function updateTournamentColumn(dbId, column, value) {
       'x-service-auth': DB_SERVICE_TOKEN,
     },
     body: JSON.stringify({
-      table: 'Tournament_Singlematches',
+      table: 'Tournament',
       id: dbId,
       column,
       value,

@@ -34,6 +34,38 @@ import { getState } from "@/app/store";
 import { renderTournamentWinner, attachWinnerEventListeners } from "./tournamentWinner";
 import { API_BASE } from "@/app/config";
 
+/**
+ * Build payload for backend: [{ alias, userId }]
+ * - alias = player name in the waiting room
+ * - userId = real Users.id if known, else null (guest or unknown)
+ */
+function buildBackendPlayersPayload(
+  players: { name: string; type: "user" | "guest" }[],
+  user: any,
+  state: any,
+  isGuest: boolean
+) {
+  return players.map(p => {
+    let userId: number | null = null;
+
+    // If this player is the logged-in user, use their id
+    if (user && p.name === user.name) {
+      userId = user.id ?? null;
+    } else if (isGuest && p.name === state.session?.alias) {
+      // Guest in this browser: no real Users.id
+      userId = null;
+    } else {
+      // Other guests or remote players we don't know → null
+      userId = null;
+    }
+
+    return {
+      alias: p.name,
+      userId,
+    };
+  });
+}
+
 export default function (root: HTMLElement, ctx: any) {
   const user = getAuth();
   const state = getState();
@@ -418,9 +450,9 @@ export default function (root: HTMLElement, ctx: any) {
     const lobbyBtn = root.querySelector<HTMLButtonElement>("#backBtn");
     lobbyBtn?.addEventListener("click", (e) => {
       e.preventDefault();
-  sessionStorage.removeItem("tournamentPlayers");
-  sessionStorage.removeItem("currentTournamentSize");
-  sessionStorage.removeItem("tournamentPlayerTypes");
+      sessionStorage.removeItem("tournamentPlayers");
+      sessionStorage.removeItem("currentTournamentSize");
+      sessionStorage.removeItem("tournamentPlayerTypes");
       navigate("/tournaments");
     });
 
@@ -428,9 +460,9 @@ export default function (root: HTMLElement, ctx: any) {
     const backToLobbyBtn = root.querySelector<HTMLButtonElement>("#backToLobbyBtn");
     backToLobbyBtn?.addEventListener("click", (e) => {
       e.preventDefault();
-  sessionStorage.removeItem("tournamentPlayers");
-  sessionStorage.removeItem("currentTournamentSize");
-  sessionStorage.removeItem("tournamentPlayerTypes");
+      sessionStorage.removeItem("tournamentPlayers");
+      sessionStorage.removeItem("currentTournamentSize");
+      sessionStorage.removeItem("tournamentPlayerTypes");
       navigate("/tournaments");
     });
 
@@ -480,13 +512,16 @@ export default function (root: HTMLElement, ctx: any) {
               alert("Tournament ID not found!");
               return;
             }
+
+            // Build [{ alias, userId }] payload for backend
+            const backendPlayers = buildBackendPlayersPayload(players, user, state, isGuest);
             
             // Start the tournament using the /tournaments/:id/start endpoint
             const response = await fetch(`${API_BASE}/tournaments/${tid}/start`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ 
-                players: players.map(p => p.name),
+                players: backendPlayers,
                 size: maxPlayers
               })
             });

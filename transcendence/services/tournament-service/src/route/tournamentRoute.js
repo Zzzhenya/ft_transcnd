@@ -44,6 +44,11 @@
  * - UI disables all match play buttons
  * - Tournament remains viewable but not playable
  */
+import {
+  insertTournamentPlayers,
+  insertTournamentMatches,
+} from '../tournament/createTournament.js';
+
 
 export function registerTournamentRoutes(fastify, tournaments, broadcastTournamentUpdate) {
   // List all tournaments (exclude finished tournaments)
@@ -128,40 +133,115 @@ export function registerTournamentRoutes(fastify, tournaments, broadcastTourname
     });
   });
 
-  // Start tournament
-  fastify.post('/tournaments/:id/start', async (req, reply) => {
-    const t = tournaments.get(Number(req.params.id));
-    if (!t) return reply.code(404).send({ error: 'Not found' });
-    
-    const { players, size } = req.body;
-    if (!players || !Array.isArray(players)) {
-      return reply.code(400).send({ error: 'Players array required' });
-    }
-    
-    if (players.length !== size) {
-      return reply.code(400).send({ error: `Need exactly ${size} players to start` });
-    }
+ // Start tournament
+fastify.post('/tournaments/:id/start', async (req, reply) => {
+  const t = tournaments.get(Number(req.params.id));
+  if (!t) return reply.code(404).send({ error: 'Not found' });
 
-    // Clear playerSet and add all players from the request
-    t.playerSet.clear();
-    players.forEach(player => t.playerSet.add(player));
-    
-    // Generate bracket and start tournament
-    const { generateBracket } = await import('../tournament/createBracket.js');
-    t.bracket = generateBracket(Array.from(t.playerSet));
-    t.status = 'progressing';
-    t.startedAt = t.startedAt || new Date().toISOString();
-    if (typeof t.syncSnapshot === 'function') {
-      try {
-        await t.syncSnapshot();
-      } catch (err) {
-        fastify.log.error({ err, tournamentId: t.id }, '[TournamentService] Failed to persist bracket snapshot on start');
-      }
+  const { players, size } = req.body || {};
+
+  // players can be strings OR { alias, userId }
+  if (!Array.isArray(players) || players.length === 0) {
+    return reply.code(400).send({ error: 'Players array required' });
+  }
+
+  if (players.length !== size) {
+    return reply.code(400).send({ error: `Need exactly ${size} players to start` });
+  }
+
+  // Normalize to [{ alias, userId }]
+  const normalizedPlayers = players.map(p => {
+    if (typeof p === 'string') {
+      return { alias: p, userId: null };
     }
-    
-    broadcastTournamentUpdate(t.id);
-    reply.send({ ok: true, status: t.status, bracket: t.bracket });
+    return {
+      alias: p.alias,
+      userId: p.userId ?? null,
+    };
   });
+
+  // Use aliases (names) for in-memory bracket + playerSet
+  const aliases = normalizedPlayers.map(p => p.alias);
+
+  t.playerSet = new Set(aliases);
+  t.players = normalizedPlayers; // keep full info in memory for later if needed
+
+  // Generate bracket and start tournament
+  const { generateBracket } = await import('../tournament/createBracket.js');
+  t.bracket = generateBracket(aliases);
+  t.status = 'progressing';
+  t.startedAt = t.startedAt || new Date().toISOString();
+
+  // Persist Tournament snapshot + players + matches
+  if (typeof t.syncSnapshot === 'function') {
+    try {
+      await t.syncSnapshot();
+    } catch (err) {
+      fastify.log.error(
+        { err, tournamentId: t.id },
+        '[TournamentService] Failed to persist bracket snapshot on start'
+      );
+    }
+  }
+
+  // IMPORTANT: Insert into Tournament_Players and Matches_Tournament
+  if (t.dbId) {
+    try {
+      await insertTournamentPlayers(t.dbId, normalizedPlayers);
+      await insertTournamentMatches(t.dbId, t.bracket, normalizedPlayers);
+    } catch (err) {
+      fastify.log.error(
+        { err, tournamentId: t.id },
+        '[TournamentService] Failed to insert players/matches into DB'
+      );
+      // You *can* choose to reply 500 here instead, but for now we just log.
+    }
+  } else {
+    fastify.log.error(
+      { tournamentId: t.id },
+      '[TournamentService] Missing dbId, cannot insert players/matches'
+    );
+  }
+
+  broadcastTournamentUpdate(t.id);
+  reply.send({ ok: true, status: t.status, bracket: t.bracket });
+});
+
+
+  // // Start tournament
+  // fastify.post('/tournaments/:id/start', async (req, reply) => {
+  //   const t = tournaments.get(Number(req.params.id));
+  //   if (!t) return reply.code(404).send({ error: 'Not found' });
+    
+  //   const { players, size } = req.body;
+  //   if (!players || !Array.isArray(players)) {
+  //     return reply.code(400).send({ error: 'Players array required' });
+  //   }
+    
+  //   if (players.length !== size) {
+  //     return reply.code(400).send({ error: `Need exactly ${size} players to start` });
+  //   }
+
+  //   // Clear playerSet and add all players from the request
+  //   t.playerSet.clear();
+  //   players.forEach(player => t.playerSet.add(player));
+    
+  //   // Generate bracket and start tournament
+  //   const { generateBracket } = await import('../tournament/createBracket.js');
+  //   t.bracket = generateBracket(Array.from(t.playerSet));
+  //   t.status = 'progressing';
+  //   t.startedAt = t.startedAt || new Date().toISOString();
+  //   if (typeof t.syncSnapshot === 'function') {
+  //     try {
+  //       await t.syncSnapshot();
+  //     } catch (err) {
+  //       fastify.log.error({ err, tournamentId: t.id }, '[TournamentService] Failed to persist bracket snapshot on start');
+  //     }
+  //   }
+    
+  //   broadcastTournamentUpdate(t.id);
+  //   reply.send({ ok: true, status: t.status, bracket: t.bracket });
+  // });
 
   // Advance winner
   fastify.post('/tournaments/:id/advance', async (req, reply) => {

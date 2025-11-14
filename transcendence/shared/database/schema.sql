@@ -113,7 +113,7 @@ CREATE INDEX idx_tournament_status ON Tournament(status);
 CREATE TABLE IF NOT EXISTS Tournament_Players (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     tournament_id INTEGER NOT NULL,
-    user_id INTEGER NOT NULL,
+    user_id INTEGER,
     tournament_alias VARCHAR(50) NOT NULL,
     
     joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -128,15 +128,18 @@ CREATE INDEX idx_tournament_players ON Tournament_Players(tournament_id);
 -- ============ MATCHES TOURNAMENT ============
 CREATE TABLE IF NOT EXISTS Matches_Tournament (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    tournament_id INTEGER,
+    tournament_id INTEGER NOT NULL,
     
     -- Tournament Info
     round INTEGER,
     match_number INTEGER,
     
     -- Players
-    player1_id INTEGER NOT NULL,
-    player2_id INTEGER NOT NULL,
+    player1_id INTEGER,
+    player2_id INTEGER,
+
+    player1_alias VARCHAR(50),
+    player2_alias VARCHAR(50),
     
     -- Results
     winner_id INTEGER,
