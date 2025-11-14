@@ -15,6 +15,11 @@ export async function proxyRequest(
     logger.info(`[[Gateway]] Gateway received ${method} request for ${upstreamUrl}`)
     fastify.log.info(`Gateway received ${method} request for ${upstreamUrl}`);
 
+    console.log('🔍 PROXY DEBUG - Authorization header:', request.headers['authorization']);
+    console.log('🔍 PROXY DEBUG - Authorization length:', request.headers['authorization']?.length || 0);
+    console.log('🔍 PROXY DEBUG - All headers:', JSON.stringify(request.headers, null, 2));
+
+
     const response = await request.customFetch(
       upstreamUrl,
       {
