@@ -11,6 +11,8 @@ on:
       - log-service
       - db-service-api
       - tournament_new
+      - user-authentication-001
+
       #- fix-gateway-timeout-queue
     # No paths restriction for push - always run when pushing to these branches
   pull_request:
