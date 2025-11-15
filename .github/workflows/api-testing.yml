@@ -759,12 +759,31 @@ jobs:
           fi
           
           # Profile Access via Gateway (Protected Route)
-          echo "3. 👥 Testing Protected Profile Endpoint (via Gateway)"
+          # echo "3A. 👥 Testing Protected Profile Endpoint (via Gateway)"
+          # if [ ! -z "$TOKEN" ]; then
+          #   PROFILE_RESPONSE=$(curl $CURL_FLAGS -s -w "%{http_code}" -o /tmp/profile.json \
+          #     --connect-timeout 30 --max-time 60 \
+          #     -X GET $GATEWAY_URL/auth/profile \
+          #     -H "Authorization: Bearer $TOKEN")
+            
+          #   if [ "$PROFILE_RESPONSE" = "200" ]; then
+          #     echo "✅ Profile access via Gateway passed"
+          #     cat /tmp/profile.json | jq .
+          #   else
+          #     echo "❌ Profile access via Gateway failed with status: $PROFILE_RESPONSE"
+          #     cat /tmp/profile.json
+          #     exit 1
+          #   fi
+          # else
+          #   echo "⚠️ No token available, skipping profile test"
+          # fi
+          # Profile Access via Gateway (Protected Route)
+          echo "3B. 👥 Testing Protected Profile Endpoint (via Gateway)"
           if [ ! -z "$TOKEN" ]; then
             PROFILE_RESPONSE=$(curl $CURL_FLAGS -s -w "%{http_code}" -o /tmp/profile.json \
               --connect-timeout 30 --max-time 60 \
               -X GET $GATEWAY_URL/auth/profile \
-              -H "Authorization: Bearer $TOKEN")
+              --cookie "token=$TOKEN")
             
             if [ "$PROFILE_RESPONSE" = "200" ]; then
               echo "✅ Profile access via Gateway passed"
