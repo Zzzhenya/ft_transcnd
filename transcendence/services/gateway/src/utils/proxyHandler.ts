@@ -19,6 +19,7 @@ function normalizeHeaders(
   return result;
 }
 
+
 export async function proxyRequest(
   fastify: FastifyInstance,
   request: FastifyRequest,
@@ -29,23 +30,32 @@ export async function proxyRequest(
   try {
     logger.info(`[[Gateway]] Gateway received ${method} request for ${upstreamUrl}`)
     fastify.log.info(`Gateway received ${method} request for ${upstreamUrl}`);
+    console.log(`${method} request for ${upstreamUrl}`)
+
+    // const mergedPayload = {
+    //   ...(request.body || {}),
+    //   user: request.user || null
+    // };
 
     const response = await request.customFetch(
       upstreamUrl,
       {
         method,
         headers: {
-          ...normalizeHeaders(request.headers)
-          // 'Authorization': request.headers['authorization'] || '',
-          // 'Content-Type': 'application/json',
+          ...normalizeHeaders(request.headers),
+          'Authorization': request.headers['authorization'] || '',
+          // 'Content-Type': 'application/json'
         },
         // headers: {
         //   'Authorization': request.headers['authorization'] || '',
         //   'Content-Type': 'application/json',
         // },
         body: ['POST', 'PUT', 'PATCH'].includes(method)
-          ? JSON.stringify(request.body)
-          : null,
+        ? JSON.stringify(request.body)
+        : null,
+        // body: ['POST', 'PUT', 'PATCH'].includes(method)
+        //   ? JSON.stringify(request.body)
+        //   : null,
           // ? JSON.stringify(request.body)
           // : null,
       },
@@ -89,6 +99,10 @@ export async function proxyRequest(
     //     path: '/',              // ✅ Valid across all routes
     //   });
     // }
+    reply.status(response.status)
+    console.log(`${method} request for ${upstreamUrl}`)
+    console.log(`🌟Proxy request returned data: sessionId: ${data.sessionId} token: ${data.token} `)
+    // return (data);
 
     return reply.status(response.status).send(data);
 

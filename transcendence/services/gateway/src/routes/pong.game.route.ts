@@ -20,20 +20,26 @@ interface GameParams {
 const pongGameRoute: FastifyPluginAsync = async (fastify) => {
 
 // Creates a game
-  fastify.post('/', {  preHandler: fastify.verifyAuth }, async (request, reply) => {
+  // fastify.post('/', {  preHandler: fastify.verifyAuth }, async (request, reply) => {
+  fastify.post('/', {
+  preHandler: [ 
+    fastify.verifyAuth,
+    async (request, reply) => await reply.mustAuth() ]
+}, async (request, reply) => {
     fastify.log.info("GAME START~~ >>> POST REQUEST ")
+    // await fastify.verifyAuth(request, reply);
     fastify.log.info("Request headers: ");
     fastify.log.info(request.headers);
 
-    const authHeader = request.headers['authorization'] || '';
+    // const authHeader = request.headers['authorization'] || '';
     
-    if (!authHeader.startsWith('Bearer')) {
-      fastify.log.info("Missing or invalid token ");
-      // return reply.code(401).send({ error: 'Missing or invalid token' });
-    }
-    else{
-      fastify.log.info(`authHeader: ${authHeader}`);
-    }
+    // if (!authHeader.startsWith('Bearer')) {
+    //   fastify.log.info("Missing or invalid token ");
+    //   // return reply.code(401).send({ error: 'Missing or invalid token' });
+    // }
+    // else{
+    //   fastify.log.info(`authHeader: ${authHeader}`);
+    // }
 
   //   const res = await queueAwareIntermediateRequest(fastify, request, reply, `${USER_SERVICE_URL}/auth/register`, 'POST');
   //   if (!res)
@@ -49,7 +55,7 @@ const pongGameRoute: FastifyPluginAsync = async (fastify) => {
   // });
 
 
-
+/*
     // const session = request.cookies;
     const user: any = request.user || null;
     // if (!session){
@@ -78,9 +84,43 @@ const pongGameRoute: FastifyPluginAsync = async (fastify) => {
           fastify.log.info("This is a registered user");
         }
       }
-    }  
+    }  */
 
-    return proxyRequest(fastify, request, reply, `${GAME_SERVICE_URL}/pong/game`, 'POST');
+    // await fastify.verifyAuth(request, reply);
+
+    const data = await queueAwareIntermediateRequest(fastify, request, reply, `${GAME_SERVICE_URL}/pong/game`, 'POST');
+    // const data = await queueAwareProxyRequest(fastify, request, reply, `${GAME_SERVICE_URL}/pong/game`, 'POST');
+
+    // await reply.mustAuth(); 
+    if (request.newToken) {
+      reply.setCookie('token', request.newToken, {
+        httpOnly: true,
+        secure: true,
+        sameSite: 'lax',
+        path: '/',
+      });
+      fastify.log.info(`🍪 Set new token cookie ${request.newToken}`);
+    } else {
+      fastify.log.warn(`⚠️ No newToken found on request`);
+    }
+
+    if (request.newSessionId) {
+      reply.setCookie('sessionId', request.newSessionId, {
+        httpOnly: true,
+        secure: true,
+        sameSite: 'lax',
+        path: '/',
+      });
+      fastify.log.info(`🍪 Set new sessionId cookie ${request.newSessionId}`);
+    } else {
+      fastify.log.warn(`⚠️ No newSessionId found on request`);
+    }
+
+    // Important: send after setting cookies
+    return reply.send(data);
+
+
+    // return proxyRequest(fastify, request, reply, `${GAME_SERVICE_URL}/pong/game`, 'POST');
   });
 
   fastify.get('/', async (request, reply) => {

@@ -387,111 +387,132 @@ function logCookies(request) {
 }
 
 
+function getHeaderOrNull(headers, key) {
+  return headers[key] !== undefined ? headers[key] : null;
+}
+
+// class User {
+//   constructor(data) {
+//     this.id = data.id;
+//     this.username = data.username;
+//     this.email = data.email;
+//     // this.password_hash = data.password_hash || data.password;
+//     // this.display_name = data.display_name || data.username; // Fallback to username
+//     this.password = data.password_hash; // Map password_hash to password for backward compatibility
+//     this.password_hash = data.password_hash;
+//     this.bio = data.bio;
+//     this.avatar = data.avatar;
+//     this.bio = data.bio;
+//     this.is_guest = data.is_guest;
+//     this.status = data.status;
+//     this.created_at = data.created_at;
+//   }
+
 
 // Guest login endpoint
 fastify.post('/auth/guest', async (request, reply) => {
   try {
-    const { alias } = request.body || {};
+    logger.info(`/auth/guest received a request`)
+    const { alias} = request.body || {};
 
-    console.log(request.body)
+    const headers = request.headers;
 
-    const kekse = logCookies(request);
-    console.log(`User: ${request.user}`)
+    const role = getHeaderOrNull(headers, 'x-user-role')
+    const authState = getHeaderOrNull(headers, 'x-auth-status')
+    const uuid = getHeaderOrNull(headers, 'x-session-id');
 
-    fastify.log.info("Alias: "); fastify.log.info(alias);
-
-    const myUuid = request.headers['x-session-id'] || null;
-    let oldUser = null;
-    if (myUuid){
-      oldUser = await User.findByUuid(myUuid);
-      console.log(`🔍 /auth/guest old user: ${oldUser}`);
-    }
+    console.log(`role: ${role} , authstatus: ${authState}, uuid: ${uuid}`)
 
 
-    console.log(`request headers: `)
-    logHeaders(request.headers);
-
-    const sessionId = request.headers['x-session-id'] || null;
-    console.log(`SessionId = uuid = ::: ${request.headers['x-session-id']}`)
-    
-    logger.info('Guest login attempt:', { alias });
-    
+    console.log(`✅ new user`)
     // Generate unique guest ID
     const timestamp = Date.now().toString(36);
     const random = Math.random().toString(36).substring(2, 6);
     const guestId = `${timestamp}${random}`;
-    
     fastify.log.info("guestID: "); fastify.log.info(guestId);
 
     let username;
-    
     // Create username with "guest_" prefix
     if (alias) {
       username = `guest_${alias}`;
       fastify.log.info("alias username: "); fastify.log.info(username);
-      
       // Check if username already exists
       const existingUser = await User.findByUsername(username);
-      
       if (existingUser) {
         logger.warn('Guest username already taken:', username);
         return reply.code(409).send({
           success: false,
           message: `Username "${alias}" is already taken. Please choose another name.`,
-          error: 'Username already exists'
-        });
-      }
-      
-      logger.info('Guest username available:', username);
+          error: 'Username already exists'});
+        logger.info('Guest username available:', username);
+      } 
     } else {
       // No alias provided → guest_xxxxxxxx (always unique)
       username = `guest_${guestId.substring(0, 8)}`;
       logger.info('Generated guest username:', username);
       fastify.log.info("non-alias userame: "); fastify.log.info(username);
     }
-    
-    const email = `${guestId}@guest.local`;  // Always unique
 
+    const email = `${guestId}@guest.local`;  // Always unique
     fastify.log.info("email: "); fastify.log.info(email);
-    
+
     // Hash a random password
     const password_hash = await bcrypt.hash(guestId, 10);
 
     fastify.log.info("password hash with guestId: "); fastify.log.info(password_hash);
 
+          // id: decoded.userId,
+          // username: decoded.username,
+          // role: 'registered',
+          // isGuest: decoded.isGuest,
+          // jwt: jwtToken,
+          // authState: 'valid'
     let guestUser;
-    // Create guest user
-    if (!oldUser)
-    {
+
+    if (authState === 'valid' && role === 'registered'){
+      console.log('do nothing')
+      guestUser = new User();
+    // const authUser = new User({
+    // const user = new User({
+    // id: getHeaderOrNull(headers, 'x-user-id'),
+    // username: getHeaderOrNull(headers, 'x-user-name'),
+    // is_guest: headers['x-isguest'] !== undefined
+    //   ? headers['x-isguest'] === 'true'
+    //   : null,
+    // }) || null;
+
+    // if (user){
+    //   console.log(`👻 ${user}`);
+    // }
+    } else {
+
+
       guestUser = await User.create({
         username,
         email,
-        password: password_hash, // Using password field as in current schema
+        password_hash: password_hash, // Using password field as in current schema
         display_name: username,
         is_guest: true,
-        sessionId: myUuid
+        sessionId: uuid
       });
-    } else {
-      console.log('🔍 Maybe we update the user??!');
-      guestUser = oldUser;
+
+      logger.info('Guest user created:', { id: guestUser.id, username: guestUser.username });
+
+      // Generate token
+      const token = jwt.sign(
+        { 
+          userId: guestUser.id, 
+          username: guestUser.username,
+          isGuest: true 
+        },
+        JWT_SECRET,
+        { expiresIn: '24h' }
+      );
+
+      fastify.log.info("jwt token: "); fastify.log.info(token);
+
+      console.log(`📣reply: success: 'Guest user created', token:  ${token}, sessionId: ${uuid}`)
     }
-
-    console.log('1')
-
-    logger.info('Guest user created:', { id: guestUser.id, username: guestUser.username });
-
-    // Generate token
-    const token = jwt.sign(
-      { 
-        userId: guestUser.id, 
-        username: guestUser.username,
-        isGuest: true 
-      },
-      JWT_SECRET,
-      { expiresIn: '24h' }
-    );
-
-    fastify.log.info("jwt token: "); fastify.log.info(token);
 
     return reply.code(201).send({
       success: true,
@@ -503,26 +524,8 @@ fastify.post('/auth/guest', async (request, reply) => {
         is_guest: true
       },
       token,
-      sessionId: myUuid
+      sessionId: uuid
     });
-    // reply.setCookie('token', token, {
-    //   httpOnly: true,
-    //   secure: true,       // use true in production (HTTPS required)
-    //   sameSite: 'lax',    // helps mitigate CSRF
-    //   path: '/',          // cookie is valid for all routes
-    // })
-    // .code(201)
-    // .send({
-    //   success: true,
-    //   message: 'Guest user created',
-    //   user: {
-    //     id: guestUser.id,
-    //     username: guestUser.username,
-    //     email: guestUser.email,
-    //     is_guest: true,
-    //   },
-    //   token
-    // });
   } catch (error) {
     logger.error('Guest login error:', error);
     

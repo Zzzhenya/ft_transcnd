@@ -126,6 +126,7 @@ class User {
         });
       console.log('3')
       if (!res.ok) {
+        console.log(`DB status: ${res.status}`)
         throw new Error(`Database service responded with status ${res.status}`);
       }
 
@@ -189,7 +190,7 @@ class User {
         },
         body: JSON.stringify({
           table: 'Users',
-          columns: ['id', 'username', 'email', 'password_hash', 'created_at', 'is_guest'],
+          columns: ['id', 'username', 'email', 'password_hash', 'created_at', 'is_guest', 'uuid'],
           filters: { id },
           limit: 1
         })
@@ -270,7 +271,7 @@ class User {
       // data.data is assumed to be an array of rows
       console.log( data.data && data.data.length > 0 ? data.data[0] : null)
 
-      // return data.data && data.data.length > 0 ? new User(data.data[0]) : null;
+      return data.data && data.data.length > 0 ? new User(data.data[0]) : null;
     } catch (error) {
       console.error('❌ Error finding user by id:', error);
       throw error;

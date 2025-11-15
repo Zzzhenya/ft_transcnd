@@ -106,6 +106,11 @@ export async function queueAwareProxyRequest(
     logger.info(`[[Gateway]] Gateway received ${method} request for ${upstreamUrl} (timeout: ${dynamicTimeout}ms)`);
     fastify.log.info(`Gateway received ${method} request for ${upstreamUrl} (timeout: ${dynamicTimeout}ms)`);
 
+    // const mergedPayload = {
+    //   ...(request.body || {}),
+    //   user: request.user || null
+    // };
+
     const response = await request.customFetch(
       upstreamUrl,
       {
@@ -157,6 +162,9 @@ export async function queueAwareProxyRequest(
     //   sameSite: 'lax',       // ✅ Required for cross-origin if frontend is on another domain
     //   path: '/',              // ✅ Valid across all routes
     // })
+
+    // reply.status(response.status)
+    // return data;
 
     return reply.status(response.status).send(data);
 

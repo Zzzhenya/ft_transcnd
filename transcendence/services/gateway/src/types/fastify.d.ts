@@ -13,6 +13,8 @@ declare module 'fastify' {
   // mustAuth.plugin.ts
   interface FastifyReply {
     mustAuth: () => Promise<void>;
+    body?: any;
+
   };
 
   // customFetch.plugin.ts
@@ -23,5 +25,7 @@ declare module 'fastify' {
   // user.d.ts
   interface FastifyRequest {
     user: UserContext;
+    newToken: any;
+    newSessionId: any;
   };
 };
