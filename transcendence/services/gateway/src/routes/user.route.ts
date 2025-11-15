@@ -3,26 +3,30 @@ import gatewayError from '../utils/gatewayError.js';
 import logger from '../utils/logger.js'; // log-service
 import { proxyRequest } from '../utils/proxyHandler.js';
 
+// {
+//   preHandler: fastify.mustAuth
+// }
+
 import type { FastifyHttpOptions, FastifyInstance, FastifyServerOptions, FastifyPluginAsync, FastifyRequest } from "fastify"
 
 const USER_SERVICE_URL = process.env.USER_SERVICE_URL || 'http://user-service:3001';
 
-function logCookies(request: FastifyRequest): Record<string, string> {
-  // Parsed cookies via fastify-cookie
-  const cookies = request.cookies as Record<string, string> | undefined;
+// function logCookies(request: FastifyRequest): Record<string, string> {
+//   // Parsed cookies via fastify-cookie
+//   const cookies = request.cookies as Record<string, string> | undefined;
 
-  if (!cookies || Object.keys(cookies).length === 0) {
-    console.log('😄No cookies received in this request.');
-  } else {
-    console.log('😄Parsed cookies:', cookies);
-  }
+//   if (!cookies || Object.keys(cookies).length === 0) {
+//     console.log('😄No cookies received in this request.');
+//   } else {
+//     console.log('😄Parsed cookies:', cookies);
+//   }
 
-  // Optional: log raw Cookie header
-  const rawCookieHeader = request.headers['cookie'];
-  console.log('Raw Cookie header:', rawCookieHeader || 'None');
+//   // Optional: log raw Cookie header
+//   const rawCookieHeader = request.headers['cookie'];
+//   console.log('Raw Cookie header:', rawCookieHeader || 'None');
 
-  return cookies || {};
-}
+//   return cookies || {};
+// }
 
 const userRoutes: FastifyPluginAsync = async (fastify) => {
 
@@ -46,10 +50,6 @@ const userRoutes: FastifyPluginAsync = async (fastify) => {
 	});
 
 	fastify.post('/auth/login', async (request, reply) => {
-		const cookies = logCookies(request)
-		const token = cookies?.token?? null;
-		if (token)
-			console.log(`jwt: ${token}`)
 		// fastify.log.info("Gateway received POST request for /register")
 		// fastify.log.info({ body: request.body }, "Request body")
 		return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/auth/login`, 'POST');
@@ -62,7 +62,7 @@ const userRoutes: FastifyPluginAsync = async (fastify) => {
 		return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/auth/guest`, 'POST');
 	});
 
-	fastify.get('/auth/profile', async (request, reply) => {
+	fastify.get('/auth/profile', { preHandler: fastify.mustAuth }, async (request, reply) => {
 		return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/auth/profile`, 'GET');
 	});
 
