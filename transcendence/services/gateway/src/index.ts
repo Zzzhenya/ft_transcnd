@@ -103,14 +103,14 @@ Fastify.addHook('onRequest', async (request, reply) => {
       const newSessionId = uuidv4();
       // call your own POST /sessions route internally
 
-      const res = await fetch(`${TESTDB_URL}/session`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          sessionId: newSessionId, 
-          time: new Date().toString(),
-          status: 1 })
-      });
+      // const res = await fetch(`${TESTDB_URL}/session`, {
+      //   method: 'POST',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify({ 
+      //     sessionId: newSessionId, 
+      //     time: new Date().toString(),
+      //     status: 1 })
+      // });
 
       // if (res.statusCode >= 400) {
       //   Fastify.log.error(`[[Gateway]] Failed to create session: ${res.statusCode}`);
