@@ -31,6 +31,14 @@ const userRoutes: FastifyPluginAsync = async (fastify) => {
 		return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/health`, 'GET');
 	});
 
+	fastify.post('/auth/logout', async (request, reply) => {
+		reply.clearCookie('token', { path: '/' });
+		reply.clearCookie('sessionId', { path: '/' });
+		return reply.status(200).send({ success: true, message: 'Logged out' });
+	});
+
+
+
 	fastify.post('/auth/register', async (request, reply) => {
 		// fastify.log.info("Gateway received POST request for /register")
 		// fastify.log.info({ body: request.body }, "Request body")

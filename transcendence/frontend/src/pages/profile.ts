@@ -26,7 +26,6 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
         headers: {
           'Authorization': `Bearer ${token || ''}`
         },
-        credentials: 'include',
         credentials: 'include'
       });
       if (res.ok) {

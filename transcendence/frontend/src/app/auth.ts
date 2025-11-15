@@ -86,7 +86,7 @@ export async function signIn(
   try {
 	const data = await api<{ token: string; user: any }>(
 	  "/auth/login",
-	  { method: "POST", body: JSON.stringify({ email, password }) }
+	  { method: "POST", body: JSON.stringify({ email, password }), credentials: 'include' }
 	);
 
 	const s = read();
@@ -114,6 +114,10 @@ export async function signIn(
 
 // Sign out
 export async function signOut() {
+	const data = await api<{ token: string; user: any }>(
+	  "/auth/logout",
+	  { method: "POST", credentials: 'include', body: JSON.stringify({}) }
+	);
   const s = read();
   if (!s.auth) s.auth = { user: null, token: null };
   s.auth.user = null;
