@@ -119,6 +119,10 @@ Fastify.addHook('onRequest', async (request, reply) => {
 
 await registerPlugins(Fastify);
 
+// global prehandler hook
+Fastify.addHook('preHandler', async (request, reply) => {
+  await Fastify.verifyAuth(request, reply);
+});
 // Fastify.log.info('🎯'+ process.env);
 // console.log(process.env)
 
