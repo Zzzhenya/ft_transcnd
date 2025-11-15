@@ -42,6 +42,7 @@ const authPreHandlerPlugin: FastifyPluginAsync = async (fastify) => {
   // Decorate Fastify with a reusable per-route preHandler
   fastify.decorate('verifyAuth', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
+      console.log(`🐞 Verify auth`)
       logger.info(`Checking for x-token`)
       const jwtToken = request.headers['x-token'] as string | undefined;;
       // if (Array.isArray(jwtToken)) {
@@ -54,7 +55,7 @@ const authPreHandlerPlugin: FastifyPluginAsync = async (fastify) => {
       logCookies(request);
 
       if (jwtToken && jwtToken.trim() !== '') {
-        logger.info(`jwtToken exists: ${jwtToken}`)
+        console.log(`jwtToken exists: ${jwtToken}`)
 
         logger.info(`Verifying jwtToken`)
         const decoded = await request.jwtVerify<{ userId: string; username: string; isGuest?: boolean }>();
@@ -67,25 +68,28 @@ const authPreHandlerPlugin: FastifyPluginAsync = async (fastify) => {
           jwt: jwtToken,
           authState: 'valid'
         };
-        logger.info(`Profile: ${request.user.id},  ${request.user.username},  ${request.user.role},  ${request.user.isGuest},  ${request.user.jwt}`)
+        console.log(`🐞 Verify auth`)
+        console.log(`🌟Profile: ${request.user.id},  ${request.user.username},  ${request.user.role},  ${request.user.isGuest},  ${request.user.jwt}`)
         return;
       }
 
       if (sessionId &&  sessionId.trim() !== '') {
-        logger.info(`sessionId exists: ${sessionId}`)
+        console.log(`sessionId exists: ${sessionId}`)
         logger.info(`Creating unregistered user profile`)
         request.user = {
           id: sessionId,
           username: null,
           role: 'unregistered',
+          isGuest: true,
           jwt: null,
           authState: 'new'
         };
-        logger.info(`Profile: ${request.user.id},  ${request.user.username},  ${request.user.role},  ${request.user.jwt}`)
+        console.log(`🐞 Verify auth`)
+        console.log(`🌟Profile: ${request.user.id},  ${request.user.username},  ${request.user.role},  ${request.user.jwt}`)
         return;
       }
 
-      logger.info(`sessionId and jwt token does not exist`)
+      console.log(`sessionId and jwt token does not exist`)
       logger.info(`Creating unregistered user profile`)
       request.user = {
         id: null,
@@ -94,12 +98,13 @@ const authPreHandlerPlugin: FastifyPluginAsync = async (fastify) => {
         jwt: null,
         authState: 'invalid'
       };
-      logger.info(`Profile: ${request.user.id},  ${request.user.username},  ${request.user.role},  ${request.user.jwt}`)
+      console.log(`🐞 Verify auth`)
+      logger.info(`🌟Profile: ${request.user.id},  ${request.user.username},  ${request.user.role},  ${request.user.jwt}`)
       return;
     } catch (error:any ) {
       logger.error(`An error occured while verifying token: ${error}`);
       if (error.name === 'TokenExpiredError' || error.code === 'FST_JWT_AUTHORIZATION_TOKEN_EXPIRED'){
-        logger.error(`jwt Token is expired: ${error.code? error.code : ''} : ${error.name? error.name : ''}`)
+        console.log(`jwt Token is expired: ${error.code? error.code : ''} : ${error.name? error.name : ''}`)
         request.user = {
           id: null,
           username: null,
@@ -107,9 +112,11 @@ const authPreHandlerPlugin: FastifyPluginAsync = async (fastify) => {
           jwt: null,
           authState: 'expired'
         };
+        console.log(`🐞 Verify auth`)
+        console.log(`🌟Profile: ${request.user.id},  ${request.user.username},  ${request.user.role},  ${request.user.jwt}`)
         return;
       } else {
-        logger.error(`jwt Token is invalid: ${error.code? error.code : ''} : ${error.name? error.name : ''}`)
+        console.log(`jwt Token is invalid: ${error.code? error.code : ''} : ${error.name? error.name : ''}`)
         request.user = {
           id: null,
           username: null,
@@ -117,6 +124,8 @@ const authPreHandlerPlugin: FastifyPluginAsync = async (fastify) => {
           jwt: null,
           authState: 'invalid'
         };
+        console.log(`🐞 Verify auth`)
+        console.log(`🌟Profile: ${request.user.id},  ${request.user.username},  ${request.user.role},  ${request.user.jwt}`)
         return;
       }
     }
