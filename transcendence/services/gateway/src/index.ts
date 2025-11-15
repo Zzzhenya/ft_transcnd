@@ -127,35 +127,40 @@ Fastify.addHook('onRequest', async (request, reply) => {
   }
 });
 
-Fastify.addHook('onSend', async (request, reply, payload) => {
-  // Parse the payload (since it might be a string at this stage)
-  let data;
-  try {
-    data = typeof payload === 'string' ? JSON.parse(payload) : payload;
-  } catch {
-    data = {}; // not JSON — skip cookie setting
-  }
+// Fastify.addHook('onSend', async (request, reply, payload) => {
+//   // Parse the payload (since it might be a string at this stage)
+//   console.log(`✉️ onSend hook`)
+//   let data;
+//   try {
+//     data = typeof payload === 'string' ? JSON.parse(payload) : payload;
+//   } catch {
+//     data = {}; // not JSON — skip cookie setting
+//   }
 
-  if (data.token) {
-    reply.setCookie('token', data.token, {
-      httpOnly: true,
-      secure: true,       // ✅ Use HTTPS in production
-      sameSite: 'lax',
-      path: '/',
-    });
-  }
+//   if (data.token) {
+//     // reply.setCookie('token', data.token, {
+//     //   httpOnly: true,
+//     //   secure: true,       // ✅ Use HTTPS in production
+//     //   sameSite: 'lax',
+//     //   path: '/',
+//     // });
+//   } else {
+//     console.log (`✉️ NO token`)
+//   }
 
-  if (data.sessionId) {
-    reply.setCookie('sessionId', data.sessionId, {
-      httpOnly: true,
-      secure: true,
-      sameSite: 'lax',
-      path: '/',
-    });
-  }
+//   if (data.sessionId) {
+//     // reply.setCookie('sessionId', data.sessionId, {
+//     //   httpOnly: true,
+//     //   secure: true,
+//     //   sameSite: 'lax',
+//     //   path: '/',
+//     // });
+//   } else {
+//     console.log (`✉️ NO sessionId`)
+//   }
 
-  return payload; // Always return the (possibly unmodified) payload
-});
+//   return payload; // Always return the (possibly unmodified) payload
+// });
 
 
 await registerPlugins(Fastify);
