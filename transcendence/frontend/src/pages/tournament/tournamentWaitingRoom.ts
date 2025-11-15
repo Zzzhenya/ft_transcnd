@@ -473,6 +473,7 @@ export default function (root: HTMLElement, ctx: any) {
             const response = await fetch(`${API_BASE}/tournaments/${tid}/start`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
+              credentials: 'include',
               body: JSON.stringify({ 
                 players: players.map(p => p.name),
                 size: maxPlayers

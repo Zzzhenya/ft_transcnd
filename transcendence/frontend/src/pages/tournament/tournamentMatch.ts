@@ -166,6 +166,7 @@ export default function (root: HTMLElement, ctx: any) {
       const response = await fetch(`${API_BASE}/pong/demo`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ players: [player1Name, player2Name] })
       });
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
@@ -259,6 +260,7 @@ async function reportWinner(winnerName: string) {
     const response = await fetch(`${API_BASE}/tournaments/${tournamentId}/advance`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify({ matchId: matchId, winner: winnerName })
     });
     
@@ -285,6 +287,7 @@ async function markMatchAsInterrupted() {
     const response = await fetch(`${API_BASE}/tournaments/${tournamentId}/interrupt`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify({ matchId: matchId, reason: 'connection_timeout' })
     });
     
@@ -373,6 +376,7 @@ async function forfeitMatch() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: data,
+      credentials: 'include',
       keepalive: true // Ensures request completes even during page unload
     });
     
