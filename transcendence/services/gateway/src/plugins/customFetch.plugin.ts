@@ -78,8 +78,11 @@ const fetchPlugin: FastifyPluginAsync = async (fastify) => {
     const timer = setTimeout(() => controller.abort(), timeout);
 
     try {
+      console.log(`🌟Custom fetch request for ${url}`)
       const res = await fetch(url, { ...options, signal: controller.signal });
+      console.log(`🌟Custom fetch returned res: ${res} `)
       return res;
+
     } catch (err) {
         // Optional: additional logging for network errors
         if (err instanceof Error && err.name !== 'AbortError') {
