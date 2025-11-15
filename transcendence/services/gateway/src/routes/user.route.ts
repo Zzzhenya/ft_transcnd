@@ -12,9 +12,9 @@ function logCookies(request: FastifyRequest): Record<string, string> {
   const cookies = request.cookies as Record<string, string> | undefined;
 
   if (!cookies || Object.keys(cookies).length === 0) {
-    console.log('No cookies received in this request.');
+    console.log('😄No cookies received in this request.');
   } else {
-    console.log('Parsed cookies:', cookies);
+    console.log('😄Parsed cookies:', cookies);
   }
 
   // Optional: log raw Cookie header
