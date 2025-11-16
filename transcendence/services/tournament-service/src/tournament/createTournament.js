@@ -1,4 +1,26 @@
-// createTournament.js
+/**
+ * createTournament.js
+ *
+ * Responsibilities:
+ * - Persist tournament records and metadata to the database
+ * - Insert / update Tournament_Players and Matches_Tournament rows
+ * - Provide helpers to convert in-memory tournament state to DB-friendly
+ *   snapshots and timestamps
+ * - Export functions used by the route handlers to insert players, matches
+ *   and to update match/tournament fields
+ *
+ * Exports:
+ * - insertTournamentPlayers(tournamentId, players)
+ * - insertTournamentMatches(tournamentId, bracket, players)
+ * - updateMatchFields(dbId, fields)
+ * - toDbTimestamp(value)
+ * - registercreateTournamentService(...) (registers route-level handlers in older layout)
+ *
+ * Notes:
+ * - This file talks to the database-service via HTTP internal endpoints.
+ * - Timestamps stored in DB are converted to SQL-friendly "YYYY-MM-DD HH:MM:SS" strings.
+ */
+
 import { generateBracket } from './createBracket.js';
 
 const DATABASE_SERVICE_URL = process.env.DATABASE_SERVICE_URL || 'http://database-service:3006';

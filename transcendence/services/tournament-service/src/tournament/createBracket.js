@@ -1,4 +1,15 @@
 
+/**
+ * createBracket.js
+ *
+ * Small helper that generates a bracket structure for a tournament given
+ * an array of player aliases. Supported sizes: 4 or 8 players.
+ *
+ * Output shape:
+ * { rounds: [ [ match, ... ], ... ] }
+ * where each match contains player1, player2, winner, status, matchId and
+ * references to prevMatch1/prevMatch2 for later rounds.
+ */
 export function generateBracket(players) {
   if (!players || (players.length !== 4 && players.length !== 8)) {
     throw new Error("Player count must be exactly 4 or 8 for this tournament.");
