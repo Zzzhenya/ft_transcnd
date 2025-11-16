@@ -788,7 +788,7 @@ jobs:
             PROFILE_RESPONSE=$(curl $CURL_FLAGS -s -w "%{http_code}" -o /tmp/profile.json \
               --connect-timeout 30 --max-time 60 \
               -X GET $GATEWAY_URL/auth/profile \
-              --cookie "token=$NEW_COOKIETOKEN") \
+              --cookie "token=$NEW_COOKIETOKEN" \
               -H "Authorization: Bearer $TOKEN")
             
             if [ "$PROFILE_RESPONSE" = "200" ]; then

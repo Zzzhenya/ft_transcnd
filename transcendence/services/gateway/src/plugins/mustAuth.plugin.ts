@@ -5,6 +5,7 @@ import type { User } from "../types/user.d.js";
 import type { preHandlerHookHandler } from 'fastify';
 
 const mustAuthHandler: preHandlerHookHandler = async (request: FastifyRequest , reply: FastifyReply) => {
+  console.log(`⚡ mustAuth started...`)
   const user = request.user as User | undefined;
 
   if (!user || !user.authState) {
