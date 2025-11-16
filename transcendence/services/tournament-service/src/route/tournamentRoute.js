@@ -266,18 +266,74 @@ fastify.post('/tournaments/:id/start', async (req, reply) => {
   // ⬆️⬆️ END OF NEW BLOCK ⬆️⬆️
 
   // Advance winner to next round
-  if (currentRoundIndex < t.bracket.rounds.length - 1) {
-    const nextRound = t.bracket.rounds[currentRoundIndex + 1];
-    for (const nextMatch of nextRound) {
-      if (nextMatch.prevMatch1 === matchId) {
-        nextMatch.player1 = winner;
-        fastify.log.info(`Advanced ${winner} to match ${nextMatch.matchId} as player1`);
-      } else if (nextMatch.prevMatch2 === matchId) {
-        nextMatch.player2 = winner;
-        fastify.log.info(`Advanced ${winner} to match ${nextMatch.matchId} as player2`);
+if (currentRoundIndex < t.bracket.rounds.length - 1) {
+  const nextRound = t.bracket.rounds[currentRoundIndex + 1];
+
+  for (const nextMatch of nextRound) {
+    let updatedSide = null; // 'player1' | 'player2' | null
+
+    if (nextMatch.prevMatch1 === matchId) {
+      nextMatch.player1 = winner;
+      updatedSide = 'player1';
+      fastify.log.info(
+        `Advanced ${winner} to match ${nextMatch.matchId} as player1`
+      );
+    } else if (nextMatch.prevMatch2 === matchId) {
+      nextMatch.player2 = winner;
+      updatedSide = 'player2';
+      fastify.log.info(
+        `Advanced ${winner} to match ${nextMatch.matchId} as player2`
+      );
+    }
+
+    // 🔽 NEW: every time one side is known, update that side in DB
+    if (updatedSide && nextMatch.dbId) {
+      const alias = nextMatch[updatedSide]; // the alias we just set
+      let userId = null;
+
+      if (Array.isArray(t.players) && alias) {
+        const player = t.players.find(p => p.alias === alias);
+        userId = player?.userId ?? null;
       }
+
+      const prefix = updatedSide === 'player1' ? 'player1' : 'player2';
+
+      try {
+        await updateMatchFields(nextMatch.dbId, {
+          [`${prefix}_alias`]: alias,
+          [`${prefix}_id`]: userId,
+          // optional: mark status when both sides known
+          // status: nextMatch.player1 && nextMatch.player2 ? 'waiting' : 'pending_opponent',
+        });
+      } catch (err) {
+        fastify.log.error(
+          { err, tournamentId: t.id, matchId: nextMatch.matchId },
+          '[TournamentService] Failed to update next-round match in DB'
+        );
+      }
+    } else if (updatedSide && !nextMatch.dbId) {
+      fastify.log.warn(
+        { tournamentId: t.id, matchId: nextMatch.matchId },
+        '[TournamentService] next-round match has no dbId, cannot update player aliases'
+      );
     }
   }
+}
+
+
+  // // Advance winner to next round
+  // if (currentRoundIndex < t.bracket.rounds.length - 1) {
+  //   const nextRound = t.bracket.rounds[currentRoundIndex + 1];
+  //   for (const nextMatch of nextRound) {
+  //     if (nextMatch.prevMatch1 === matchId) {
+  //       nextMatch.player1 = winner;
+  //       fastify.log.info(`Advanced ${winner} to match ${nextMatch.matchId} as player1`);
+  //     } else if (nextMatch.prevMatch2 === matchId) {
+  //       nextMatch.player2 = winner;
+  //       fastify.log.info(`Advanced ${winner} to match ${nextMatch.matchId} as player2`);
+  //     }
+  //   }
+  // }
 
   // Check if tournament is finished (final match has a winner)
   const finalMatch = t.bracket.rounds.at(-1)[0];
@@ -493,22 +549,75 @@ fastify.post('/tournaments/:id/forfeit', async (req, reply) => {
   }
 
   // 5️⃣ Advance winner to next round (same as /advance)
-  if (currentRoundIndex < t.bracket.rounds.length - 1) {
-    const nextRound = t.bracket.rounds[currentRoundIndex + 1];
-    for (const nextMatch of nextRound) {
-      if (nextMatch.prevMatch1 === matchId) {
-        nextMatch.player1 = winner;
-        fastify.log.info(
-          `Advanced ${winner} to match ${nextMatch.matchId} as player1 (forfeit)`
-        );
-      } else if (nextMatch.prevMatch2 === matchId) {
-        nextMatch.player2 = winner;
-        fastify.log.info(
-          `Advanced ${winner} to match ${nextMatch.matchId} as player2 (forfeit)`
+  // if (currentRoundIndex < t.bracket.rounds.length - 1) {
+  //   const nextRound = t.bracket.rounds[currentRoundIndex + 1];
+  //   for (const nextMatch of nextRound) {
+  //     if (nextMatch.prevMatch1 === matchId) {
+  //       nextMatch.player1 = winner;
+  //       fastify.log.info(
+  //         `Advanced ${winner} to match ${nextMatch.matchId} as player1 (forfeit)`
+  //       );
+  //     } else if (nextMatch.prevMatch2 === matchId) {
+  //       nextMatch.player2 = winner;
+  //       fastify.log.info(
+  //         `Advanced ${winner} to match ${nextMatch.matchId} as player2 (forfeit)`
+  //       );
+  //     }
+  //   }
+  // }
+
+  // 5️⃣ Advance winner to next round (same as /advance)
+if (currentRoundIndex < t.bracket.rounds.length - 1) {
+  const nextRound = t.bracket.rounds[currentRoundIndex + 1];
+
+  for (const nextMatch of nextRound) {
+    let updatedSide = null;
+
+    if (nextMatch.prevMatch1 === matchId) {
+      nextMatch.player1 = winner;
+      updatedSide = 'player1';
+      fastify.log.info(
+        `Advanced ${winner} to match ${nextMatch.matchId} as player1 (forfeit)`
+      );
+    } else if (nextMatch.prevMatch2 === matchId) {
+      nextMatch.player2 = winner;
+      updatedSide = 'player2';
+      fastify.log.info(
+        `Advanced ${winner} to match ${nextMatch.matchId} as player2 (forfeit)`
+      );
+    }
+
+    if (updatedSide && nextMatch.dbId) {
+      const alias = nextMatch[updatedSide];
+      let userId = null;
+
+      if (Array.isArray(t.players) && alias) {
+        const p = t.players.find(pl => pl.alias === alias);
+        userId = p?.userId ?? null;
+      }
+
+      const prefix = updatedSide === 'player1' ? 'player1' : 'player2';
+
+      try {
+        await updateMatchFields(nextMatch.dbId, {
+          [`${prefix}_alias`]: alias,
+          [`${prefix}_id`]: userId,
+        });
+      } catch (err) {
+        fastify.log.error(
+          { err, tournamentId: t.id, matchId: nextMatch.matchId },
+          '[TournamentService] Failed to update next-round match in DB (forfeit)'
         );
       }
+    } else if (updatedSide && !nextMatch.dbId) {
+      fastify.log.warn(
+        { tournamentId: t.id, matchId: nextMatch.matchId },
+        '[TournamentService] next-round match has no dbId, cannot update player aliases (forfeit)'
+      );
     }
   }
+}
+
 
   // 6️⃣ Check if tournament is finished (final match has a winner)
   const finalMatch = t.bracket.rounds.at(-1)[0];
