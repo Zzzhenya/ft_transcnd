@@ -246,6 +246,7 @@ fastify.post('/tournaments/:id/start', async (req, reply) => {
     if (currentMatch.dbId) {
       await updateMatchFields(currentMatch.dbId, {
         winner_id: winnerUserId,
+        winner_username: winner,
         status: currentMatch.status,
         player1_score: player1Score ?? null,   // or keep previous value
         player2_score: player2Score ?? null,
@@ -343,161 +344,207 @@ fastify.post('/tournaments/:id/start', async (req, reply) => {
    * - Shows red banner: "TOURNAMENT INTERRUPTED"
    * - Lobby shows tournament with "VIEW ONLY" button
    */
-  // fastify.post('/tournaments/:id/interrupt', async (req, reply) => {
-  //   const t = tournaments.get(Number(req.params.id));
-  //   if (!t) {
-  //     fastify.log.error(`Tournament ${req.params.id} not found`);
-  //     return reply.code(404).send({ error: 'Tournament not found' });
-  //   }
 
-  //   const { matchId, reason } = req.body;
-  //   if (!matchId) {
-  //     return reply.code(400).send({ error: 'matchId is required' });
-  //   }
+  fastify.post('/tournaments/:id/interrupt', async (req, reply) => {
+  const t = tournaments.get(Number(req.params.id));
+  if (!t) {
+    fastify.log.error(`Tournament ${req.params.id} not found`);
+    return reply.code(404).send({ error: 'Tournament not found' });
+  }
 
-  //   // Find the match in the bracket
-  //   let matchFound = false;
-  //   for (let i = 0; i < t.bracket.rounds.length; i++) {
-  //     const match = t.bracket.rounds[i].find(m => m.matchId === matchId);
-  //     if (match) {
-  //       match.status = 'interrupted';
-  //       match.interruptReason = reason || 'connection_timeout';
-  //       matchFound = true;
-  //       fastify.log.warn(`⚠️ Match ${matchId} in tournament ${req.params.id} marked as interrupted: ${reason}`);
-  //       break;
-  //     }
-  //   }
+  const { matchId, reason } = req.body;
+  if (!matchId) {
+    return reply.code(400).send({ error: 'matchId is required' });
+  }
 
-  //   if (!matchFound) {
-  //     fastify.log.error(`Match ${matchId} not found in tournament ${req.params.id}`);
-  //     return reply.code(404).send({ error: 'Match not found' });
-  //   }
-
-  //   // Mark entire tournament as interrupted - prevents any further matches
-  //   t.status = 'interrupted';
-  //   fastify.log.warn(`⚠️ Tournament ${req.params.id} marked as INTERRUPTED`);
-    
-  //   // Notify all clients about the interruption
-  //   broadcastTournamentUpdate(t.id);
-  //   reply.send({ ok: true, status: t.status, matchId });
-  // });
-
-    fastify.post('/tournaments/:id/interrupt', async (req, reply) => {
-    const t = tournaments.get(Number(req.params.id));
-    if (!t) {
-      fastify.log.error(`Tournament ${req.params.id} not found`);
-      return reply.code(404).send({ error: 'Tournament not found' });
+  // Find the match in the bracket
+  let currentMatch = null;
+  for (let i = 0; i < t.bracket.rounds.length; i++) {
+    const match = t.bracket.rounds[i].find(m => m.matchId === matchId);
+    if (match) {
+      match.status = 'interrupted';
+      match.interruptReason = reason || 'connection_timeout';
+      currentMatch = match;
+      fastify.log.warn(`⚠️ Match ${matchId} in tournament ${req.params.id} marked as interrupted: ${reason}`);
+      break;
     }
+  }
 
-    const { matchId, reason } = req.body;
-    if (!matchId) {
-      return reply.code(400).send({ error: 'matchId is required' });
-    }
+  if (!currentMatch) {
+    fastify.log.error(`Match ${matchId} not found in tournament ${req.params.id}`);
+    return reply.code(404).send({ error: 'Match not found' });
+  }
 
-    // Find the match in the bracket
-    let matchFound = false;
-    for (let i = 0; i < t.bracket.rounds.length; i++) {
-      const match = t.bracket.rounds[i].find(m => m.matchId === matchId);
-      if (match) {
-        match.status = 'interrupted';
-        match.interruptReason = reason || 'connection_timeout';
-        matchFound = true;
-        fastify.log.warn(`⚠️ Match ${matchId} in tournament ${req.params.id} marked as interrupted: ${reason}`);
-        break;
-      }
-    }
-
-    if (!matchFound) {
-      fastify.log.error(`Match ${matchId} not found in tournament ${req.params.id}`);
-      return reply.code(404).send({ error: 'Match not found' });
-    }
-
-    // Mark entire tournament as interrupted - prevents any further matches
-    t.status = 'interrupted';
-    t.interruptedAt = Date.now(); // Store timestamp for 5-minute countdown
-    fastify.log.warn(`⚠️ Tournament ${req.params.id} marked as INTERRUPTED at ${new Date(t.interruptedAt).toISOString()}`);
-    if (typeof t.syncSnapshot === 'function') {
-      try {
-        await t.syncSnapshot();
-      } catch (err) {
-        fastify.log.error({ err, tournamentId: t.id }, '[TournamentService] Failed to persist snapshot after interrupt');
-      }
-    }
-    
-    // Notify all clients about the interruption
-    broadcastTournamentUpdate(t.id);
-    reply.send({ ok: true, status: t.status, matchId, interruptedAt: t.interruptedAt });
-  });
-
-  // Forfeit match (player left)
-  fastify.post('/tournaments/:id/forfeit', async (req, reply) => {
-    const t = tournaments.get(Number(req.params.id));
-    if (!t) {
-      fastify.log.error(`Tournament ${req.params.id} not found`);
-      return reply.code(404).send({ error: 'Tournament not found' });
-    }
-
-    const { matchId, winner, reason } = req.body;
-    if (!matchId || !winner) {
-      return reply.code(400).send({ error: 'matchId and winner are required' });
-    }
-
-    // Find and update the match with the winner
-    let currentMatch = null;
-    let currentRoundIndex = -1;
-    for (let i = 0; i < t.bracket.rounds.length; i++) {
-      const match = t.bracket.rounds[i].find(m => m.matchId === matchId);
-      if (match) {
-        match.winner = winner;
-        match.status = 'forfeited';
-        match.forfeitReason = reason || 'player_left';
-        currentMatch = match;
-        currentRoundIndex = i;
-        fastify.log.warn(`⚠️ Match ${matchId} forfeited, ${winner} wins by forfeit: ${reason}`);
-        break;
-      }
-    }
-
-    if (!currentMatch) {
-      fastify.log.error(`Match ${matchId} not found in tournament bracket`);
-      return reply.code(404).send({ error: 'Match not found' });
-    }
-
-    // Advance winner to next round
-    if (currentRoundIndex < t.bracket.rounds.length - 1) {
-      const nextRound = t.bracket.rounds[currentRoundIndex + 1];
-      for (const nextMatch of nextRound) {
-        if (nextMatch.prevMatch1 === matchId) {
-          nextMatch.player1 = winner;
-          fastify.log.info(`Advanced ${winner} to match ${nextMatch.matchId} as player1`);
-        } else if (nextMatch.prevMatch2 === matchId) {
-          nextMatch.player2 = winner;
-          fastify.log.info(`Advanced ${winner} to match ${nextMatch.matchId} as player2`);
-        }
-      }
-    }
-
-    // Check if tournament is finished (final match has a winner)
-    const finalMatch = t.bracket.rounds.at(-1)[0];
-    if (finalMatch.winner) {
-      t.status = 'finished';
-      t.finishedAt = Date.now(); // Store timestamp for 5-minute visibility
-      fastify.log.info(`🏆 Tournament ${req.params.id} FINISHED! Winner: ${finalMatch.winner} (by forfeit)`);
+  // ⬇️ NEW: persist interrupted status to Matches_Tournament
+  try {
+    if (currentMatch.dbId) {
+      const finishedAtIso = new Date().toISOString();
+      await updateMatchFields(currentMatch.dbId, {
+        status: 'interrupted',
+        finished_at: toDbTimestamp(finishedAtIso),
+      });
     } else {
-      t.status = 'progressing';
+      fastify.log.warn(
+        { matchId, tournamentId: t.id },
+        '[TournamentService] Interrupted match has no dbId, skipping DB update'
+      );
     }
-    if (typeof t.syncSnapshot === 'function') {
-      try {
-        await t.syncSnapshot();
-      } catch (err) {
-        fastify.log.error({ err, tournamentId: t.id }, '[TournamentService] Failed to persist snapshot after forfeit');
+  } catch (err) {
+    fastify.log.error(
+      { err, tournamentId: t.id, matchId },
+      '[TournamentService] Failed to update interrupted match in DB'
+    );
+  }
+
+  // Mark entire tournament as interrupted - prevents any further matches
+  t.status = 'interrupted';
+  t.interruptedAt = Date.now(); // Store timestamp for 5-minute countdown
+  fastify.log.warn(`⚠️ Tournament ${req.params.id} marked as INTERRUPTED at ${new Date(t.interruptedAt).toISOString()}`);
+
+  if (typeof t.syncSnapshot === 'function') {
+    try {
+      await t.syncSnapshot();
+    } catch (err) {
+      fastify.log.error({ err, tournamentId: t.id }, '[TournamentService] Failed to persist snapshot after interrupt');
+    }
+  }
+  
+  broadcastTournamentUpdate(t.id);
+  reply.send({ ok: true, status: t.status, matchId, interruptedAt: t.interruptedAt });
+});
+
+
+// Forfeit match (player left)
+fastify.post('/tournaments/:id/forfeit', async (req, reply) => {
+  const t = tournaments.get(Number(req.params.id));
+  if (!t) {
+    fastify.log.error(`Tournament ${req.params.id} not found`);
+    return reply.code(404).send({ error: 'Tournament not found' });
+  }
+
+  const { matchId, winner, reason } = req.body;
+  if (!matchId || !winner) {
+    return reply.code(400).send({ error: 'matchId and winner are required' });
+  }
+
+  // 1️⃣ Find and update the match in memory
+  let currentMatch = null;
+  let currentRoundIndex = -1;
+
+  for (let i = 0; i < t.bracket.rounds.length; i++) {
+    const match = t.bracket.rounds[i].find(m => m.matchId === matchId);
+    if (match) {
+      match.winner = winner;
+      match.winnerUsername = winner;
+      match.status = 'forfeited';
+      match.forfeitReason = reason || 'player_left';
+      currentMatch = match;
+      currentRoundIndex = i;
+      fastify.log.warn(
+        `⚠️ Match ${matchId} forfeited, ${winner} wins by forfeit: ${reason}`
+      );
+      break;
+    }
+  }
+
+  if (!currentMatch) {
+    fastify.log.error(`Match ${matchId} not found in tournament bracket`);
+    return reply.code(404).send({ error: 'Match not found' });
+  }
+
+  // 2️⃣ Set timestamps in memory
+  const nowIso = new Date().toISOString();
+  if (!currentMatch.startedAt) {
+    currentMatch.startedAt = nowIso;
+  }
+  currentMatch.finishedAt = nowIso;
+
+  // 3️⃣ Find winner userId (alias -> userId) using t.players
+  let winnerUserId = null;
+  if (Array.isArray(t.players)) {
+    const winnerPlayer = t.players.find(p => p.alias === winner);
+    winnerUserId = winnerPlayer?.userId ?? null;
+  }
+
+  // 4️⃣ Persist forfeited match to Matches_Tournament
+  try {
+    if (currentMatch.dbId) {
+      await updateMatchFields(currentMatch.dbId, {
+        winner_id: winnerUserId,
+        status: currentMatch.status,         // 'forfeited'
+        // If you have scores at time of forfeit, put them here instead of null:
+        player1_score: null,
+        player2_score: null,
+        started_at: toDbTimestamp(currentMatch.startedAt),
+        finished_at: toDbTimestamp(currentMatch.finishedAt),
+      });
+    } else {
+      fastify.log.warn(
+        { matchId, tournamentId: t.id },
+        '[TournamentService] Forfeited match has no dbId, skipping DB update'
+      );
+    }
+  } catch (err) {
+    fastify.log.error(
+      { err, tournamentId: t.id, matchId },
+      '[TournamentService] Failed to update forfeited match in DB'
+    );
+  }
+
+  // 5️⃣ Advance winner to next round (same as /advance)
+  if (currentRoundIndex < t.bracket.rounds.length - 1) {
+    const nextRound = t.bracket.rounds[currentRoundIndex + 1];
+    for (const nextMatch of nextRound) {
+      if (nextMatch.prevMatch1 === matchId) {
+        nextMatch.player1 = winner;
+        fastify.log.info(
+          `Advanced ${winner} to match ${nextMatch.matchId} as player1 (forfeit)`
+        );
+      } else if (nextMatch.prevMatch2 === matchId) {
+        nextMatch.player2 = winner;
+        fastify.log.info(
+          `Advanced ${winner} to match ${nextMatch.matchId} as player2 (forfeit)`
+        );
       }
     }
-    
-    fastify.log.info(`Tournament status: ${t.status}`);
-    broadcastTournamentUpdate(t.id);
-    reply.send({ ok: true, bracket: t.bracket, status: t.status });
-  });
+  }
+
+  // 6️⃣ Check if tournament is finished (final match has a winner)
+  const finalMatch = t.bracket.rounds.at(-1)[0];
+  if (finalMatch.winner) {
+    t.status = 'finished';
+    t.finishedAt = Date.now();         // in-memory ms timestamp
+    t.winnerUsername = finalMatch.winner;
+
+    // also store winnerId so syncTournamentSnapshot can write winner_id
+    let finalWinnerUserId = null;
+    if (Array.isArray(t.players)) {
+      const winnerPlayer = t.players.find(p => p.alias === finalMatch.winner);
+      finalWinnerUserId = winnerPlayer?.userId ?? null;
+    }
+    t.winnerId = finalWinnerUserId;
+
+    fastify.log.info(
+      `🏆 Tournament ${req.params.id} FINISHED! Winner: ${finalMatch.winner} (by forfeit)`
+    );
+  } else {
+    t.status = 'progressing';
+  }
+
+  // 7️⃣ Sync Tournament row + metadata
+  if (typeof t.syncSnapshot === 'function') {
+    try {
+      await t.syncSnapshot();
+    } catch (err) {
+      fastify.log.error(
+        { err, tournamentId: t.id },
+        '[TournamentService] Failed to persist snapshot after forfeit'
+      );
+    }
+  }
+
+  fastify.log.info(`Tournament status: ${t.status}`);
+  broadcastTournamentUpdate(t.id);
+  reply.send({ ok: true, bracket: t.bracket, status: t.status });
+});
 }
-
-

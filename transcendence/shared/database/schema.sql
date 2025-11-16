@@ -143,6 +143,7 @@ CREATE TABLE IF NOT EXISTS Matches_Tournament (
     
     -- Results
     winner_id INTEGER,
+    winner_username VARCHAR(50),
     player1_score INTEGER DEFAULT 0,
     player2_score INTEGER DEFAULT 0,
     
