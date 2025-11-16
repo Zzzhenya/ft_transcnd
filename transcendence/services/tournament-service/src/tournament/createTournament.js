@@ -1,12 +1,12 @@
-
+// createTournament.js
 import { generateBracket } from './createBracket.js';
 
 const DATABASE_SERVICE_URL = process.env.DATABASE_SERVICE_URL || 'http://database-service:3006';
 const DB_SERVICE_TOKEN = process.env.DB_SERVICE_TOKEN || 'super_secret_internal_token';
 
+// -------------------- Tournament record --------------------
+
 async function persistTournamentRecord({ serviceTournamentId, name, creatorName, creatorId, size }) {
-    // Build tournament metadata object
-    // Contains serviceTournamentId, creator info, initial player list, matches, status, timestamps
   const metadata = {
     serviceTournamentId,
     creator: {
@@ -26,8 +26,6 @@ async function persistTournamentRecord({ serviceTournamentId, name, creatorName,
     finishedAt: null,
   };
 
-    // Prepare payload for database insert
-    // Inserts a new row into Tournament with metadata as description
   const payload = {
     table: 'Tournament',
     action: 'insert',
@@ -40,7 +38,6 @@ async function persistTournamentRecord({ serviceTournamentId, name, creatorName,
     },
   };
 
-    // Send POST request to database-service to insert tournament
   const response = await fetch(`${DATABASE_SERVICE_URL}/internal/users`, {
     method: 'POST',
     headers: {
@@ -50,14 +47,11 @@ async function persistTournamentRecord({ serviceTournamentId, name, creatorName,
     body: JSON.stringify(payload),
   });
 
-    // If response is not OK, throw error with details
   if (!response.ok) {
     const errorText = await response.text().catch(() => response.statusText);
     throw new Error(`Failed to persist tournament: ${response.status} ${errorText}`);
   }
 
-    // Parse response and extract inserted row id
-    // Uses result.id (now mapped to lastInsertRowid by database-service)
   const result = await response.json();
   const dbId = result?.id ?? result?.lastInsertRowid ?? result?.lastID ?? null;
   if (!dbId) {
@@ -65,11 +59,11 @@ async function persistTournamentRecord({ serviceTournamentId, name, creatorName,
     throw new Error('Database response missing tournament id');
   }
 
-    // Return the new tournament's database id and metadata
   return { dbId, metadata };
 }
 
-// Helper: insert one row into Tournament_Players
+// -------------------- Tournament_Players --------------------
+
 async function insertTournamentPlayerRow({ tournamentId, userId, alias }) {
   const payload = {
     table: 'Tournament_Players',
@@ -98,8 +92,6 @@ async function insertTournamentPlayerRow({ tournamentId, userId, alias }) {
   }
 }
 
-// Public: insert all players for a tournament
-// players = [{ alias, userId }, ...]
 export async function insertTournamentPlayers(tournamentId, players) {
   const inserts = players.map(p =>
     insertTournamentPlayerRow({
@@ -110,7 +102,9 @@ export async function insertTournamentPlayers(tournamentId, players) {
   );
   await Promise.all(inserts);
 }
-// Helper: insert one row into Matches_Tournament
+
+// -------------------- Matches_Tournament (insert) --------------------
+
 async function insertMatchRow({
   tournamentId,
   round,
@@ -127,10 +121,8 @@ async function insertMatchRow({
       tournament_id: tournamentId,
       round,
       match_number: matchNumber,
-      // IDs can be null (guests / TBD)
       player1_id: player1Id,
       player2_id: player2Id,
-      // ✅ new alias columns (must be included explicitly)
       player1_alias: player1Alias ?? null,
       player2_alias: player2Alias ?? null,
       status: 'waiting',
@@ -152,15 +144,18 @@ async function insertMatchRow({
       `Failed to insert tournament match: ${response.status} ${errorText}`
     );
   }
+
+  const result = await response.json().catch(() => null);
+  const dbId = result?.id ?? result?.lastInsertRowid ?? result?.lastID ?? null;
+  if (!dbId) {
+    console.error('[TournamentService] Matches_Tournament insert missing id field:', result);
+  }
+  return dbId;
 }
 
-// Public: insert all matches for a bracket
-// bracket = { rounds: [...] }
-// players = [{ alias, userId }, ...]
 export async function insertTournamentMatches(tournamentId, bracket, players) {
   if (!bracket || !Array.isArray(bracket.rounds)) return;
 
-  // Map alias -> userId (may be null)
   const aliasToUserId = new Map();
   players.forEach(p => {
     aliasToUserId.set(p.alias, p.userId ?? null);
@@ -170,7 +165,6 @@ export async function insertTournamentMatches(tournamentId, bracket, players) {
 
   bracket.rounds.forEach((roundMatches, roundIndex) => {
     roundMatches.forEach((match, matchIndex) => {
-      // 👇 These come straight from your generateBracket() output
       const player1Alias = match.player1 ?? null;
       const player2Alias = match.player2 ?? null;
 
@@ -179,23 +173,27 @@ export async function insertTournamentMatches(tournamentId, bracket, players) {
       const player2Id =
         player2Alias != null ? aliasToUserId.get(player2Alias) ?? null : null;
 
-      inserts.push(
-        insertMatchRow({
-          tournamentId,
-          round: roundIndex + 1,
-          matchNumber: matchIndex + 1,
-          player1Alias,
-          player2Alias,
-          player1Id,
-          player2Id,
-        })
-      );
+      const p = insertMatchRow({
+        tournamentId,
+        round: roundIndex + 1,
+        matchNumber: matchIndex + 1,
+        player1Alias,
+        player2Alias,
+        player1Id,
+        player2Id,
+      }).then(dbMatchId => {
+        // 🔗 store the DB id on the in-memory match
+        match.dbId = dbMatchId;
+      });
+
+      inserts.push(p);
     });
   });
 
   await Promise.all(inserts);
 }
 
+// -------------------- Generic updaters --------------------
 
 async function updateTournamentColumn(dbId, column, value) {
   const response = await fetch(`${DATABASE_SERVICE_URL}/internal/write`, {
@@ -217,6 +215,40 @@ async function updateTournamentColumn(dbId, column, value) {
     throw new Error(`Failed to update tournament ${dbId} column ${column}: ${response.status} ${errorText}`);
   }
 }
+
+async function updateMatchColumn(dbId, column, value) {
+  if (!dbId) return;
+
+  const response = await fetch(`${DATABASE_SERVICE_URL}/internal/write`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-service-auth': DB_SERVICE_TOKEN,
+    },
+    body: JSON.stringify({
+      table: 'Matches_Tournament',
+      id: dbId,
+      column,
+      value,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => response.statusText);
+    throw new Error(
+      `Failed to update match ${dbId} column ${column}: ${response.status} ${errorText}`
+    );
+  }
+}
+
+export async function updateMatchFields(dbId, fields) {
+  const updates = Object.entries(fields).map(([column, value]) =>
+    updateMatchColumn(dbId, column, value)
+  );
+  await Promise.all(updates);
+}
+
+// -------------------- Snapshots + helpers --------------------
 
 function buildMatchesSnapshot(bracket) {
   if (!bracket || !Array.isArray(bracket.rounds))
@@ -244,8 +276,7 @@ function buildPlayersSnapshot(tournament) {
   }));
 }
 
-
-function toDbTimestamp(value) {
+export function toDbTimestamp(value) {
   if (!value) return null;
 
   const d = value instanceof Date ? value : new Date(value);
@@ -259,10 +290,8 @@ function toDbTimestamp(value) {
   const minutes = pad(d.getMinutes());
   const seconds = pad(d.getSeconds());
 
-  // SQL style: "YYYY-MM-DD HH:MM:SS"
   return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 }
-
 
 async function syncTournamentSnapshot(fastify, tournament) {
   if (!tournament?.dbId) return;
@@ -274,15 +303,14 @@ async function syncTournamentSnapshot(fastify, tournament) {
     matches: buildMatchesSnapshot(tournament.bracket),
     status: tournament.status,
     createdAt: tournament.createdAt ?? null,
-    // keep ISO in metadata if you like
     finishedAt: tournament.finishedAt
       ? new Date(tournament.finishedAt).toISOString()
       : null,
+    winner: tournament.winnerUsername ?? null,
   };
 
   tournament.metadata = metadata;
 
-  // keep an ISO version for in-memory usage
   const startedAtIso = tournament.startedAt
     ? new Date(tournament.startedAt).toISOString()
     : (tournament.status === 'progressing'
@@ -297,7 +325,6 @@ async function syncTournamentSnapshot(fastify, tournament) {
     ? new Date(tournament.finishedAt).toISOString()
     : null;
 
-  // DB-formatted values
   const startedAtDb = startedAtIso ? toDbTimestamp(startedAtIso) : null;
   const finishedAtDb = finishedAtIso ? toDbTimestamp(finishedAtIso) : null;
 
@@ -307,55 +334,31 @@ async function syncTournamentSnapshot(fastify, tournament) {
     updateTournamentColumn(tournament.dbId, 'status', tournament.status ?? 'ready'),
     updateTournamentColumn(tournament.dbId, 'started_at', startedAtDb),
     updateTournamentColumn(tournament.dbId, 'finished_at', finishedAtDb),
+    updateTournamentColumn(tournament.dbId, 'winner_id', tournament.winnerId ?? null),
+    updateTournamentColumn(tournament.dbId, 'winner_username', tournament.winnerUsername ?? null),
   ];
 
   const results = await Promise.allSettled(updates);
   results.forEach((result, idx) => {
     if (result.status === 'rejected') {
-      const column = ['description', 'current_players', 'status', 'started_at', 'finished_at'][idx];
-      fastify.log.error({ err: result.reason, tournamentId: tournament.id, column }, '[TournamentService] Failed to update tournament column');
+      const column = [
+        'description',
+        'current_players',
+        'status',
+        'started_at',
+        'finished_at',
+        'winner_id',
+        'winner_username',
+      ][idx];
+      fastify.log.error(
+        { err: result.reason, tournamentId: tournament.id, column },
+        '[TournamentService] Failed to update tournament column'
+      );
     }
   });
 }
 
-
-
-// async function syncTournamentSnapshot(fastify, tournament) {
-//   if (!tournament?.dbId)
-//     return;
-
-//   const metadata = {
-//     serviceTournamentId: tournament.id,
-//     creator: tournament.createdBy ?? null,
-//     players: buildPlayersSnapshot(tournament),
-//     matches: buildMatchesSnapshot(tournament.bracket),
-//     status: tournament.status,
-//     createdAt: tournament.createdAt ?? null,
-//     finishedAt: tournament.finishedAt ? new Date(tournament.finishedAt).toISOString() : null,
-//   };
-
-//   tournament.metadata = metadata;
-
-//   const startedAt = tournament.startedAt ? new Date(tournament.startedAt).toISOString() : (tournament.status === 'progressing' ? new Date().toISOString() : null);
-//   if (startedAt && !tournament.startedAt)
-//     tournament.startedAt = startedAt;
-
-//   const updates = [
-//     updateTournamentColumn(tournament.dbId, 'description', JSON.stringify(metadata)),
-//     updateTournamentColumn(tournament.dbId, 'current_players', tournament.playerSet?.size ?? 0),
-//     updateTournamentColumn(tournament.dbId, 'status', tournament.status ?? 'ready'),
-//     updateTournamentColumn(tournament.dbId, 'started_at', tournament.startedAt ?? startedAt ?? null),
-//     updateTournamentColumn(tournament.dbId, 'finished_at', tournament.finishedAt ? new Date(tournament.finishedAt).toISOString() : null),
-//   ];
-
-//   const results = await Promise.allSettled(updates);
-//   results.forEach((result, idx) => {
-//     if (result.status === 'rejected') {
-//       const column = ['description', 'current_players', 'status', 'started_at', 'finished_at'][idx];
-//       fastify.log.error({ err: result.reason, tournamentId: tournament.id, column }, '[TournamentService] Failed to update tournament column');
-//     }
-//   });
-// }
+// -------------------- Service registration --------------------
 
 export function registercreateTournamentService(fastify, tournaments, getNextTournamentId) {
   fastify.post('/tournaments', async (request, reply) => {
@@ -403,8 +406,8 @@ export function registercreateTournamentService(fastify, tournaments, getNextTou
         },
       };
 
-  tournaments.set(serviceTournamentId, tournament);
-  reply.send({ id: serviceTournamentId, dbId });
+      tournaments.set(serviceTournamentId, tournament);
+      reply.send({ id: serviceTournamentId, dbId });
     } catch (err) {
       fastify.log.error({ err }, '[TournamentService] Failed to create tournament');
       reply.code(500).send({ error: 'Failed to create tournament' });

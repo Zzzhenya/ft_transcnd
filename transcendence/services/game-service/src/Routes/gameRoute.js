@@ -301,7 +301,7 @@ export function registerSingleGameRoutes(fastify, games, counters, broadcastStat
    * Update game result when a game completes
    * PUT /pong/game/:gameId/result
    * Body: { winner: 'player1' | 'player2', finalScore: { player1: number, player2: number }, roundsWon: { player1: number, player2: number } }
-   */
+//    */
   fastify.put("/pong/game/:gameId/result", async (req, reply) => {
   const game = games.get(req.params.gameId);
   if (!game) return reply.code(404).send({ error: "Game not found" });
@@ -333,6 +333,38 @@ export function registerSingleGameRoutes(fastify, games, counters, broadcastStat
   reply.send({ message: "Game result recorded", result });
   });
 }
+
+
+// fastify.put("/pong/game/:gameId/result", async (req, reply) => {
+//   const gameId = Number(req.params.gameId);
+//   const game = games.get(gameId);
+//   if (!game) return reply.code(404).send({ error: "Game not found" });
+
+//   const { winner } = req.body;
+//   game.status = "completed";
+//   game.winner = winner;
+
+//   if (game.loop) {
+//     clearInterval(game.loop);
+//     game.loop = null;
+//   }
+  
+//   cleanupGame(game.state);
+
+//   // Broadcast final state to connected clients
+//   broadcastState(gameId);
+
+//   const result = {
+//     gameId,
+//     winner,
+//     timestamp: Date.now(),
+//   };
+//   logger.info(`[Game ${gameId}] Result recorded:`, result);
+
+//   games.delete(gameId);
+//   reply.send({ message: "Game result recorded", result });
+// });
+
 
 /**
  * Validates game creation parameters
