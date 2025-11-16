@@ -288,23 +288,77 @@ export default function (root: HTMLElement, ctx: any) {
 
   let hasSentStartGame = false;
 
+// async function reportWinner(winnerName: string) {
+//   if (!tournamentId || !matchId) {
+//     console.log("No tournament context - skipping winner report");
+//     return;
+//   }
+  
+//   try {
+//     console.log(`Reporting winner: ${winnerName} for match ${matchId} in tournament ${tournamentId}`);
+//     const response = await fetch(`${API_BASE}/tournaments/${tournamentId}/advance`, {
+//       method: 'POST',
+//       headers: { 'Content-Type': 'application/json' },
+//       body: JSON.stringify({ matchId: matchId, winner: winnerName })
+//     });
+    
+//     if (response.ok) {
+//       const result = await response.json();
+//       console.log(`Winner ${winnerName} reported to tournament ${tournamentId}`, result);
+//     } else {
+//       const errorText = await response.text();
+//       console.error('Failed to report winner:', response.status, errorText);
+//     }
+//   } catch (error) {
+//     console.error('Error reporting winner:', error);
+//   }
+// }
+
 async function reportWinner(winnerName: string) {
   if (!tournamentId || !matchId) {
     console.log("No tournament context - skipping winner report");
     return;
   }
-  
+
+  // Decide what you want to store:
+  // - totalScore: all points across all rounds
+  // - score: last round only
+  const p1Score =
+    gameState.totalScore?.player1 ??
+    gameState.score?.player1 ??
+    0;
+
+  const p2Score =
+    gameState.totalScore?.player2 ??
+    gameState.score?.player2 ??
+    0;
+
   try {
-    console.log(`Reporting winner: ${winnerName} for match ${matchId} in tournament ${tournamentId}`);
-    const response = await fetch(`${API_BASE}/tournaments/${tournamentId}/advance`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ matchId: matchId, winner: winnerName })
-    });
-    
+    console.log(
+      `Reporting winner: ${winnerName} for match ${matchId} in tournament ${tournamentId}`,
+      { p1Score, p2Score }
+    );
+
+    const response = await fetch(
+      `${API_BASE}/tournaments/${tournamentId}/advance`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          matchId: matchId,
+          winner: winnerName,
+          player1Score: p1Score,
+          player2Score: p2Score,
+        }),
+      }
+    );
+
     if (response.ok) {
       const result = await response.json();
-      console.log(`Winner ${winnerName} reported to tournament ${tournamentId}`, result);
+      console.log(
+        `Winner ${winnerName} reported to tournament ${tournamentId}`,
+        result
+      );
     } else {
       const errorText = await response.text();
       console.error('Failed to report winner:', response.status, errorText);
@@ -313,6 +367,7 @@ async function reportWinner(winnerName: string) {
     console.error('Error reporting winner:', error);
   }
 }
+
 
 async function markMatchAsInterrupted() {
   if (!tournamentId || !matchId) {
