@@ -244,9 +244,28 @@ function buildPlayersSnapshot(tournament) {
   }));
 }
 
+
+function toDbTimestamp(value) {
+  if (!value) return null;
+
+  const d = value instanceof Date ? value : new Date(value);
+
+  const pad = n => String(n).padStart(2, '0');
+
+  const year = d.getFullYear();
+  const month = pad(d.getMonth() + 1);
+  const day = pad(d.getDate());
+  const hours = pad(d.getHours());
+  const minutes = pad(d.getMinutes());
+  const seconds = pad(d.getSeconds());
+
+  // SQL style: "YYYY-MM-DD HH:MM:SS"
+  return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+}
+
+
 async function syncTournamentSnapshot(fastify, tournament) {
-  if (!tournament?.dbId)
-    return;
+  if (!tournament?.dbId) return;
 
   const metadata = {
     serviceTournamentId: tournament.id,
@@ -255,21 +274,39 @@ async function syncTournamentSnapshot(fastify, tournament) {
     matches: buildMatchesSnapshot(tournament.bracket),
     status: tournament.status,
     createdAt: tournament.createdAt ?? null,
-    finishedAt: tournament.finishedAt ? new Date(tournament.finishedAt).toISOString() : null,
+    // keep ISO in metadata if you like
+    finishedAt: tournament.finishedAt
+      ? new Date(tournament.finishedAt).toISOString()
+      : null,
   };
 
   tournament.metadata = metadata;
 
-  const startedAt = tournament.startedAt ? new Date(tournament.startedAt).toISOString() : (tournament.status === 'progressing' ? new Date().toISOString() : null);
-  if (startedAt && !tournament.startedAt)
-    tournament.startedAt = startedAt;
+  // keep an ISO version for in-memory usage
+  const startedAtIso = tournament.startedAt
+    ? new Date(tournament.startedAt).toISOString()
+    : (tournament.status === 'progressing'
+        ? new Date().toISOString()
+        : null);
+
+  if (startedAtIso && !tournament.startedAt) {
+    tournament.startedAt = startedAtIso;
+  }
+
+  const finishedAtIso = tournament.finishedAt
+    ? new Date(tournament.finishedAt).toISOString()
+    : null;
+
+  // DB-formatted values
+  const startedAtDb = startedAtIso ? toDbTimestamp(startedAtIso) : null;
+  const finishedAtDb = finishedAtIso ? toDbTimestamp(finishedAtIso) : null;
 
   const updates = [
     updateTournamentColumn(tournament.dbId, 'description', JSON.stringify(metadata)),
     updateTournamentColumn(tournament.dbId, 'current_players', tournament.playerSet?.size ?? 0),
     updateTournamentColumn(tournament.dbId, 'status', tournament.status ?? 'ready'),
-    updateTournamentColumn(tournament.dbId, 'started_at', tournament.startedAt ?? startedAt ?? null),
-    updateTournamentColumn(tournament.dbId, 'finished_at', tournament.finishedAt ? new Date(tournament.finishedAt).toISOString() : null),
+    updateTournamentColumn(tournament.dbId, 'started_at', startedAtDb),
+    updateTournamentColumn(tournament.dbId, 'finished_at', finishedAtDb),
   ];
 
   const results = await Promise.allSettled(updates);
@@ -280,6 +317,45 @@ async function syncTournamentSnapshot(fastify, tournament) {
     }
   });
 }
+
+
+
+// async function syncTournamentSnapshot(fastify, tournament) {
+//   if (!tournament?.dbId)
+//     return;
+
+//   const metadata = {
+//     serviceTournamentId: tournament.id,
+//     creator: tournament.createdBy ?? null,
+//     players: buildPlayersSnapshot(tournament),
+//     matches: buildMatchesSnapshot(tournament.bracket),
+//     status: tournament.status,
+//     createdAt: tournament.createdAt ?? null,
+//     finishedAt: tournament.finishedAt ? new Date(tournament.finishedAt).toISOString() : null,
+//   };
+
+//   tournament.metadata = metadata;
+
+//   const startedAt = tournament.startedAt ? new Date(tournament.startedAt).toISOString() : (tournament.status === 'progressing' ? new Date().toISOString() : null);
+//   if (startedAt && !tournament.startedAt)
+//     tournament.startedAt = startedAt;
+
+//   const updates = [
+//     updateTournamentColumn(tournament.dbId, 'description', JSON.stringify(metadata)),
+//     updateTournamentColumn(tournament.dbId, 'current_players', tournament.playerSet?.size ?? 0),
+//     updateTournamentColumn(tournament.dbId, 'status', tournament.status ?? 'ready'),
+//     updateTournamentColumn(tournament.dbId, 'started_at', tournament.startedAt ?? startedAt ?? null),
+//     updateTournamentColumn(tournament.dbId, 'finished_at', tournament.finishedAt ? new Date(tournament.finishedAt).toISOString() : null),
+//   ];
+
+//   const results = await Promise.allSettled(updates);
+//   results.forEach((result, idx) => {
+//     if (result.status === 'rejected') {
+//       const column = ['description', 'current_players', 'status', 'started_at', 'finished_at'][idx];
+//       fastify.log.error({ err: result.reason, tournamentId: tournament.id, column }, '[TournamentService] Failed to update tournament column');
+//     }
+//   });
+// }
 
 export function registercreateTournamentService(fastify, tournaments, getNextTournamentId) {
   fastify.post('/tournaments', async (request, reply) => {
