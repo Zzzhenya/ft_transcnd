@@ -152,7 +152,6 @@ CREATE TABLE IF NOT EXISTS Matches_Tournament (
     
     -- Timestamps
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    started_at TIMESTAMP,
     finished_at TIMESTAMP,
     
     FOREIGN KEY (tournament_id) REFERENCES Tournament(id) ON DELETE CASCADE,

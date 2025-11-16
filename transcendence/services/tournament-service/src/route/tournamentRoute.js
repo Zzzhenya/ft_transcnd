@@ -230,9 +230,6 @@ fastify.post('/tournaments/:id/start', async (req, reply) => {
 
   // set timestamps in memory
   const nowIso = new Date().toISOString();
-  if (!currentMatch.startedAt) {
-    currentMatch.startedAt = nowIso; // or some earlier start time if you track it
-  }
   currentMatch.finishedAt = nowIso;
 
   // find winner userId using t.players (alias -> userId)
@@ -398,6 +395,10 @@ fastify.post('/tournaments/:id/start', async (req, reply) => {
 
   // Mark entire tournament as interrupted - prevents any further matches
   t.status = 'interrupted';
+  if(!t.finishedAt)
+  {
+    t.finishedAt = Date.now();
+  }
   t.interruptedAt = Date.now(); // Store timestamp for 5-minute countdown
   fastify.log.warn(`⚠️ Tournament ${req.params.id} marked as INTERRUPTED at ${new Date(t.interruptedAt).toISOString()}`);
 
