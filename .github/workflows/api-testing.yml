@@ -732,11 +732,18 @@ jobs:
           
           # Extract token from registration
           TOKEN=$(cat /tmp/register.json | jq -r '.token // empty')
-          TOKEN1=$(grep -i 'Set-Cookie: token=' /tmp/register_headers.txt | sed -E 's/Set-Cookie: token=([^;]+);.*/\1/i')
+          COOKIETOKEN=$(grep -i 'Set-Cookie: token=' /tmp/register_headers.txt | sed -E 's/Set-Cookie: token=([^;]+);.*/\1/i')
 
+          # Check if cookie token is empty
+          if [ -z "$COOKIETOKEN" ]; then
+            echo "❌ Token cookie not found or empty! Failing test."
+            exit 1
+          else
+            echo "✅ Token cookie extracted: $COOKIETOKEN"
+          fi
 
           
-          # User Login via Gateway (test with same credentials)
+          # User Login via Gateway (test with same credentials) - you don't need cookietoken to login
           echo "2. 🔐 Testing User Login (via Gateway)"
           LOGIN_PAYLOAD='{
             "email": "test'$UNIQUE_ID'@example.com",
@@ -756,44 +763,37 @@ jobs:
             # Use login token if registration token wasn't available
             if [ -z "$TOKEN" ]; then
               TOKEN=$(cat /tmp/login.json | jq -r '.token // empty')
-              TOKEN1=$(grep -i 'Set-Cookie: token=' /tmp/login_headers.txt | sed -E 's/Set-Cookie: token=([^;]+);.*/\1/i')
             fi
           else
             echo "❌ User login via Gateway failed with status: $LOGIN_RESPONSE"
             cat /tmp/login.json
             exit 1
           fi
+
+          NEW_COOKIETOKEN=$(grep -i 'Set-Cookie: token=' /tmp/login_headers.txt | sed -E 's/Set-Cookie: token=([^;]+);.*/\1/i')
+
+          # Fail if the new token is empty
+          if [ -z "$NEW_COOKIETOKEN" ]; then
+            echo "❌ No new token returned after login"
+            exit 1
+          else
+            echo "✅ New login token: $NEW_COOKIETOKEN"
+          fi
+
+
           
           # Profile Access via Gateway (Protected Route)
-          # echo "3A. 👥 Testing Protected Profile Endpoint (via Gateway)"
-          # if [ ! -z "$TOKEN" ]; then
-          #   PROFILE_RESPONSE=$(curl $CURL_FLAGS -s -w "%{http_code}" -o /tmp/profile.json \
-          #     --connect-timeout 30 --max-time 60 \
-          #     -X GET $GATEWAY_URL/auth/profile \
-          #     -H "Authorization: Bearer $TOKEN")
-            
-          #   if [ "$PROFILE_RESPONSE" = "200" ]; then
-          #     echo "✅ Profile access via Gateway passed"
-          #     cat /tmp/profile.json | jq .
-          #   else
-          #     echo "❌ Profile access via Gateway failed with status: $PROFILE_RESPONSE"
-          #     cat /tmp/profile.json
-          #     exit 1
-          #   fi
-          # else
-          #   echo "⚠️ No token available, skipping profile test"
-          # fi
-          # Profile Access via Gateway (Protected Route)
-          echo "3B. 👥 Testing Protected Profile Endpoint (via Gateway)"
+          echo "3A. 👥 Testing Protected Profile Endpoint (via Gateway)"
           if [ ! -z "$TOKEN" ]; then
             PROFILE_RESPONSE=$(curl $CURL_FLAGS -s -w "%{http_code}" -o /tmp/profile.json \
               --connect-timeout 30 --max-time 60 \
               -X GET $GATEWAY_URL/auth/profile \
-              --cookie "token=$TOKEN1")
+              --cookie "token=$NEW_COOKIETOKEN") \
+              -H "Authorization: Bearer $TOKEN")
             
             if [ "$PROFILE_RESPONSE" = "200" ]; then
               echo "✅ Profile access via Gateway passed"
-              echo $TOKEN1
+              cat /tmp/profile.json | jq .
             else
               echo "❌ Profile access via Gateway failed with status: $PROFILE_RESPONSE"
               cat /tmp/profile.json

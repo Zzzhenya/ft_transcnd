@@ -28,12 +28,49 @@ import { v4 as uuidv4 } from 'uuid';
 import logger from './utils/logger.js'; // log-service
 import { registerPlugins } from './utils/registerPlugins.js';
 import { proxyRequest } from './utils/proxyHandler.js';
+import fastifyJwt from '@fastify/jwt';
 
 const FRONT_END_URL = String(process.env.FRONT_END_URL);
 const TESTDB_URL = process.env.TESTDB_URL || 'http://testdb:3010';
 const COOKIE_MAX_AGE = parseInt(process.env.COOKIE_MAX_AGE || '3600');
 const Fastify = fastify({logger:true});
 const PORT = parseInt(process.env.GATEWAY_PORT || '3000')
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+
+const setupcors = async () => {
+
+    await Fastify.register(cors, {
+    // Fastify.register(cors, {
+    // origin: ['null'], // to test fetch with a file/ demo
+    origin: FRONT_END_URL, // <-- your frontend origin 
+    // origin: 'http://localhost:3004', // <-- your frontend origin 
+    credentials: true,                   // <-- allow sending cookies cross-origin
+      });
+    logger.info('[[Gateway]] cors settings registered');
+}
+
+try {
+  await setupcors();
+}
+catch (error: any){
+  logger.error('[[Gateway]] error occured while registering cors settings: ', error);
+}
+
+logger.info('[[Gateway]] registering cookie plugin');
+await Fastify.register(cookie, {
+  // secret: 'my-secret-key', // Optional (for signed cookies)
+
+});
+logger.info('[[Gateway]] cookie registered');
+
+
+await Fastify.register(fastifyJwt, {
+  secret: JWT_SECRET,
+  cookie: {
+    cookieName: 'token', 
+    signed: false,
+  }
+});
 
 
 function logCookies(request: FastifyRequest): Record<string, string> {
@@ -94,12 +131,13 @@ Fastify.addHook('onRequest', async (request, reply) => {
         path: '/',
         httpOnly: true,
         sameSite: 'lax',
-        secure: false,
+        secure: true,
         maxAge: COOKIE_MAX_AGE // 1 hour
       });
       logger.info(`🆕 New sessionId created: ${newSessionId}`);
       Fastify.log.info(`🆕 New sessionId created: ${newSessionId}`);
     }
+    console.log(`🌟🌟🌟🌟🌟🌟 token = ${request.headers['x-token']} :: sessionId = ${request.headers['x-session-id']}`)
   }
   catch (error: any){
     logger.error(`An error occured while extracting or setting sessionId/token: ${error.message}`, error);
@@ -107,11 +145,11 @@ Fastify.addHook('onRequest', async (request, reply) => {
     logger.info(`3. Error: setting values to empty`)
     if (!request.headers['x-token'] ||  request.headers['x-token'] === ''){
       logger.info(`Setting the token as x-token = empty`)
-      request.headers['x-token'] !== '';
+      request.headers['x-token'] = '';
     }
     if (!request.headers['x-session-id'] ||  request.headers['x-session-id'] === ''){
       logger.info(`Setting the token as x-session-id = empty`)
-      request.headers['x-session-id'] !== '';
+      request.headers['x-session-id'] = '';
     }
   }
 });
@@ -145,31 +183,6 @@ const start = async () => {
   }
 }
 
-const setupcors = async () => {
-
-    await Fastify.register(cors, {
-    // Fastify.register(cors, {
-    // origin: ['null'], // to test fetch with a file/ demo
-    origin: FRONT_END_URL, // <-- your frontend origin 
-    // origin: 'http://localhost:3004', // <-- your frontend origin 
-    credentials: true,                   // <-- allow sending cookies cross-origin
-      });
-    logger.info('[[Gateway]] cors settings registered');
-}
-
-try {
-  setupcors();
-}
-catch (error: any){
-  logger.error('[[Gateway]] error occured while registering cors settings: ', error);
-}
-
-logger.info('[[Gateway]] registering cookie plugin');
-Fastify.register(cookie, {
-  // secret: 'my-secret-key', // Optional (for signed cookies)
-
-});
-logger.info('[[Gateway]] cookie registered');
 
 setupWebSocket();
 logger.info("port: " + PORT);

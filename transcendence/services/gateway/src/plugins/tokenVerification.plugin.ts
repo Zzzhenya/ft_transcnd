@@ -26,6 +26,7 @@ const tokenVerificationPlugin: FastifyPluginAsync = async (fastify) => {
         logger.info(`2. Verifying jwtToken`);
         const decoded = await request.jwtVerify<{ userId: string; username: string; isGuest?: boolean }>();
         logger.info(`3. Verification successful.`);
+        console.log(`USER:🐞🐞🐞 ${decoded}`)
 
         // Determine if this is a guest or registered user from token
         if (decoded.isGuest) {
