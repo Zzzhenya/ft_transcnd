@@ -793,9 +793,7 @@ jobs:
             
             if [ "$PROFILE_RESPONSE" = "200" ]; then
               echo "✅ Profile access via Gateway passed"
-              echo $(grep -i 'Set-Cookie: token=' /tmp/register_headers.txt | sed -E 's/Set-Cookie: token=([^;]+);.*/\1/i')
-
-
+              echo $TOKEN1
             else
               echo "❌ Profile access via Gateway failed with status: $PROFILE_RESPONSE"
               cat /tmp/profile.json
