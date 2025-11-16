@@ -715,6 +715,7 @@ jobs:
           }'
           
           REGISTER_RESPONSE=$(curl $CURL_FLAGS -s -w "%{http_code}" -o /tmp/register.json \
+            -D /tmp/register_headers.txt \
             --connect-timeout 30 --max-time 60 \
             -X POST $GATEWAY_URL/auth/register \
             -H "Content-Type: application/json" \
@@ -731,6 +732,9 @@ jobs:
           
           # Extract token from registration
           TOKEN=$(cat /tmp/register.json | jq -r '.token // empty')
+          TOKEN1=$(grep -i 'Set-Cookie: token=' /tmp/register_headers.txt | sed -E 's/Set-Cookie: token=([^;]+);.*/\1/i')
+
+
           
           # User Login via Gateway (test with same credentials)
           echo "2. 🔐 Testing User Login (via Gateway)"
@@ -741,6 +745,7 @@ jobs:
           
           LOGIN_RESPONSE=$(curl $CURL_FLAGS -s -w "%{http_code}" -o /tmp/login.json \
             --connect-timeout 30 --max-time 60 \
+            -D /tmp/login_headers.txt \
             -X POST $GATEWAY_URL/auth/login \
             -H "Content-Type: application/json" \
             -d "$LOGIN_PAYLOAD")
@@ -751,6 +756,7 @@ jobs:
             # Use login token if registration token wasn't available
             if [ -z "$TOKEN" ]; then
               TOKEN=$(cat /tmp/login.json | jq -r '.token // empty')
+              TOKEN1=$(grep -i 'Set-Cookie: token=' /tmp/login_headers.txt | sed -E 's/Set-Cookie: token=([^;]+);.*/\1/i')
             fi
           else
             echo "❌ User login via Gateway failed with status: $LOGIN_RESPONSE"
@@ -783,11 +789,13 @@ jobs:
             PROFILE_RESPONSE=$(curl $CURL_FLAGS -s -w "%{http_code}" -o /tmp/profile.json \
               --connect-timeout 30 --max-time 60 \
               -X GET $GATEWAY_URL/auth/profile \
-              --cookie "token=$TOKEN")
+              --cookie "token=$TOKEN1")
             
             if [ "$PROFILE_RESPONSE" = "200" ]; then
               echo "✅ Profile access via Gateway passed"
-              cat /tmp/profile.json | jq .
+              echo $(grep -i 'Set-Cookie: token=' /tmp/register_headers.txt | sed -E 's/Set-Cookie: token=([^;]+);.*/\1/i')
+
+
             else
               echo "❌ Profile access via Gateway failed with status: $PROFILE_RESPONSE"
               cat /tmp/profile.json
