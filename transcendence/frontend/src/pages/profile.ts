@@ -1,7 +1,7 @@
 // frontend/src/pages/profile.ts
 import { getAuth, signOut, getToken } from "@/app/auth";
 import { navigate } from "@/app/router";
-import { GATEWAY_BASE } from "@/app/config";
+const GATEWAY_BASE = import.meta.env.VITE_GATEWAY_BASE || '/api';
 
 export default function (root: HTMLElement, ctx?: { url?: URL }) {
   const user = getAuth();
@@ -22,7 +22,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
     if (!user) return;
     try {
       const token = getToken();
-      const res = await fetch(`${GATEWAY_BASE}/user-service/auth/profile`, {
+      const res = await fetch(`/api/user-service/auth/profile`, {
         headers: {
           'Authorization': `Bearer ${token || ''}`
         }
@@ -890,7 +890,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
 
   async function loadOnlineUsers() {
     try {
-      const res = await fetch(`${GATEWAY_BASE}/user-service/users/online`);
+      const res = await fetch(`/api/user-service/users/online`);
       if (res.ok) {
         const data = await res.json();
         onlineUsers = data.users || [];

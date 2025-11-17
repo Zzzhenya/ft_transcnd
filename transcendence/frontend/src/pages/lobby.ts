@@ -50,6 +50,11 @@ export default function (root: HTMLElement) {
   const userInfo = root.querySelector<HTMLElement>("#userInfo")!;
 
   function displayName(user: any) {
+	// 🔒 Defensive validation: if user is null/undefined, return fallback
+	if (!user) {
+		return "Unknown Player";
+	}
+	
 	return user?.name
 		?? user?.displayName
 		?? user?.username
@@ -62,8 +67,8 @@ export default function (root: HTMLElement) {
     const user = getAuth();
     const state = getState();
 
-	// <span class="font-medium text-gray-800">${displayName(user)}</span>
-    if (user) {
+	// 🔒 Check if user exists and is valid
+	if (user && user.id) {
       userInfo.innerHTML = `
         <div class="flex items-center gap-1">
 			<span class="text-green-600"> ● </span>
@@ -83,16 +88,18 @@ export default function (root: HTMLElement) {
             	Sign out
           	</button>
         </div>`;
-    } else if (state.session.alias) {
+    } else if (state?.session?.alias) {
       userInfo.innerHTML = `
         <div class="flex items-center gap-1">
           <span class="text-blue-600">●</span>
           <span class="font-medium">Guest: ${state.session.alias}</span>
         </div>`;
     } else {
+      // ⚠️ User data is invalid or missing - show sign in option
       userInfo.innerHTML = `
         <div class="flex items-center gap-2">
-          <span class="text-gray-400">●</span>
+          <span class="text-red-400">●</span>
+          <span class="text-sm text-gray-500">Invalid session</span>
           <a href="/auth" class="text-gray-700 hover:text-gray-900 underline">Sign in</a>
         </div>`;
     }

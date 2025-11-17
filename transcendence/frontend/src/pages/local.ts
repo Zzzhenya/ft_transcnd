@@ -276,14 +276,20 @@ export default function (root: HTMLElement) {
         }, 300);
         startBtn.disabled = false;
       };
-
-      ws.onmessage = (event) => {
+      
+      ws.onmessage = async (event) => {
         try {
-          const data = JSON.parse(event.data);
-          handleBackendMessage(data);
-        } catch (error) {
-          console.error('❌ Error parsing backend message:', error);
-        }
+          let data: any = event.data;
+
+          // Handle Blob frames safely
+          if (data instanceof Blob) {
+            data = await data.text();
+          }
+
+          const parsed = typeof data === 'string' ? JSON.parse(data) : data;
+          console.log('📨 Backend message:', parsed);
+          handleBackendMessage(parsed);
+        } catch (error) { console.error('❌ Error parsing backend message:', error); }
       };
 
       ws.onclose = (event) => {
