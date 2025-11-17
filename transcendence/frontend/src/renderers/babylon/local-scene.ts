@@ -19,6 +19,7 @@ export type LocalSceneController = {
   update: (state: GameRenderState) => void;
   dispose: () => void;
   setSplitView: (enabled: boolean) => void; // Split Camera for each player's view
+  ready: Promise<void>;
 };
 
 export function createLocalScene(canvas: HTMLCanvasElement): LocalSceneController {	
@@ -260,6 +261,11 @@ export function createLocalScene(canvas: HTMLCanvasElement): LocalSceneControlle
 	arcStartHeight = floorY;
   }
 
+  let resolveReady: (() => void) | null = null;
+  const ready = new Promise<void>((res) => {
+    resolveReady = res;
+  });
+
   // Load GLB Models (test2.glb)
   BABYLON.SceneLoader.ImportMesh(
     "",
@@ -467,10 +473,20 @@ export function createLocalScene(canvas: HTMLCanvasElement): LocalSceneControlle
   		ball.position.z = logicToWorldZ(0);
   		ball.position.y = floorY;
 	}
+
+	// 5) Check, all ready to render for 3D
+	if (resolveReady) {
+        resolveReady();
+        resolveReady = null;
+    }
     },
     undefined,
     (scene, message, exception) => {
       console.error("[Babylon] Failed to load test2.glb:", message, exception);
+	  if (resolveReady) {
+    	resolveReady();
+    	resolveReady = null;
+      }
     }
   );
   // Updated
@@ -590,7 +606,7 @@ export function createLocalScene(canvas: HTMLCanvasElement): LocalSceneControlle
     });
   }
 
-  return { update, dispose, setSplitView };
+  return { update, dispose, setSplitView, ready };
 }
 
 /*
