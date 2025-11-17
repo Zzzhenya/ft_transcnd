@@ -27,25 +27,22 @@ export default function (root: HTMLElement) {
 	// Load friends list using efficient online manager
 	async function loadFriends() {
 		try {
-<<<<<<< HEAD
-			if (user) {
-				const token = getToken();
-				const res = await fetch(`${GATEWAY_BASE}/user-service/users/${user.id}/friends`, {
-					headers: {
-						'Authorization': `Bearer ${token || ''}`
-					},
-					credentials: 'include'
-				});
-				if (res.ok) {
-					const data = await res.json();
-					friends = data.friends || [];
-				}
-			}
-=======
+			// if (user) {
+			// 	const token = getToken();
+			// 	const res = await fetch(`${GATEWAY_BASE}/user-service/users/${user.id}/friends`, {
+			// 		headers: {
+			// 			'Authorization': `Bearer ${token || ''}`
+			// 		},
+			// 		credentials: 'include'
+			// 	});
+			// 	if (res.ok) {
+			// 		const data = await res.json();
+			// 		friends = data.friends || [];
+			// 	}
+			// }
 			console.log('👥 Loading friends with efficient system');
 			friends = await onlineManager.getFriendsStatus();
 			console.log('👥 Loaded friends:', friends.length);
->>>>>>> main
 		} catch (error) {
 			console.log('Could not load friends:', error);
 			friends = []; // Fallback to empty array
