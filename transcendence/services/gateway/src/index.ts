@@ -188,7 +188,7 @@ const start = async () => {
   }
 }
 
-setupWebSocket();
+await setupWebSocket();
 logger.info("port: " + PORT);
 try {
   logger.info('[[Gateway]] register root route');
@@ -201,7 +201,7 @@ try {
   Fastify.register(remoteOnlyRoute);
   logger.info('[[Gateway]] register user-service ws routes ');
   // Register WebSocket for internal calls
-  Fastify.register(wsRoute, { prefix: '/user-service/ws' });
+  Fastify.register(wsRoute, { prefix: '/ws' });
   // Register WebSocket for frontend calls  
   Fastify.register(wsRoute, { prefix: '/api/user-service/ws' });
   logger.info('[[Gateway]] ✅ Registered ws route with prefix /user-service/ws');
