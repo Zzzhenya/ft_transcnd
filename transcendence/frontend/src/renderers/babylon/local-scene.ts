@@ -1,6 +1,7 @@
 // frontend/src/renderers/babylon/local-scene.ts
 import * as BABYLON from "@babylonjs/core";
 import "@babylonjs/loaders/glTF";
+import * as GUI from "@babylonjs/gui";
 
 export type GameRenderState = {
   ball: { x: number; y: number };
@@ -17,6 +18,7 @@ export type GameRenderState = {
 export type LocalSceneController = {
   update: (state: GameRenderState) => void;
   dispose: () => void;
+  setSplitView: (enabled: boolean) => void; // Split Camera for each player's view
 };
 
 export function createLocalScene(canvas: HTMLCanvasElement): LocalSceneController {	
@@ -37,23 +39,46 @@ export function createLocalScene(canvas: HTMLCanvasElement): LocalSceneControlle
 		"camera",
 		BABYLON.Tools.ToRadians(-270),
 		BABYLON.Tools.ToRadians(70),
-		0,
+		18,
 		new BABYLON.Vector3(0, 1, 0),
 		scene
 	);
-	camera.inputs.clear();	// Block camera movement
-	camera.inputs.add(new BABYLON.ArcRotateCameraPointersInput()); // Only mouse can control camera
-	camera.attachControl(canvas, true); // Permit to move
-	camera.lowerBetaLimit = BABYLON.Tools.ToRadians(60);  // Angle control
-	camera.upperBetaLimit = BABYLON.Tools.ToRadians(100); // Angle control
-
+	camera.inputs.clear();											// Block camera movement
+	camera.inputs.add(new BABYLON.ArcRotateCameraPointersInput());	// Only mouse can control camera
+	camera.attachControl(canvas, true);								// Permit to move
 	camera.panningSensibility = 0;
 	camera.minZ = 0.1;
 	camera.maxZ = 1000;
-	camera.radius = 18;
 	camera.lowerRadiusLimit = 12;
 	camera.upperRadiusLimit = 24;
 	camera.fov = 0.3;
+
+	camera.viewport = new BABYLON.Viewport(0, 0, 1, 1);		// 전체화면 view
+	camera.lowerBetaLimit = BABYLON.Tools.ToRadians(60);	// Angle control
+	camera.upperBetaLimit = BABYLON.Tools.ToRadians(100);	// Angle control
+
+	const leftCamera = camera.clone("leftCamera") as BABYLON.ArcRotateCamera;
+	const rightCamera = camera.clone("rightCamera") as BABYLON.ArcRotateCamera;
+
+	// Cloned camera also can't be controled by keyboard.
+	leftCamera.inputs.clear();
+	leftCamera.inputs.add(new BABYLON.ArcRotateCameraPointersInput());
+	rightCamera.inputs.clear();
+	rightCamera.inputs.add(new BABYLON.ArcRotateCameraPointersInput());
+
+	// Each camera has own their half view-port on the screen.
+	leftCamera.viewport = new BABYLON.Viewport(0, 0, 0.5, 1);
+	rightCamera.viewport = new BABYLON.Viewport(0.5, 0, 0.5, 1);
+
+	// Distance (Min, Max) reset
+	leftCamera.lowerRadiusLimit  = 0.5;
+	leftCamera.upperRadiusLimit  = 50;
+	rightCamera.lowerRadiusLimit = 0.5;
+	rightCamera.upperRadiusLimit = 50;
+
+	// Init status is only camera on.
+	scene.activeCamera = camera;
+	scene.activeCameras = [camera];
 
   // ---------- Lights ----------
   const hemiLight = new BABYLON.HemisphericLight(
@@ -88,51 +113,9 @@ export function createLocalScene(canvas: HTMLCanvasElement): LocalSceneControlle
   let tableCenterZ = 0;
 
   // scoreBaord안에 점수 넣기.
-  let scoreTexture: BABYLON.DynamicTexture | null = null;
-  let scoreMat: BABYLON.StandardMaterial | null = null;
+  let scoreText: GUI.TextBlock | null = null;
   let lastScoreP1 = -1;
   let lastScoreP2 = -1;
-
-  function drawScoreOnBoard(p1: number, p2: number) {
-	if (!scoreTexture) return;
-
-	const text = `${p1} - ${p2}`;
-	scoreTexture.clear(); // 기존 내용 지움
-
-	scoreTexture.drawText(
-		text,
-		null,       // x 자동 중앙
-		null,       // y 자동 중앙
-		"bold 160px Arial", // 폰트
-		"#FFE96B",  // 글자색
-		"transparent", // 배경
-		true        // wordWrap
-	);
-
-	scoreTexture.clear(); // 기존 내용 지움
-
-	/*
-	const ctx = scoreTexture.getContext() as CanvasRenderingContext2D;
-	const size = scoreTexture.getSize();
-
-	// 배경 투명/검정으로 지우기
-	ctx.clearRect(0, 0, size.width, size.height);
-	ctx.fillStyle = "rgba(0, 0, 0, 0)"; // 필요하면 약간 어둡게
-	ctx.fillRect(0, 0, size.width, size.height);
-
-	// 텍스트 스타일
-	ctx.font = `${size.height * 0.6}px "Arial"`;
-	ctx.textAlign = "center";
-	ctx.textBaseline = "middle";
-
-	// 노란 글자
-	ctx.fillStyle = "#FFE96B";
-	ctx.fillText(`${p1} - ${p2}`, size.width / 2, size.height / 2);
-	*/
-
-	scoreTexture.update(false);
-  }
-  // scoreBaord안에 점수 넣기.
 
   function logicToWorldX(x: number) {
 	return tableCenterX + x * WORLD_X_SCALE;
@@ -140,6 +123,27 @@ export function createLocalScene(canvas: HTMLCanvasElement): LocalSceneControlle
 
   function logicToWorldZ(z: number) {
 	return tableCenterZ + z * WORLD_Z_SCALE;
+  }
+
+  function setSplitView(enabled: boolean) {
+    if (enabled) {
+		const target = new BABYLON.Vector3(tableCenterX, floorY, tableCenterZ);
+
+		leftCamera.target = target;
+    	leftCamera.alpha = BABYLON.Tools.ToRadians(0);	// player's eye direction
+    	leftCamera.beta  = BABYLON.Tools.ToRadians(70); // bird-eye's view
+    	leftCamera.radius = 10;							// Zoom in: lower num.
+
+		rightCamera.target = target;
+    	rightCamera.alpha = BABYLON.Tools.ToRadians(180);
+    	rightCamera.beta  = BABYLON.Tools.ToRadians(70);
+    	rightCamera.radius = 10;
+
+      	scene.activeCameras = [leftCamera, rightCamera];
+    } else {
+      scene.activeCameras = [camera];
+      scene.activeCamera = camera;
+    }
   }
 
   // Court / Table (for Placeholder)
@@ -372,44 +376,31 @@ export function createLocalScene(canvas: HTMLCanvasElement): LocalSceneControlle
         stadium.position.addInPlace(offset);
 
 		console.log("[Babylon] 🏟 stadium aligned to table center");
+	  }
 
-		// 전광판 텍스처 셋팅
-		const scoreBoardNode = byName["scoreBoard"] as BABYLON.AbstractMesh | undefined;
-		if (scoreBoardNode) {
-			// scoreBoard 안의 Plane 메쉬(실제 화면 부분)를 하나 가져옴
-			const targetMesh =
-				scoreBoardNode.getChildMeshes().find((m) =>
-					m.name.toLowerCase().includes("plane"))
-					|| scoreBoardNode;
+	  const scorePanel = allMeshes.find((m) =>
+		(m.name ?? "").toLowerCase().startsWith("scoreboard_")
+	  );
 
-			console.log("[Babylon] 🟨 scoreboard target mesh =", targetMesh.name);
+	  console.log("[Babylon] scorePanel =", scorePanel?.name);
 
-			// DynamicTexture 생성 (가로 긴 전광판이라고 가정)
-			const texSize = 1024;
-			scoreTexture = new BABYLON.DynamicTexture(
-				"scoreTexture",
-				texSize,
-				scene,
-				true
-			);
-			scoreTexture.hasAlpha = true;
+	 if (scorePanel) {
+		// 풀스크린 UI 하나 생성
+		const uiTex = GUI.AdvancedDynamicTexture.CreateFullscreenUI("scoreUI", true, scene);
 
-			// 머티리얼 만들어서 텍스처 적용
-			const scoreMat = new BABYLON.StandardMaterial("scoreMat", scene);
-			scoreMat.diffuseTexture = scoreTexture;
-			scoreMat.emissiveTexture = scoreTexture;
-			scoreMat.backFaceCulling = false;
+		scoreText = new GUI.TextBlock("scoreText", "0 - 0");
+		scoreText.color = "#FFE96B";          // 노란색
+		scoreText.fontSize = 72;
+		scoreText.outlineColor = "black";     // 외곽선
+		scoreText.outlineWidth = 1;
+		
+		// 이 텍스트를 scoreBoard 메시에 “따라붙게” 만든다
+		uiTex.addControl(scoreText);
+		scoreText.linkWithMesh(scorePanel);
 
-			(targetMesh as BABYLON.Mesh).material = scoreMat;
-
-			console.log("[Babylon] 🟨 scoreBoard texture attached to", targetMesh.name);
-
-			drawScoreOnBoard(0, 0);
-		}
-		else {
-			console.warn("[Babylon] ⚠ scoreBoard mesh not found in GLB");
-		}
-      }
+		// 살짝 위/앞으로 위치 조정하고 싶으면 오프셋
+		scoreText.linkOffsetY = 0;  // 필요에 따라 숫자 조절
+	  }		
 
     // 3) Paddles from GLB
 	const leftPaddleParts = allMeshes.filter((m) => {
@@ -566,12 +557,15 @@ export function createLocalScene(canvas: HTMLCanvasElement): LocalSceneControlle
 	}
 
 	const p1 = state.score?.player1 ?? 0;
-  	const p2 = state.score?.player2 ?? 0;
-  	if (p1 !== lastScoreP1 || p2 !== lastScoreP2) {
-    	lastScoreP1 = p1;
-    	lastScoreP2 = p2;
-    	drawScoreOnBoard(p1, p2);
-  	}
+	const p2 = state.score?.player2 ?? 0;
+	if (p1 !== lastScoreP1 || p2 !== lastScoreP2) {
+		lastScoreP1 = p1;
+		lastScoreP2 = p2;
+
+		if (scoreText) {
+			scoreText.text = `${p1} - ${p2}`;
+		}
+	}
   }
 
   // ---------- Cleanup ----------
@@ -596,7 +590,7 @@ export function createLocalScene(canvas: HTMLCanvasElement): LocalSceneControlle
     });
   }
 
-  return { update, dispose };
+  return { update, dispose, setSplitView };
 }
 
 /*

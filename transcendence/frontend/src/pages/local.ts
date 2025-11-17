@@ -56,11 +56,11 @@ export default function (root: HTMLElement) {
       </div>
 
 	  <div id="hudCtrlP1"
-        class="pointer-events-none fixed left-5 bottom-6 text-sm text-gray-400 z-10">
+        class="pointer-events-none fixed left-5 bottom-6 text-sm text-white z-10">
         Player 1 (W/S)
       </div>
       <div id="hudCtrlP2"
-        class="pointer-events-none fixed right-5 bottom-6 text-sm text-gray-400 z-10 text-right">
+        class="pointer-events-none fixed right-5 bottom-6 text-sm text-white z-10 text-right">
         Player 2 (↑/↓)
       </div>
 
@@ -422,6 +422,9 @@ export default function (root: HTMLElement) {
 		handleMatchEndIfNeeded();
 		return ;
 	}
+
+	// When 'startbtn' is on, -> true.
+	scene3d.setSplitView(true);
 
 	connectionAttempts = 0;
 	startBtn.disabled = true;
