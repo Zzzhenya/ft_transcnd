@@ -555,7 +555,10 @@ fastify.get('/users/online', async (request, reply) => {
     // Query database-service for online users
     const response = await fetch('http://database-service:3006/internal/query', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-service-auth': 'super_secret_internal_token'
+      },
       body: JSON.stringify({
         table: 'Users',
         columns: ['id', 'username', 'display_name', 'last_seen'],
@@ -589,7 +592,10 @@ fastify.get('/users/:userId', {
 
     const response = await fetch('http://database-service:3006/internal/query', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-service-auth': 'super_secret_internal_token'
+      },
       body: JSON.stringify({
         table: 'Users',
         columns: ['id', 'username', 'email', 'created_at'],
@@ -636,7 +642,10 @@ fastify.get('/users/:userId/friends', {
 
     const response = await fetch('http://database-service:3006/internal/query', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-service-auth': 'super_secret_internal_token'
+      },
       body: JSON.stringify({
         table: 'Friends',
         columns: ['friend_id', 'friends_status', 'created_at'],
@@ -662,7 +671,10 @@ fastify.get('/users/:userId/friends', {
         // Get online status from database
         const statusResponse = await fetch('http://database-service:3006/internal/query', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'x-service-auth': 'super_secret_internal_token'
+          },
           body: JSON.stringify({
             table: 'Users',
             columns: ['is_online', 'last_seen'],
@@ -736,9 +748,9 @@ fastify.post('/users/:userId/invite', {
       values: {
         user_id: parseInt(userId),
         actor_id: actorId,
-        type: type || 'game_invite',
+        Noti_type: type || 'game_invite',
         payload: JSON.stringify(invitationPayload),
-        read: 0
+        Noti_read: 0
       }
     };
 
@@ -746,7 +758,10 @@ fastify.post('/users/:userId/invite', {
 
     const writeRes = await fetch('http://database-service:3006/internal/users', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-service-auth': 'super_secret_internal_token'
+      },
       body: JSON.stringify(writePayload)
     });
 
@@ -812,7 +827,10 @@ fastify.get('/users/:userId/notifications', {
 
     const response = await fetch('http://database-service:3006/internal/query', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-service-auth': 'super_secret_internal_token'
+      },
       body: JSON.stringify(queryPayload)
     });
 
@@ -853,10 +871,10 @@ fastify.get('/notifications/unread', {
 
     const queryPayload = {
       table: 'Notifications',
-      columns: ['id', 'user_id', 'actor_id', 'type', 'payload', 'created_at', 'read'],
+      columns: ['id', 'user_id', 'actor_id', 'Noti_type', 'payload', 'created_at', 'Noti_read'],
       filters: {
         user_id: userId,
-        read: 0  // Only unread notifications
+        Noti_read: 0  // Only unread notifications
       },
       orderBy: 'created_at DESC',
       limit: 50
@@ -879,7 +897,9 @@ fastify.get('/notifications/unread', {
     }
 
     const result = await response.json();
+    console.log('📨 Database response:', JSON.stringify(result, null, 2));
     console.log('📨 Database returned unread notifications:', result.data?.length || 0);
+    console.log('📨 Raw notification data:', JSON.stringify(result.data, null, 2));
 
     // Format notifications with proper data
     const formattedNotifications = (result.data || []).map(notification => {
@@ -892,13 +912,13 @@ fastify.get('/notifications/unread', {
 
       return {
         id: notification.id,
-        type: notification.type,
+        type: notification.Noti_type,
         from: payload.inviterName || 'Unknown',
         fromId: notification.actor_id,
         roomCode: payload.roomCode,
         payload: payload,
         timestamp: notification.created_at,
-        read: notification.read === 1
+        read: notification.Noti_read === 1
       };
     });
 
@@ -908,6 +928,7 @@ fastify.get('/notifications/unread', {
     };
 
     console.log('📨 Returning formatted unread notifications:', formattedNotifications.length);
+    console.log('📨 First notification sample:', JSON.stringify(formattedNotifications[0], null, 2));
     return responsePayload;
   } catch (error) {
     console.error('📨 UNREAD NOTIFICATIONS ERROR:', error);
@@ -931,7 +952,7 @@ fastify.post('/notifications/:notificationId/accept', {
     // First, verify the notification exists and belongs to the user
     const queryPayload = {
       table: 'Notifications',
-      columns: ['id', 'user_id', 'actor_id', 'type', 'payload'],
+      columns: ['id', 'user_id', 'actor_id', 'Noti_type', 'payload'],
       filters: {
         id: parseInt(notificationId),
         user_id: userId
@@ -940,7 +961,10 @@ fastify.post('/notifications/:notificationId/accept', {
 
     const queryRes = await fetch('http://database-service:3006/internal/query', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-service-auth': 'super_secret_internal_token'
+      },
       body: JSON.stringify(queryPayload)
     });
 
@@ -990,7 +1014,10 @@ fastify.post('/notifications/:notificationId/accept', {
 
     const deleteRes = await fetch('http://database-service:3006/internal/delete', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-service-auth': 'super_secret_internal_token'
+      },
       body: JSON.stringify(deletePayload)
     });
 
@@ -1020,9 +1047,9 @@ fastify.post('/notifications/:notificationId/accept', {
         values: {
           user_id: originalInviterId,     // Notify the original inviter
           actor_id: userId,               // The user who accepted
-          type: 'invitation_accepted',
+          Noti_type: 'invitation_accepted',
           payload: JSON.stringify(inviterNotificationPayload),
-          read: 0
+          Noti_read: 0
         }
       };
 
@@ -1030,7 +1057,10 @@ fastify.post('/notifications/:notificationId/accept', {
 
       const writeRes = await fetch('http://database-service:3006/internal/users', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-service-auth': 'super_secret_internal_token'
+        },
         body: JSON.stringify(writePayload)
       });
 
@@ -1081,7 +1111,7 @@ fastify.post('/notifications/:notificationId/decline', {
 
     const queryPayload = {
       table: 'Notifications',
-      columns: ['id', 'user_id', 'actor_id', 'type', 'payload'],
+      columns: ['id', 'user_id', 'actor_id', 'Noti_type', 'payload'],
       filters: {
         id: parseInt(notificationId),
         user_id: userId
@@ -1090,7 +1120,10 @@ fastify.post('/notifications/:notificationId/decline', {
 
     const queryRes = await fetch('http://database-service:3006/internal/query', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-service-auth': 'super_secret_internal_token'
+      },
       body: JSON.stringify(queryPayload)
     });
 
@@ -1133,7 +1166,10 @@ fastify.post('/notifications/:notificationId/decline', {
 
     const deleteRes = await fetch('http://database-service:3006/internal/delete', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-service-auth': 'super_secret_internal_token'
+      },
       body: JSON.stringify(deletePayload)
     });
 
@@ -1163,9 +1199,9 @@ fastify.post('/notifications/:notificationId/decline', {
         values: {
           user_id: originalInviterId,     // Notify the original inviter
           actor_id: userId,               // The user who declined
-          type: 'invitation_declined',
+          Noti_type: 'invitation_declined',
           payload: JSON.stringify(inviterNotificationPayload),
-          read: 0
+          Noti_read: 0
         }
       };
 
@@ -1173,7 +1209,10 @@ fastify.post('/notifications/:notificationId/decline', {
 
       const writeRes = await fetch('http://database-service:3006/internal/users', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-service-auth': 'super_secret_internal_token'
+        },
         body: JSON.stringify(writePayload)
       });
 
@@ -1247,7 +1286,10 @@ fastify.get('/users/:userId/friend-requests', {
 
     const response = await fetch('http://database-service:3006/internal/query', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-service-auth': 'super_secret_internal_token'
+      },
       body: JSON.stringify({
         table: 'Friends',
         columns: ['user_id', 'friends_status', 'created_at'],
@@ -1323,7 +1365,10 @@ fastify.post('/users/:userId/friends', {
     console.log('🚀 Sending request to database-service...');
     const response = await fetch('http://database-service:3006/internal/users', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-service-auth': 'super_secret_internal_token'
+      },
       body: JSON.stringify({
         table: 'Friends',
         action: 'insert',
@@ -1514,7 +1559,10 @@ fastify.post('/users/:userId/online-status', {
 
     const response = await fetch('http://database-service:3006/internal/write', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-service-auth': 'super_secret_internal_token'
+      },
       body: JSON.stringify({
         table: 'Users',
         id: parseInt(userId),
@@ -1551,7 +1599,10 @@ fastify.get('/users/:userId/remote-matches', {
     // Query for all finished remote matches
     const response = await fetch('http://database-service:3006/internal/query', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-service-auth': 'super_secret_internal_token'
+      },
       body: JSON.stringify({
         table: 'Remote_Match',
         columns: ['id', 'player1_id', 'player2_id', 'winner_id', 'player1_score', 'player2_score', 'Remote_status', 'finished_at'],
@@ -1635,7 +1686,10 @@ fastify.get('/users/:userId/tournaments', {
     // Query Tournament_Players table
     const response = await fetch('http://database-service:3006/internal/query', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-service-auth': 'super_secret_internal_token'
+      },
       body: JSON.stringify({
         table: 'Tournament_Players',
         columns: ['tournament_id', 'joined_at'],
@@ -1683,7 +1737,10 @@ fastify.get('/tournaments/:tournamentId/matches', {
     // Query Tournament_Matches table
     const response = await fetch('http://database-service:3006/internal/query', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-service-auth': 'super_secret_internal_token'
+      },
       body: JSON.stringify({
         table: 'Tournament_Matches',
         columns: [
@@ -1805,7 +1862,10 @@ fastify.put('/users/:userId/update-email', {
 
     const response = await fetch('http://database-service:3006/internal/write', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-service-auth': 'super_secret_internal_token'
+      },
       body: JSON.stringify({
         table: 'Users',
         id: parseInt(userId),
@@ -1857,7 +1917,10 @@ fastify.put('/users/:userId/display-name', {
 
     const response = await fetch('http://database-service:3006/internal/write', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-service-auth': 'super_secret_internal_token'
+      },
       body: JSON.stringify({
         table: 'Users',
         id: parseInt(userId),
@@ -1920,7 +1983,10 @@ fastify.put('/users/:userId/username', {
 
     const response = await fetch('http://database-service:3006/internal/write', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-service-auth': 'super_secret_internal_token'
+      },
       body: JSON.stringify({
         table: 'Users',
         id: parseInt(userId),
@@ -1983,7 +2049,10 @@ fastify.post('/users/:userId/avatar', {
 
     const response = await fetch('http://database-service:3006/internal/write', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-service-auth': 'super_secret_internal_token'
+      },
       body: JSON.stringify({
         table: 'Users',
         id: parseInt(userId),
