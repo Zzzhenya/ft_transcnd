@@ -15,12 +15,14 @@ import websocket from '@fastify/websocket'
 import firstRoute from './routes.js'
 import healthRoute from './routes/health.route.js'
 import wsRoute from './routes/ws-proxy.route.js'
+import remoteOnlyRoute from './routes/remote-only.route.js'
 import pongGameRoute from './routes/pong.game.route.js'
 import pongDemoRoute from './routes/pong.demo.route.js'
 import statsRoute from './routes/stats.route.js'
 import userRoute from './routes/user.route.js'
 import tournamentRoute from './routes/tournament.route.js'
 import gameRoute from './routes/game.route.js'
+import readyRoute from './routes/ready.route.js'
 // import cookiePlugin from './plugins/cookie.plugin.js';
 // import onRequestHook from './hooks/on-request.hook.js';
 import cookie from '@fastify/cookie';
@@ -195,16 +197,28 @@ try {
   Fastify.register(healthRoute);
   logger.info('[[Gateway]] register stats route');
   Fastify.register(statsRoute);
-  logger.info('[[Gateway]] register ws routes ');
-  Fastify.register(wsRoute, { prefix: '/ws' });
+  logger.info('[[Gateway]] register remote-only ws routes ');
+  Fastify.register(remoteOnlyRoute);
+  logger.info('[[Gateway]] register user-service ws routes ');
+  // Register WebSocket for internal calls
+  Fastify.register(wsRoute, { prefix: '/user-service/ws' });
+  // Register WebSocket for frontend calls  
+  Fastify.register(wsRoute, { prefix: '/api/user-service/ws' });
+  logger.info('[[Gateway]] ✅ Registered ws route with prefix /user-service/ws');
   logger.info('[[Gateway]] register /pong/demo routes ');
   Fastify.register(pongDemoRoute, { prefix: '/pong/demo' });
   logger.info('[[Gateway]] register /pong/game routes ');
   Fastify.register(pongGameRoute, { prefix: '/pong/game' });
+  // Register Ready proxy so it matches /game/rooms/:roomId/players/:playerId/ready
+  logger.info('[[Gateway]] register ready fallback route ');
+  Fastify.register(readyRoute, { prefix: '/game' })
   logger.info('[[Gateway]] register game routes ');
   Fastify.register(gameRoute)
   logger.info('[[Gateway]] register user routes ');
+  // Register for internal service calls (without /api prefix)
   Fastify.register(userRoute, { prefix: '/user-service' });
+  // Register for frontend calls (with /api prefix)  
+  Fastify.register(userRoute, { prefix: '/api/user-service' });
   logger.info('[[Gateway]] register tournament routes ');
   Fastify.register(tournamentRoute, { prefix: '/tournaments' });
 }

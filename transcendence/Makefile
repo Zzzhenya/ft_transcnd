@@ -16,9 +16,11 @@ help:
 	@echo "  make all              - Start all services with monitoring (default)"
 	@echo "  make start            - Start basic services only (no ELK stack)"
 	@echo "  make start-monitoring - Start all services with ELK monitoring"
-	@echo "  make stop             - Stop all services (keep data)"
-	@echo "  make clean            - Stop and remove containers (keep volumes)"
+	@echo "  make stop             - Stop all services (💾 keeps database data)"
+	@echo "  make stop-safe        - Stop with explicit data preservation verification"
+	@echo "  make clean            - Stop and remove containers (💾 keeps all data)"
 	@echo "  make fclean           - Stop and remove everything (⚠️  deletes all data!)"
+	@echo "  make nuke             - Alias for fclean (⚠️  nuclear option!)"
 	@echo ""
 	@echo "📊 Monitoring & Logs:"
 	@echo "  make logs             - Follow all container logs"
@@ -36,6 +38,7 @@ help:
 	@echo "  make db-list-users    - List users in database"
 	@echo "  make db-seed          - Seed database with test data"
 	@echo "  make db-clear         - Clear all database data (⚠️  destructive!)"
+	@echo "  make db-reset         - Reset database completely (⚠️  fresh start!)"
 	@echo "  make db-view          - Open database viewer"
 	@echo ""
 	@echo "🔄 Development:"
@@ -95,16 +98,28 @@ compose: start-monitoring
 # Stop and Cleanup Commands
 #=============================================================================
 stop:
-	@echo "🛑 Stopping all services..."
+	@echo "🛑 Stopping all services (keeping database data)..."
 	@docker ps | wc -l
 	docker compose down
-	@echo "✅ All services stopped"
+	@echo "✅ All services stopped - database data preserved"
+	@echo "💾 Database volumes maintained:"
+	@docker volume ls | grep transcendence_ | grep -E "(shared-data|elasticsearch-data)" || echo "  No transcendence volumes found"
 	@docker ps | wc -l
 
 clean: stop
-	@echo "🧹 Cleaning containers (keeping volumes)..."
-	docker compose down
-	@echo "✅ Containers cleaned"
+	@echo "🧹 Cleaning containers (keeping all volumes and data)..."
+	docker compose down --remove-orphans
+	@echo "✅ Containers cleaned - all data preserved"
+
+# New command for stopping but being extra explicit about data preservation
+stop-safe:
+	@echo "🛡️  Safe stop - explicitly preserving all data..."
+	@echo "📊 Current volumes before stop:"
+	@docker volume ls | grep transcendence_ || echo "  No transcendence volumes found"
+	docker compose down --remove-orphans
+	@echo "📊 Volumes after stop (should be same as before):"
+	@docker volume ls | grep transcendence_ || echo "  No transcendence volumes found"
+	@echo "✅ Safe stop completed - all data preserved"
 
 fclean: stop
 	@echo "⚠️  Full cleanup will remove ALL DATA including logs and databases!"
@@ -119,6 +134,9 @@ fclean: stop
 	else\
 		printf "❌ Cleanup aborted\n" ;\
 	fi
+
+# New alias for the old behavior
+nuke: fclean
 
 down: fclean
 
@@ -289,6 +307,24 @@ db-clear:
 		printf "❌ Database clear aborted\n" ;\
 	fi
 
+# New: Reset database completely (for when you want fresh start)
+db-reset:
+	@echo "🔄 This will completely reset the database to initial state!"
+	@echo "   All users, games, tournaments, and notifications will be lost."
+	@read -p "Continue? [y/N] " ans && ans=$${ans:-N} ;\
+	if [ $${ans} = y ] || [ $${ans} = Y ]; then\
+		echo "🗑️  Removing existing database file..." ;\
+		docker run --rm -v transcendence_shared-data:/data alpine rm -f /data/database/transcendence.db* 2>/dev/null || echo "  No database file to remove" ;\
+		echo "🔄 Restarting database service to recreate fresh database..." ;\
+		docker compose restart database ;\
+		echo "⏳ Waiting for database to initialize..." ;\
+		sleep 5 ;\
+		echo "✅ Database reset complete! Fresh database with test user created." ;\
+		echo "   You can now register new users." ;\
+	else\
+		printf "❌ Database reset aborted\n" ;\
+	fi
+
 db-view:
 	@echo "🔍 Opening database viewer..."
 	@if [ -f "viewdb.sh" ]; then \
@@ -303,6 +339,42 @@ db-query:
 	@echo "  Users count:     curl \"http://localhost:3006/api/query\" -X POST -H \"Content-Type: application/json\" -d '{\"sql\":\"SELECT COUNT(*) as count FROM Users\"}'"
 	@echo "  Recent matches:  curl \"http://localhost:3006/api/list?table=Matches&limit=5\""
 	@echo "  Tournaments:     curl \"http://localhost:3006/api/list?table=Tournament_Singlematches\""
+
+# New: Volume and data persistence commands
+db-check-volumes:
+	@echo "💾 Checking database volumes and data persistence..."
+	@echo ""
+	@echo "📁 Docker volumes:"
+	@docker volume ls | grep transcendence_ || echo "  No transcendence volumes found"
+	@echo ""
+	@echo "📊 Volume inspection:"
+	@docker volume inspect transcendence_shared-data 2>/dev/null | grep -A5 -B5 "Mountpoint" || echo "  shared-data volume not found"
+	@echo ""
+	@echo "🗄️  Database file check:"
+	@if docker volume inspect transcendence_shared-data >/dev/null 2>&1; then \
+		echo "  ✅ shared-data volume exists"; \
+		if docker run --rm -v transcendence_shared-data:/data alpine ls -la /data/database/ 2>/dev/null; then \
+			echo "  ✅ Database directory accessible"; \
+			docker run --rm -v transcendence_shared-data:/data alpine ls -lah /data/database/transcendence.db 2>/dev/null && echo "  ✅ Database file found" || echo "  ❌ Database file not found"; \
+		else \
+			echo "  ❌ Database directory not accessible"; \
+		fi; \
+	else \
+		echo "  ❌ shared-data volume not found"; \
+	fi
+
+# Show data before and after operations  
+show-data:
+	@echo "📊 Current data summary:"
+	@echo ""
+	@$(MAKE) db-check-volumes
+	@echo ""
+	@echo "👥 Users in database (if accessible):"
+	@curl -s "http://localhost:3006/api/query" \
+		-X POST -H "Content-Type: application/json" \
+		-d '{"sql":"SELECT COUNT(*) as user_count FROM Users"}' 2>/dev/null | \
+		python3 -c "import sys,json; data=json.load(sys.stdin); print(f'  Total users: {data[\"data\"][0][\"user_count\"]}')" 2>/dev/null || \
+		echo "  ❌ Could not fetch user count (service may be down)"
 
 #=============================================================================
 # Enhanced Health Checks
@@ -326,6 +398,7 @@ health-full: health
 s: start
 sm: start-monitoring
 st: stop
+sts: stop-safe
 l: logs
 t: test
 h: health
@@ -333,6 +406,7 @@ hf: health-full
 k: kibana
 db: db-status
 dbu: db-list-users
-k: kibana
+dbv: db-check-volumes
+data: show-data
 ssl: dev-ssl
 cert: ssl-cert

@@ -148,7 +148,7 @@ export default function (root: HTMLElement, ctx: any) {
   const gameStatus = root.querySelector('#gameStatus') as HTMLDivElement;
   const connectionStatus = root.querySelector('#connectionStatus') as HTMLParagraphElement;
   const winnerDialog = root.querySelector('#winnerDialog') as HTMLDialogElement;
-  canvas = root.querySelector('#gameCanvas') as HTMLCanvasElement;
+  canvas = root.querySelector('#gameCanvas') as unknown as HTMLCanvasElement;
   ctx2d = canvas.getContext('2d')!;
 
   function updateStatus(message: string) {
@@ -203,10 +203,17 @@ export default function (root: HTMLElement, ctx: any) {
         }, 500);
       };
 
-      ws.onmessage = (event) => {
+      ws.onmessage = async (event) => {
         try {
-          const data = JSON.parse(event.data);
-          handleBackendMessage(data);
+          let data = event.data;
+          
+          // Handle Blob data
+          if (data instanceof Blob) {
+            data = await data.text();
+          }
+          
+          const parsedData = JSON.parse(data);
+          handleBackendMessage(parsedData);
         } catch (error) {
           console.error('❌ Error parsing backend message:', error);
         }

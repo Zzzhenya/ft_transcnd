@@ -131,6 +131,101 @@ fastify.get('/api/stats', async (request, reply) => {
   };
 });
 
+// POST /rooms/:roomId/players/:playerId/ready - HTTP fallback to mark player ready
+fastify.post('/rooms/:roomId/players/:playerId/ready', async (request, reply) => {
+  try {
+    let { roomId, playerId } = request.params;
+    const body = (request.body || {});
+    fastify.log.info('[HTTP Ready] req', { params: request.params, body });
+    let room = roomManager.getRoom(roomId);
+    fastify.log.info('[HTTP Ready] roomById', { triedRoomId: roomId, found: !!room });
+
+    // If the provided roomId isn't found, try resolving by player identity
+    if (!room) {
+      // 1) If we have a playerId, try to find the room by playerId mapping
+      if (playerId) {
+        const byPlayerRoom = roomManager.getRoomByPlayer(playerId);
+        fastify.log.info('[HTTP Ready] roomByPlayerId', { playerId, found: !!byPlayerRoom, resolvedRoomId: byPlayerRoom?.roomId });
+        if (byPlayerRoom) {
+          room = byPlayerRoom;
+          roomId = room.roomId;
+        }
+      }
+      // 2) As a fallback, try scanning rooms by username or playerNumber if provided
+      if (!room && (body.username || body.playerNumber)) {
+        fastify.log.info('[HTTP Ready] scanRooms start', { username: body.username, playerNumber: body.playerNumber });
+        for (const [rid, r] of roomManager.rooms.entries()) {
+          const info = r.getInfo();
+          const players = Array.isArray(info.players) ? info.players : [];
+          const want = String(body.username || '').toLowerCase();
+          const found = players.find(p => (body.username && String(p.username || '').toLowerCase() === want) ||
+                                          (body.playerNumber && p.playerNumber === body.playerNumber));
+          if (found) {
+            room = r;
+            roomId = rid;
+            if (!playerId) playerId = found.playerId;
+            fastify.log.info('[HTTP Ready] scanRooms resolved', { resolvedRoomId: roomId, resolvedPlayerId: playerId });
+            break;
+          }
+        }
+      }
+      if (!room) {
+        fastify.log.warn('[HTTP Ready] 404 room not found', { paramsRoomId: request.params.roomId, body });
+        return reply.code(404).send({ success: false, error: 'Room not found' });
+      }
+    }
+
+    // Try by exact playerId first within the resolved room
+    let targetId = null;
+    const directNum = playerId ? room.getPlayerNumber(playerId) : null;
+    fastify.log.info('[HTTP Ready] directPlayerId', { playerId, matched: !!directNum });
+    if (directNum) {
+      targetId = playerId;
+    } else {
+      // Attempt to resolve by username or playerNumber, or single unready player fallback
+      const info = room.getInfo();
+      const players = Array.isArray(info.players) ? info.players : [];
+      // 1) by username
+      if (body && body.username) {
+        const want = String(body.username || '').toLowerCase();
+        const byName = players.find(p => String(p.username || '').toLowerCase() === want);
+        if (byName) targetId = byName.playerId;
+      }
+      // 2) by playerNumber
+      if (!targetId && body && (body.playerNumber === 1 || body.playerNumber === 2)) {
+        const byNum = players.find(p => p.playerNumber === body.playerNumber);
+        if (byNum) targetId = byNum.playerId;
+      }
+      fastify.log.info('[HTTP Ready] resolveBy', { byName: !!targetId && body?.username ? true : false, byNum: !!targetId && (body?.playerNumber === 1 || body?.playerNumber === 2) ? true : false });
+      // 3) if exactly one player is not ready, assume it
+      if (!targetId) {
+        const notReady = players.filter(p => !p.ready);
+        if (notReady.length === 1) {
+          targetId = notReady[0].playerId;
+        }
+      }
+      if (!targetId) {
+        fastify.log.warn('[HTTP Ready] 404 player not found', { roomId, playerId, body });
+        return reply.code(404).send({ success: false, error: 'Player not found in room' });
+      }
+    }
+
+    room.setPlayerReady(targetId);
+
+    const response = {
+      success: true,
+      roomId,
+      playerId: targetId,
+      room: room.getInfo()
+    };
+    fastify.log.info('[HTTP Ready] success', response);
+    return reply.send(response);
+  } catch (err) {
+    fastify.log.error('[HTTP Ready] Error:', err);
+    return reply.code(500).send({ success: false, error: 'Failed to mark player ready' });
+  }
+});
+
 // WebSocket for Remote Players
 setupRemoteWebSocket(fastify);
 

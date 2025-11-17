@@ -1,6 +1,7 @@
 // src/routes/ws-proxy.route.ts
 import type { FastifyHttpOptions, FastifyInstance, FastifyServerOptions, FastifyPluginAsync } from "fastify"
 import { proxyRequest } from '../utils/proxyHandler.js';
+import fp from 'fastify-plugin';
 
 import gatewayError from '../utils/gatewayError.js';
 import logger from '../utils/logger.js'; // log-service
@@ -11,6 +12,8 @@ import WebSocket from 'ws'
 
 const GAME_SERVICE_URL = process.env.GAME_SERVICE_URL || 'http://game-service:3002';
 const GAME_SERVICE_WS_URL = GAME_SERVICE_URL.replace('http://', 'ws://');
+const USER_SERVICE_URL = process.env.USER_SERVICE_URL || 'http://user-service:3001';
+const USER_SERVICE_WS_URL = USER_SERVICE_URL.replace('http://', 'ws://');
 
 export function createBackendSocket(url: string): Promise<WebSocket> {
   return new Promise((resolve, reject) => {
@@ -128,44 +131,41 @@ interface GameParams {
 
 
 const wsProxyRoute: FastifyPluginAsync = async (fastify) => {
+  console.log('🔔 Registering WebSocket proxy routes...');
+  fastify.log.info('🔔 Registering WebSocket proxy routes...');
   
-  // WebSocket route for remote players
-  fastify.get('/remote', { websocket: true }, async (connection, req) => {
-    const clientSocket = connection
+  // WebSocket route for user-service notifications
+  fastify.get('/notifications', { websocket: true }, async (connection, req) => {
+    console.log('🔔 WebSocket notification request received:', req.url);
+    fastify.log.info('🔔 WebSocket notification request received for: ' + req.url);
     
-    // Extract query parameters from URL
-    let roomId = null, playerId = null, username = null
+    const clientSocket = connection;
+    
+    // Extract token from query parameters
+    let token = null;
     if (req.url) {
-      const url = new URL(req.url,`http://${req.headers.host}`)
-      roomId = url.searchParams.get('roomId')
-      playerId = url.searchParams.get('playerId')
-      username = url.searchParams.get('username')
+      const url = new URL(req.url, `http://${req.headers.host}`);
+      token = url.searchParams.get('token');
     }
     
-    if (!roomId || !playerId) {
-      fastify.log.error('Missing roomId or playerId in WebSocket connection')
-      if (clientSocket && typeof clientSocket.close === 'function') {
-        clientSocket.close()
-      }
-      // throw 400 Bad Request
-      throw fastify.httpErrors.badRequest('Missing required parameter: id');
-      return
+    if (!token) {
+      fastify.log.error('Missing token in WebSocket notification request');
+      clientSocket.close();
+      return;
     }
     
-    // Create backend WebSocket URL with query parameters
-    const backendUrl =`ws://game-service:3002/ws/remote?roomId=${roomId}&playerId=${playerId}&username=${encodeURIComponent(username || 'Anonymous')}`
+    // Create backend WebSocket URL with token
+    const backendUrl = `ws://user-service:3001/ws/notifications?token=${encodeURIComponent(token)}`;
     
     try {
-      const backendSocket = await createBackendSocket(backendUrl)
-      fastify.log.info(`Remote WebSocket proxy connected: ${roomId}`)
-      forwardMessages(clientSocket, backendSocket)
+      const backendSocket = await createBackendSocket(backendUrl);
+      fastify.log.info('🔔 ✅ Notification WebSocket proxy connected');
+      forwardMessages(clientSocket, backendSocket);
     } catch (err) {
-      fastify.log.error('Failed to connect to backend for remote play')
-      if (clientSocket && typeof clientSocket.close === 'function') {
-        clientSocket.close()
-      }
+      fastify.log.error('🔔 ❌ Failed to connect to backend for notifications: ' + String(err));
+      clientSocket.close();
     }
-  })
+  });
 
   fastify.get<{Params: GameParams;}>('/pong/game-ws/:gameId', { websocket: true }, async (connection, req) => {
     const clientSocket = connection

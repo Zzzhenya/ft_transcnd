@@ -14,7 +14,7 @@ const USER_SERVICE_URL = process.env.USER_SERVICE_URL || 'http://user-service:30
 
 const userRoutes: FastifyPluginAsync = async (fastify) => {
 
-// Health check for user-service (through gateway)
+	// Health check for user-service (through gateway)
 	fastify.get('/health', async (request, reply) => {
 		return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/health`, 'GET');
 	});
@@ -91,20 +91,20 @@ const userRoutes: FastifyPluginAsync = async (fastify) => {
 
 	// Update email endpoint
 	fastify.put('/users/:userId/update-email', { preHandler: fastify.mustAuth }, async (request, reply) => {
-    	const { userId } = request.params as { userId: string };
-    	return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/users/${userId}/update-email`, 'PUT');
+		const { userId } = request.params as { userId: string };
+		return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/users/${userId}/update-email`, 'PUT');
 	});
 
 	// Update user display name
 	fastify.put('/users/:userId/display-name', { preHandler: fastify.mustAuth }, async (request, reply) => {
-	const { userId } = request.params as { userId: string };
-	return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/users/${userId}/display-name`, 'PUT');
+		const { userId } = request.params as { userId: string };
+		return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/users/${userId}/display-name`, 'PUT');
 	});
 
 	// Update username
 	fastify.put('/users/:userId/username', { preHandler: fastify.mustAuth }, async (request, reply) => {
-	const { userId } = request.params as { userId: string };
-	return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/users/${userId}/username`, 'PUT');
+		const { userId } = request.params as { userId: string };
+		return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/users/${userId}/username`, 'PUT');
 	});
 
 	// Invite (notification) endpoint
@@ -119,22 +119,27 @@ const userRoutes: FastifyPluginAsync = async (fastify) => {
 		return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/users/${userId}/notifications`, 'GET');
 	});
 
+	// Get unread notifications (for polling)
+	fastify.get('/notifications/unread', async (request, reply) => {
+		return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/notifications/unread`, 'GET');
+	}); // ✅ FIXED: Added missing closing brace
+
 	// Get user's remote match history
 	fastify.get('/users/:userId/remote-matches', { preHandler: fastify.mustAuth }, async (request, reply) => {
-			const { userId } = request.params as { userId: string };
-			return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/users/${userId}/remote-matches`, 'GET');
+		const { userId } = request.params as { userId: string };
+		return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/users/${userId}/remote-matches`, 'GET');
 	});
 
 	// Get user's tournament history
 	fastify.get('/users/:userId/tournaments', { preHandler: fastify.mustAuth }, async (request, reply) => {
-			const { userId } = request.params as { userId: string };
-			return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/users/${userId}/tournaments`, 'GET');
+		const { userId } = request.params as { userId: string };
+		return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/users/${userId}/tournaments`, 'GET');
 	});
 
-		// Get matches for a specific tournament
+	// Get matches for a specific tournament
 	fastify.get('/tournaments/:tournamentId/matches', { preHandler: fastify.mustAuth }, async (request, reply) => {
-			const { tournamentId } = request.params as { tournamentId: string };
-			return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/tournaments/${tournamentId}/matches`, 'GET');
+		const { tournamentId } = request.params as { tournamentId: string };
+		return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/tournaments/${tournamentId}/matches`, 'GET');
 	});
 
 	// Accept notification endpoint
@@ -157,28 +162,28 @@ const userRoutes: FastifyPluginAsync = async (fastify) => {
 
 	// Fileupload
 	fastify.get('/avatars/:filename', async (request, reply) => {
-	const { filename } = request.params as { filename: string };
-	
-	try {
-		const response = await fetch(`${USER_SERVICE_URL}/avatars/${filename}`);
-		
-		if (!response.ok) {
-		return reply.code(response.status).send({ error: 'Avatar not found' });
+		const { filename } = request.params as { filename: string };
+
+		try {
+			const response = await fetch(`${USER_SERVICE_URL}/avatars/${filename}`);
+
+			if (!response.ok) {
+				return reply.code(response.status).send({ error: 'Avatar not found' });
+			}
+
+			const buffer = await response.arrayBuffer();
+			const contentType = response.headers.get('content-type') || 'image/jpeg';
+
+			return reply
+				.code(200)
+				.type(contentType)
+				.send(Buffer.from(buffer));
+		} catch (error) {
+			// TypeScript-konform: Error richtig behandeln
+			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+			fastify.log.error(`Failed to fetch avatar: ${errorMessage}`);
+			return reply.code(500).send({ error: 'Failed to fetch avatar' });
 		}
-		
-		const buffer = await response.arrayBuffer();
-		const contentType = response.headers.get('content-type') || 'image/jpeg';
-		
-		return reply
-		.code(200)
-		.type(contentType)
-		.send(Buffer.from(buffer));
-	} catch (error) {
-		// TypeScript-konform: Error richtig behandeln
-		const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-		fastify.log.error(`Failed to fetch avatar: ${errorMessage}`);
-		return reply.code(500).send({ error: 'Failed to fetch avatar' });
-	}
 	});
 
 	// Delete account endpoint
@@ -187,6 +192,6 @@ const userRoutes: FastifyPluginAsync = async (fastify) => {
 		return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/auth/account`, 'DELETE');
 	});
 
-}
+} // ✅ Closing brace for userRoutes function
 
 export default userRoutes

@@ -18,6 +18,7 @@
   "type": "module",
   "dependencies": {
     "@fastify/cors": "^11.1.0",
+    "@fastify/http-proxy": "^11.3.0",
     "@fastify/sensible": "^6.0.3",
     "@fastify/jwt": "^10.0.0",
     "@types/node": "^24.3.1",

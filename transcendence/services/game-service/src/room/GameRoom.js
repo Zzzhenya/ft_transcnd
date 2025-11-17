@@ -60,8 +60,36 @@ export class GameRoom {
 		}
 
 		if (this.players.has(playerId)) {
-			logger.warn(`[GameRoom] Player ${playerId} already in room ${this.roomId}`);
-			return false;
+			// Reconnect logic: replace old socket with the new one for the same playerId
+			const existing = this.players.get(playerId);
+			logger.warn(`[GameRoom] Player ${playerId} already in room ${this.roomId} - performing reconnect`);
+			try {
+				if (existing.socket && (existing.socket.readyState === 0 || existing.socket.readyState === 1)) { // CONNECTING or OPEN
+					existing.socket.close(1012, 'Replaced by new connection');
+				}
+			} catch (e) {
+				logger.warn(`[GameRoom] Error closing previous socket for player ${playerId}:`, e);
+			}
+
+			// Keep playerNumber and ready state; swap socket and info
+			existing.socket = socket;
+			existing.info = {
+				username: playerInfo.username || existing.info?.username || `Player ${existing.playerNumber}`,
+				avatar: playerInfo.avatar || existing.info?.avatar || null,
+				...playerInfo
+			};
+			this.players.set(playerId, existing);
+			this.lastActivity = Date.now();
+
+			// Notify only the reconnected player (optional)
+			this.sendToPlayer(playerId, {
+				type: 'playerReconnected',
+				playerId,
+				playerNumber: existing.playerNumber
+			});
+
+			logger.info(`[GameRoom] Player ${playerId} reconnected in room ${this.roomId} as P${existing.playerNumber}`);
+			return true;
 		}
 
 		const playerNumber = this.players.size + 1;
