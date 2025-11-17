@@ -1,4 +1,4 @@
-	// user-service/
+// user-service/
 import gatewayError from '../utils/gatewayError.js';
 import logger from '../utils/logger.js'; // log-service
 import { proxyRequest } from '../utils/proxyHandler.js';
@@ -11,22 +11,6 @@ import type { FastifyHttpOptions, FastifyInstance, FastifyServerOptions, Fastify
 
 const USER_SERVICE_URL = process.env.USER_SERVICE_URL || 'http://user-service:3001';
 
-// function logCookies(request: FastifyRequest): Record<string, string> {
-//   // Parsed cookies via fastify-cookie
-//   const cookies = request.cookies as Record<string, string> | undefined;
-
-//   if (!cookies || Object.keys(cookies).length === 0) {
-//     console.log('😄No cookies received in this request.');
-//   } else {
-//     console.log('😄Parsed cookies:', cookies);
-//   }
-
-//   // Optional: log raw Cookie header
-//   const rawCookieHeader = request.headers['cookie'];
-//   console.log('Raw Cookie header:', rawCookieHeader || 'None');
-
-//   return cookies || {};
-// }
 
 const userRoutes: FastifyPluginAsync = async (fastify) => {
 
@@ -40,8 +24,6 @@ const userRoutes: FastifyPluginAsync = async (fastify) => {
 		reply.clearCookie('sessionId', { path: '/' });
 		return reply.status(200).send({ success: true, message: 'Logged out' });
 	});
-
-
 
 	fastify.post('/auth/register', async (request, reply) => {
 		// fastify.log.info("Gateway received POST request for /register")
@@ -83,6 +65,7 @@ const userRoutes: FastifyPluginAsync = async (fastify) => {
 		return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/users/${userId}/friend-requests`, 'GET');
 	});
 
+
 	fastify.put('/users/:userId/friend-requests/:requesterId', { preHandler: fastify.mustAuth }, async (request, reply) => {
 		const { userId, requesterId } = request.params as { userId: string; requesterId: string };
 		return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/users/${userId}/friend-requests/${requesterId}`, 'PUT');
@@ -98,6 +81,7 @@ const userRoutes: FastifyPluginAsync = async (fastify) => {
 		const { userId } = request.params as { userId: string };
 		return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/users/${userId}`, 'GET');
 	});
+
 
 	// User status endpoint { preHandler: fastify.mustAuth },?
 	fastify.post('/users/:userId/status', async (request, reply) => {

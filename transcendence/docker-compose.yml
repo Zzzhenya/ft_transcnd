@@ -385,6 +385,7 @@ services:
       # - shared-data:/shared
     networks:
       - transcendence-network
+
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3006/health"]
       interval: 15s

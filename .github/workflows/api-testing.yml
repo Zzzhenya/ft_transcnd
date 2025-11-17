@@ -12,7 +12,6 @@ on:
       - db-service-api
       - tournament_new
       - user-authentication-001
-
       #- fix-gateway-timeout-queue
     # No paths restriction for push - always run when pushing to these branches
   pull_request:
@@ -770,6 +769,7 @@ jobs:
             exit 1
           fi
 
+
           NEW_COOKIETOKEN=$(grep -i 'Set-Cookie: token=' /tmp/login_headers.txt | sed -E 's/Set-Cookie: token=([^;]+);.*/\1/i')
 
           # Fail if the new token is empty
@@ -782,8 +782,10 @@ jobs:
 
 
           
+          
           # Profile Access via Gateway (Protected Route)
-          echo "3A. 👥 Testing Protected Profile Endpoint (via Gateway)"
+          echo "3. 👥 Testing Protected Profile Endpoint (via Gateway)"
+
           if [ ! -z "$TOKEN" ]; then
             PROFILE_RESPONSE=$(curl $CURL_FLAGS -s -w "%{http_code}" -o /tmp/profile.json \
               --connect-timeout 30 --max-time 60 \

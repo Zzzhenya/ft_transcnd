@@ -1,7 +1,7 @@
 // plugins/tokenVerification.plugin.ts
 
 import fp from 'fastify-plugin';
-import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
+import type { FastifyPluginAsync, FastifyReply, FastifyRequest, preHandlerHookHandler } from 'fastify';
 import logger from '../utils/logger.js'; // log-service
 import type { User } from '../types/user.d.js';
 
@@ -16,6 +16,10 @@ import type { User } from '../types/user.d.js';
 
 const tokenVerificationPlugin: FastifyPluginAsync = async (fastify) => {
   fastify.decorate('verifyAuth', async (request: FastifyRequest & { user?: User }, reply: FastifyReply) => {
+//   const verifyAuth: preHandlerHookHandler = async function (
+//   request: FastifyRequest & { user?: User },
+//   reply: FastifyReply
+// ) {
     try {
       console.log(`🐞 Verify auth started...`);
       logger.info(`1. Extract x-token`);

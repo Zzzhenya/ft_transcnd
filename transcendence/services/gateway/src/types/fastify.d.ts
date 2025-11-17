@@ -19,6 +19,7 @@ declare module 'fastify' {
     //   request: FastifyRequest & { user?: User },
     //   reply: FastifyReply
     // ): Promise<void>;
+    // verifyAuth: preHandlerHookHandler;
     mustAuth: preHandlerHookHandler;
     
   };
