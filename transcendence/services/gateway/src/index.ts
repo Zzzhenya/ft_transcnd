@@ -15,6 +15,7 @@ import websocket from '@fastify/websocket'
 import firstRoute from './routes.js'
 import healthRoute from './routes/health.route.js'
 import wsRoute from './routes/ws-proxy.route.js'
+import wsNotificationRoute from './routes/ws-notification.route.js'
 import remoteOnlyRoute from './routes/remote-only.route.js'
 import pongGameRoute from './routes/pong.game.route.js'
 import pongDemoRoute from './routes/pong.demo.route.js'
@@ -203,7 +204,7 @@ try {
   // Register WebSocket for internal calls
   Fastify.register(wsRoute, { prefix: '/ws' });
   // Register WebSocket for frontend calls  
-  Fastify.register(wsRoute, { prefix: '/api/user-service/ws' });
+  Fastify.register(wsNotificationRoute, { prefix: '/api/user-service/ws' });
   logger.info('[[Gateway]] ✅ Registered ws route with prefix /user-service/ws');
   logger.info('[[Gateway]] register /pong/demo routes ');
   Fastify.register(pongDemoRoute, { prefix: '/pong/demo' });
@@ -229,7 +230,7 @@ catch (error: any) {
 
 try {
   logger.info('[[Gateway]] Launching gateway...');
-  start(); // await start()?
+  await start();
 } catch ( error: any) {
   logger.error('[[Gateway]] an error occured while launching gateway or at runtime', error);
 }
