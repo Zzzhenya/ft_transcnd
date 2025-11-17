@@ -3,7 +3,7 @@
 import { navigate } from "@/app/router";
 import { getAuth, getToken } from "@/app/auth";
 import { getState } from "@/app/store";
-import { GATEWAY_BASE } from "@/app/config";
+import { onlineManager } from '../utils/efficient-online-status';
 
 interface Friend {
 	friend_id: string;
@@ -24,24 +24,26 @@ export default function (root: HTMLElement) {
 	let onlineUsers: any[] = [];
 
 
-	// Load friends list
+	// Load friends list using efficient online manager
 	async function loadFriends() {
 		try {
-			if (user) {
-				const token = getToken();
-				const res = await fetch(`${GATEWAY_BASE}/user-service/users/${user.id}/friends`, {
-					headers: {
-						'Authorization': `Bearer ${token || ''}`
-					}
-				});
-				if (res.ok) {
-					const data = await res.json();
-					friends = data.friends || [];
-				}
-			}
+			console.log('👥 Loading friends with efficient system');
+			friends = await onlineManager.getFriendsStatus();
+			console.log('👥 Loaded friends:', friends.length);
 		} catch (error) {
 			console.log('Could not load friends:', error);
-			friends = []; // Mock data for demo
+			friends = []; // Fallback to empty array
+		}
+	}
+
+	// Force refresh friends (for manual refresh button)
+	async function refreshFriends() {
+		try {
+			console.log('🔄 Force refreshing friends');
+			friends = await onlineManager.refreshFriendsStatus();
+			await render();
+		} catch (error) {
+			console.log('Could not refresh friends:', error);
 		}
 	}
 
@@ -50,7 +52,7 @@ export default function (root: HTMLElement) {
 		try {
 			if (user) {
 				const token = getToken();
-				const res = await fetch(`${GATEWAY_BASE}/user-service/users/${user.id}/friends`, {
+				const res = await fetch(`/api/user-service/users/${user.id}/friends`, {
 					method: 'POST',
 					headers: {
 						'Content-Type': 'application/json',
@@ -94,7 +96,7 @@ export default function (root: HTMLElement) {
 	// Load online users for matchmaking
 	async function loadOnlineUsers() {
 		try {
-			const res = await fetch(`${GATEWAY_BASE}/user-service/users/online`);
+			const res = await fetch(`/api/user-service/users/online`);
 			if (res.ok) {
 				const data = await res.json();
 				onlineUsers = data.users || [];
@@ -197,7 +199,12 @@ export default function (root: HTMLElement) {
 					<div class="bg-white/5 backdrop-blur-lg rounded-2xl p-6 border border-white/10">
 						<div class="flex items-center justify-between mb-4">
 							<h3 class="text-2xl font-black text-white">🧑‍🤝‍🧑 FRIENDS LIST</h3>
-							<button id="closeFriendsBtn" class="text-white/60 hover:text-white transition-colors text-2xl">✕</button>
+							<div class="flex items-center gap-3">
+								<button id="refreshFriendsBtn" class="text-blue-400 hover:text-blue-300 transition-colors text-xl" title="Refresh friend status">
+									🔄
+								</button>
+								<button id="closeFriendsBtn" class="text-white/60 hover:text-white transition-colors text-2xl">✕</button>
+							</div>
 						</div>
 						
 						<!-- Add Friend Form -->
@@ -223,7 +230,7 @@ export default function (root: HTMLElement) {
 										` : ''}
 									</div>
 									${friend.online ? `
-										<button class="invite-friend-btn px-4 py-2 rounded-lg bg-blue-500 hover:bg-blue-600 text-white font-semibold transition-all" data-friend-id="${friend.friend_id}">
+										<button class="invite-friend-btn px-4 py-2 rounded-lg bg-blue-500 hover:bg-blue-600 text-white font-semibold transition-all" data-friend-id="${friend.friend_id}" data-friend-username="${friend.username}">
 											🎮 INVITE
 										</button>
 									` : `
@@ -330,6 +337,17 @@ export default function (root: HTMLElement) {
 			};
 		}
 
+		// Refresh Friends Button
+		const refreshFriendsBtn = root.querySelector<HTMLButtonElement>("#refreshFriendsBtn");
+		if (refreshFriendsBtn) {
+			refreshFriendsBtn.onclick = async () => {
+				console.log('🔄 Manual friends refresh clicked');
+				refreshFriendsBtn.textContent = '⏳'; // Show loading
+				await refreshFriends();
+				refreshFriendsBtn.textContent = '🔄'; // Reset icon
+			};
+		}
+
 		// Add Friend
 		const addFriendBtn = root.querySelector<HTMLButtonElement>("#addFriendBtn");
 		const friendUsernameInput = root.querySelector<HTMLInputElement>("#friendUsernameInput");
@@ -412,9 +430,10 @@ export default function (root: HTMLElement) {
 			btn.onclick = () => {
 				console.log('🎮 Invite button clicked!');
 				const friendId = btn.getAttribute('data-friend-id');
-				console.log('🎮 friendId from button:', friendId);
-				if (friendId) {
-					inviteFriend(friendId);
+				const friendUsername = btn.getAttribute('data-friend-username');
+				console.log('🎮 friendId from button:', friendId, 'username:', friendUsername);
+				if (friendId && friendUsername) {
+					inviteFriend(friendId, friendUsername);
 				}
 			};
 		});
@@ -438,8 +457,8 @@ export default function (root: HTMLElement) {
 		return Math.random().toString(36).substr(2, 6).toUpperCase();
 	}
 
-	function inviteFriend(friendId: string) {
-		console.log('🎮 inviteFriend called with friendId:', friendId);
+	function inviteFriend(friendId: string, friendUsername: string) {
+		console.log('🎮 inviteFriend called with friendId:', friendId, 'username:', friendUsername);
 		// Send invitation to backend (creates a notification for the target)
 		(async () => {
 			const user = getAuth();
@@ -447,8 +466,16 @@ export default function (root: HTMLElement) {
 			console.log('🎮 user:', user, 'token:', token);
 			if (!user) { showStatus('You must be signed in to invite', 'error'); return; }
 			try {
-				console.log('🎮 About to send POST request to:', `${GATEWAY_BASE}/user-service/users/${friendId}/invite`);
-				const res = await fetch(`${GATEWAY_BASE}/user-service/users/${friendId}/invite`, {
+				console.log('🔥 DEBUG: About to send invite request');
+				console.log('🔥 DEBUG: URL:', `/api/user-service/users/${friendId}/invite`);
+				console.log('🔥 DEBUG: Headers:', {
+					'Content-Type': 'application/json',
+					'Authorization': `Bearer ${token || ''}`,
+				});
+				console.log('🔥 DEBUG: Body:', JSON.stringify({ type: 'game_invite' }));
+				
+				console.log('🎮 About to send POST request to:', `/api/user-service/users/${friendId}/invite`);
+				const res = await fetch(`/api/user-service/users/${friendId}/invite`, {
 					method: 'POST',
 					headers: {
 						'Content-Type': 'application/json',
@@ -456,9 +483,31 @@ export default function (root: HTMLElement) {
 					},
 					body: JSON.stringify({ type: 'game_invite' })
 				});
+				
+				console.log('🔥 DEBUG: Fetch completed');
+				console.log('🔥 DEBUG: Response status:', res.status);
+				console.log('🔥 DEBUG: Response ok:', res.ok);
+				console.log('🔥 DEBUG: Response headers:', res.headers);
+				
 				console.log('🎮 Response received:', res.status, res.statusText);
 				if (res.ok) {
-					showStatus('Invitation sent!', 'success');
+					const result = await res.json();
+					console.log('🎮 Invite result:', result);
+					
+					if (result.roomCode) {
+						console.log('🎮 ✅ Room created:', result.roomCode);
+						
+						// ✅ FIX: El que invita VA INMEDIATAMENTE a la room
+						showStatus('🎮 Room created! Entering...', 'success');
+						
+						// Esperar 500ms para que el mensaje se vea
+						setTimeout(() => {
+							navigate(`/remote/room/${result.roomCode}`);
+						}, 500);
+						
+					} else {
+						showStatus('Invitation sent but no room code received', 'error');
+					}
 				} else {
 					const err = await res.json().catch(() => ({}));
 					console.log('🎮 Error response:', err);
@@ -471,13 +520,14 @@ export default function (root: HTMLElement) {
 		})();
 	}
 
-	// Initialize
+	// Load data (online manager is already initialized in main.ts)
 	Promise.all([loadFriends(), loadOnlineUsers()]).then(() => {
 		render();
 	});
 
 	// Cleanup
 	return () => {
-		// WebSocket cleanup would go here when implemented
+		// Note: Don't destroy online manager here since it's managed globally in main.ts
+		console.log('🧹 Remote page cleanup complete');
 	};
 }
