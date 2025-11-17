@@ -21,3 +21,5 @@ curl -k -X POST https://localhost:8443/api/auth/login \
   -d '{"email":"xsstest@test.com","password":"Test123!"}' \
   -s | jq .
 
+
+
