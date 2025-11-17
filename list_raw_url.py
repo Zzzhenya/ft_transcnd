@@ -20,6 +20,6 @@ print("Files in repo with raw URLs:\n")
 for item in data.get("tree", []):
     if item["type"] == "blob":  # only files
         # Skip files in legacy/ folder
-        if not item["path"].startswith("legacy/") and not item["path"].startswith("frontend_jason/") and not item["path"].startswith("transcendence") and not item["path"].startswith("script") and not item["path"].startswith("shared") :
+        if not item["path"].startswith("legacy/") and not item["path"].startswith("frontend_jason/") and not item["path"].startswith(".github/") and not item["path"].startswith("transcendence") and not item["path"].startswith("script") and not item["path"].startswith("shared") :
             raw_url = RAW_BASE + item["path"]
             print(raw_url)
