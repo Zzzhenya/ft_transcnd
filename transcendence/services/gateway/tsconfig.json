@@ -10,6 +10,7 @@
     "module": "ESNext",
     "target": "ES2022",
     "types": ["node"],
+    "typeRoots": ["./types", "./node_modules/@types"],
     // For nodejs:
     // "lib": ["esnext"],
     // "types": ["node"],
@@ -62,11 +63,10 @@
   },
   "include": [
     "src/**/*.ts",
-    "src/types.d.ts"
+    "src/types/*.d.ts"
   ],
   "exclude": [
     "node_modules",
-    "**/*.d.ts",
     "**/*.spec.ts"
   ]
 }

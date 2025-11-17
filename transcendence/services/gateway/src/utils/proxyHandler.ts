@@ -56,7 +56,18 @@ export async function proxyRequest(
     }
 
     const data = await response.json();
-    return reply.status(response.status).send(data);
+    reply.status(response.status)
+    const token = data.token;
+    // if the body has token issued, set is as a cookie
+    if (token){
+      reply.setCookie('token', token, {
+        httpOnly: true,
+        secure: true,  // Only HTTPS in production
+        sameSite: 'lax',
+        path: '/',
+      });
+    }
+    return reply.send(data);
 
   } catch (error: any) {
     fastify.log.error(error);

@@ -2,7 +2,7 @@ name: Gateway Timeout Fix Tests
 
 on:
   push:
-    branches: [ main, fix-gateway-timeout-queue ]
+    branches: [ main, fix-gateway-timeout-queue, user-authentication-001 ]
   pull_request:
     branches: [ main ]
     paths:
