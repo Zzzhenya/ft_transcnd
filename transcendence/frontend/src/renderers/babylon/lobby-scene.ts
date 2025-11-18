@@ -2,6 +2,7 @@
 /* IMPORTS */
 import * as BABYLON from "@babylonjs/core";
 import * as GUI from "@babylonjs/gui";
+import { getAuth } from "@/app/auth";
 
 /* TYPE */
 type Options = {
@@ -66,7 +67,7 @@ export function mountLobbyScene({
 	// Scene
 	const scene = new BABYLON.Scene(engine);
 	scene.defaultCursor = "default";
-	scene.hoverCursor = "pointer";
+	scene.hoverCursor = "default"; // Explicit manage the hoverCursor
 	scene.clearColor = new BABYLON.Color4(1, 1, 1, 1); // Out of wall, all white color.
 	
 	// UI
@@ -74,14 +75,46 @@ export function mountLobbyScene({
 	ui.renderAtIdealSize = true;
 	ui.idealWidth = 1920;
 
+	// Error message to not-logged in user, who wants to join remote or tournaments.
+	function showUserAlert(message: string) {
+        let alertPanel = ui.getControlByName("userAlertPanel");
+        if (alertPanel) {
+            alertPanel.dispose();
+            alertPanel = null;
+        }
+
+        const rect = new GUI.Rectangle("userAlertPanel");
+        rect.width = "500px";
+        rect.height = "70px";
+        rect.cornerRadius = 10;
+        rect.color = "White";
+        rect.thickness = 1;
+        rect.background = "rgba(220, 50, 50, 0.9)";
+
+		rect.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_CENTER; 
+		rect.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_CENTER;
+        rect.alpha = 1;
+
+        const textBlock = new GUI.TextBlock();
+        textBlock.text = message;
+        textBlock.color = "White";
+        textBlock.fontSize = 20;
+        rect.addControl(textBlock);
+        
+        ui.addControl(rect);
+
+		setTimeout(() => {
+			rect.dispose();
+		}, 1000);
+    }
+
 	// Camera
 	const cam = new BABYLON.FreeCamera("cam", new BABYLON.Vector3(0, 220, -900), scene);
 	cam.setTarget(new BABYLON.Vector3(0, 0, 0));
 	cam.fov = 1.5;
 	cam.minZ = 0.1;
 	cam.maxZ = 10000;
-	cam.inputs.clear();					// Mouse, Keyborad, Wheel not working.
-	// cam.attachControl(canvas, true);	// Can move with mouse to change the camera view
+	cam.inputs.clear();
 
 	// Light
 	const hemi = new BABYLON.HemisphericLight(
@@ -270,7 +303,7 @@ export function mountLobbyScene({
 		return { root, hit, mRubber, handle, rubber };
   	}
 
-	// Paddles: Create two
+	// Paddles
 	const left = createPaddle("paddleLocal", BABYLON.Color3.FromHexString("#e74c3c"));
 	const center = createPaddle("paddleRemote", BABYLON.Color3.FromHexString("#3498db"));
 	const right = createPaddle("paddleTournaments", BABYLON.Color3.FromHexString("#2ecc71"));
@@ -476,13 +509,31 @@ export function mountLobbyScene({
 	let centerTarget = BASE.clone();
 	let rightTarget = BASE.clone();
 
+	// Add
+	// const runRemote = () => {
+    //     if (!!getAuth()?.id) {
+    //         onRemote?.();
+    //     } else {
+	// 		showUserAlert("Please sign in to play remote matches.");
+    //     }
+    // };
+
+	// const runTournaments = () => {
+    //     if (!!getAuth()?.id) {
+    //         onTournaments?.();
+    //     } else {
+    //         showUserAlert("Please sign in to join tournaments.");
+    //     }
+    // };
+
 	// Event: Tracking pointer.
 	scene.onPointerObservable.add((pi) => {
 		if (isFlying)
 			return ;
 
 		if (pi.type === BABYLON.PointerEventTypes.POINTERMOVE) {
-			const m = pi.pickInfo?.pickedMesh || null;
+			const pickInfo = scene.pick(scene.pointerX, scene.pointerY);
+			const m = pickInfo?.pickedMesh || null;
 
 			const onBall = !!m && m.name === "ball";
 			if (onBall && !isAiming) { isAiming = true; aimTube.visibility = 1; }
@@ -498,19 +549,31 @@ export function mountLobbyScene({
 			centerTarget = isCenterHover ? HOVER : BASE;
     		rightTarget = isRightHover ? HOVER : BASE;
 
-    		renderingCanvas.style.cursor = 
-				(onBall || isLeftHover || isCenterHover || isRightHover) ? "pointer" : "default";
+			const isAnyPickableHover = onBall || isLeftHover || isCenterHover || isRightHover;
+			renderingCanvas.style.cursor = isAnyPickableHover ? "pointer" : "default";
 		}
 
 		if (pi.type === BABYLON.PointerEventTypes.POINTERPICK) {
 			const m = pi.pickInfo?.pickedMesh || null;
+			const isLogged = !!getAuth()?.id;
 
-			if (m?.name === "paddleLocal_rubber")
+			if (m?.name === "paddleLocal_rubber") {
 				launchBallTo(left, onLocal);
-			else if (m?.name === "paddleRemote_rubber")
-				launchBallTo(center, onRemote);
-    		else if (m?.name === "paddleTournaments_rubber")
-				launchBallTo(right, onTournaments);
+			}
+			else if (m?.name === "paddleRemote_rubber") {
+				if (isLogged) {
+					launchBallTo(center, onRemote);
+				} else {
+					showUserAlert("Please sign in to play remote matches.");
+				}
+			}
+    		else if (m?.name === "paddleTournaments_rubber") {
+				if (isLogged) {
+					launchBallTo(right, onTournaments);
+				} else {
+					showUserAlert("Please sign in to join tournaments.");
+				}				
+			}	
       	}
 	});
 
