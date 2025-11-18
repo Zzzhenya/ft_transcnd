@@ -41,16 +41,17 @@ body { background: var(--app-bg); }
   display: none;
 }
 .retro-wait .bezel {
-  background: #0b1020;
+  background: #0b1020; /* dark card on yellow background */
   border: 1px solid #8b5cf6; /* purple border to match lobby */
   box-shadow: none;
 }
 .retro-wait .neon {
-  color: #e9d5ff; /* light purple */
-  text-shadow: none;
+  color: #facc15; /* yellow for headings */
+  text-shadow: 0 0 10px rgba(250, 204, 21, 0.5);
 }
 .retro-wait .neon-soft {
-  text-shadow: 0 0 8px rgba(120, 120, 255, .4);
+  color: #fbbf24; /* slightly darker yellow */
+  text-shadow: 0 0 8px rgba(251, 191, 36, .4);
 }
 .retro-wait .btn-retro {
   background: #a855f7; /* purple */
