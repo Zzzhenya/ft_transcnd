@@ -76,7 +76,7 @@ class AuthService {
 
       // Generate JWT
       const token = jwt.sign(
-        { userId: newUser.id, username: newUser.username },
+        { userId: newUser.id, username: newUser.username, isGuest: false },
         JWT_SECRET,
         { expiresIn: '24h' }
       );
@@ -128,7 +128,7 @@ class AuthService {
 
       // Generate JWT
       const token = jwt.sign(
-        { userId: user.id, username: user.username },
+        { userId: user.id, username: user.username, isGuest: false },
         JWT_SECRET,
         { expiresIn: '24h' }
       );

@@ -54,7 +54,7 @@ export default function (root: HTMLElement) {
 	if (!user) {
 		return "Unknown Player";
 	}
-	
+
 	return user?.name
 		?? user?.displayName
 		?? user?.username

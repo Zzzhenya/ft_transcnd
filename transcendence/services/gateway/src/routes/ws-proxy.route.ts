@@ -134,38 +134,38 @@ const wsProxyRoute: FastifyPluginAsync = async (fastify) => {
   console.log('🔔 Registering WebSocket proxy routes...');
   fastify.log.info('🔔 Registering WebSocket proxy routes...');
   
-  // WebSocket route for user-service notifications
-  fastify.get('/notifications', { websocket: true }, async (connection, req) => {
-    console.log('🔔 WebSocket notification request received:', req.url);
-    fastify.log.info('🔔 WebSocket notification request received for: ' + req.url);
+  // // WebSocket route for user-service notifications
+  // fastify.get('/notifications', { websocket: true }, async (connection, req) => {
+  //   console.log('🔔 WebSocket notification request received:', req.url);
+  //   fastify.log.info('🔔 WebSocket notification request received for: ' + req.url);
     
-    const clientSocket = connection;
+  //   const clientSocket = connection;
     
-    // Extract token from query parameters
-    let token = null;
-    if (req.url) {
-      const url = new URL(req.url, `http://${req.headers.host}`);
-      token = url.searchParams.get('token');
-    }
+  //   // Extract token from query parameters
+  //   let token = null;
+  //   if (req.url) {
+  //     const url = new URL(req.url, `http://${req.headers.host}`);
+  //     token = url.searchParams.get('token');
+  //   }
     
-    if (!token) {
-      fastify.log.error('Missing token in WebSocket notification request');
-      clientSocket.close();
-      return;
-    }
+  //   if (!token) {
+  //     fastify.log.error('Missing token in WebSocket notification request');
+  //     clientSocket.close();
+  //     return;
+  //   }
     
-    // Create backend WebSocket URL with token
-    const backendUrl = `ws://user-service:3001/ws/notifications?token=${encodeURIComponent(token)}`;
+  //   // Create backend WebSocket URL with token
+  //   const backendUrl = `ws://user-service:3001/ws/notifications?token=${encodeURIComponent(token)}`;
     
-    try {
-      const backendSocket = await createBackendSocket(backendUrl);
-      fastify.log.info('🔔 ✅ Notification WebSocket proxy connected');
-      forwardMessages(clientSocket, backendSocket);
-    } catch (err) {
-      fastify.log.error('🔔 ❌ Failed to connect to backend for notifications: ' + String(err));
-      clientSocket.close();
-    }
-  });
+  //   try {
+  //     const backendSocket = await createBackendSocket(backendUrl);
+  //     fastify.log.info('🔔 ✅ Notification WebSocket proxy connected');
+  //     forwardMessages(clientSocket, backendSocket);
+  //   } catch (err) {
+  //     fastify.log.error('🔔 ❌ Failed to connect to backend for notifications: ' + String(err));
+  //     clientSocket.close();
+  //   }
+  // });
 
   fastify.get<{Params: GameParams;}>('/pong/game-ws/:gameId', { websocket: true }, async (connection, req) => {
     const clientSocket = connection

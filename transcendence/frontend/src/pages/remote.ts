@@ -27,6 +27,19 @@ export default function (root: HTMLElement) {
 	// Load friends list using efficient online manager
 	async function loadFriends() {
 		try {
+			// if (user) {
+			// 	const token = getToken();
+			// 	const res = await fetch(`${GATEWAY_BASE}/user-service/users/${user.id}/friends`, {
+			// 		headers: {
+			// 			'Authorization': `Bearer ${token || ''}`
+			// 		},
+			// 		credentials: 'include'
+			// 	});
+			// 	if (res.ok) {
+			// 		const data = await res.json();
+			// 		friends = data.friends || [];
+			// 	}
+			// }
 			console.log('👥 Loading friends with efficient system');
 			friends = await onlineManager.getFriendsStatus();
 			console.log('👥 Loaded friends:', friends.length);
@@ -58,6 +71,7 @@ export default function (root: HTMLElement) {
 						'Content-Type': 'application/json',
 						'Authorization': `Bearer ${token || ''}`
 					},
+					credentials: 'include',
 					body: JSON.stringify({ friendUsername: username })
 				});
 				
@@ -481,6 +495,7 @@ export default function (root: HTMLElement) {
 						'Content-Type': 'application/json',
 						'Authorization': `Bearer ${token || ''}`
 					},
+					credentials: 'include',
 					body: JSON.stringify({ type: 'game_invite' })
 				});
 				

@@ -1,5 +1,8 @@
 import logger from '../utils/logger.js';
 
+const BALL_MOVE_SPEED   = 1.5;
+const BALL_BOUNCE_SPEED = 2.0;
+
 export function movePaddle(gameState, player, direction) {
   const paddleSpeed = 15;
   const paddleHeight = 60;
@@ -30,7 +33,7 @@ export function moveBall(gameState) {
   const paddleHeight = 60;
   const paddleX = 50;       // Paddles are at the boundaries: x = ±50 (same as scoring line)
   const speedIncrement = 0.1;
-  const ballspeed = 1.2; // Base ball speed
+  const ballspeed = BALL_MOVE_SPEED; // Base ball speed
 
   // Simple ball movement - no speed multiplier
   gameState.ball.x += gameState.ball.dx * (ballspeed + speedIncrement);
@@ -57,7 +60,7 @@ export function moveBall(gameState) {
     logger.debug(`[Bounce] Ball speed before: dx=${gameState.ball.dx}, dy=${gameState.ball.dy}`);
     
     // Keep constant speed - don't increase speed on each hit
-    const baseSpeed = 2; // Constant ball speed
+    const baseSpeed = BALL_BOUNCE_SPEED; // Constant ball speed
     
     gameState.ball.dx = gameState.ball.dx > 0 ? -baseSpeed : baseSpeed; // Reverse direction with constant speed
     gameState.ball.dy = normalizedY * baseSpeed; // Set Y velocity based on paddle hit position

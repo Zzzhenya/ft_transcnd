@@ -25,7 +25,8 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
       const res = await fetch(`/api/user-service/auth/profile`, {
         headers: {
           'Authorization': `Bearer ${token || ''}`
-        }
+        },
+        credentials: 'include'
       });
       if (res.ok) {
         userProfile = await res.json();
@@ -340,6 +341,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token || ''}`
           },
+          credentials: 'include',
           body: JSON.stringify({ 
             imageData: base64
           })
@@ -499,6 +501,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token || ''}`
         },
+        credentials: 'include',
         body: JSON.stringify({ 
           newEmail, 
           password 
@@ -634,6 +637,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token || ''}`
         },
+        credentials: 'include',
         body: JSON.stringify({ 
           displayName: newDisplayName
         })
@@ -760,6 +764,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token || ''}`
         },
+        credentials: 'include',
         body: JSON.stringify({ 
           username: newUsername
         })
@@ -798,7 +803,8 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
       const res = await fetch(`${GATEWAY_BASE}/user-service/users/${userProfile.id}/friend-requests`, {
         headers: {
           'Authorization': `Bearer ${token || ''}`
-        }
+        },
+        credentials: 'include'
       });
       
       if (res.ok) {
@@ -822,6 +828,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token || ''}`
         },
+        credentials: 'include',
         body: JSON.stringify({ action })
       });
       
@@ -850,7 +857,8 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
       const res = await fetch(`${GATEWAY_BASE}/user-service/users/${userProfile.id}/friends`, {
         headers: {
           'Authorization': `Bearer ${token || ''}`
-        }
+        },
+        credentials: 'include'
       });
       if (res.ok) {
         const data = await res.json();
@@ -872,6 +880,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token || ''}`
         },
+        credentials: 'include',
         body: JSON.stringify({ friendUsername: username })
       });
       
@@ -925,7 +934,8 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token || ''}`
-        }
+        },
+        credentials: 'include'
       });
       
       if (res.ok) {

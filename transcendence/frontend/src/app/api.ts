@@ -10,6 +10,7 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(init.headers || {}),
     },
+    credentials: 'include',
   });
 
   if (res.status === 401) {

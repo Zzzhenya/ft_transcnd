@@ -206,7 +206,7 @@ async function loadRemoteMatches(userId: number) {
     const response = await fetch(`/api/user-service/users/${userId}/remote-matches`, {
       headers: {
         'Authorization': `Bearer ${token}`
-      }
+      }, credentials: 'include'
     });
 
     if (!response.ok) {
@@ -317,7 +317,7 @@ async function loadTournaments(userId: number) {
     const response = await fetch(`/api/user-service/users/${userId}/tournaments`, {
       headers: {
         'Authorization': `Bearer ${token}`
-      }
+      }, credentials: 'include'
     });
 
     if (!response.ok) {
@@ -400,7 +400,7 @@ async function openTournamentModal(tournamentId: number) {
     const response = await fetch(`/api/user-service/tournaments/${tournamentId}/matches`, {
       headers: {
         'Authorization': `Bearer ${token}`
-      }
+      }, credentials: 'include'
     });
 
     if (!response.ok) {

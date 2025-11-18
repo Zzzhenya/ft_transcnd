@@ -2,7 +2,7 @@ name: Log Service Tests
 
 on:
   push:
-    branches: [ main, log-service, microservices-refactor, db-service-api, tournament_new ]
+    branches: [ main, log-service, microservices-refactor, db-service-api, tournament_new, user-authentication-001 ]
     paths:
       - 'transcendence/services/log-service/**'
       - 'transcendence/services/*/src/utils/logger.js'
