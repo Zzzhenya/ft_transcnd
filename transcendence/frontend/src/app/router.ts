@@ -25,8 +25,6 @@ const routes: [RegExp, Importer][] = [
 	[/^\/auth$/,                () => import("../pages/auth") as Promise<PageModule>],
 	[/^\/profile$/,             () => import("../pages/profile") as Promise<PageModule>],
 	[/^\/dashboard$/,           () => import("../pages/dashboard") as Promise<PageModule>],
-	
-	
 ];
 
 export function initRouter(root: HTMLElement) {
@@ -85,9 +83,6 @@ export function initRouter(root: HTMLElement) {
 			const mod = (await import("../pages/not-found")) as PageModule;
 			cleanup = mod.default(root, { url }) || undefined;
 			postRenderFocus();
-			// {
-			// 	root.focus( {preventScroll: true } );
-			// }
 			return;
 		}
 
@@ -118,9 +113,6 @@ export function initRouter(root: HTMLElement) {
     	}
 
     	const mod = await importer(m);
-
-    	// matchId 단일 캡처 패턴
-		// const params = m[1] ? { matchId: m[1] } : undefined; // + rename: id -> matchId
 
 		// route-specific param mapping
 		let params: Record<string, string> | undefined;
@@ -175,12 +167,6 @@ export function initRouter(root: HTMLElement) {
 		  원래 위치해 있던 스크룰 위치에 도달하는게 아니라
 		  웹의 가장 윗쪽으로 이동해있게 된다.
 	*/
-	// window.addEventListener("popstate", () => {
-	// 	render(location.pathname + location.search);
-	// });
-
-	// popState: move forward & backward
-	// ! AND ! save scroll last position
 	window.addEventListener("popstate", (ev: PopStateEvent) => {
 		render(location.pathname + location.search);
 
@@ -195,7 +181,6 @@ export function initRouter(root: HTMLElement) {
 	// 화면 전환 후 브라우저의 포커스를 어디로할지 결정한다.
 	function postRenderFocus() {
 		root.focus({ preventScroll: true }); // + use root instead of querying #app
-    	// document.getElementById("app")?.focus({ preventScroll: true });
 	}
 
 	render(location.pathname + location.search);
