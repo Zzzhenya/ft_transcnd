@@ -9,6 +9,7 @@ on:
       - log-service
       - db-service-api
       - tournament_new
+      - user-authentication-001
       #- fix-gateway-timeout-queue
   pull_request:
     branches:

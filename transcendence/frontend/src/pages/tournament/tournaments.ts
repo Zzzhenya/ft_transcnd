@@ -258,7 +258,8 @@ export default function (root: HTMLElement) {
                     const response = await fetch(`${API_BASE}/tournaments`, {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ creator, creatorId, size: 4 })
+                        credentials: 'include',
+                        body: JSON.stringify({ creator, size: 4 })
                     });
                     if (response.ok) {
                         const data = await response.json();
@@ -282,7 +283,8 @@ export default function (root: HTMLElement) {
                     const response = await fetch(`${API_BASE}/tournaments`, {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ creator, creatorId, size: 8 })
+                        credentials: 'include',
+                        body: JSON.stringify({ creator, size: 8 })
                     });
                     if (response.ok) {
                         const data = await response.json();

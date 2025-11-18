@@ -411,7 +411,78 @@ fastify.post('/internal/write', async (request, reply) => {
   }
 });
 
-// 📋 LIST
+// �️ DELETE
+fastify.post('/internal/delete', async (request, reply) => {
+  const { table, filters } = request.body;
+  
+  if (!table || !filters) {
+    return reply.code(400).send({ error: 'Missing parameters: table and filters required' });
+  }
+
+  if (!allowedTables[table]) {
+    return reply.code(400).send({ error: 'Invalid table name' });
+  }
+
+  // Build WHERE clause from filters
+  const whereConditions = [];
+  const whereValues = [];
+  
+  for (const [column, value] of Object.entries(filters)) {
+    if (!validateTableColumn(table, column)) {
+      return reply.code(400).send({ error: `Invalid column: ${column}` });
+    }
+    whereConditions.push(`${safeIdentifier(column)} = ?`);
+    whereValues.push(value);
+  }
+
+  if (whereConditions.length === 0) {
+    return reply.code(400).send({ error: 'No valid filters provided' });
+  }
+
+  const sql = `DELETE FROM ${safeIdentifier(table)} WHERE ${whereConditions.join(' AND ')}`;
+
+  try {
+    const result = await addToQueue(() =>
+      db.transaction(() => dbRun(sql, whereValues))()
+    );
+
+    if (result.changes === 0) {
+      return reply.code(404).send({ error: 'No records found to delete' });
+    }
+
+    return { success: true, message: 'Record(s) deleted successfully', changes: result.changes };
+  } catch (err) {
+    fastify.log.error(err);
+    
+    // Handle timeout errors specifically
+    if (err.name === 'TimeoutError') {
+      return reply.code(504).send({ 
+        error: 'Database operation timed out', 
+        details: 'Request took longer than expected to process',
+        queueStatus: {
+          size: writeQueue.size,
+          pending: writeQueue.pending
+        }
+      });
+    }
+    
+    // Handle queue full errors
+    if (err.message.includes('Queue full')) {
+      return reply.code(503).send({ 
+        error: 'Service temporarily unavailable', 
+        details: err.message,
+        queueStatus: {
+          size: writeQueue.size,
+          maxSize: DB_QUEUE_MAX_SIZE
+        }
+      });
+    }
+    
+    return reply.code(500).send({ error: 'Database delete failed', details: err.message });
+  }
+});
+
+// �📋 LIST
 fastify.get('/internal/list', async (request, reply) => {
   const { table, columns = '*', limit = 100, offset = 0 } = request.query;
   if (!table) return reply.code(400).send({ error: 'Missing parameter: table required' });

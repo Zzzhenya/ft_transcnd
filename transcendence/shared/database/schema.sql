@@ -9,8 +9,8 @@ DROP TABLE IF EXISTS Messages;
 DROP TABLE IF EXISTS Channel_Members;
 DROP TABLE IF EXISTS Channels;
 DROP TABLE IF EXISTS Tournament_Players;
-DROP TABLE IF EXISTS Matches;
-DROP TABLE IF EXISTS Tournament_Singlematches;
+DROP TABLE IF EXISTS Tournament_Matches;
+DROP TABLE IF EXISTS Tournament;
 DROP TABLE IF EXISTS Blocked_Users;
 DROP TABLE IF EXISTS Friends;
 DROP TABLE IF EXISTS Users;
@@ -34,8 +34,7 @@ CREATE TABLE Users (
   bio TEXT,
   
   -- Status
-  user_status VARCHAR(20) DEFAULT 'offline',
-  current_match_id INTEGER,
+  user_user_status VARCHAR(20) DEFAULT 'offline',
   
   -- Online Status
   last_seen TEXT DEFAULT CURRENT_TIMESTAMP,
@@ -50,6 +49,8 @@ CREATE TABLE Users (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   last_login TIMESTAMP
 
+  last_login TIMESTAMP
+
 );
 
 CREATE INDEX idx_users_username ON Users(username);
@@ -61,7 +62,7 @@ CREATE TABLE IF NOT EXISTS Friends (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL,
     friend_id INTEGER NOT NULL,
-    status VARCHAR(20) DEFAULT 'pending',
+    friends_status VARCHAR(20) DEFAULT 'pending',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     accepted_at TIMESTAMP,
     
@@ -70,8 +71,12 @@ CREATE TABLE IF NOT EXISTS Friends (
     UNIQUE(user_id, friend_id)
 );
 
+CREATE INDEX idx_friends_user_id ON Friends(user_id);
+CREATE INDEX idx_friends_friend_id ON Friends(friend_id);
+CREATE INDEX idx_friends_friends_status ON Friends(friends_status);
 CREATE INDEX idx_friends_user ON Friends(user_id);
 CREATE INDEX idx_friends_friend ON Friends(friend_id);
+REATE INDEX idx_friends_friends_status ON Friends(friends_status);
 
 -- ============ BLOCKED USERS ============
 CREATE TABLE IF NOT EXISTS Blocked_Users (
@@ -107,7 +112,7 @@ CREATE TABLE IF NOT EXISTS Tournament (
     FOREIGN KEY (winner_id) REFERENCES Users(id)
 );
 
-CREATE INDEX idx_tournament_status ON Tournament(status);
+CREATE INDEX idx_tournament_status ON Tournament(Tournament_status);
 
 -- ============ TOURNAMENT PLAYERS ============
 CREATE TABLE IF NOT EXISTS Tournament_Players (
@@ -193,34 +198,92 @@ CREATE TABLE IF NOT EXISTS Remote_Match (
 CREATE INDEX idx_remote_match_players ON Remote_Match(player1_id, player2_id);
 CREATE INDEX idx_remote_match_status ON Remote_Match(status);
 
--- ============ GAME INVITATIONS ============
-CREATE TABLE IF NOT EXISTS Game_Invitations (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    from_user_id INTEGER NOT NULL,
-    to_user_id INTEGER NOT NULL,
-    is_tournament BOOLEAN DEFAULT 0,
-    
-    game_id INTEGER,
-    game_mode VARCHAR(20) DEFAULT 'normal',
-    
-    status VARCHAR(20) DEFAULT 'pending',
-    
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    expires_at TIMESTAMP,
-    responded_at TIMESTAMP,
-    
-    FOREIGN KEY (from_user_id) REFERENCES Users(id) ON DELETE CASCADE,
-    FOREIGN KEY (to_user_id) REFERENCES Users(id) ON DELETE CASCADE
+-- -------------------- CHANNEL MEMBERS --------------------
+CREATE TABLE Channel_Members (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  channel_id INTEGER NOT NULL,
+  user_id INTEGER NOT NULL,
+  
+  CM_role VARCHAR(20) DEFAULT 'member',
+  muted_until TIMESTAMP,
+  banned BOOLEAN DEFAULT 0,
+  
+  joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  
+  FOREIGN KEY (channel_id) REFERENCES Channels(id) ON DELETE CASCADE,
+  FOREIGN KEY (user_id) REFERENCES Users(id) ON DELETE CASCADE,
+  UNIQUE(channel_id, user_id)
 );
 
-CREATE INDEX idx_game_inv_from ON Game_Invitations(from_user_id);
-CREATE INDEX idx_game_inv_to ON Game_Invitations(to_user_id);
-CREATE INDEX idx_game_inv_status ON Game_Invitations(status);
+CREATE INDEX idx_channel_members ON Channel_Members(channel_id, user_id);
 
--- ============ SAMPLE DATA ============
-INSERT INTO Users (username, email, password_hash, display_name, Guest) VALUES
-('admin', 'admin@transcendence.com', '$2b$10$rqiU7VNSMuFgwdXaK/2Gie8GskBUYFr8fI7RO7kI2GjOt1.3fE9Ym', 'Admin User', 0),
-('player1', 'player1@test.com', '$2b$10$rqiU7VNSMuFgwdXaK/2Gie8GskBUYFr8fI7RO7kI2GjOt1.3fE9Ym', 'Player One', 0),
-('player2', 'player2@test.com', '$2b$10$rqiU7VNSMuFgwdXaK/2Gie8GskBUYFr8fI7RO7kI2GjOt1.3fE9Ym', 'Player Two', 0);
+-- -------------------- MESSAGES --------------------
+CREATE TABLE Messages (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  channel_id INTEGER,
+  sender_id INTEGER NOT NULL,
+  receiver_id INTEGER,
+  
+  content TEXT NOT NULL,
+  edited BOOLEAN DEFAULT 0,
+  
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  edited_at TIMESTAMP,
+  
+  FOREIGN KEY (channel_id) REFERENCES Channels(id) ON DELETE CASCADE,
+  FOREIGN KEY (sender_id) REFERENCES Users(id),
+  FOREIGN KEY (receiver_id) REFERENCES Users(id)
+);
 
--- Default password: 'password123'
+CREATE INDEX idx_messages_channel ON Messages(channel_id);
+CREATE INDEX idx_messages_sender ON Messages(sender_id);
+CREATE INDEX idx_messages_created ON Messages(created_at);
+
+-- -------------------- GAME INVITATIONS --------------------
+CREATE TABLE Game_Invitations (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  from_user_id INTEGER NOT NULL,
+  to_user_id INTEGER NOT NULL,
+  
+  tournament_id INTEGER,        -- NULL for remote
+  remote_match_id INTEGER,      -- NULL for tounament
+  
+  GI_status VARCHAR(20) DEFAULT 'pending',
+  
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  expires_at TIMESTAMP,
+  responded_at TIMESTAMP,
+  
+  FOREIGN KEY (from_user_id) REFERENCES Users(id) ON DELETE CASCADE,
+  FOREIGN KEY (to_user_id) REFERENCES Users(id) ON DELETE CASCADE,
+  FOREIGN KEY (tournament_id) REFERENCES Tournament(id),
+  FOREIGN KEY (remote_match_id) REFERENCES Remote_Match(id)
+);
+
+CREATE INDEX idx_invitations_from ON Game_Invitations(from_user_id);
+CREATE INDEX idx_invitations_to ON Game_Invitations(to_user_id);
+CREATE INDEX idx_invitations_status ON Game_Invitations(GI_status);
+
+-- -------------------- NOTIFICATIONS --------------------
+CREATE TABLE Notifications (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  actor_id INTEGER,
+  
+  Noti_type VARCHAR(30) NOT NULL,
+  title VARCHAR(100),
+  content TEXT,
+  payload TEXT,
+  link VARCHAR(255),
+  
+  Noti_read BOOLEAN DEFAULT 0,
+  
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  
+  FOREIGN KEY (user_id) REFERENCES Users(id) ON DELETE CASCADE,
+  FOREIGN KEY (actor_id) REFERENCES Users(id)
+);
+
+CREATE INDEX idx_notifications_user ON Notifications(user_id);
+CREATE INDEX idx_notifications_read ON Notifications(Noti_read);
+CREATE INDEX idx_notifications_created ON Notifications(created_at);

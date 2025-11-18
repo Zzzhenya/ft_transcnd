@@ -1,5 +1,5 @@
 import { WS_BASE } from "../app/config";
-import { getToken } from "../app/real-auth";
+import { getToken } from "../app/auth";
 
 export class MatchWS {
   private ws?: WebSocket;

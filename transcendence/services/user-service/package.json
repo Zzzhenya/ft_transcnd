@@ -8,9 +8,10 @@
   },
   "dependencies": {
     "@fastify/cors": "^8.5.0",
+    "@fastify/websocket": "^7.2.0",
     "axios": "^1.12.2",
     "bcrypt": "^5.1.1",
-    "fastify": "^4.29.1",
+    "fastify": "^4.15.0",
     "jsonwebtoken": "^9.0.2",
     "sqlite3": "^5.1.6"
   },

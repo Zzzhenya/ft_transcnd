@@ -161,7 +161,7 @@ export default function (root: HTMLElement, ctx: any) {
   const gameStatus = root.querySelector('#gameStatus') as HTMLDivElement;
   const connectionStatus = root.querySelector('#connectionStatus') as HTMLParagraphElement;
   const winnerDialog = root.querySelector('#winnerDialog') as HTMLDialogElement;
-  canvas = root.querySelector('#gameCanvas') as HTMLCanvasElement;
+  canvas = root.querySelector('#gameCanvas') as unknown as HTMLCanvasElement;
   ctx2d = canvas.getContext('2d')!;
 
   const START_BTN_ACTIVE_CLASS = "bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-indigo-600 hover:to-blue-500 text-white px-8 py-3 rounded-xl font-bold shadow-lg transition-all duration-200";
@@ -197,6 +197,7 @@ export default function (root: HTMLElement, ctx: any) {
       const response = await fetch(`${API_BASE}/pong/game`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ 
           player1_id: `tournament_${matchId}_p1`,
           player1_name: player1Name,
@@ -238,10 +239,17 @@ export default function (root: HTMLElement, ctx: any) {
         }, 500);
       };
 
-      ws.onmessage = (event) => {
+      ws.onmessage = async (event) => {
         try {
-          const data = JSON.parse(event.data);
-          handleBackendMessage(data);
+          let data = event.data;
+          
+          // Handle Blob data
+          if (data instanceof Blob) {
+            data = await data.text();
+          }
+          
+          const parsedData = JSON.parse(data);
+          handleBackendMessage(parsedData);
         } catch (error) {
           console.error('❌ Error parsing backend message:', error);
         }
@@ -380,6 +388,7 @@ async function markMatchAsInterrupted() {
     const response = await fetch(`${API_BASE}/tournaments/${tournamentId}/interrupt`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify({ matchId: matchId, reason: 'connection_timeout' })
     });
     
@@ -468,6 +477,7 @@ async function forfeitMatch() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: data,
+      credentials: 'include',
       keepalive: true // Ensures request completes even during page unload
     });
     

@@ -9,10 +9,46 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-this';
 const fs = require('fs').promises;
 const path = require('path');
 
+// Register WebSocket support FIRST
+fastify.register(require('@fastify/websocket'));
+
 // Register CORS
 fastify.register(require('@fastify/cors'), {
   origin: true
 });
+
+// Global map to store active WebSocket connections for real-time notifications
+const userConnections = new Map(); // userId -> WebSocket
+
+// Helper function to send real-time notifications
+function sendLiveNotification(userId, notification) {
+  console.log(`📨 Attempting to send live notification to user ${userId}`);
+  console.log(`📨 Current connections: ${Array.from(userConnections.keys()).join(', ')}`);
+
+  const ws = userConnections.get(parseInt(userId));
+  console.log(`📨 WebSocket for user ${userId}:`, ws ? 'EXISTS' : 'NOT FOUND');
+
+  if (ws && typeof ws.send === 'function' && ws.readyState === 1) { // WebSocket.OPEN = 1
+    try {
+      ws.send(JSON.stringify({
+        type: 'live_notification',
+        data: notification
+      }));
+      console.log(`📨 ✅ Live notification sent to user ${userId}`);
+      logger.info(`Live notification sent to user ${userId}`, notification);
+      return true;
+    } catch (error) {
+      console.error(`📨 ❌ Error sending notification to user ${userId}:`, error);
+      // Remove broken connection
+      userConnections.delete(parseInt(userId));
+      return false;
+    }
+  }
+
+  console.log(`📨 ❌ User ${userId} not connected or socket invalid (readyState: ${ws?.readyState})`);
+  logger.info(`User ${userId} not connected to WebSocket, notification stored in DB only`);
+  return false;
+}
 
 // Global hook to capture all PUT requests
 fastify.addHook('preHandler', async (request, reply) => {
@@ -118,17 +154,17 @@ fastify.post('/auth/register', async (request, reply) => {
     console.error('Registration error:', error);
     if (error.message.includes('already')) {
       logger.warn('User already exists:', request.body.username);
-      return reply.code(409).send({ 
-        success: false, 
-        message: error.message 
+      return reply.code(409).send({
+        success: false,
+        message: error.message
       });
     }
 
     logger.error('Registration failed:', error);
-    return reply.code(500).send({ 
-      success: false, 
-      message: 'Server error', 
-      error: error.message 
+    return reply.code(500).send({
+      success: false,
+      message: 'Server error',
+      error: error.message
     });
   }
 });
@@ -166,23 +202,23 @@ fastify.post('/auth/login', async (request, reply) => {
 fastify.post('/auth/guest', async (request, reply) => {
   try {
     const { alias } = request.body || {};
-    
+
     logger.info('Guest login attempt:', { alias });
-    
+
     // Generate unique guest ID
     const timestamp = Date.now().toString(36);
     const random = Math.random().toString(36).substring(2, 6);
     const guestId = `${timestamp}${random}`;
-    
+
     let username;
-    
+
     // Create username with "guest_" prefix
     if (alias) {
       username = `guest_${alias}`;
-      
+
       // Check if username already exists
       const existingUser = await User.findByUsername(username);
-      
+
       if (existingUser) {
         logger.warn('Guest username already taken:', username);
         return reply.code(409).send({
@@ -191,16 +227,16 @@ fastify.post('/auth/guest', async (request, reply) => {
           error: 'Username already exists'
         });
       }
-      
+
       logger.info('Guest username available:', username);
     } else {
       // No alias provided → guest_xxxxxxxx (always unique)
       username = `guest_${guestId.substring(0, 8)}`;
       logger.info('Generated guest username:', username);
     }
-    
+
     const email = `${guestId}@guest.local`;
-    
+
     // Hash a random password
     const password_hash = await bcrypt.hash(guestId, 10);
 
@@ -209,6 +245,7 @@ fastify.post('/auth/guest', async (request, reply) => {
       username,
       email,
       password: password_hash,
+      password: password_hash,
       display_name: username
     });
 
@@ -216,10 +253,10 @@ fastify.post('/auth/guest', async (request, reply) => {
 
     // Generate token
     const token = jwt.sign(
-      { 
-        userId: guestUser.id, 
+      {
+        userId: guestUser.id,
         username: guestUser.username,
-        isGuest: true 
+        isGuest: true
       },
       JWT_SECRET,
       { expiresIn: '24h' }
@@ -238,19 +275,19 @@ fastify.post('/auth/guest', async (request, reply) => {
     });
   } catch (error) {
     logger.error('Guest login error:', error);
-    
+
     // Fallback: UNIQUE constraint error
     if (error.message && error.message.includes('UNIQUE constraint failed')) {
-      return reply.code(409).send({ 
+      return reply.code(409).send({
         success: false,
         message: 'Username already exists. Please choose another name.',
         error: 'Duplicate username'
       });
     }
-    
-    return reply.code(500).send({ 
+
+    return reply.code(500).send({
       success: false,
-      message: 'Failed to create guest user', 
+      message: 'Failed to create guest user',
       error: error.message
     });
   }
@@ -263,7 +300,7 @@ fastify.get('/auth/profile', {
   try {
     logger.info('Profile accessed:', request.user.userId);
     const userData = request.userDetails;
-    
+
     // Filter out sensitive information
     const userWithoutSensitive = {
       id: userData.id,
@@ -275,8 +312,10 @@ fastify.get('/auth/profile', {
       avatar: userData.avatar,
       user_status: userData.user_status,
       display_name: userData.display_name,
+      user_status: userData.user_status,
+      display_name: userData.display_name,
     };
-    
+
     return reply.send(userWithoutSensitive);
   } catch (error) {
     logger.error('Profile error:', error);
@@ -289,17 +328,240 @@ fastify.get('/health', async (request, reply) => {
   return { service: 'user-service', status: 'healthy', timestamp: new Date() };
 });
 
+// DEBUG: WebSocket connections status
+fastify.get('/debug/websocket-connections', async (request, reply) => {
+  const connections = Array.from(userConnections.entries()).map(([userId, ws]) => ({
+    userId,
+    readyState: ws.readyState,
+    connected: ws.readyState === 1
+  }));
+
+  return {
+    totalConnections: userConnections.size,
+    connections,
+    connectionUserIds: Array.from(userConnections.keys())
+  };
+});
+
+// =============== WEBSOCKET NOTIFICATIONS ===============
+
+// WebSocket endpoint for real-time notifications
+console.log('🔔 REGISTERING WEBSOCKET NOTIFICATIONS ENDPOINT: /ws/notifications');
+fastify.get('/ws/notifications', { websocket: true }, (connection, req) => {
+  console.log('🚀 WEBSOCKET NOTIFICATIONS CONNECTION ATTEMPT');
+
+  // Following game-service pattern: use connection.socket directly
+  const ws = connection.socket;
+
+  if (!ws) {
+    console.log('🔔 ❌ No socket found in connection');
+    return;
+  }
+
+  console.log('🔔 ✅ Socket found, readyState:', ws.readyState);
+
+  // Get token from query parameters
+  let token = null;
+  let isAuthenticated = false;
+  let userId = null;
+  let username = null;
+
+  // Try to extract token from URL (various methods)
+  console.log('🔔 DEBUG: Starting token extraction...');
+  console.log('🔔 DEBUG: req.url:', req.url);
+  console.log('🔔 DEBUG: req.query:', req.query);
+
+  // Method 1: Direct query parameter (preferred)
+  if (req.query && req.query.token) {
+    token = req.query.token;
+    console.log('🔔 ✅ Token found via req.query.token');
+  }
+
+  // Method 2: Parse URL manually
+  if (!token && req.url && req.url.includes('token=')) {
+    try {
+      const urlParts = req.url.split('token=');
+      if (urlParts.length > 1) {
+        token = decodeURIComponent(urlParts[1].split('&')[0]);
+        console.log('🔔 ✅ Token found via manual URL parsing');
+      }
+    } catch (error) {
+      console.log('🔔 DEBUG: Error in manual URL parsing:', error.message);
+    }
+  }
+
+  console.log('🔔 DEBUG: Final token result:', token ? `Found (${token.length} chars)` : 'NOT FOUND');
+
+  // Try authentication if we have a token
+  if (token) {
+    try {
+      const payload = jwt.verify(token, JWT_SECRET);
+      userId = payload.userId;
+      username = payload.username;
+      isAuthenticated = true;
+
+      console.log(`🔔 ✅ WebSocket authenticated: userId=${userId}, username=${username}`);
+      logger.info(`WebSocket notification connection authenticated for user ${userId} (${username})`);
+
+      // Store the socket in userConnections
+      userConnections.set(userId, ws);
+      console.log(`🔔 ✅ Stored socket for user ${userId}. Total connections: ${userConnections.size}`);
+      console.log(`🔔 📊 Current connections map:`, Array.from(userConnections.keys()));
+
+      // Send welcome message
+      ws.send(JSON.stringify({
+        type: 'connected',
+        message: 'Connected to notification system',
+        userId: userId,
+        username: username
+      }));
+      console.log(`🔔 ✅ Welcome message sent to user ${userId}`);
+
+    } catch (error) {
+      console.log('🔔 ❌ Invalid token:', error.message);
+      logger.warn('WebSocket notification connection with invalid token:', error.message);
+      try {
+        if (ws && typeof ws.close === 'function' && ws.readyState === 1) {
+          ws.close(1008, 'Invalid token');
+        }
+      } catch (closeError) {
+        console.log('🔔 ⚠️ Error closing WebSocket:', closeError.message);
+      }
+      return;
+    }
+  } else {
+    console.log('🔔 ⚠️ No token found in URL, waiting for auth message...');
+
+    // Set up a timeout for authentication
+    const authTimeout = setTimeout(() => {
+      if (!isAuthenticated) {
+        console.log('🔔 ❌ Authentication timeout - no auth message received');
+        try {
+          if (ws && typeof ws.close === 'function' && ws.readyState === 1) {
+            ws.close(1008, 'Authentication timeout');
+          }
+        } catch (error) {
+          console.log('🔔 ⚠️ Error closing WebSocket:', error.message);
+        }
+      }
+    }, 10000); // Increased to 10 second timeout for auth
+
+    // Listen for auth message
+    const authHandler = (data) => {
+      console.log('🔔 📨 Received WebSocket message during auth phase:', data.toString().substring(0, 100));
+      try {
+        const message = JSON.parse(data.toString());
+        console.log('🔔 📨 Parsed auth phase message:', message.type);
+
+        if (message.type === 'auth' && message.token) {
+          console.log('🔔 🔑 Processing auth message with token length:', message.token.length);
+          clearTimeout(authTimeout);
+
+          try {
+            const payload = jwt.verify(message.token, JWT_SECRET);
+            userId = payload.userId;
+            username = payload.username;
+            isAuthenticated = true;
+
+            console.log(`🔔 ✅ WebSocket authenticated via message: userId=${userId}, username=${username}`);
+            logger.info(`WebSocket notification connection authenticated via message for user ${userId} (${username})`);
+
+            // Store the socket in userConnections
+            userConnections.set(userId, ws);
+            console.log(`🔔 ✅ Stored socket for user ${userId}. Total connections: ${userConnections.size}`);
+            console.log(`🔔 📊 Current connections map:`, Array.from(userConnections.keys()));
+
+            // Send welcome message
+            ws.send(JSON.stringify({
+              type: 'connected',
+              message: 'Connected to notification system',
+              userId: userId,
+              username: username
+            }));
+
+            // Remove this auth handler and set up normal handler
+            ws.off('message', authHandler);
+            setupMessageHandler();
+
+          } catch (authError) {
+            console.log('🔔 ❌ Invalid token in auth message:', authError.message);
+            try {
+              if (ws && typeof ws.close === 'function' && ws.readyState === 1) {
+                ws.close(1008, 'Invalid token');
+              }
+            } catch (closeError) {
+              console.log('🔔 ⚠️ Error closing WebSocket:', closeError.message);
+            }
+          }
+        }
+      } catch (parseError) {
+        console.log('🔔 DEBUG: Ignoring non-JSON or non-auth message during auth phase');
+      }
+    };
+
+    ws.on('message', authHandler);
+  }
+
+  // Function to setup normal message handling after authentication
+  function setupMessageHandler() {
+    ws.on('message', (data) => {
+      try {
+        const message = JSON.parse(data.toString());
+        console.log(`🔔 Message from user ${userId}:`, message.type);
+
+        if (message.type === 'ping') {
+          ws.send(JSON.stringify({
+            type: 'pong',
+            timestamp: Date.now()
+          }));
+        }
+      } catch (error) {
+        console.error(`🔔 Error parsing message from user ${userId}:`, error);
+      }
+    });
+  }
+
+  // Set up message handler immediately if already authenticated
+  if (isAuthenticated) {
+    setupMessageHandler();
+  }
+
+  // Handle connection close
+  ws.on('close', () => {
+    if (userId) {
+      userConnections.delete(userId);
+      console.log(`🔔 ❌ User ${userId} disconnected from notifications. Total connections: ${userConnections.size}`);
+      console.log(`🔔 📊 Remaining connections:`, Array.from(userConnections.keys()));
+      logger.info(`WebSocket notification disconnection for user ${userId}`);
+    } else {
+      console.log(`🔔 ❌ Unauthenticated connection closed`);
+    }
+  });
+
+  // Handle connection errors
+  ws.on('error', (error) => {
+    if (userId) {
+      console.error(`🔔 WebSocket error for user ${userId}:`, error);
+      logger.error(`WebSocket notification error for user ${userId}:`, error);
+      userConnections.delete(userId);
+    }
+  });
+});
+
 // =============== FRIENDS ENDPOINTS ===============
 
 // Get online users
 fastify.get('/users/online', async (request, reply) => {
   try {
     logger.info('Getting online users');
-    
+
     // Query database-service for online users
     const response = await fetch('http://database-service:3006/internal/query', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-service-auth': 'super_secret_internal_token'
+      },
       body: JSON.stringify({
         table: 'Users',
         columns: ['id', 'username', 'display_name', 'last_seen'],
@@ -333,7 +595,10 @@ fastify.get('/users/:userId', {
 
     const response = await fetch('http://database-service:3006/internal/query', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-service-auth': 'super_secret_internal_token'
+      },
       body: JSON.stringify({
         table: 'Users',
         columns: ['id', 'username', 'email', 'created_at'],
@@ -355,8 +620,8 @@ fastify.get('/users/:userId', {
     }
 
     const user = result.data[0];
-    return { 
-      success: true, 
+    return {
+      success: true,
       id: user.id,
       username: user.username,
       email: user.email,
@@ -380,9 +645,13 @@ fastify.get('/users/:userId/friends', {
 
     const response = await fetch('http://database-service:3006/internal/query', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-service-auth': 'super_secret_internal_token'
+      },
       body: JSON.stringify({
         table: 'Friends',
+        columns: ['friend_id', 'friends_status', 'created_at'],
         columns: ['friend_id', 'friends_status', 'created_at'],
         filters: { user_id: parseInt(userId) },
         limit: 100
@@ -396,16 +665,20 @@ fastify.get('/users/:userId/friends', {
 
     const result = await response.json();
     const friends = result.data || [];
-    
-    // Get usernames and online status for the friends
+
+    console.log('CHECKPOINT -1: About to process friend requests with Promise.all, requests:', friends.length);
+
     const friendsWithUsernames = await Promise.all(
       friends.map(async (friend) => {
         const user = await User.findById(friend.friend_id);
-        
+
         // Get online status from database
         const statusResponse = await fetch('http://database-service:3006/internal/query', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'x-service-auth': 'super_secret_internal_token'
+          },
           body: JSON.stringify({
             table: 'Users',
             columns: ['is_online', 'last_seen'],
@@ -413,7 +686,7 @@ fastify.get('/users/:userId/friends', {
             limit: 1
           })
         });
-        
+
         let online = false;
         let lastSeen = null;
         if (statusResponse.ok) {
@@ -421,7 +694,7 @@ fastify.get('/users/:userId/friends', {
           const userData = statusResult.data?.[0];
           online = userData?.is_online === 1;
           lastSeen = userData?.last_seen;
-          
+
           // Debug logging
           console.log(`🔍 Friend ${friend.friend_id} (${user?.username}) online status: is_online=${userData?.is_online}, calculated=${online}`);
           logger.info(`Friend ${friend.friend_id} (${user?.username}) online status: is_online=${userData?.is_online}, calculated=${online}`);
@@ -429,7 +702,7 @@ fastify.get('/users/:userId/friends', {
           console.log(`❌ Failed to get online status for friend ${friend.friend_id}: ${statusResponse.status}`);
           logger.warn(`Failed to get online status for friend ${friend.friend_id}: ${statusResponse.status}`);
         }
-        
+
         return {
           ...friend,
           username: user?.username || 'Unknown User',
@@ -439,7 +712,7 @@ fastify.get('/users/:userId/friends', {
         };
       })
     );
-    
+
     return { success: true, friends: friendsWithUsernames };
 
   } catch (error) {
@@ -461,23 +734,37 @@ fastify.post('/users/:userId/invite', {
 
     console.log(`📨 User ${actorId} inviting user ${userId}`);
 
+    // Generate a unique room code for this invitation
+    const roomCode = Math.random().toString(36).substr(2, 6).toUpperCase();
+    console.log(`📨 Generated room code: ${roomCode}`);
+
+    // Create payload with room code
+    const invitationPayload = {
+      roomCode: roomCode,
+      inviterName: request.user.username || `User ${actorId}`,
+      ...(payload || {})
+    };
+
     const writePayload = {
       table: 'Notifications',
       action: 'insert',
       values: {
-        user_id: parseInt(userId),
-        actor_id: actorId,
+        user_id: parseInt(userId), // Receiver
+        actor_id: actorId,         // Sender (from JWT)
         type: type || 'game_invite',
         payload: payload ? JSON.stringify(payload) : null,
         read: 0
       }
     };
-    
+
     console.log('📨 Writing to database:', JSON.stringify(writePayload, null, 2));
-    
+
     const writeRes = await fetch('http://database-service:3006/internal/users', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-service-auth': 'super_secret_internal_token'
+      },
       body: JSON.stringify(writePayload)
     });
 
@@ -493,8 +780,14 @@ fastify.post('/users/:userId/invite', {
     const writeResult = await writeRes.json();
     console.log('📨 Database write result:', JSON.stringify(writeResult, null, 2));
 
+    // Success - return created
     console.log('📨 Invitation created successfully');
-    return { success: true, message: 'Invitation created' };
+    return {
+      success: true,
+      message: 'Invitation created',
+      roomCode: roomCode,
+      sentLive: sentLive // Include info about live delivery
+    };
   } catch (error) {
     logger.error('Error creating invitation:', error);
     return reply.code(500).send({ error: 'Internal server error' });
@@ -518,12 +811,15 @@ fastify.get('/users/:userId/notifications', {
       orderBy: { column: 'created_at', direction: 'DESC' },
       limit: 50
     };
-    
+
     console.log('📨 Query payload:', JSON.stringify(queryPayload, null, 2));
 
     const response = await fetch('http://database-service:3006/internal/query', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-service-auth': 'super_secret_internal_token'
+      },
       body: JSON.stringify(queryPayload)
     });
 
@@ -538,14 +834,94 @@ fastify.get('/users/:userId/notifications', {
 
     const result = await response.json();
     console.log('📨 Database result:', JSON.stringify(result, null, 2));
-    
+
     const responsePayload = { success: true, notifications: result.data || [] };
     console.log('📨 Sending response:', JSON.stringify(responsePayload, null, 2));
-    
+
     return responsePayload;
   } catch (error) {
     console.error('📨 NOTIFICATIONS ERROR:', error);
     logger.error('Error getting notifications:', error);
+    return reply.code(500).send({ error: 'Internal server error', message: error.message });
+  }
+});
+
+// Get unread notifications for a user (for polling)
+console.log('🔔 *** ABOUT TO REGISTER UNREAD ENDPOINT ***');
+console.log('🔔 REGISTERING UNREAD NOTIFICATIONS ENDPOINT: /notifications/unread');
+fastify.get('/notifications/unread', {
+  preHandler: fastify.authenticate
+}, async (request, reply) => {
+  console.log('🚀 UNREAD NOTIFICATIONS ENDPOINT HIT!');
+  try {
+    const userId = request.user.userId; // From JWT
+
+    console.log('📨 Getting unread notifications for user:', userId);
+
+    const queryPayload = {
+      table: 'Notifications',
+      columns: ['id', 'user_id', 'actor_id', 'Noti_type', 'payload', 'created_at', 'Noti_read'],
+      filters: {
+        user_id: userId,
+        Noti_read: 0  // Only unread notifications
+      },
+      orderBy: 'created_at DESC',
+      limit: 50
+    };
+
+    const response = await fetch('http://database-service:3006/internal/query', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-service-auth': 'super_secret_internal_token'
+      },
+      body: JSON.stringify(queryPayload)
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Database query failed for unread notifications:', response.status, errorText);
+      logger.error('Database query failed for unread notifications:', response.status, errorText);
+      return reply.code(500).send({ error: 'Database query failed' });
+    }
+
+    const result = await response.json();
+    console.log('📨 Database response:', JSON.stringify(result, null, 2));
+    console.log('📨 Database returned unread notifications:', result.data?.length || 0);
+    console.log('📨 Raw notification data:', JSON.stringify(result.data, null, 2));
+
+    // Format notifications with proper data
+    const formattedNotifications = (result.data || []).map(notification => {
+      let payload = null;
+      try {
+        payload = JSON.parse(notification.payload || '{}');
+      } catch (e) {
+        payload = {};
+      }
+
+      return {
+        id: notification.id,
+        type: notification.Noti_type,
+        from: payload.inviterName || 'Unknown',
+        fromId: notification.actor_id,
+        roomCode: payload.roomCode,
+        payload: payload,
+        timestamp: notification.created_at,
+        read: notification.Noti_read === 1
+      };
+    });
+
+    const responsePayload = {
+      success: true,
+      notifications: formattedNotifications
+    };
+
+    console.log('📨 Returning formatted unread notifications:', formattedNotifications.length);
+    console.log('📨 First notification sample:', JSON.stringify(formattedNotifications[0], null, 2));
+    return responsePayload;
+  } catch (error) {
+    console.error('📨 UNREAD NOTIFICATIONS ERROR:', error);
+    logger.error('Error getting unread notifications:', error);
     return reply.code(500).send({ error: 'Internal server error', message: error.message });
   }
 });
@@ -564,16 +940,19 @@ fastify.post('/notifications/:notificationId/accept', {
 
     const queryPayload = {
       table: 'Notifications',
-      columns: ['id', 'user_id', 'Noti_type', 'payload'],
+      columns: ['id', 'user_id', 'type', 'payload'],
       filters: { 
         id: parseInt(notificationId),
-        user_id: userId 
+        user_id: userId
       }
     };
 
     const queryRes = await fetch('http://database-service:3006/internal/query', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-service-auth': 'super_secret_internal_token'
+      },
       body: JSON.stringify(queryPayload)
     });
 
@@ -590,18 +969,42 @@ fastify.post('/notifications/:notificationId/accept', {
       return reply.code(404).send({ error: 'Notification not found' });
     }
 
+    const notification = queryResult.data[0];
+    console.log('✅ Found notification:', notification);
+
+    // Parse payload to get room code and inviter info
+    let roomCode = null;
+    let originalInviterId = null;
+    if (notification.payload) {
+      try {
+        const payloadData = JSON.parse(notification.payload);
+        roomCode = payloadData.roomCode;
+        originalInviterId = notification.actor_id; // The user who sent the invitation
+        console.log('✅ Parsed payload:', payloadData);
+        console.log('✅ Extracted room code:', roomCode);
+        console.log('✅ Original inviter ID:', originalInviterId);
+      } catch (error) {
+        console.error('✅ Failed to parse notification payload:', error);
+        console.error('✅ Raw payload was:', notification.payload);
+      }
+    } else {
+      console.log('✅ No payload found in notification');
+    }
+
     const deletePayload = {
       table: 'Notifications',
-      action: 'delete',
-      filters: { 
+      filters: {
         id: parseInt(notificationId),
-        user_id: userId 
+        user_id: userId
       }
     };
 
-    const deleteRes = await fetch('http://database-service:3006/internal/write', {
+    const deleteRes = await fetch('http://database-service:3006/internal/delete', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-service-auth': 'super_secret_internal_token'
+      },
       body: JSON.stringify(deletePayload)
     });
 
@@ -611,8 +1014,69 @@ fastify.post('/notifications/:notificationId/accept', {
       return reply.code(500).send({ error: 'Failed to accept invitation' });
     }
 
+    // 🔥 NEW: Send notification to original inviter that invitation was accepted
+    if (originalInviterId && roomCode) {
+      console.log('✅ CREATING ACCEPTANCE NOTIFICATION:');
+      console.log('   - Original inviter ID:', originalInviterId);
+      console.log('   - Room code:', roomCode);
+      console.log('   - Accepter username:', request.user.username);
+
+      const inviterNotificationPayload = {
+        roomCode: roomCode,
+        accepterName: request.user.username || `User ${userId}`,
+        message: 'Your invitation was accepted!'
+      };
+      console.log('   - Payload:', JSON.stringify(inviterNotificationPayload));
+
+      const writePayload = {
+        table: 'Notifications',
+        action: 'insert',
+        values: {
+          user_id: originalInviterId,     // Notify the original inviter
+          actor_id: userId,               // The user who accepted
+          Noti_type: 'invitation_accepted',
+          payload: JSON.stringify(inviterNotificationPayload),
+          Noti_read: 0
+        }
+      };
+
+      console.log('✅ Database write payload:', JSON.stringify(writePayload, null, 2));
+
+      const writeRes = await fetch('http://database-service:3006/internal/users', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-service-auth': 'super_secret_internal_token'
+        },
+        body: JSON.stringify(writePayload)
+      });
+
+      console.log('✅ Database write response status:', writeRes.status);
+      if (writeRes.ok) {
+        const writeResult = await writeRes.json();
+        console.log('✅ Database write result:', JSON.stringify(writeResult, null, 2));
+        console.log('✅ Successfully notified inviter about acceptance');
+      } else {
+        const errorText = await writeRes.text();
+        console.error('✅ Failed to notify inviter about acceptance:', writeRes.status, errorText);
+      }
+    } else {
+      console.log('✅ NOT creating acceptance notification:', {
+        originalInviterId,
+        roomCode,
+        hasOriginalInviter: !!originalInviterId,
+        hasRoomCode: !!roomCode
+      });
+    }
+
     console.log('✅ Invitation accepted successfully');
-    return { success: true, message: 'Invitation accepted' };
+    const responseData = {
+      success: true,
+      message: 'Invitation accepted',
+      roomCode: roomCode
+    };
+    console.log('✅ Sending response:', JSON.stringify(responseData, null, 2));
+    return responseData;
   } catch (error) {
     console.error('✅ Error accepting invitation:', error);
     logger.error('Error accepting invitation:', error);
@@ -634,16 +1098,19 @@ fastify.post('/notifications/:notificationId/decline', {
 
     const queryPayload = {
       table: 'Notifications',
-      columns: ['id', 'user_id', 'Noti_type', 'payload'],
+      columns: ['id', 'user_id', 'type', 'payload'],
       filters: { 
         id: parseInt(notificationId),
-        user_id: userId 
+        user_id: userId
       }
     };
 
     const queryRes = await fetch('http://database-service:3006/internal/query', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-service-auth': 'super_secret_internal_token'
+      },
       body: JSON.stringify(queryPayload)
     });
 
@@ -660,18 +1127,35 @@ fastify.post('/notifications/:notificationId/decline', {
       return reply.code(404).send({ error: 'Notification not found' });
     }
 
+    const notification = queryResult.data[0];
+    const originalInviterId = notification.actor_id; // Who sent the original invitation
+    let roomCode = null;
+
+    // Extract room code from payload if it's a game invitation
+    if (notification.payload) {
+      try {
+        const payload = JSON.parse(notification.payload);
+        roomCode = payload.roomCode;
+        console.log('❌ Extracted room code for decline notification:', roomCode);
+      } catch (err) {
+        console.log('❌ No valid payload found in notification');
+      }
+    }
+
     const deletePayload = {
       table: 'Notifications',
-      action: 'delete',
-      filters: { 
+      filters: {
         id: parseInt(notificationId),
-        user_id: userId 
+        user_id: userId
       }
     };
 
-    const deleteRes = await fetch('http://database-service:3006/internal/write', {
+    const deleteRes = await fetch('http://database-service:3006/internal/delete', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-service-auth': 'super_secret_internal_token'
+      },
       body: JSON.stringify(deletePayload)
     });
 
@@ -679,6 +1163,61 @@ fastify.post('/notifications/:notificationId/decline', {
       const errorText = await deleteRes.text();
       console.error('❌ Failed to delete notification:', deleteRes.status, errorText);
       return reply.code(500).send({ error: 'Failed to decline invitation' });
+    }
+
+    // 🔥 NEW: Send notification to original inviter that invitation was declined
+    if (originalInviterId && roomCode) {
+      console.log('❌ CREATING DECLINE NOTIFICATION:');
+      console.log('   - Original inviter ID:', originalInviterId);
+      console.log('   - Room code:', roomCode);
+      console.log('   - Decliner username:', request.user.username);
+
+      const inviterNotificationPayload = {
+        roomCode: roomCode,
+        declinerName: request.user.username || `User ${userId}`,
+        message: 'Your invitation was declined.'
+      };
+      console.log('   - Payload:', JSON.stringify(inviterNotificationPayload));
+
+      const writePayload = {
+        table: 'Notifications',
+        action: 'insert',
+        values: {
+          user_id: originalInviterId,     // Notify the original inviter
+          actor_id: userId,               // The user who declined
+          Noti_type: 'invitation_declined',
+          payload: JSON.stringify(inviterNotificationPayload),
+          Noti_read: 0
+        }
+      };
+
+      console.log('❌ Database write payload:', JSON.stringify(writePayload, null, 2));
+
+      const writeRes = await fetch('http://database-service:3006/internal/users', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-service-auth': 'super_secret_internal_token'
+        },
+        body: JSON.stringify(writePayload)
+      });
+
+      console.log('❌ Database write response status:', writeRes.status);
+      if (writeRes.ok) {
+        const writeResult = await writeRes.json();
+        console.log('❌ Database write result:', JSON.stringify(writeResult, null, 2));
+        console.log('❌ Successfully notified inviter about decline');
+      } else {
+        const errorText = await writeRes.text();
+        console.error('❌ Failed to notify inviter about decline:', writeRes.status, errorText);
+      }
+    } else {
+      console.log('❌ NOT creating decline notification:', {
+        originalInviterId,
+        roomCode,
+        hasOriginalInviter: !!originalInviterId,
+        hasRoomCode: !!roomCode
+      });
     }
 
     console.log('❌ Invitation declined successfully');
@@ -689,8 +1228,11 @@ fastify.post('/notifications/:notificationId/decline', {
     return reply.code(500).send({ error: 'Internal server error' });
   }
 });
+ 
 
-// Get incoming friend requests
+// Send friend request
+
+// Get incoming friend requests (where I am the friend_id)
 fastify.get('/users/:userId/friend-requests', {
   preHandler: fastify.authenticate
 }, async (request, reply) => {
@@ -700,10 +1242,13 @@ fastify.get('/users/:userId/friend-requests', {
 
     const response = await fetch('http://database-service:3006/internal/query', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-service-auth': 'super_secret_internal_token'
+      },
       body: JSON.stringify({
         table: 'Friends',
-        columns: ['user_id', 'friends_status', 'created_at'],
+        columns: ['user_id', 'status', 'created_at'],
         filters: { 
           friend_id: parseInt(userId),
           friends_status: 'pending'
@@ -719,9 +1264,10 @@ fastify.get('/users/:userId/friend-requests', {
 
     const result = await response.json();
     const requests = result.data || [];
-    
+
     console.log('CHECKPOINT -1: About to process friend requests with Promise.all, requests:', requests.length);
     
+    // Get usernames for the senders
     const requestsWithUsernames = await Promise.all(
       requests.map(async (req) => {
         const user = await User.findById(req.user_id);
@@ -748,28 +1294,38 @@ console.log('CHECKPOINT 0: About to register POST /users/:userId/friends endpoin
 fastify.post('/users/:userId/friends', {
   preHandler: fastify.authenticate
 }, async (request, reply) => {
+  console.log('🚀 FRIENDS ENDPOINT HIT! Params:', request.params, 'Body:', request.body);
   try {
     const { userId } = request.params;
     const { friend_id, friendUsername } = request.body;
-    
+    console.log('🚀 Processing friend request:', { userId, friend_id, friendUsername });
+
     let finalFriendId = friend_id;
-    
+
     if (friendUsername && !friend_id) {
+      console.log('🚀 Looking up user by username:', friendUsername);
       const friend = await User.findByUsername(friendUsername);
       if (!friend) {
+        console.log('🚀 User not found:', friendUsername);
         return reply.code(404).send({ error: `User with username '${friendUsername}' not found` });
       }
       finalFriendId = friend.id;
       logger.info(`Found user ${friendUsername} with ID ${finalFriendId}`);
     } else if (!friend_id && !friendUsername) {
+      console.log('🚀 Missing required parameters');
       return reply.code(400).send({ error: 'Either friend_id or friendUsername is required' });
     }
 
+    console.log('🚀 About to create friend request:', { from: userId, to: finalFriendId });
     logger.info(`Creating friend request from ${userId} to ${finalFriendId}`);
 
+    console.log('🚀 Sending request to database-service...');
     const response = await fetch('http://database-service:3006/internal/users', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-service-auth': 'super_secret_internal_token'
+      },
       body: JSON.stringify({
         table: 'Friends',
         action: 'insert',
@@ -781,12 +1337,18 @@ fastify.post('/users/:userId/friends', {
       })
     });
 
+    console.log('🚀 Database response status:', response.status);
+    console.log('🚀 Database response ok:', response.ok);
+
     if (!response.ok) {
+      const errorText = await response.text();
+      console.log('🚀 Database error response:', errorText);
       logger.error('Database insert failed:', response.status);
       return reply.code(500).send({ error: 'Failed to create friend request' });
     }
 
     const result = await response.json();
+    console.log('🚀 Database success result:', result);
     return { success: true, message: 'Friend request sent', id: result.id };
 
   } catch (error) {
@@ -806,14 +1368,14 @@ fastify.put('/users/:userId/friend-requests/:requesterId', {
   console.log('PUT endpoint hit - starting function');
   try {
     const { userId, requesterId } = request.params;
-    
+
     console.log('PUT /users/:userId/friend-requests/:requesterId - Request params:', { userId, requesterId });
     console.log('PUT /users/:userId/friend-requests/:requesterId - Request body:', request.body);
     
     const { action } = request.body;
     
     console.log('PUT /users/:userId/friend-requests/:requesterId - Action extracted:', action);
-    
+
     if (!action || !['accept', 'reject'].includes(action)) {
       console.log('PUT /users/:userId/friend-requests/:requesterId - Invalid action, sending 400');
       return reply.code(400).send({ error: 'Action must be "accept" or "reject"' });
@@ -822,19 +1384,20 @@ fastify.put('/users/:userId/friend-requests/:requesterId', {
     logger.info(`User ${userId} ${action}ing friend request from ${requesterId}`);
 
     const newStatus = action === 'accept' ? 'accepted' : 'rejected';
-    
+
     const findResponse = await fetch('http://database-service:3006/internal/query', {
       method: 'POST',
-      headers: { 
+      headers: {
         'Content-Type': 'application/json',
         'x-service-auth': 'super_secret_internal_token'
       },
       body: JSON.stringify({
         table: 'Friends',
         columns: ['id'],
-        filters: { 
+        filters: {
           user_id: parseInt(requesterId),
           friend_id: parseInt(userId),
+          friends_status: 'pending'
           friends_status: 'pending'
         },
         limit: 1
@@ -854,13 +1417,14 @@ fastify.put('/users/:userId/friend-requests/:requesterId', {
 
     const response = await fetch('http://database-service:3006/internal/write', {
       method: 'POST',
-      headers: { 
+      headers: {
         'Content-Type': 'application/json',
         'x-service-auth': 'super_secret_internal_token'
       },
       body: JSON.stringify({
         table: 'Friends',
         id: friendRequestId,
+        column: 'friends_status',
         column: 'friends_status',
         value: newStatus
       })
@@ -872,17 +1436,17 @@ fastify.put('/users/:userId/friend-requests/:requesterId', {
     }
 
     const result = await response.json();
-    
+
     if (result.changes === 0) {
       return reply.code(404).send({ error: 'Friend request not found or already processed' });
     }
 
     if (action === 'accept') {
       console.log('Creating bidirectional friendship relationship');
-      
+
       const bidirectionalResponse = await fetch('http://database-service:3006/internal/users', {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'x-service-auth': 'super_secret_internal_token'
         },
@@ -892,6 +1456,7 @@ fastify.put('/users/:userId/friend-requests/:requesterId', {
           values: {
             user_id: parseInt(userId),
             friend_id: parseInt(requesterId),
+            friends_status: 'accepted'
             friends_status: 'accepted'
           }
         })
@@ -904,8 +1469,8 @@ fastify.put('/users/:userId/friend-requests/:requesterId', {
       }
     }
 
-    return { 
-      success: true, 
+    return {
+      success: true,
       message: `Friend request ${action}ed successfully`,
       status: newStatus
     };
@@ -928,6 +1493,7 @@ fastify.put('/test-put', async (request, reply) => {
 console.log('TEST PUT ENDPOINT REGISTERED');
 
 // TEST ENDPOINT
+// TEST ENDPOINT
 fastify.post('/test-status', async (request, reply) => {
   console.log('🧪 TEST ENDPOINT HIT!');
   return { test: 'working' };
@@ -941,10 +1507,10 @@ fastify.post('/users/:userId/online-status', {
   try {
     const { userId } = request.params;
     const { is_online } = request.body;
-    
+
     console.log(`🟢 ONLINE STATUS UPDATE REQUEST: userId=${userId}, is_online=${is_online}, type=${typeof is_online}`);
     logger.info(`🟢 ONLINE STATUS UPDATE REQUEST: userId=${userId}, is_online=${is_online}, type=${typeof is_online}`);
-    
+
     if (typeof is_online !== 'number') {
       logger.warn(`❌ Invalid is_online type: expected number, got ${typeof is_online}`);
       return reply.code(400).send({ error: 'is_online must be 0 or 1' });
@@ -954,7 +1520,10 @@ fastify.post('/users/:userId/online-status', {
 
     const response = await fetch('http://database-service:3006/internal/write', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-service-auth': 'super_secret_internal_token'
+      },
       body: JSON.stringify({
         table: 'Users',
         id: parseInt(userId),
@@ -973,6 +1542,651 @@ fastify.post('/users/:userId/online-status', {
   } catch (error) {
     logger.error('Error updating status:', error);
     return reply.code(500).send({ error: 'Internal server error' });
+  }
+});
+
+// =============== DASHBOARD ENDPOINTS ===============
+
+// Get user's remote match history
+fastify.get('/users/:userId/remote-matches', {
+  preHandler: fastify.authenticate
+}, async (request, reply) => {
+  try {
+    const { userId } = request.params;
+
+    console.log(`🎮 Getting remote matches for user ${userId}`);
+    logger.info(`Getting remote matches for user ${userId}`);
+
+    // Query for all finished remote matches
+    const response = await fetch('http://database-service:3006/internal/query', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-service-auth': 'super_secret_internal_token'
+      },
+      body: JSON.stringify({
+        table: 'Remote_Match',
+        columns: ['id', 'player1_id', 'player2_id', 'winner_id', 'player1_score', 'player2_score', 'Remote_status', 'finished_at'],
+        filters: { Remote_status: 'finished' },
+        orderBy: { column: 'finished_at', direction: 'DESC' },
+        limit: 100
+      })
+    });
+
+    if (!response.ok) {
+      logger.error('Database query failed:', response.status);
+      return reply.code(500).send({ error: 'Database query failed' });
+    }
+
+    const result = await response.json();
+    let matches = result.data || [];
+
+    // Filter matches where user participated
+    matches = matches.filter(match =>
+      match.player1_id === parseInt(userId) || match.player2_id === parseInt(userId)
+    );
+
+    console.log(`📊 Found ${matches.length} matches for user ${userId}`);
+
+    // Enrich matches with opponent data
+    const enrichedMatches = await Promise.all(
+      matches.map(async (match) => {
+        const isPlayer1 = match.player1_id === parseInt(userId);
+        const opponentId = isPlayer1 ? match.player2_id : match.player1_id;
+        const userScore = isPlayer1 ? match.player1_score : match.player2_score;
+        const opponentScore = isPlayer1 ? match.player2_score : match.player1_score;
+
+        // Get opponent username
+        const opponent = await User.findById(opponentId);
+        const opponentName = opponent?.display_name || opponent?.username || 'Unknown';
+        const opponentUserName = opponent?.username || 'Unknown';
+
+        // Determine result
+        let result = 'draw';
+        if (match.winner_id === parseInt(userId)) {
+          result = 'won';
+        } else if (match.winner_id === opponentId) {
+          result = 'lost';
+        }
+
+        return {
+          id: match.id,
+          opponentId: opponentId,
+          opponentName: opponentName,
+          opponentUserName: opponentUserName,
+          userScore: userScore,
+          opponentScore: opponentScore,
+          result: result,
+          finishedAt: match.finished_at
+        };
+      })
+    );
+
+    return {
+      success: true,
+      matches: enrichedMatches,
+      total: enrichedMatches.length
+    };
+
+  } catch (error) {
+    logger.error('Error getting remote matches:', error);
+    return reply.code(500).send({ error: 'Internal server error' });
+  }
+});
+
+// Get user's tournament participation history
+fastify.get('/users/:userId/tournaments', {
+  preHandler: fastify.authenticate
+}, async (request, reply) => {
+  try {
+    const { userId } = request.params;
+
+    console.log(`🏆 Getting tournament history for user ${userId}`);
+    logger.info(`Getting tournament history for user ${userId}`);
+
+    // Query Tournament_Players table
+    const response = await fetch('http://database-service:3006/internal/query', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-service-auth': 'super_secret_internal_token'
+      },
+      body: JSON.stringify({
+        table: 'Tournament_Players',
+        columns: ['tournament_id', 'joined_at'],
+        filters: { user_id: parseInt(userId) },
+        orderBy: { column: 'joined_at', direction: 'DESC' },
+        limit: 50
+      })
+    });
+
+    if (!response.ok) {
+      logger.error('Database query failed:', response.status);
+      return reply.code(500).send({ error: 'Database query failed' });
+    }
+
+    const result = await response.json();
+    const tournaments = result.data || [];
+
+    console.log(`✅ Found ${tournaments.length} tournaments for user ${userId}`);
+
+    return {
+      success: true,
+      tournaments: tournaments.map(t => ({
+        tournamentId: t.tournament_id,
+        joinedAt: t.joined_at
+      })),
+      total: tournaments.length
+    };
+
+  } catch (error) {
+    logger.error('Error getting tournament history:', error);
+    return reply.code(500).send({ error: 'Internal server error' });
+  }
+});
+
+// Get matches for a specific tournament
+fastify.get('/tournaments/:tournamentId/matches', {
+  preHandler: fastify.authenticate
+}, async (request, reply) => {
+  try {
+    const { tournamentId } = request.params;
+
+    console.log(`🏆 Getting matches for tournament ${tournamentId}`);
+    logger.info(`Getting matches for tournament ${tournamentId}`);
+
+    // Query Tournament_Matches table
+    const response = await fetch('http://database-service:3006/internal/query', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-service-auth': 'super_secret_internal_token'
+      },
+      body: JSON.stringify({
+        table: 'Tournament_Matches',
+        columns: [
+          'id', 'tournament_id', 'round', 'match_number',
+          'player1_id', 'player2_id', 'winner_id', 'loser_id',
+          'player1_score', 'player2_score', 'matches_status',
+          'started_at', 'finished_at'
+        ],
+        filters: { tournament_id: parseInt(tournamentId) },
+        orderBy: { column: 'round', direction: 'ASC' },
+        limit: 100
+      })
+    });
+
+    if (!response.ok) {
+      logger.error('Database query failed:', response.status);
+      return reply.code(500).send({ error: 'Database query failed' });
+    }
+
+    const result = await response.json();
+    const matches = result.data || [];
+
+    console.log(`✅ Found ${matches.length} matches for tournament ${tournamentId}`);
+
+    // Enrich matches with player usernames
+    const enrichedMatches = await Promise.all(
+      matches.map(async (match) => {
+        const player1 = await User.findById(match.player1_id);
+        const player2 = await User.findById(match.player2_id);
+        const winner = match.winner_id ? await User.findById(match.winner_id) : null;
+
+        return {
+          id: match.id,
+          round: match.round,
+          matchNumber: match.match_number,
+          player1: {
+            id: match.player1_id,
+            name: player1?.display_name || player1?.username || 'Unknown'
+          },
+          player2: {
+            id: match.player2_id,
+            name: player2?.display_name || player2?.username || 'Unknown'
+          },
+          winner: winner ? {
+            id: match.winner_id,
+            name: winner.display_name || winner.username
+          } : null,
+          score: {
+            player1: match.player1_score,
+            player2: match.player2_score
+          },
+          status: match.matches_status,
+          startedAt: match.started_at,
+          finishedAt: match.finished_at
+        };
+      })
+    );
+
+    return {
+      success: true,
+      tournamentId: parseInt(tournamentId),
+      matches: enrichedMatches,
+      total: enrichedMatches.length
+    };
+
+  } catch (error) {
+    logger.error('Error getting tournament matches:', error);
+    return reply.code(500).send({ error: 'Internal server error' });
+  }
+});
+
+// =============== PROFILE CHANGES ===============
+
+// Update user email endpoint
+fastify.put('/users/:userId/update-email', {
+  preHandler: fastify.authenticate
+}, async (request, reply) => {
+  try {
+    const { userId } = request.params;
+    const { newEmail, password } = request.body;
+
+    if (parseInt(userId) !== request.user.userId) {
+      return reply.code(403).send({ error: 'Unauthorized to update this email' });
+    }
+
+    logger.info(`Email update requested for user ${userId}`);
+
+    if (!newEmail || !password) {
+      return reply.code(400).send({
+        error: 'New email and password are required'
+      });
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(newEmail)) {
+      return reply.code(400).send({
+        error: 'Invalid email format'
+      });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return reply.code(404).send({ error: 'User not found' });
+    }
+
+    const passwordMatch = await bcrypt.compare(password, user.password);
+    if (!passwordMatch) {
+      return reply.code(401).send({
+        error: 'Incorrect password'
+      });
+    }
+
+    const existingEmail = await User.findByEmail(newEmail);
+    if (existingEmail && existingEmail.id !== userId) {
+      return reply.code(409).send({
+        error: 'Email already in use by another account'
+      });
+    }
+
+    const response = await fetch('http://database-service:3006/internal/write', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-service-auth': 'super_secret_internal_token'
+      },
+      body: JSON.stringify({
+        table: 'Users',
+        id: parseInt(userId),
+        column: 'email',
+        value: newEmail
+      })
+    });
+
+    if (!response.ok) {
+      logger.error('Database update failed:', response.status);
+      return reply.code(500).send({ error: 'Failed to update email' });
+    }
+
+    logger.info(`Email successfully updated for user ${userId}`);
+
+    return {
+      success: true,
+      message: 'Email updated successfully',
+      email: newEmail
+    };
+
+  } catch (error) {
+    logger.error('Error updating email:', error);
+    return reply.code(500).send({ error: 'Internal server error' });
+  }
+});
+
+// Update user display name 
+fastify.put('/users/:userId/display-name', {
+  preHandler: fastify.authenticate
+}, async (request, reply) => {
+  try {
+    const { userId } = request.params;
+    const { displayName } = request.body;
+
+    if (parseInt(userId) !== request.user.userId) {
+      return reply.code(403).send({ error: 'Unauthorized to update this profile' });
+    }
+
+    if (!displayName || displayName.trim().length === 0) {
+      return reply.code(400).send({ error: 'Display name cannot be empty' });
+    }
+
+    if (displayName.length > 50) {
+      return reply.code(400).send({ error: 'Display name too long (max 50 characters)' });
+    }
+
+    logger.info(`Updating display name for user ${userId} to ${displayName}`);
+
+    const response = await fetch('http://database-service:3006/internal/write', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-service-auth': 'super_secret_internal_token'
+      },
+      body: JSON.stringify({
+        table: 'Users',
+        id: parseInt(userId),
+        column: 'display_name',
+        value: displayName.trim()
+      })
+    });
+
+    if (!response.ok) {
+      logger.error('Database update failed:', response.status);
+      return reply.code(500).send({ error: 'Failed to update display name' });
+    }
+
+    logger.info(`Display name updated successfully for user ${userId}`);
+    return {
+      success: true,
+      message: 'Display name updated successfully',
+      displayName: displayName.trim()
+    };
+
+  } catch (error) {
+    logger.error('Error updating display name:', error);
+    return reply.code(500).send({ error: 'Internal server error' });
+  }
+});
+
+// Update username 
+fastify.put('/users/:userId/username', {
+  preHandler: fastify.authenticate
+}, async (request, reply) => {
+  try {
+    const { userId } = request.params;
+    const { username } = request.body;
+
+    if (parseInt(userId) !== request.user.userId) {
+      return reply.code(403).send({ error: 'Unauthorized to update this profile' });
+    }
+
+    if (!username || username.trim().length === 0) {
+      return reply.code(400).send({ error: 'Username cannot be empty' });
+    }
+
+    if (username.length < 3 || username.length > 20) {
+      return reply.code(400).send({ error: 'Username must be between 3 and 20 characters' });
+    }
+
+    if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+      return reply.code(400).send({ error: 'Username can only contain letters, numbers, and underscores' });
+    }
+
+    logger.info(`Updating username for user ${userId} to ${username}`);
+
+    const existingUser = await User.findByUsername(username);
+    if (existingUser && existingUser.id !== parseInt(userId)) {
+      return reply.code(409).send({
+        error: 'Username already taken',
+        message: 'This username is already in use'
+      });
+    }
+
+    const response = await fetch('http://database-service:3006/internal/write', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-service-auth': 'super_secret_internal_token'
+      },
+      body: JSON.stringify({
+        table: 'Users',
+        id: parseInt(userId),
+        column: 'username',
+        value: username.trim()
+      })
+    });
+
+    if (!response.ok) {
+      logger.error('Database update failed:', response.status);
+      return reply.code(500).send({ error: 'Failed to update username' });
+    }
+
+    logger.info(`Username updated successfully for user ${userId}`);
+    return {
+      success: true,
+      message: 'Username updated successfully',
+      username: username.trim()
+    };
+
+  } catch (error) {
+    logger.error('Error updating username:', error);
+    return reply.code(500).send({ error: 'Internal server error' });
+  }
+});
+
+// Avatar Upload Endpoint
+fastify.post('/users/:userId/avatar', {
+  preHandler: fastify.authenticate
+}, async (request, reply) => {
+  try {
+    const { userId } = request.params;
+    const { imageData } = request.body;
+
+    if (parseInt(userId) !== request.user.userId) {
+      return reply.code(403).send({ error: 'Unauthorized to update this profile' });
+    }
+
+    if (!imageData) {
+      return reply.code(400).send({ error: 'No image data provided' });
+    }
+
+    const matches = imageData.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+    if (!matches || matches.length !== 3) {
+      return reply.code(400).send({ error: 'Invalid image format' });
+    }
+
+    const imageBuffer = Buffer.from(matches[2], 'base64');
+
+    const avatarsDir = '/app/avatars';
+    await fs.mkdir(avatarsDir, { recursive: true });
+
+    const fileName = `${userId}.jpg`;
+    const filePath = path.join(avatarsDir, fileName);
+    await fs.writeFile(filePath, imageBuffer);
+
+    const avatarUrl = `/avatars/${fileName}`;
+
+    logger.info(`Avatar uploaded for user ${userId}: ${avatarUrl}`);
+
+    const response = await fetch('http://database-service:3006/internal/write', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-service-auth': 'super_secret_internal_token'
+      },
+      body: JSON.stringify({
+        table: 'Users',
+        id: parseInt(userId),
+        column: 'avatar',
+        value: avatarUrl
+      })
+    });
+
+    if (!response.ok) {
+      logger.error('Database update failed:', response.status);
+      return reply.code(500).send({ error: 'Failed to update avatar in database' });
+    }
+
+    logger.info(`Avatar successfully updated for user ${userId}`);
+
+    return {
+      success: true,
+      message: 'Avatar updated successfully',
+      avatarUrl: avatarUrl
+    };
+
+  } catch (error) {
+    logger.error('Error updating avatar:', error);
+    return reply.code(500).send({ error: 'Internal server error' });
+  }
+});
+
+// Avatar GET Endpoint
+fastify.get('/avatars/:filename', async (request, reply) => {
+  try {
+    const { filename } = request.params;
+    const filePath = path.join('/app/avatars', filename);
+
+    logger.info(`Serving avatar: ${filePath}`);
+
+    try {
+      await fs.access(filePath);
+      const data = await fs.readFile(filePath);
+      reply.type('image/jpeg').send(data);
+    } catch (err) {
+      logger.warn(`Avatar not found: ${filePath}`);
+      reply.code(404).send({ error: 'Avatar not found' });
+    }
+  } catch (error) {
+    logger.error('Error serving avatar:', error);
+    reply.code(500).send({ error: 'Internal server error' });
+  }
+});
+
+// Delete account endpoint
+fastify.delete('/auth/account', {
+  preHandler: fastify.authenticate
+}, async (request, reply) => {
+  try {
+    const userId = request.user.userId;
+    logger.info('Delete account request for user:', userId);
+
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return reply.code(404).send({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    if (user.user_status === 'deleted') {
+      return reply.code(400).send({
+        success: false,
+        message: 'Account is already deleted'
+      });
+    }
+
+    let newUsername = user.username;
+    const timestamp = Date.now();
+    if (!newUsername.startsWith('deleted_')) {
+      newUsername = `deleted_${timestamp}_${user.username}`;
+    }
+
+    const newEmail = `deleted_${timestamp}_${userId}@deleted.local`;
+
+    logger.info(`Soft deleting user ${userId}: ${user.username} -> ${newUsername}, ${user.email} -> ${newEmail}`);
+
+    const statusRes = await fetch('http://database-service:3006/internal/write', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-service-auth': 'super_secret_internal_token'
+      },
+      body: JSON.stringify({
+        table: 'Users',
+        id: userId,
+        column: 'user_status',
+        value: 'deleted'
+      })
+    });
+
+    if (!statusRes.ok) {
+      const errorText = await statusRes.text();
+      logger.error('Failed to update status:', statusRes.status, errorText);
+      return reply.code(500).send({
+        success: false,
+        error: 'Failed to update account status'
+      });
+    }
+
+    const usernameRes = await fetch('http://database-service:3006/internal/write', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-service-auth': 'super_secret_internal_token'
+      },
+      body: JSON.stringify({
+        table: 'Users',
+        id: userId,
+        column: 'username',
+        value: newUsername
+      })
+    });
+
+    if (!usernameRes.ok) {
+      const errorText = await usernameRes.text();
+      logger.error('Failed to update username:', usernameRes.status, errorText);
+      return reply.code(500).send({
+        success: false,
+        error: 'Failed to update username'
+      });
+    }
+
+    const emailRes = await fetch('http://database-service:3006/internal/write', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-service-auth': 'super_secret_internal_token'
+      },
+      body: JSON.stringify({
+        table: 'Users',
+        id: userId,
+        column: 'email',
+        value: newEmail
+      })
+    });
+
+    if (!emailRes.ok) {
+      const errorText = await emailRes.text();
+      logger.error('Failed to update email:', emailRes.status, errorText);
+      return reply.code(500).send({
+        success: false,
+        error: 'Failed to update email'
+      });
+    }
+
+    logger.info(`Account successfully deleted: ${userId}`);
+
+    return reply.code(200).send({
+      success: true,
+      message: 'Account successfully deleted',
+      data: {
+        oldUsername: user.username,
+        newUsername: newUsername,
+        oldEmail: user.email,
+        newEmail: newEmail,
+        user_status: 'deleted'
+      }
+    });
+
+  } catch (error) {
+    logger.error('Error deleting account:', error);
+    return reply.code(500).send({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
   }
 });
 
@@ -1609,15 +2823,641 @@ fastify.delete('/auth/account', {
   }
 });
 
-// Start server
+
+//===================================================Dashbord===============================================================
+// Get user's remote match history
+fastify.get('/users/:userId/remote-matches', {
+  preHandler: fastify.authenticate
+}, async (request, reply) => {
+  try {
+    const { userId } = request.params;
+    
+    console.log(`🎮 Getting remote matches for user ${userId}`);
+    logger.info(`Getting remote matches for user ${userId}`);
+
+    // Query for all finished remote matches
+    const response = await fetch('http://database-service:3006/internal/query', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        table: 'Remote_Match',
+        columns: ['id', 'player1_id', 'player2_id', 'winner_id', 'player1_score', 'player2_score', 'Remote_status', 'finished_at'],
+        filters: { Remote_status: 'finished' },
+        orderBy: { column: 'finished_at', direction: 'DESC' },
+        limit: 100
+      })
+    });
+
+    if (!response.ok) {
+      logger.error('Database query failed:', response.status);
+      return reply.code(500).send({ error: 'Database query failed' });
+    }
+
+    const result = await response.json();
+    let matches = result.data || [];
+
+    // Filter matches where user participated
+    matches = matches.filter(match => 
+      match.player1_id === parseInt(userId) || match.player2_id === parseInt(userId)
+    );
+
+    console.log(`📊 Found ${matches.length} matches for user ${userId}`);
+
+    // Enrich matches with opponent data
+    const enrichedMatches = await Promise.all(
+      matches.map(async (match) => {
+        const isPlayer1 = match.player1_id === parseInt(userId);
+        const opponentId = isPlayer1 ? match.player2_id : match.player1_id;
+        const userScore = isPlayer1 ? match.player1_score : match.player2_score;
+        const opponentScore = isPlayer1 ? match.player2_score : match.player1_score;
+
+        // Get opponent username
+        const opponent = await User.findById(opponentId);
+        const opponentName = opponent?.display_name || opponent?.username || 'Unknown';
+        const opponentUserName = opponent?.username || 'Unknown';
+
+        // Determine result
+        let result = 'draw';
+        if (match.winner_id === parseInt(userId)) {
+          result = 'won';
+        } else if (match.winner_id === opponentId) {
+          result = 'lost';
+        }
+
+        return {
+          id: match.id,
+          opponentId: opponentId,
+          opponentName: opponentName,
+          opponentUserName: opponentUserName,
+          userScore: userScore,
+          opponentScore: opponentScore,
+          result: result,
+          finishedAt: match.finished_at
+        };
+      })
+    );
+
+    return { 
+      success: true, 
+      matches: enrichedMatches,
+      total: enrichedMatches.length
+    };
+
+  } catch (error) {
+    logger.error('Error getting remote matches:', error);
+    return reply.code(500).send({ error: 'Internal server error' });
+  }
+});
+
+// Get user's tournament participation history
+fastify.get('/users/:userId/tournaments', {
+  preHandler: fastify.authenticate
+}, async (request, reply) => {
+  try {
+    const { userId } = request.params;
+    
+    console.log(`🏆 Getting tournament history for user ${userId}`);
+    logger.info(`Getting tournament history for user ${userId}`);
+
+    // Query Tournament_Players table
+    const response = await fetch('http://database-service:3006/internal/query', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        table: 'Tournament_Players',
+        columns: ['tournament_id', 'joined_at'],
+        filters: { user_id: parseInt(userId) },
+        orderBy: { column: 'joined_at', direction: 'DESC' },
+        limit: 50
+      })
+    });
+
+    if (!response.ok) {
+      logger.error('Database query failed:', response.status);
+      return reply.code(500).send({ error: 'Database query failed' });
+    }
+
+    const result = await response.json();
+    const tournaments = result.data || [];
+
+    console.log(`✅ Found ${tournaments.length} tournaments for user ${userId}`);
+
+    return { 
+      success: true, 
+      tournaments: tournaments.map(t => ({
+        tournamentId: t.tournament_id,
+        joinedAt: t.joined_at
+      })),
+      total: tournaments.length
+    };
+
+  } catch (error) {
+    logger.error('Error getting tournament history:', error);
+    return reply.code(500).send({ error: 'Internal server error' });
+  }
+});
+
+// Get matches for a specific tournament
+fastify.get('/tournaments/:tournamentId/matches', {
+  preHandler: fastify.authenticate
+}, async (request, reply) => {
+  try {
+    const { tournamentId } = request.params;
+    
+    console.log(`🏆 Getting matches for tournament ${tournamentId}`);
+    logger.info(`Getting matches for tournament ${tournamentId}`);
+
+    // Query Tournament_Matches table
+    const response = await fetch('http://database-service:3006/internal/query', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        table: 'Tournament_Matches',
+        columns: [
+          'id', 'tournament_id', 'round', 'match_number',
+          'player1_id', 'player2_id', 'winner_id', 'loser_id',
+          'player1_score', 'player2_score', 'matches_status',
+          'started_at', 'finished_at'
+        ],
+        filters: { tournament_id: parseInt(tournamentId) },
+        orderBy: { column: 'round', direction: 'ASC' },
+        limit: 100
+      })
+    });
+
+    if (!response.ok) {
+      logger.error('Database query failed:', response.status);
+      return reply.code(500).send({ error: 'Database query failed' });
+    }
+
+    const result = await response.json();
+    const matches = result.data || [];
+
+    console.log(`✅ Found ${matches.length} matches for tournament ${tournamentId}`);
+
+    // Enrich matches with player usernames
+    const enrichedMatches = await Promise.all(
+      matches.map(async (match) => {
+        const player1 = await User.findById(match.player1_id);
+        const player2 = await User.findById(match.player2_id);
+        const winner = match.winner_id ? await User.findById(match.winner_id) : null;
+
+        return {
+          id: match.id,
+          round: match.round,
+          matchNumber: match.match_number,
+          player1: {
+            id: match.player1_id,
+            name: player1?.display_name || player1?.username || 'Unknown'
+          },
+          player2: {
+            id: match.player2_id,
+            name: player2?.display_name || player2?.username || 'Unknown'
+          },
+          winner: winner ? {
+            id: match.winner_id,
+            name: winner.display_name || winner.username
+          } : null,
+          score: {
+            player1: match.player1_score,
+            player2: match.player2_score
+          },
+          status: match.matches_status,
+          startedAt: match.started_at,
+          finishedAt: match.finished_at
+        };
+      })
+    );
+
+    return { 
+      success: true, 
+      tournamentId: parseInt(tournamentId),
+      matches: enrichedMatches,
+      total: enrichedMatches.length
+    };
+
+  } catch (error) {
+    logger.error('Error getting tournament matches:', error);
+    return reply.code(500).send({ error: 'Internal server error' });
+  }
+});
+
+//===================================================Profil Changes=========================================================
+
+// Update user email endpoint
+fastify.put('/users/:userId/update-email', {
+  preHandler: fastify.authenticate
+}, async (request, reply) => {
+  try {
+    const { userId } = request.params;
+    const { newEmail, password } = request.body;
+    
+    if (parseInt(userId) !== request.user.userId) {
+      return reply.code(403).send({ error: 'Unauthorized to update this email' });
+    }
+    
+    logger.info(`Email update requested for user ${userId}`);
+    
+    if (!newEmail || !password) {
+      return reply.code(400).send({ 
+        error: 'New email and password are required' 
+      });
+    }
+    
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(newEmail)) {
+      return reply.code(400).send({ 
+        error: 'Invalid email format' 
+      });
+    }
+    
+    const user = await User.findById(userId);
+    if (!user) {
+      return reply.code(404).send({ error: 'User not found' });
+    }
+    
+    const passwordMatch = await bcrypt.compare(password, user.password);
+    if (!passwordMatch) {
+      return reply.code(401).send({ 
+        error: 'Incorrect password' 
+      });
+    }
+    
+    const existingEmail = await User.findByEmail(newEmail);
+    if (existingEmail && existingEmail.id !== userId) {
+      return reply.code(409).send({ 
+        error: 'Email already in use by another account' 
+      });
+    }
+    
+    const response = await fetch('http://database-service:3006/internal/write', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        table: 'Users',
+        id: parseInt(userId),
+        column: 'email',
+        value: newEmail
+      })
+    });
+    
+    if (!response.ok) {
+      logger.error('Database update failed:', response.status);
+      return reply.code(500).send({ error: 'Failed to update email' });
+    }
+    
+    logger.info(`Email successfully updated for user ${userId}`);
+    
+    return { 
+      success: true, 
+      message: 'Email updated successfully',
+      email: newEmail
+    };
+    
+  } catch (error) {
+    logger.error('Error updating email:', error);
+    return reply.code(500).send({ error: 'Internal server error' });
+  }
+});
+
+// Update user display name 
+fastify.put('/users/:userId/display-name', {
+  preHandler: fastify.authenticate
+}, async (request, reply) => {
+  try {
+    const { userId } = request.params;
+    const { displayName } = request.body;
+    
+    if (parseInt(userId) !== request.user.userId) {
+      return reply.code(403).send({ error: 'Unauthorized to update this profile' });
+    }
+
+    if (!displayName || displayName.trim().length === 0) {
+      return reply.code(400).send({ error: 'Display name cannot be empty' });
+    }
+
+    if (displayName.length > 50) {
+      return reply.code(400).send({ error: 'Display name too long (max 50 characters)' });
+    }
+
+    logger.info(`Updating display name for user ${userId} to ${displayName}`);
+
+    const response = await fetch('http://database-service:3006/internal/write', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        table: 'Users',
+        id: parseInt(userId),
+        column: 'display_name',
+        value: displayName.trim()
+      })
+    });
+
+    if (!response.ok) {
+      logger.error('Database update failed:', response.status);
+      return reply.code(500).send({ error: 'Failed to update display name' });
+    }
+
+    logger.info(`Display name updated successfully for user ${userId}`);
+    return { 
+      success: true, 
+      message: 'Display name updated successfully',
+      displayName: displayName.trim()
+    };
+
+  } catch (error) {
+    logger.error('Error updating display name:', error);
+    return reply.code(500).send({ error: 'Internal server error' });
+  }
+});
+
+// Update username 
+fastify.put('/users/:userId/username', {
+  preHandler: fastify.authenticate
+}, async (request, reply) => {
+  try {
+    const { userId } = request.params;
+    const { username } = request.body;
+    
+    if (parseInt(userId) !== request.user.userId) {
+      return reply.code(403).send({ error: 'Unauthorized to update this profile' });
+    }
+
+    if (!username || username.trim().length === 0) {
+      return reply.code(400).send({ error: 'Username cannot be empty' });
+    }
+
+    if (username.length < 3 || username.length > 20) {
+      return reply.code(400).send({ error: 'Username must be between 3 and 20 characters' });
+    }
+
+    if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+      return reply.code(400).send({ error: 'Username can only contain letters, numbers, and underscores' });
+    }
+
+    logger.info(`Updating username for user ${userId} to ${username}`);
+
+    const existingUser = await User.findByUsername(username);
+    if (existingUser && existingUser.id !== parseInt(userId)) {
+      return reply.code(409).send({ 
+        error: 'Username already taken',
+        message: 'This username is already in use' 
+      });
+    }
+
+    const response = await fetch('http://database-service:3006/internal/write', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        table: 'Users',
+        id: parseInt(userId),
+        column: 'username',
+        value: username.trim()
+      })
+    });
+
+    if (!response.ok) {
+      logger.error('Database update failed:', response.status);
+      return reply.code(500).send({ error: 'Failed to update username' });
+    }
+
+    logger.info(`Username updated successfully for user ${userId}`);
+    return { 
+      success: true, 
+      message: 'Username updated successfully',
+      username: username.trim()
+    };
+
+  } catch (error) {
+    logger.error('Error updating username:', error);
+    return reply.code(500).send({ error: 'Internal server error' });
+  }
+});
+
+// Avatar Upload Endpoint
+fastify.post('/users/:userId/avatar', {
+  preHandler: fastify.authenticate
+}, async (request, reply) => {
+  try {
+    const { userId } = request.params;
+    const { imageData } = request.body;
+    
+    if (parseInt(userId) !== request.user.userId) {
+      return reply.code(403).send({ error: 'Unauthorized to update this profile' });
+    }
+    
+    if (!imageData) {
+      return reply.code(400).send({ error: 'No image data provided' });
+    }
+    
+    const matches = imageData.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+    if (!matches || matches.length !== 3) {
+      return reply.code(400).send({ error: 'Invalid image format' });
+    }
+    
+    const imageBuffer = Buffer.from(matches[2], 'base64');
+    
+    const avatarsDir = '/app/avatars';
+    await fs.mkdir(avatarsDir, { recursive: true });
+    
+    const fileName = `${userId}.jpg`;
+    const filePath = path.join(avatarsDir, fileName);
+    await fs.writeFile(filePath, imageBuffer);
+    
+    const avatarUrl = `/avatars/${fileName}`;
+    
+    logger.info(`Avatar uploaded for user ${userId}: ${avatarUrl}`);
+    
+    const response = await fetch('http://database-service:3006/internal/write', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        table: 'Users',
+        id: parseInt(userId),
+        column: 'avatar',
+        value: avatarUrl
+      })
+    });
+    
+    if (!response.ok) {
+      logger.error('Database update failed:', response.status);
+      return reply.code(500).send({ error: 'Failed to update avatar in database' });
+    }
+    
+    logger.info(`Avatar successfully updated for user ${userId}`);
+    
+    return { 
+      success: true, 
+      message: 'Avatar updated successfully',
+      avatarUrl: avatarUrl
+    };
+    
+  } catch (error) {
+    logger.error('Error updating avatar:', error);
+    return reply.code(500).send({ error: 'Internal server error' });
+  }
+});
+
+// Avatar GET Endpoint
+fastify.get('/avatars/:filename', async (request, reply) => {
+  try {
+    const { filename } = request.params;
+    const filePath = path.join('/app/avatars', filename);
+    
+    logger.info(`Serving avatar: ${filePath}`);
+    
+    try {
+      await fs.access(filePath);
+      const data = await fs.readFile(filePath);
+      reply.type('image/jpeg').send(data);
+    } catch (err) {
+      logger.warn(`Avatar not found: ${filePath}`);
+      reply.code(404).send({ error: 'Avatar not found' });
+    }
+  } catch (error) {
+    logger.error('Error serving avatar:', error);
+    reply.code(500).send({ error: 'Internal server error' });
+  }
+});
+
+// Delete account endpoint
+fastify.delete('/auth/account', {
+  preHandler: fastify.authenticate
+}, async (request, reply) => {
+  try {
+    const userId = request.user.userId;
+    logger.info('Delete account request for user:', userId);
+
+    const user = await User.findById(userId);
+    
+    if (!user) {
+      return reply.code(404).send({ 
+        success: false,
+        message: 'User not found' 
+      });
+    }
+
+    if (user.user_status === 'deleted') {
+      return reply.code(400).send({ 
+        success: false,
+        message: 'Account is already deleted' 
+      });
+    }
+
+    let newUsername = user.username;
+    const timestamp = Date.now();
+    if (!newUsername.startsWith('deleted_')) {
+      newUsername = `deleted_${timestamp}_${user.username}`;
+    }
+
+    const newEmail = `deleted_${timestamp}_${userId}@deleted.local`;
+
+    logger.info(`Soft deleting user ${userId}: ${user.username} -> ${newUsername}, ${user.email} -> ${newEmail}`);
+
+    const statusRes = await fetch('http://database-service:3006/internal/write', {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'x-service-auth': 'super_secret_internal_token'
+      },
+      body: JSON.stringify({
+        table: 'Users',
+        id: userId,
+        column: 'user_status',
+        value: 'deleted'
+      })
+    });
+
+    if (!statusRes.ok) {
+      const errorText = await statusRes.text();
+      logger.error('Failed to update status:', statusRes.status, errorText);
+      return reply.code(500).send({ 
+        success: false,
+        error: 'Failed to update account status'
+      });
+    }
+
+    const usernameRes = await fetch('http://database-service:3006/internal/write', {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'x-service-auth': 'super_secret_internal_token'
+      },
+      body: JSON.stringify({
+        table: 'Users',
+        id: userId,
+        column: 'username',
+        value: newUsername
+      })
+    });
+
+    if (!usernameRes.ok) {
+      const errorText = await usernameRes.text();
+      logger.error('Failed to update username:', usernameRes.status, errorText);
+      return reply.code(500).send({ 
+        success: false,
+        error: 'Failed to update username'
+      });
+    }
+
+    const emailRes = await fetch('http://database-service:3006/internal/write', {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'x-service-auth': 'super_secret_internal_token'
+      },
+      body: JSON.stringify({
+        table: 'Users',
+        id: userId,
+        column: 'email',
+        value: newEmail
+      })
+    });
+
+    if (!emailRes.ok) {
+      const errorText = await emailRes.text();
+      logger.error('Failed to update email:', emailRes.status, errorText);
+      return reply.code(500).send({ 
+        success: false,
+        error: 'Failed to update email'
+      });
+    }
+
+    logger.info(`Account successfully deleted: ${userId}`);
+
+    return reply.code(200).send({
+      success: true,
+      message: 'Account successfully deleted',
+      data: {
+        oldUsername: user.username,
+        newUsername: newUsername,
+        oldEmail: user.email,
+        newEmail: newEmail,
+        user_status: 'deleted'
+      }
+    });
+
+  } catch (error) {
+    logger.error('Error deleting account:', error);
+    return reply.code(500).send({ 
+      success: false,
+      message: 'Internal server error', 
+      error: error.message 
+    });
+  }
+});
+
+// Start server (ONLY ONE TIME)
 const start = async () => {
   try {
     await fastify.listen({ port: PORT, host: '0.0.0.0' });
     logger.info(`🚀 User service running on port ${PORT}`);
-    
+    console.log(`🔔 WebSocket notifications endpoint: ws://localhost:${PORT}/ws/notifications`);
+
+    // Log all registered routes for debugging
     console.log('🎯 REGISTERED ROUTES:');
     fastify.printRoutes();
-    
+
   } catch (err) {
     logger.error('Failed to start:', err);
     fastify.log.error(err);
@@ -1625,11 +3465,11 @@ const start = async () => {
   }
 };
 
+start();
+
 // Graceful shutdown
 process.on('SIGTERM', async () => {
   logger.info('Shutting down...');
   await fastify.close();
   process.exit(0);
 });
-
-start();

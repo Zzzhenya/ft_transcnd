@@ -1,3 +1,4 @@
+/*
 export default function (root: HTMLElement) {
   let canvas: HTMLCanvasElement;
   let ctx: CanvasRenderingContext2D;
@@ -378,3 +379,4 @@ export default function (root: HTMLElement) {
   lobbyBtn.addEventListener('click', handleBackToLobby);
   setupKeyboardControls();
 }
+*/

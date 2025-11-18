@@ -32,7 +32,8 @@ export default function (root: HTMLElement) {
   root.innerHTML = `
     <section class="fixed inset-0 overflow-hidden bg-black">
 	  <canvas id="gameCanvas"
-		class="fixed inset-0 z-0 block">
+		class="fixed inset-0 z-0 block"
+		style="opacity:0">
 	  </canvas>
 
 	  <div id="hudCenter"
@@ -169,11 +170,13 @@ export default function (root: HTMLElement) {
     }, 3500);
   }
 
-
-
-
   // Babylon 3D scene starts
   const scene3d = createLocalScene(gameCanvas);
+
+  scene3d.ready.then(() => {
+    gameCanvas.style.transition = 'opacity 150ms ease-out';
+    gameCanvas.style.opacity = '1';
+  });
 
   function updateStatus(message: string) {
     if (gameStatusEl) gameStatusEl.textContent = message;
@@ -403,19 +406,22 @@ export default function (root: HTMLElement) {
   function setupKeyboardControls() {
     document.addEventListener('keydown', (e) => {
       let changed = false;
-      if (e.code === 'KeyW') { if (!player1Keys.up) changed = true; player1Keys.up = true; e.preventDefault(); }
-      else if (e.code === 'KeyS') { if (!player1Keys.down) changed = true; player1Keys.down = true; e.preventDefault(); }
-      else if (e.code === 'ArrowUp') { if (!player2Keys.up) changed = true; player2Keys.up = true; e.preventDefault(); }
-      else if (e.code === 'ArrowDown') { if (!player2Keys.down) changed = true; player2Keys.down = true; e.preventDefault(); }
+
+	  // Player 1 (A / D)
+      if (e.code === 'KeyA') { if (!player1Keys.up) changed = true; player1Keys.down = true; e.preventDefault(); }
+      else if (e.code === 'KeyD') { if (!player1Keys.down) changed = true; player1Keys.up = true; e.preventDefault(); }
+      else if (e.code === 'ArrowLeft') { if (!player2Keys.up) changed = true; player2Keys.up = true; e.preventDefault(); }
+      else if (e.code === 'ArrowRight') { if (!player2Keys.down) changed = true; player2Keys.down = true; e.preventDefault(); }
       if (changed) sendPaddleMovement();
     });
 
+	// Player 2 (ArrowLeft / ArrowRight)
     document.addEventListener('keyup', (e) => {
       let changed = false;
-      if (e.code === 'KeyW') { if (player1Keys.up) changed = true; player1Keys.up = false; }
-      else if (e.code === 'KeyS') { if (player1Keys.down) changed = true; player1Keys.down = false; }
-      else if (e.code === 'ArrowUp') { if (player2Keys.up) changed = true; player2Keys.up = false; }
-      else if (e.code === 'ArrowDown') { if (player2Keys.down) changed = true; player2Keys.down = false; }
+      if (e.code === 'KeyA') { if (player1Keys.up) changed = true; player1Keys.down = false; }
+      else if (e.code === 'KeyD') { if (player1Keys.down) changed = true; player1Keys.up = false; }
+      else if (e.code === 'ArrowLeft') { if (player2Keys.up) changed = true; player2Keys.up = false; }
+      else if (e.code === 'ArrowRight') { if (player2Keys.down) changed = true; player2Keys.down = false; }
       if (changed) sendPaddleMovement();
     });
   }
@@ -425,6 +431,9 @@ export default function (root: HTMLElement) {
 		handleMatchEndIfNeeded();
 		return ;
 	}
+
+	// When 'startbtn' is on, -> true.
+	scene3d.setSplitView(true);
 
 	connectionAttempts = 0;
 	startBtn.disabled = true;
