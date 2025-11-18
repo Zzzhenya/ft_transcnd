@@ -7,3 +7,190 @@
   --app-bg: #0b1020;
 }
 body { background: var(--app-bg); }
+
+/* Retro dark theme utilities scoped to .retro-wait */
+.retro-wait {
+  color: #e8e8e8;
+  text-shadow: none;
+}
+.retro-wait .crt-scan {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+.retro-wait .crt-scan::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(255,255,255,0.03),
+    rgba(255,255,255,0.03) 2px,
+    rgba(0,0,0,0.04) 3px,
+    rgba(0,0,0,0.04) 4px
+  );
+  mix-blend-mode: normal;
+  pointer-events: none;
+  opacity: .12;
+}
+.retro-wait .vignette::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  display: none;
+}
+.retro-wait .bezel {
+  background: #0b1020;
+  border: 1px solid #8b5cf6; /* purple border to match lobby */
+  box-shadow: none;
+}
+.retro-wait .neon {
+  color: #e9d5ff; /* light purple */
+  text-shadow: none;
+}
+.retro-wait .neon-soft {
+  text-shadow: 0 0 8px rgba(120, 120, 255, .4);
+}
+.retro-wait .btn-retro {
+  background: #a855f7; /* purple */
+  border: 1px solid #7e22ce;
+  box-shadow: none;
+  transition: none;
+}
+.retro-wait .btn-retro:hover:not(:disabled) {
+  transform: none;
+  box-shadow: none;
+  filter: none;
+  background: #9333ea; /* darker purple */
+}
+.retro-wait .btn-retro:disabled {
+  opacity: .6;
+  filter: none;
+}
+.retro-wait .code-chip {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  letter-spacing: .2em;
+  font-weight: 400 !important;
+  text-transform: uppercase;
+  font-size: 1.4rem; /* larger for readability */
+  color: #fef08a; /* light yellow for room code */
+}
+.retro-wait .blink::after {
+  content: "_";
+  animation: blink 1.1s steps(2, start) infinite;
+  margin-left: 2px;
+}
+@keyframes blink {
+  50% { opacity: 0; }
+}
+
+/* Optional: lightweight pixel font via system stack fallback */
+/* Full 8-bit look in waiting room */
+.retro-wait, .retro-wait * {
+  font-family: 'ArcadeClassic', "Silkscreen", "VT323", ui-monospace, Menlo, Monaco, Consolas, "Courier New", monospace !important;
+  letter-spacing: 0.01em;
+  -webkit-font-smoothing: none !important;
+  -moz-osx-font-smoothing: auto !important;
+  text-rendering: optimizeSpeed !important;
+}
+
+/* Clean headings and chips: no outline, no heavy shadows */
+.retro-wait h1, .retro-wait h2, .retro-wait h3, .retro-wait .chip, .retro-wait .code-chip, .retro-wait .player-badge, .retro-wait .btn-retro {
+  -webkit-text-stroke: 0;
+  text-shadow: none;
+  font-weight: 400 !important; /* never bold */
+  text-transform: uppercase; /* classic arcade uppercase */
+}
+
+/* Slight outline on neon variants */
+.retro-wait .neon, .retro-wait .neon-soft {
+  -webkit-text-stroke: 0;
+  text-shadow: none;
+}
+
+/* Player card styles */
+.retro-wait .player-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 10px;
+  background: #0f172a;
+  border: 1px solid #8b5cf6; /* subtle purple border */
+  box-shadow: none;
+}
+.retro-wait .player-badge {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 400; /* not bold */
+  border: 1px solid #1f2937;
+  box-shadow: none;
+  text-transform: uppercase;
+}
+/* Map existing badge color classes to purple/yellow theme */
+.retro-wait .player-badge.bg-blue-600 { background-color: #8b5cf6 !important; } /* P1 purple */
+.retro-wait .player-badge.bg-red-600 { background-color: #f59e0b !important; } /* P2 yellow-orange */
+.retro-wait .status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+  margin-right: 6px;
+}
+.retro-wait .status-ready {
+  color: #facc15; /* yellow */
+  text-shadow: none;
+}
+.retro-wait .status-wait {
+  color: #c4b5fd; /* light purple */
+  opacity: 1;
+}
+.retro-wait .chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 9999px;
+  border: 1px solid #8b5cf6; /* purple */
+  background: #0b1020;
+  box-shadow: none;
+  color: #e9d5ff; /* very light purple */
+  font-weight: 400; /* not bold */
+  text-transform: uppercase;
+}
+
+/* Import Google Font only if available by the bundler/network; harmless if blocked */
+@import url('https://fonts.googleapis.com/css2?family=VT323&family=Silkscreen:wght@400;700&display=swap');
+
+/* Local Arcade Classic font (served from public/fonts/arcadeclassic) */
+@font-face {
+  font-family: 'ArcadeClassic';
+  src: url('/fonts/arcadeclassic/ARCADECLASSIC.TTF') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Layering helpers for modals/toasts */
+.z-topmost { z-index: 99999 !important; }
+.toast-top-right { position: fixed !important; top: 1rem; right: 1rem; z-index: 99999 !important; }
+
+/* Pixel-crisp icon helper */
+.icon-px {
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
+  image-rendering: pixelated;
+  display: inline-block;
+}
+.icon-px-lg { width: 48px; height: 48px; }
+/* Tint helpers for dark PNGs */
+.icon-px--violet { filter: invert(85%) sepia(30%) saturate(600%) hue-rotate(240deg) brightness(110%) contrast(95%); }
+.icon-px--yellow { filter: invert(85%) sepia(80%) saturate(600%) hue-rotate(340deg) brightness(110%) contrast(95%); }
+.icon-px--white { filter: invert(100%) brightness(180%); }

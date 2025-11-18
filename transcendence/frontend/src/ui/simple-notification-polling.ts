@@ -70,17 +70,13 @@ export class SimpleNotificationPoller {
         
         // Show notifications with proper time filtering
         const notificationsToShow = notifications.filter(n => {
+          const notifTime = new Date(n.timestamp).getTime();
+          const age = Math.floor((Date.now() - notifTime) / 1000);
           if (n.type === 'game_invite') {
             return true; // Always show game invitations
           } else if (n.type === 'invitation_declined' || n.type === 'invitation_accepted' || n.type === 'player_left_room') {
-            // Show accept/decline notifications that are recent (last 5 minutes)
-            const notifTime = new Date(n.timestamp).getTime();
-            const age = Math.floor((Date.now() - notifTime) / 1000);
-            const isRecent = notifTime > Date.now() - 300000; // 5 minutes
-            if (n.type === 'invitation_declined') {
-            //  console.log(`🔔 Decline notification #${n.id}: age=${age}s, showing=${isRecent}`);
-            }
-            return isRecent;
+            // Only show recent ones (last 30 seconds) to avoid showing old notifications
+            return age < 30;
           } else {
             // For other types, use time filtering to avoid redirect loops
             const notifTime = new Date(n.timestamp).getTime();
@@ -90,7 +86,17 @@ export class SimpleNotificationPoller {
         });
 
         if (notificationsToShow.length > 0) {
-          notificationsToShow.forEach((notification) => {
+          // Group by type and only show the most recent of each type
+          const byType = new Map<string, SimpleNotification>();
+          notificationsToShow.forEach(n => {
+            const existing = byType.get(n.type);
+            if (!existing || new Date(n.timestamp).getTime() > new Date(existing.timestamp).getTime()) {
+              byType.set(n.type, n);
+            }
+          });
+          
+          // Show only the most recent of each type
+          byType.forEach((notification) => {
             this.showNotification(notification);
           });
         }
@@ -128,29 +134,29 @@ export class SimpleNotificationPoller {
     // Create invitation modal
     const modal = document.createElement('div');
     modal.id = `simple-invitation-${notification.id}`;
-    modal.className = 'fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50';
+    modal.className = 'retro-wait fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-topmost';
     modal.innerHTML = `
-      <div class="bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 p-8 rounded-2xl shadow-2xl max-w-lg w-full mx-4 border-2 border-blue-500">
+      <div class="bezel p-8 rounded-2xl max-w-lg w-full mx-4 border">
         <div class="text-center">
-          <div class="text-6xl mb-4">🎮</div>
-          <h3 class="text-3xl font-black text-white mb-3">GAME INVITATION!</h3>
+          <div class="mb-4 flex justify-center"><img class="icon-px-lg icon-px--violet" src="/icons/speaker.png" alt="Notification" /></div>
+          <h3 class="text-3xl neon font-normal mb-3">GAME INVITATION</h3>
           <div class="bg-white/10 rounded-lg p-4 mb-6 backdrop-blur-sm">
-            <p class="text-xl text-blue-200 mb-2">
+            <p class="text-sm uppercase" style="color:#c4b5fd">
               <span class="font-black text-yellow-300">${notification.from}</span> 
               <br>wants to challenge you!
             </p>
-            <p class="text-sm text-cyan-300 font-mono bg-black/30 rounded px-3 py-2 inline-block">
-              Room Code: <span class="font-black text-yellow-300">${notification.roomCode}</span>
+            <p class="text-sm font-mono bg-black/30 rounded px-3 py-2 inline-block" style="color:#fef08a">
+              Room Code: <span class="font-normal uppercase" style="color:#fef08a">${notification.roomCode}</span>
             </p>
           </div>
           <div class="flex gap-4 justify-center">
             <button 
-              class="accept-btn px-8 py-4 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl font-black text-lg hover:from-green-400 hover:to-emerald-500 transition-all transform hover:scale-105"
+              class="accept-btn btn-retro px-8 py-4 text-white rounded-xl font-normal text-lg"
               onclick="simpleNotificationPoller.acceptInvitation(${notification.id}, '${notification.roomCode}')">
               ✅ ACCEPT
             </button>
             <button 
-              class="decline-btn px-8 py-4 bg-gradient-to-r from-red-500 to-pink-600 text-white rounded-xl font-black text-lg hover:from-red-400 hover:to-pink-500 transition-all transform hover:scale-105"
+              class="decline-btn btn-retro px-8 py-4 text-white rounded-xl font-normal text-lg"
               onclick="simpleNotificationPoller.declineInvitation(${notification.id})">
               ❌ DECLINE
             </button>
@@ -177,25 +183,25 @@ export class SimpleNotificationPoller {
     }
     sessionStorage.setItem(shownKey, 'true');
     
+    // Remove any existing accept toasts first
+    document.querySelectorAll('[id^="accept-toast-"]').forEach(el => el.remove());
+    
     // Clear the countdown if it exists
     this.clearInvitationCountdown();
     
     const toast = document.createElement('div');
     toast.id = `accept-toast-${notification.id}`;
-    toast.className = 'fixed top-4 right-4 bg-green-500 text-white p-6 rounded-lg shadow-lg z-50 border-2 border-green-300';
+    toast.className = 'retro-wait fixed top-4 right-4 p-6 rounded-lg z-50 border bezel';
     toast.innerHTML = `
-      <div class="flex items-center justify-between gap-4">
-        <div class="flex items-center gap-3">
-          <span class="text-2xl">🎉</span>
-          <div>
-            <div class="font-bold text-lg">Invitation Accepted!</div>
-            <div class="text-sm opacity-90">
-              <strong>${notification.from}</strong> accepted your challenge!
-            </div>
-            ${notification.roomCode ? `<div class="text-xs mt-1 opacity-75">Room Code: <strong>${notification.roomCode}</strong></div>` : ''}
+      <div class="flex items-center gap-3">
+        <img class="icon-px" src="/icons/speaker.png" alt="Notification" />
+        <div>
+          <div class="font-normal text-lg neon">INVITATION ACCEPTED</div>
+          <div class="text-sm opacity-90">
+            <strong>${notification.from}</strong> accepted your challenge!
           </div>
+          ${notification.roomCode ? `<div class="text-xs mt-1 opacity-75">Room Code: <strong>${notification.roomCode}</strong></div>` : ''}
         </div>
-        <button class="text-white hover:text-gray-200 text-2xl font-bold leading-none" onclick="document.getElementById('accept-toast-${notification.id}')?.remove()">×</button>
       </div>
     `;
     
@@ -262,33 +268,36 @@ export class SimpleNotificationPoller {
   }
 
   private showInvitationDeclined(notification: SimpleNotification) {
+    console.log('🔔 DECLINE: Attempting to show notification', notification.id);
     // Check if we already showed this notification
     const shownKey = `decline_shown_${notification.id}`;
     if (sessionStorage.getItem(shownKey)) {
+      console.log('🔔 DECLINE: Already shown, skipping', notification.id);
       return; // Already shown, don't show again
     }
+    console.log('🔔 DECLINE: Showing toast for', notification.id);
     sessionStorage.setItem(shownKey, 'true');
+    
+    // Remove any existing decline toasts first
+    document.querySelectorAll('[id^="decline-toast-"]').forEach(el => el.remove());
     
     // Dispatch the invite:declined event for pages to listen to
     window.dispatchEvent(new CustomEvent('invite:declined', { detail: notification }));
     
-    const toast = document.createElement('div');
-    toast.id = `decline-toast-${notification.id}`;
-    toast.className = 'fixed top-4 right-4 bg-red-500 text-white p-6 rounded-lg shadow-lg z-50 border-2 border-red-300';
-    toast.innerHTML = `
-      <div class="flex items-center justify-between gap-4">
-        <div class="flex items-center gap-3">
-          <span class="text-2xl">😔</span>
-          <div>
-            <div class="font-bold text-lg">Invitation Declined</div>
-            <div class="text-sm opacity-90">
-              <strong>${notification.from}</strong> declined your challenge.
-            </div>
-          </div>
-        </div>
-        <button class="text-white hover:text-gray-200 text-2xl font-bold leading-none" onclick="document.getElementById('decline-toast-${notification.id}')?.remove()">×</button>
-      </div>
-    `;
+    // const toast = document.createElement('div');
+    // toast.id = `decline-toast-${notification.id}`;
+    // toast.className = 'retro-wait fixed top-4 right-4 p-6 rounded-lg z-50 border bezel';
+    // toast.innerHTML = `
+    //   <div class="flex items-center gap-3">
+    //     <img class="icon-px" src="/icons/speaker.png" alt="Notification" />
+    //     <div>
+    //       <div class="font-normal text-lg neon">INVITATION DECLINED</div>
+    //       <div class="text-sm opacity-90">
+    //         <strong>${notification.from || 'Player'}</strong> declined your challenge.
+    //       </div>
+    //     </div>
+    //   </div>
+    // `;
     //  ${notification.roomCode ? `<div class="text-xs mt-1 opacity-75">Room Code: <strong>${notification.roomCode}</strong></div>` : ''}
     
     document.body.appendChild(toast);
@@ -302,33 +311,36 @@ export class SimpleNotificationPoller {
   }
 
   private showPlayerLeftRoom(notification: SimpleNotification) {
+    console.log('🔔 LEFT: Attempting to show notification', notification.id);
     // Check if we already showed this notification
     const shownKey = `left_shown_${notification.id}`;
     if (sessionStorage.getItem(shownKey)) {
+      console.log('🔔 LEFT: Already shown, skipping', notification.id);
       return; // Already shown, don't show again
     }
+    console.log('🔔 LEFT: Showing toast for', notification.id);
     sessionStorage.setItem(shownKey, 'true');
+    
+    // Remove any existing left toasts first
+    document.querySelectorAll('[id^="left-toast-"]').forEach(el => el.remove());
     
     // Dispatch the player:left event for pages to listen to
     window.dispatchEvent(new CustomEvent('player:left', { detail: notification }));
     
-    const toast = document.createElement('div');
-    toast.id = `left-toast-${notification.id}`;
-    toast.className = 'fixed top-4 right-4 bg-orange-500 text-white p-6 rounded-lg shadow-lg z-50 border-2 border-orange-300';
-    toast.innerHTML = `
-      <div class="flex items-center justify-between gap-4">
-        <div class="flex items-center gap-3">
-          <span class="text-2xl">👋</span>
-          <div>
-            <div class="font-bold text-lg">Player Left</div>
-            <div class="text-sm opacity-90">
-              <strong>${notification.from}</strong> left the waiting room.
-            </div>
-          </div>
-        </div>
-        <button class="text-white hover:text-gray-200 text-2xl font-bold leading-none" onclick="document.getElementById('left-toast-${notification.id}')?.remove()">×</button>
-      </div>
-    `;
+    // const toast = document.createElement('div');
+    // toast.id = `left-toast-${notification.id}`;
+    // toast.className = 'retro-wait fixed top-4 right-4 p-6 rounded-lg z-50 border bezel';
+    // toast.innerHTML = `
+    //   <div class="flex items-center gap-3">
+    //     <img class="icon-px" src="/icons/speaker.png" alt="Notification" />
+    //     <div>
+    //       <div class="font-normal text-lg neon">PLAYER LEFT</div>
+    //       <div class="text-sm opacity-90">
+    //         <strong>${notification.from || 'Player'}</strong> left the waiting room.
+    //       </div>
+    //     </div>
+    //   </div>
+    //`;
     //            ${notification.roomCode ? `<div class="text-xs mt-1 opacity-75">Room Code: <strong>${notification.roomCode}</strong></div>` : ''}
 
     
@@ -349,12 +361,12 @@ export class SimpleNotificationPoller {
     
     const countdown = document.createElement('div');
     countdown.id = 'invitation-countdown';
-    countdown.className = 'fixed top-4 right-4 bg-blue-600 text-white p-6 rounded-lg shadow-lg z-50 border-2 border-blue-400 min-w-80';
+    countdown.className = 'retro-wait fixed top-4 right-4 p-6 rounded-lg z-50 border bezel min-w-80';
     
     let timeLeft = Math.floor(timeoutMs / 1000);
     countdown.innerHTML = `
       <div class="flex items-center gap-3 mb-3">
-        <span class="text-2xl">📤</span>
+        <img class="icon-px" src="/icons/speaker.png" alt="Notification" />
         <div>
           <div class="font-bold text-lg">Invitation Sent!</div>
           <div class="text-sm opacity-90">
@@ -363,7 +375,7 @@ export class SimpleNotificationPoller {
         </div>
       </div>
       <div class="text-center">
-        <div class="text-2xl font-mono bg-white/20 rounded px-3 py-1 inline-block">
+        <div class="text-2xl font-mono bg-black/30 rounded px-3 py-1 inline-block" style="color:#fef08a">
           <span id="countdown-timer">${timeLeft}</span>s
         </div>
         <div class="text-xs mt-2 opacity-75">Room: ${roomCode}</div>
@@ -383,7 +395,7 @@ export class SimpleNotificationPoller {
         // Show "no answer" message
         countdown.innerHTML = `
           <div class="flex items-center gap-3">
-            <span class="text-2xl">⏰</span>
+            <img class="icon-px" src="/icons/speaker.png" alt="Notification" />
             <div>
               <div class="font-bold text-lg text-yellow-300">No Answer</div>
               <div class="text-sm opacity-90">

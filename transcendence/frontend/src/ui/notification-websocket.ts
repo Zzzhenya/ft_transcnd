@@ -179,6 +179,14 @@ export class NotificationWebSocket {
       } catch (error) {
         console.error('🔔 🎮 ❌ ERROR handling invitation_declined:', error);
       }
+    } else if (notification.type === 'player_left_room') {
+      console.log('🔔 🎮 ✅ PLAYER LEFT ROOM detected - dispatching player:left');
+      try {
+        window.dispatchEvent(new CustomEvent('player:left', { detail: notification }));
+        this.showPlayerLeftToast(notification);
+      } catch (error) {
+        console.error('🔔 🎮 ❌ ERROR handling player_left_room:', error);
+      }
     } else {
       console.log('🔔 🎮 ❓ Unknown notification type:', notification.type);
     }
@@ -231,30 +239,29 @@ export class NotificationWebSocket {
     
     console.log('🔔 🎮 📋 Step 3: Setting modal innerHTML');
     modal.innerHTML = `
-      <div class="bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 p-8 rounded-2xl shadow-2xl max-w-lg w-full mx-4 border-2 border-blue-500 animate-scale-in">
+      <div class="bg-gradient-to-br from-purple-900 to-indigo-900 p-8 rounded-2xl shadow-2xl max-w-lg w-full mx-4 border-2 border-purple-500 animate-scale-in">
         <div class="text-center">
           <div class="text-6xl mb-4 animate-bounce">🎮</div>
-          <h3 class="text-3xl font-black text-white mb-3">GAME INVITATION!</h3>
+          <h3 class="text-3xl font-bold text-white mb-3">Game Invitation</h3>
           <div class="bg-white/10 rounded-lg p-4 mb-6 backdrop-blur-sm">
-            <p class="text-xl text-blue-200 mb-2">
-              <span class="font-black text-yellow-300">${notification.from}</span> 
-              <br>wants to challenge you!
+            <p class="text-white text-lg mb-2">
+              <strong class="text-yellow-300">${notification.from}</strong> wants to challenge you!
             </p>
-            <p class="text-sm text-cyan-300 font-mono bg-black/30 rounded px-3 py-2 inline-block">
-              Room Code: <span class="font-black text-yellow-300">${notification.roomCode}</span>
+            <p class="text-sm text-gray-300">
+              Room Code: <strong class="text-yellow-300">${notification.roomCode}</strong>
             </p>
           </div>
           <div class="flex gap-4 justify-center">
             <button 
-              class="accept-btn px-8 py-4 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl font-black text-lg hover:from-green-400 hover:to-emerald-500 transition-all transform hover:scale-105 shadow-lg hover:shadow-green-500/50"
+              class="accept-btn bg-green-500 hover:bg-green-600 px-8 py-4 text-white rounded-xl font-bold text-lg transition-all transform hover:scale-105"
               data-notification-id="${notification.id}" 
               data-room-code="${notification.roomCode}">
-              ✅ ACCEPT
+              ✅ Accept
             </button>
             <button 
-              class="decline-btn px-8 py-4 bg-gradient-to-r from-red-500 to-pink-600 text-white rounded-xl font-black text-lg hover:from-red-400 hover:to-pink-500 transition-all transform hover:scale-105 shadow-lg hover:shadow-red-500/50"
+              class="decline-btn bg-red-500 hover:bg-red-600 px-8 py-4 text-white rounded-xl font-bold text-lg transition-all transform hover:scale-105"
               data-notification-id="${notification.id}">
-              ❌ DECLINE
+              ❌ Decline
             </button>
           </div>
           <div class="mt-4 text-xs text-gray-400">
@@ -373,7 +380,9 @@ export class NotificationWebSocket {
     
     // Auto-remove after 5 seconds
     setTimeout(() => {
-      document.body.removeChild(toast);
+      if (document.body.contains(toast)) {
+        document.body.removeChild(toast);
+      }
     }, 5000);
   }
   
@@ -384,10 +393,27 @@ export class NotificationWebSocket {
     toast.innerHTML = `
       <div class="flex items-center gap-2">
         <span>❌</span>
-        <span><strong>${notification.from}</strong> declined your invitation.</span>
+        <span><strong>${notification.from || 'Player'}</strong> declined your invitation.</span>
       </div>
     `;
-    //       ${notification.roomCode ? `<div class="text-sm mt-1 opacity-90">Room Code: <strong>${notification.roomCode}</strong></div>` : ''}
+    document.body.appendChild(toast);
+    setTimeout(() => {
+      if (document.body.contains(toast)) {
+        document.body.removeChild(toast);
+      }
+    }, 5000);
+  }
+
+  private showPlayerLeftToast(notification: LiveNotification) {
+    console.log('🔔 👋 Showing player left toast:', notification);
+    const toast = document.createElement('div');
+    toast.className = 'fixed top-4 right-4 bg-yellow-500 text-white p-4 rounded-lg shadow-lg z-50';
+    toast.innerHTML = `
+      <div class="flex items-center gap-2">
+        <span>👋</span>
+        <span><strong>${notification.from || 'Player'}</strong> left the waiting room.</span>
+      </div>
+    `;
     document.body.appendChild(toast);
     setTimeout(() => {
       if (document.body.contains(toast)) {
@@ -452,6 +478,11 @@ export class NotificationWebSocket {
 
       if (response.ok) {
         console.log('🔔 ❌ Invitation declined');
+        try {
+          const detail = { id: notificationId, type: 'invitation_declined' } as any;
+          window.dispatchEvent(new CustomEvent('invite:declined', { detail }));
+          try { navigate('/remote'); } catch {}
+        } catch {}
       } else {
         console.error('🔔 ❌ Failed to decline invitation:', response.status);
       }
@@ -464,6 +495,7 @@ export class NotificationWebSocket {
       if (modal) {
         document.body.removeChild(modal);
       }
+      try { document.querySelectorAll('[id^="live-invitation-"]').forEach((el:any)=>el.remove()); } catch {}
     }
   }
 
