@@ -56,16 +56,79 @@ export class RoomManager {
 		return room;
 	}
 
-	leaveRoom(roomId, playerId) {
+	async leaveRoom(roomId, playerId) {
 		const room = this.rooms.get(roomId);
 
 		if (!room) {
 			return;
 		}
 
+		// Get the leaving player's info before removing them
+		const leavingPlayer = room.players.get(playerId);
+		const leavingPlayerName = leavingPlayer?.username || 'Player';
+
+		// Get all other players in the room to notify them
+		const otherPlayers = Array.from(room.players.entries())
+			.filter(([id]) => id !== playerId)
+			.map(([id, player]) => ({ id, username: player.username }));
+
 		room.removePlayer(playerId);
 
 		this.playerToRoom.delete(playerId);
+
+		// Notify other players that someone left (only if game hasn't started)
+		if (otherPlayers.length > 0 && !room.isPlaying) {
+			logger.info(`[RoomManager] Notifying ${otherPlayers.length} players that ${leavingPlayerName} left room ${roomId}`);
+			
+			for (const otherPlayer of otherPlayers) {
+				try {
+					// Extract numeric user ID from playerId (format: "userId_timestamp_random")
+					const userIdMatch = otherPlayer.id.match(/^(\d+)_/);
+					const userId = userIdMatch ? parseInt(userIdMatch[1]) : null;
+
+					if (!userId) {
+						logger.warn(`[RoomManager] Could not extract userId from playerId: ${otherPlayer.id}`);
+						continue;
+					}
+
+					const notificationPayload = {
+						roomCode: roomId,
+						leaverName: leavingPlayerName,
+						message: `${leavingPlayerName} left the waiting room.`
+					};
+
+					const writePayload = {
+						table: 'Notifications',
+						action: 'insert',
+						values: {
+							user_id: userId,
+							actor_id: null,
+							Noti_type: 'player_left_room',
+							payload: JSON.stringify(notificationPayload),
+							Noti_read: 0,
+							created_at: new Date().toISOString()
+						}
+					};
+
+					const response = await fetch('http://database-service:3006/internal/users', {
+						method: 'POST',
+						headers: {
+							'Content-Type': 'application/json',
+							'x-service-auth': 'super_secret_internal_token'
+						},
+						body: JSON.stringify(writePayload)
+					});
+
+					if (response.ok) {
+						logger.info(`[RoomManager] ✅ Notified user ${userId} that ${leavingPlayerName} left`);
+					} else {
+						logger.error(`[RoomManager] ❌ Failed to notify user ${userId}: ${response.status}`);
+					}
+				} catch (error) {
+					logger.error(`[RoomManager] Error notifying player about leave:`, error);
+				}
+			}
+		}
 
 		if (room.isEmpty()) {
 			this.deleteRoom(roomId);

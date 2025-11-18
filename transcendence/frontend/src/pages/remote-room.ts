@@ -186,6 +186,18 @@ export default function (root: HTMLElement, ctx: { params?: { roomId?: string };
 	};
 	window.addEventListener('invite:declined', onInviteDeclined as EventListener);
 
+	// Listen for player left to automatically exit waiting room
+	const onPlayerLeft = (e: Event) => {
+		const detail: any = (e as CustomEvent).detail || {};
+		console.log('🔔 Player left in remote-room:', detail);
+		updateStatus(root, `👋 ${detail?.from || 'Player'} left the waiting room`, 'error');
+		// Automatically navigate back to remote lobby after 1.5 seconds
+		setTimeout(() => {
+			navigate('/remote');
+		}, 1500);
+	};
+	window.addEventListener('player:left', onPlayerLeft as EventListener);
+
 	return () => {
 	try {
 	if (gameState?.ws) {
@@ -205,6 +217,7 @@ export default function (root: HTMLElement, ctx: { params?: { roomId?: string };
 	if (moveRepeatTimer) { clearInterval(moveRepeatTimer); moveRepeatTimer = null; }
 	if (pingTimer) { clearInterval(pingTimer); pingTimer = null; }
 	window.removeEventListener('invite:declined', onInviteDeclined as EventListener);
+	window.removeEventListener('player:left', onPlayerLeft as EventListener);
 	gameState = null;
 	didMountRemoteRoom = false;
 	isConnectingRemoteRoom = false;

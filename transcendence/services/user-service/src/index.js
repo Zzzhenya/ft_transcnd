@@ -916,6 +916,8 @@ fastify.get('/notifications/unread', {
         fromName = payload.declinerName || 'Unknown';
       } else if (notification.Noti_type === 'invitation_accepted') {
         fromName = payload.accepterName || 'Unknown';
+      } else if (notification.Noti_type === 'player_left_room') {
+        fromName = payload.leaverName || 'Unknown';
       } else {
         fromName = payload.inviterName || 'Unknown';
       }
