@@ -535,6 +535,20 @@ export default function (root: HTMLElement) {
 		})();
 	}
 
+	// Listen for invite declined to exit waiting room if present
+	const onInviteDeclined = (e: Event) => {
+		const detail: any = (e as CustomEvent).detail || {};
+		console.log('🔔 Invite declined in remote page:', detail);
+		showMessage(`${detail?.from || 'Player'} declined your invitation`, 'error');
+		hideStatus();
+		// If user is in a waiting state, clear it
+		const statusArea = root.querySelector("#statusArea");
+		if (statusArea && !statusArea.classList.contains("hidden")) {
+			hideStatus();
+		}
+	};
+	window.addEventListener('invite:declined', onInviteDeclined as EventListener);
+
 	// Load data (online manager is already initialized in main.ts)
 	Promise.all([loadFriends(), loadOnlineUsers()]).then(() => {
 		render();
@@ -542,6 +556,7 @@ export default function (root: HTMLElement) {
 
 	// Cleanup
 	return () => {
+		window.removeEventListener('invite:declined', onInviteDeclined as EventListener);
 		// Note: Don't destroy online manager here since it's managed globally in main.ts
 		console.log('🧹 Remote page cleanup complete');
 	};

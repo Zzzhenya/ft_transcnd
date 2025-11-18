@@ -158,7 +158,7 @@ export class NotificationWebSocket {
 
   private handleLiveNotification(notification: LiveNotification) {
     console.log('🔔 🎮 Handling live notification:', notification);
-    console.log('🔔 🎮 Notification type check:', notification.type, 'Expected: game_invite or invitation_accepted');
+    console.log('🔔 🎮 Notification type check:', notification.type, 'Expected: game_invite or invitation_accepted or invitation_declined');
     
     if (notification.type === 'game_invite') {
       console.log('🔔 🎮 ✅ GAME INVITE detected - calling showGameInvitation');
@@ -171,6 +171,14 @@ export class NotificationWebSocket {
     } else if (notification.type === 'invitation_accepted') {
       console.log('🔔 🎮 ✅ INVITATION ACCEPTED detected - calling showInvitationAccepted');
       this.showInvitationAccepted(notification);
+    } else if (notification.type === 'invitation_declined') {
+      console.log('🔔 🎮 ✅ INVITATION DECLINED detected - dispatching invite:declined');
+      try {
+        window.dispatchEvent(new CustomEvent('invite:declined', { detail: notification }));
+        this.showInvitationDeclinedToast(notification);
+      } catch (error) {
+        console.error('🔔 🎮 ❌ ERROR handling invitation_declined:', error);
+      }
     } else {
       console.log('🔔 🎮 ❓ Unknown notification type:', notification.type);
     }
@@ -366,6 +374,25 @@ export class NotificationWebSocket {
     // Auto-remove after 5 seconds
     setTimeout(() => {
       document.body.removeChild(toast);
+    }, 5000);
+  }
+  
+  private showInvitationDeclinedToast(notification: LiveNotification) {
+    console.log('🔔 😔 Showing invitation declined toast:', notification);
+    const toast = document.createElement('div');
+    toast.className = 'fixed top-4 right-4 bg-red-500 text-white p-4 rounded-lg shadow-lg z-50';
+    toast.innerHTML = `
+      <div class="flex items-center gap-2">
+        <span>❌</span>
+        <span><strong>${notification.from}</strong> declined your invitation.</span>
+      </div>
+    `;
+    //       ${notification.roomCode ? `<div class="text-sm mt-1 opacity-90">Room Code: <strong>${notification.roomCode}</strong></div>` : ''}
+    document.body.appendChild(toast);
+    setTimeout(() => {
+      if (document.body.contains(toast)) {
+        document.body.removeChild(toast);
+      }
     }, 5000);
   }
 

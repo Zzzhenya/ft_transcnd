@@ -174,6 +174,18 @@ export default function (root: HTMLElement, ctx: { params?: { roomId?: string };
 	}
 	setupRoomEventListeners(root);
 
+	// Listen for invite declined to automatically exit waiting room
+	const onInviteDeclined = (e: Event) => {
+		const detail: any = (e as CustomEvent).detail || {};
+		console.log('🔔 Invite declined in remote-room:', detail);
+		updateStatus(root, `❌ ${detail?.from || 'Player'} declined your invitation`, 'error');
+		// Automatically navigate back to remote lobby after 1.5 seconds
+		setTimeout(() => {
+			navigate('/remote');
+		}, 1500);
+	};
+	window.addEventListener('invite:declined', onInviteDeclined as EventListener);
+
 	return () => {
 	try {
 	if (gameState?.ws) {
@@ -192,6 +204,7 @@ export default function (root: HTMLElement, ctx: { params?: { roomId?: string };
 	window.removeEventListener('keyup', handleKeyUp);
 	if (moveRepeatTimer) { clearInterval(moveRepeatTimer); moveRepeatTimer = null; }
 	if (pingTimer) { clearInterval(pingTimer); pingTimer = null; }
+	window.removeEventListener('invite:declined', onInviteDeclined as EventListener);
 	gameState = null;
 	didMountRemoteRoom = false;
 	isConnectingRemoteRoom = false;
