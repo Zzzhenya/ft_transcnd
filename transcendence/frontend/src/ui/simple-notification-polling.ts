@@ -268,14 +268,14 @@ export class SimpleNotificationPoller {
   }
 
   private showInvitationDeclined(notification: SimpleNotification) {
-    console.log('🔔 DECLINE: Attempting to show notification', notification.id);
+    //console.log('🔔 DECLINE: Attempting to show notification', notification.id);
     // Check if we already showed this notification
     const shownKey = `decline_shown_${notification.id}`;
     if (sessionStorage.getItem(shownKey)) {
-      console.log('🔔 DECLINE: Already shown, skipping', notification.id);
+      //console.log('🔔 DECLINE: Already shown, skipping', notification.id);
       return; // Already shown, don't show again
     }
-    console.log('🔔 DECLINE: Showing toast for', notification.id);
+    //console.log('🔔 DECLINE: Showing toast for', notification.id);
     sessionStorage.setItem(shownKey, 'true');
     
     // Remove any existing decline toasts first

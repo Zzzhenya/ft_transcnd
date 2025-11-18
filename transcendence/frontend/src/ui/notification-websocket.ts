@@ -51,19 +51,14 @@ export class NotificationWebSocket {
         this.ws.close();
       }
 
-      // Build WebSocket URL - use secure WebSocket for HTTPS
-      const isHTTPS = GATEWAY_BASE.includes('https');
-      const wsProtocol = isHTTPS ? 'wss' : 'ws';
+      // Build WebSocket URL - use same-origin with correct protocol
+      const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const host = window.location.host;
       
-      console.log('🔔 🔍 isHTTPS:', isHTTPS, 'wsProtocol:', wsProtocol);
+      console.log('🔔 🔍 wsProtocol:', wsProtocol, 'host:', host);
       
-      // Extract base URL without /api if present
-      let baseUrl = GATEWAY_BASE;
-      if (baseUrl.includes('/api')) {
-        baseUrl = baseUrl.replace('/api', '');
-      }
-      
-      const wsUrl = `${baseUrl.replace(/^https?/, wsProtocol)}/api/user-service/ws/notifications?token=${encodeURIComponent(token)}`;
+      // Use same-origin URL through nginx proxy
+      const wsUrl = `${wsProtocol}//${host}/api/user-service/ws/notifications?token=${encodeURIComponent(token)}`;
       console.log('🔔 🎯 Final WebSocket URL:', wsUrl);
       console.log('🔔 🎯 About to create WebSocket with URL above...');
       
