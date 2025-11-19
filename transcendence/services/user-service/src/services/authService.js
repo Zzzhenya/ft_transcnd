@@ -8,8 +8,34 @@ const path = require('path');
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
 class AuthService {
+  // Check User Name for special Charater
+  static validateUsername(username) {
+    // Only This Char allowed
+    const usernameRegex = /^[a-zA-Z0-9_-]+$/;
+    
+    if (!username || username.length < 3 || username.length > 20) {
+      throw new Error('Username must be between 3 and 20 characters');
+    }
+    
+    if (!usernameRegex.test(username)) {
+      throw new Error('Username can only contain letters, numbers, underscores, and hyphens');
+    }
+    
+    // Dangarous Charater
+    const dangerousChars = ['<', '>', '"', "'", '&', '/', '\\', '=', '(', ')', '{', '}', '[', ']', '`', '$'];
+    for (const char of dangerousChars) {
+      if (username.includes(char)) {
+        throw new Error('Username contains invalid characters');
+      }
+    }
+    
+    return true;
+  }
+
   static async register(username, email, password, displayName = null) {
     try {
+
+      this.validateUsername(username);
       // Check if user already exists
       const existingEmail = await User.findByEmail(email);
       if (existingEmail) {

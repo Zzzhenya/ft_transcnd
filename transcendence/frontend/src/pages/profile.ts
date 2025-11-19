@@ -1,6 +1,7 @@
 // frontend/src/pages/profile.ts
 import { getAuth, signOut, getToken } from "@/app/auth";
 import { navigate } from "@/app/router";
+import { escapeHtml, sanitizeInput } from '@/utils/security';
 const GATEWAY_BASE = import.meta.env.VITE_GATEWAY_BASE || '/api';
 
 export default function (root: HTMLElement, ctx?: { url?: URL }) {
@@ -68,6 +69,11 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
     const userInfoContainer = root.querySelector('#user-info-container');
     if (!userInfoContainer) return;
 
+    // Safe UserData
+    const safeUsername = escapeHtml(userProfile.username || 'N/A');
+    const safeDisplayName = escapeHtml(userProfile.display_name || userProfile.username || userProfile.name || 'Unknown');
+    const safeEmail = escapeHtml(userProfile.email || 'N/A');
+
     userInfoContainer.innerHTML = `
       <div class="flex items-center gap-6 mb-6">
         <!-- Avatar mit Change Button -->
@@ -94,7 +100,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
             <div>
               <p class="text-sm text-gray-500 mb-1">Display Name</p>
               <div class="flex items-center gap-2">
-                <p class="font-semibold text-lg">${userProfile.display_name || userProfile.username || userProfile.name || 'Unknown'}</p>
+                <p class="font-semibold text-lg">${safeDisplayName || safeUsername || 'Unknown'}</p>
                 ${!userProfile.is_guest ? `
                   <button id="change-display-name-btn" class="text-blue-600 hover:text-blue-800 text-sm font-medium">
                     change
@@ -109,7 +115,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
             <div>
               <p class="text-sm text-gray-500 mb-1">Username</p>
               <div class="flex items-center gap-2">
-                <p class="font-semibold">${userProfile.username || 'N/A'}</p>
+                <p class="font-semibold">${safeUsername || 'N/A'}</p>
                 ${!userProfile.is_guest ? `
                   <button id="change-username-btn" class="text-blue-600 hover:text-blue-800 text-sm font-medium">
                     change
@@ -120,7 +126,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
             <div>
               <p class="text-sm text-gray-500 mb-1">Email</p>
               <div class="flex items-center gap-2">
-                <p class="font-semibold">${userProfile.email || 'N/A'}</p>
+                <p class="font-semibold">${safeEmail || 'N/A'}</p>
                 ${!userProfile.is_guest ? `
                   <button id="change-email-btn" class="text-blue-600 hover:text-blue-800 text-sm font-medium">
                     change
@@ -621,6 +627,15 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
       return;
     }
 
+    const displayNameRegex = /^[a-zA-Z0-9 _\-\.]+$/;
+    if (!displayNameRegex.test(newDisplayName)) {
+      if (displayNameError) {
+        displayNameError.textContent = 'Display name can only contain letters, numbers, spaces, and basic punctuation';
+        displayNameError.classList.remove('hidden');
+      }
+      return;
+    }
+
     if (newDisplayName.length > 50) {
       if (displayNameError) {
         displayNameError.textContent = 'Display name must be 50 characters or less';
@@ -683,7 +698,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
                   id="new-username" 
                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                   placeholder="Enter new username"
-                  value="${userProfile.username || ''}"
+                  value="${safeUsername || ''}"
                   maxlength="20"
                 />
                 <p class="text-xs text-gray-500 mt-1">3-20 characters, only letters, numbers, and underscores</p>
@@ -794,6 +809,8 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
     }
   }
 
+
+  //================================================================Friendsupdate============================================
   // Load incoming friend requests
   async function loadFriendRequests() {
     if (!user) return;
@@ -1028,14 +1045,32 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
     const friendsContainer = root.querySelector('#friends-container');
     if (!friendsContainer) return;
 
+
+
+    // friendsContainer.innerHTML = `
+    //   <div class="space-y-3">
+    //     ${friends.length > 0 ? friends.map(friend => `
+    //       <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
+    //         <div class="flex items-center gap-3">
+    //           <div class="w-3 h-3 rounded-full ${friend.status === 'accepted' ? 'bg-green-400' : friend.status === 'pending' ? 'bg-yellow-400' : 'bg-gray-400'}"></div>
+    //           <div>
+    //             <span class="font-semibold">${friend.username || 'Unknown User'}</span>
+    //             <div class="text-xs text-gray-500">
+    //               Status: ${friend.status} • Added: ${new Date(friend.created_at).toLocaleDateString()}
+    //             </div>
+    //           </div>
+    //         </div>
     friendsContainer.innerHTML = `
       <div class="space-y-3">
-        ${friends.length > 0 ? friends.map(friend => `
+      ${friends.length > 0 ? friends.map(friend => {
+      const safeFriendUsername = escapeHtml(friend.username || 'Unknown User');
+        
+        return `
           <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
             <div class="flex items-center gap-3">
               <div class="w-3 h-3 rounded-full ${friend.status === 'accepted' ? 'bg-green-400' : friend.status === 'pending' ? 'bg-yellow-400' : 'bg-gray-400'}"></div>
               <div>
-                <span class="font-semibold">${friend.username || 'Unknown User'}</span>
+                <span class="font-semibold">${safeFriendUsername}</span>  <!-- HIER verwenden -->
                 <div class="text-xs text-gray-500">
                   Status: ${friend.status} • Added: ${new Date(friend.created_at).toLocaleDateString()}
                 </div>
@@ -1051,7 +1086,8 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
               `}
             </div>
           </div>
-        `).join('') : `
+        `;
+      }).join('') : `
           <div class="text-center py-8 text-gray-500">
             <div class="text-6xl mb-3 opacity-20">👥</div>
             <p class="font-semibold text-lg">No friends yet</p>

@@ -10,4 +10,10 @@ created Date :  17.11.2025
 ![alt text](image-2.png)
 
 ## Automated Test's files 
-start all the 
+- [ ] start all the scripts 
+- [ ] Check 
+
+```
+nmap -p 8080 Server_IP
+curl http://Server_IP:8080
+```
