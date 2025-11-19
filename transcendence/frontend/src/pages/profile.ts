@@ -482,10 +482,19 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
       return;
     }
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const emailRegex = /^[a-zA-Z0-9.!#$%&'*+\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
     if (!emailRegex.test(newEmail)) {
       if (emailError) {
         emailError.textContent = 'Please enter a valid email address';
+        emailError.classList.remove('hidden');
+      }
+      return;
+    }
+
+    const dangerousChars = ['<', '>', '"', "'", '&', '(', ')', '{', '}', '[', ']', '`', '$'];
+    if (dangerousChars.some(char => newEmail.includes(char))) {
+      if (emailError) {
+        emailError.textContent = 'Email contains invalid characters';
         emailError.classList.remove('hidden');
       }
       return;
@@ -698,7 +707,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
                   id="new-username" 
                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
                   placeholder="Enter new username"
-                  value="${safeUsername || ''}"
+                  value="${userProfile.username || ''}"
                   maxlength="20"
                 />
                 <p class="text-xs text-gray-500 mt-1">3-20 characters, only letters, numbers, and underscores</p>
