@@ -107,7 +107,7 @@ export function createLocalScene(canvas: HTMLCanvasElement): LocalSceneControlle
   let WORLD_Z_SCALE = 0.04;  // -100~100 -> -8~8
 
   // (LOGIC_X_MAX - LOGIC_X_MIN) * WORLD_X_SCALE;
-  let tableWidthWorld = (LOGIC_X_MAX - LOGIC_X_MIN) * WORLD_X_SCALE;
+  // let tableWidthWorld = (LOGIC_X_MAX - LOGIC_X_MIN) * WORLD_X_SCALE;
   let tableDepthWorld = (LOGIC_Z_MAX - LOGIC_Z_MIN) * WORLD_Z_SCALE;
 
   let tableCenterX = 0;
@@ -334,7 +334,7 @@ export function createLocalScene(canvas: HTMLCanvasElement): LocalSceneControlle
 		WORLD_X_SCALE = (Math.abs(worldWidth) > SAFE_EPS ? worldWidth : SAFE_EPS) / logicWidth;
 		WORLD_Z_SCALE = (Math.abs(worldDepth) > SAFE_EPS ? worldDepth : SAFE_EPS) / logicDepth;
 	
-		tableWidthWorld  = worldWidth;
+		// tableWidthWorld  = worldWidth;
 		tableDepthWorld  = worldDepth;
 
 		const tableTopGuess = max.y;

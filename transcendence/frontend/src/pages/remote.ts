@@ -61,51 +61,51 @@ export default function (root: HTMLElement) {
 	}
 
 	// Add friend function
-	async function addFriend(username: string) {
-		try {
-			if (user) {
-				const token = getToken();
-				const res = await fetch(`/api/user-service/users/${user.id}/friends`, {
-					method: 'POST',
-					headers: {
-						'Content-Type': 'application/json',
-						'Authorization': `Bearer ${token || ''}`
-					},
-					credentials: 'include',
-					body: JSON.stringify({ friendUsername: username })
-				});
+	// async function addFriend(username: string) {
+	// 	try {
+	// 		if (user) {
+	// 			const token = getToken();
+	// 			const res = await fetch(`/api/user-service/users/${user.id}/friends`, {
+	// 				method: 'POST',
+	// 				headers: {
+	// 					'Content-Type': 'application/json',
+	// 					'Authorization': `Bearer ${token || ''}`
+	// 				},
+	// 				credentials: 'include',
+	// 				body: JSON.stringify({ friendUsername: username })
+	// 			});
 				
-				if (res.ok) {
-					showMessage('Friend request sent successfully!', 'success');
-					await loadFriends(); // Reload friends list
-					await render(); // Re-render the page
-				} else {
-					const error = await res.json();
-					showMessage(error.message || 'Failed to add friend', 'error');
-				}
-			}
-		} catch (error) {
-			console.log('Could not add friend:', error);
-			showMessage('Failed to add friend', 'error');
-		}
-	}
+	// 			if (res.ok) {
+	// 				showMessage('Friend request sent successfully!', 'success');
+	// 				await loadFriends(); // Reload friends list
+	// 				await render(); // Re-render the page
+	// 			} else {
+	// 				const error = await res.json();
+	// 				showMessage(error.message || 'Failed to add friend', 'error');
+	// 			}
+	// 		}
+	// 	} catch (error) {
+	// 		console.log('Could not add friend:', error);
+	// 		showMessage('Failed to add friend', 'error');
+	// 	}
+	// }
 
 	// Show message function
-	function showMessage(message: string, type: 'success' | 'error' | 'info') {
-		const messageEl = document.createElement('div');
-		messageEl.className = `fixed top-4 right-4 px-6 py-3 rounded-lg font-semibold z-50 transition-all transform translate-x-0 ${
-			type === 'success' ? 'bg-green-500 text-white' :
-			type === 'error' ? 'bg-red-500 text-white' :
-			'bg-blue-500 text-white'
-		}`;
-		messageEl.textContent = message;
-		document.body.appendChild(messageEl);
+	// function showMessage(message: string, type: 'success' | 'error' | 'info') {
+	// 	const messageEl = document.createElement('div');
+	// 	messageEl.className = `fixed top-4 right-4 px-6 py-3 rounded-lg font-semibold z-50 transition-all transform translate-x-0 ${
+	// 		type === 'success' ? 'bg-green-500 text-white' :
+	// 		type === 'error' ? 'bg-red-500 text-white' :
+	// 		'bg-blue-500 text-white'
+	// 	}`;
+	// 	messageEl.textContent = message;
+	// 	document.body.appendChild(messageEl);
 		
-		setTimeout(() => {
-			messageEl.style.transform = 'translateX(100%)';
-			setTimeout(() => messageEl.remove(), 300);
-		}, 3000);
-	}
+	// 	setTimeout(() => {
+	// 		messageEl.style.transform = 'translateX(100%)';
+	// 		setTimeout(() => messageEl.remove(), 300);
+	// 	}, 3000);
+	// }
 
 	// Load online users for matchmaking
 	async function loadOnlineUsers() {

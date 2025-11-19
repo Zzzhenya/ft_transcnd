@@ -339,8 +339,8 @@ async function httpFallbackReady(root: HTMLElement, uname: string) {
 	window.addEventListener('visibilitychange', () => {
 	try {
 	// Blur any active element that is not our canvas to ensure keys go to canvas
-	const ae = document.activeElement as HTMLElement | null;
-	if (ae && ae !== canvas) ae.blur();
+	// const ae = document.activeElement as HTMLElement | null;
+	// if (ae && ae !== canvas) ae.blur();
 	(canvas as any).focus?.();
 	} catch {}
 	updateDiagnostics(root);
@@ -462,7 +462,8 @@ function handleServerMessage(root: HTMLElement, message: any) {
 				}
 				let players = Array.from(dedupMap.values());
 				// Ensure self is present exactly once
-				const hasSelf = players.some((p: any) => p.playerId === gameState.playerId);
+				const hasSelf = players.some(p => p.playerId === gameState?.playerId);
+
 				if (!hasSelf) {
 					players.push({
 						playerId: gameState.playerId,
@@ -572,7 +573,7 @@ function refreshReadyButtonState(root: HTMLElement) {
 	const twoRolesAssigned = !!p1 && !!p2;
 	const wsOpen = isWsOpen();
 	// Identify self by server-authoritative playerId
-	const me = gameState.players.find(p => p.playerId === gameState.playerId) || null;
+	const me = gameState?.players.find(p => p.playerId === gameState?.playerId) || null;
 	const meNotReady = me ? !me.ready : true; // if not in list yet, allow ready once connected
 	const enable = twoRolesAssigned && wsOpen && meNotReady && !gameState.gameStarted && !!gameState.serverIdReady;
 	btn.disabled = !enable;

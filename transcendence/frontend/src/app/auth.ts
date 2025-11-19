@@ -123,6 +123,7 @@ export async function signOut() {
 	  "/auth/logout",
 	  { method: "POST", credentials: 'include', body: JSON.stringify({}) }
 	);
+	console.log(data);
   // Report offline first (centralized here so all callers inherit it)
   try { await reportOffline(); } catch {}
 

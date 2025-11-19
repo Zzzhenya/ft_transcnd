@@ -11,7 +11,7 @@
  */
 
 import { getAuth, getToken } from '../app/auth';
-import type { PublicUser } from '../../../shared/types';
+//import type { PublicUser } from '../../../shared/types';
 
 interface CachedFriendStatus {
   friends: any[];
@@ -23,14 +23,14 @@ class EfficientOnlineManager {
   private static instance: EfficientOnlineManager;
   private isUserActive = true;
   private lastActivity = Date.now();
-  private friendsCache: CachedFriendStatus | null = null;
+  //private friendsCache: CachedFriendStatus | null = null;
   private activityCheckInterval: number | null = null;
   private heartbeatInterval: number | null = null;
   private tabId: string;
   
   // Cache settings
   private static readonly CACHE_DURATION = 60000; // 1 minute
-  private static readonly ACTIVITY_CHECK = 120000; // 2 minutes
+  //private static readonly ACTIVITY_CHECK = 120000; // 2 minutes
   private static readonly HEARTBEAT_INTERVAL = 30000; // 30 seconds
   private static readonly CACHE_KEY = 'transcendence_friends_status';
   private static readonly TABS_KEY = 'transcendence_active_tabs';
@@ -52,6 +52,7 @@ class EfficientOnlineManager {
     console.log('🎯 Initializing efficient online status manager with tab ID:', this.tabId);
     this.isUserActive = true;
     this.lastActivity = Date.now();
+    console.log(this.lastActivity)
     
     // Register this tab
     this.registerTab();

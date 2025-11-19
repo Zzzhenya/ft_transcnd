@@ -4,7 +4,7 @@ import "./styles.css";
 // Router setup: History API (f / b) + link interception.
 import { initRouter } from "./app/router";
 import { getAuth, getToken } from "./app/auth";
-import { notificationWS } from "./ui/notification-websocket";
+//import { notificationWS } from "./ui/notification-websocket";
 import { simpleNotificationPoller } from "./ui/simple-notification-polling";
 import { onlineManager } from "./utils/efficient-online-status";
 

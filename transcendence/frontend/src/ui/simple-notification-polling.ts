@@ -247,7 +247,8 @@ export class SimpleNotificationPoller {
   async declineInvitation(notificationId: number) {
     try {
       const token = getToken();
-      const response = await fetch(`${GATEWAY_BASE}/user-service/notifications/${notificationId}/decline`, {
+      // const response =
+      await fetch(`${GATEWAY_BASE}/user-service/notifications/${notificationId}/decline`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -300,14 +301,14 @@ export class SimpleNotificationPoller {
     // `;
     //  ${notification.roomCode ? `<div class="text-xs mt-1 opacity-75">Room Code: <strong>${notification.roomCode}</strong></div>` : ''}
     
-    document.body.appendChild(toast);
+    // document.body.appendChild(toast);
     
-    // Remove toast after 10 seconds
-    setTimeout(() => {
-      if (document.body.contains(toast)) {
-        document.body.removeChild(toast);
-      }
-    }, 10000);
+    // // Remove toast after 10 seconds
+    // setTimeout(() => {
+    //   if (document.body.contains(toast)) {
+    //     document.body.removeChild(toast);
+    //   }
+    // }, 10000);
   }
 
   private showPlayerLeftRoom(notification: SimpleNotification) {
@@ -344,14 +345,14 @@ export class SimpleNotificationPoller {
     //            ${notification.roomCode ? `<div class="text-xs mt-1 opacity-75">Room Code: <strong>${notification.roomCode}</strong></div>` : ''}
 
     
-    document.body.appendChild(toast);
+    // document.body.appendChild(toast);
     
-    // Remove toast after 10 seconds
-    setTimeout(() => {
-      if (document.body.contains(toast)) {
-        document.body.removeChild(toast);
-      }
-    }, 10000);
+    // // Remove toast after 10 seconds
+    // setTimeout(() => {
+    //   if (document.body.contains(toast)) {
+    //     document.body.removeChild(toast);
+    //   }
+    // }, 10000);
   }
 
   showInvitationCountdown(friendName: string, roomCode: string, timeoutMs: number = 10000) {

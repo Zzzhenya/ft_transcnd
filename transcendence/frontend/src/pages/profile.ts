@@ -12,7 +12,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
   }
 
   let friends: any[] = [];
-  let onlineUsers: any[] = [];
+  // let onlineUsers: any[] = [];
   let userProfile: any = user;
   let friendRequests: any[] = [];
   let selectedAvatarFile: File | null = null;
@@ -901,8 +901,8 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
     try {
       const res = await fetch(`/api/user-service/users/online`);
       if (res.ok) {
-        const data = await res.json();
-        onlineUsers = data.users || [];
+        // const data = await res.json();
+        // const onlineUsers = data.users || [];
       }
     } catch (error) {
       console.log('Could not load online users:', error);
@@ -939,7 +939,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
       });
       
       if (res.ok) {
-        const result = await res.json();
+        // const result = await res.json();
         showMessage('Account successfully deleted. Logging out...', 'success');
         
         // Warte 2 Sekunden, damit der User die Nachricht sieht

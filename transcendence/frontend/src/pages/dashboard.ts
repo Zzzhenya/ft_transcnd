@@ -179,9 +179,12 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
   });
 
   // Load Remote Matches
-  loadRemoteMatches(user.id);
+  const num = Number(user.id)
+  loadRemoteMatches(num);
+  /*loadRemoteMatches(user.id);*/
 
-  loadTournaments(user.id);
+ loadTournaments(num);
+  // loadTournaments(user.id);
 
   setupModalHandlers();
 }
@@ -430,7 +433,8 @@ async function openTournamentModal(tournamentId: number) {
       if (!matchesByRound[match.round]) {
         matchesByRound[match.round] = [];
       }
-      matchesByRound[match.round].push(match);
+      // matchesByRound[match.round].push(match);
+      (matchesByRound[match.round] ??= []).push(match);
     });
 
     // Render matches by round
@@ -515,7 +519,7 @@ function setupModalHandlers() {
 
   // Close on Escape key
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && !modal?.classList.contains('hidden')) {
+    if (e.key === 'Escape' && modal && !modal?.classList.contains('hidden')) {
       modal.classList.add('hidden');
     }
   });
