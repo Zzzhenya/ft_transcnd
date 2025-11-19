@@ -203,8 +203,8 @@ try {
   logger.info('[[Gateway]] register user-service ws routes ');
   // Register WebSocket for internal calls
   Fastify.register(wsRoute, { prefix: '/ws' });
-  // Register WebSocket for frontend calls  
-  Fastify.register(wsNotificationRoute, { prefix: '/api/user-service/ws' });
+  // Register WebSocket for frontend calls (nginx removes /api prefix, so we register without it)
+  Fastify.register(wsNotificationRoute, { prefix: '/user-service/ws' });
   logger.info('[[Gateway]] ✅ Registered ws route with prefix /user-service/ws');
   logger.info('[[Gateway]] register /pong/demo routes ');
   Fastify.register(pongDemoRoute, { prefix: '/pong/demo' });

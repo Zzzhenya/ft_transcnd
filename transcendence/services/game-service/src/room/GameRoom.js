@@ -2,9 +2,10 @@
 
 import { initialGameState, moveBall, movePaddle } from '../pong/gameLogic.js';
 import logger from '../utils/logger.js';
+import { createRemoteMatch, startRemoteMatch, finishRemoteMatch, cancelRemoteMatch } from '../utils/remoteMatchDB.js';
 
 function safePaddleSet(gameState, player, value, source) {
-	logger.info(`[DEBUG] Setting ${player} paddle to ${value} from ${source}`);
+	//logger.info(`[DEBUG] Setting ${player} paddle to ${value} from ${source}`);
 
 	if (isNaN(value)) {
 		logger.error(`[DEBUG] ⚠️ Attempted to set ${player} to NaN from ${source}! Stack trace:`);
@@ -14,12 +15,12 @@ function safePaddleSet(gameState, player, value, source) {
 		gameState.paddles[player] = value;
 	}
 
-	logger.info(`[DEBUG] ${player} paddle is now: ${gameState.paddles[player]}`);
+	//logger.info(`[DEBUG] ${player} paddle is now: ${gameState.paddles[player]}`);
 }
 
 
 export class GameRoom {
-	constructor(roomId) {
+	constructor(roomId, options = {}) {
 		this.roomId = roomId;
 		this.players = new Map();
 		this.maxPlayers = 2;
@@ -30,8 +31,12 @@ export class GameRoom {
 		this.isPaused = false;
 		this.createdAt = Date.now();
 		this.lastActivity = Date.now();
+		this.matchId = null; // Database match ID
+		this.matchStarted = false; // Track if match has been marked as started in DB
+		this.gameType = options.gameType || 'remote'; // 'remote' or 'tournament'
+		this.tournamentId = options.tournamentId || null; // Tournament ID if applicable
 
-		logger.info(`[GameRoom] Room ${roomId} created`);
+		logger.info(`[GameRoom] Room ${roomId} created (type: ${this.gameType})`);
 	}
 
 	createInitialGameState() {
@@ -117,6 +122,11 @@ export class GameRoom {
 			totalPlayers: this.players.size
 		}, playerId);
 
+		// 🎮 DATABASE: Create match when both players have joined
+		if (this.players.size === 2 && !this.matchId) {
+			this.createDatabaseMatch();
+		}
+
 		return true;
 	}
 
@@ -177,13 +187,16 @@ export class GameRoom {
 		}
 	}
 
-	startCountdown() {
+	async startCountdown() {
 		if (this.countdownInterval) {
 			clearInterval(this.countdownInterval);
 			this.countdownInterval = null;
 		}
 
 		logger.info(`[GameRoom] 🕐 Starting countdown in room ${this.roomId}`);
+
+		// 🎮 DATABASE: Create match when both players are ready
+		await this.createDatabaseMatch();
 
 		let count = 3;
 
@@ -210,13 +223,48 @@ export class GameRoom {
 		}, 1000);
 	}
 
-	startGame() {
+	async createDatabaseMatch() {
+		// Only create Remote_Match records for remote games, not tournaments
+		if (this.gameType !== 'remote') {
+			logger.info(`[GameRoom] Skipping Remote_Match creation for ${this.gameType} game`);
+			return;
+		}
+
+		// Get player user IDs from playerInfo (must be set when players connect)
+		const playersArray = Array.from(this.players.values());
+		
+		if (playersArray.length !== 2) {
+			logger.warn(`[GameRoom] Cannot create DB match: need 2 players, have ${playersArray.length}`);
+			return;
+		}
+
+		const player1UserId = playersArray[0].info.userId;
+		const player2UserId = playersArray[1].info.userId;
+
+		if (!player1UserId || !player2UserId) {
+			logger.warn(`[GameRoom] Cannot create DB match: missing user IDs (P1=${player1UserId}, P2=${player2UserId})`);
+			return;
+		}
+
+		this.matchId = await createRemoteMatch(player1UserId, player2UserId);
+		
+		if (this.matchId) {
+			logger.info(`[GameRoom] ✅ Remote_Match created: ID=${this.matchId}`);
+		}
+	}
+
+	async startGame() {
 		if (this.isPlaying) {
 			logger.warn(`[GameRoom] Game already started in room ${this.roomId}`);
 			return;
 		}
 
 		logger.info(`[GameRoom] 🚀 Starting game in room ${this.roomId}`);
+
+		// 🎮 DATABASE: Mark match as started
+		if (this.matchId) {
+			await startRemoteMatch(this.matchId);
+		}
 
 		this.gameState = this.createInitialGameState();
 
@@ -357,7 +405,7 @@ export class GameRoom {
 		return null;
 	}
 
-	endGame(winner) {
+	async endGame(winner) {
 		logger.info(`[GameRoom] 🏆 Game ended in room ${this.roomId}, winner: P${winner}`);
 
 		this.stopGame();
@@ -365,6 +413,21 @@ export class GameRoom {
 		if (this.gameState) {
 			this.gameState.tournament.gameStatus = 'gameEnd';
 			this.gameState.tournament.winner = `player${winner}`;
+		}
+
+		// 🎮 DATABASE: Save match result
+		if (this.matchId && this.gameState) {
+			const playersArray = Array.from(this.players.values());
+			const winnerUserId = playersArray[winner - 1]?.info.userId;
+			
+			if (winnerUserId) {
+				await finishRemoteMatch(
+					this.matchId,
+					winnerUserId,
+					this.gameState.score.player1,
+					this.gameState.score.player2
+				);
+			}
 		}
 
 		this.broadcast({
@@ -377,7 +440,7 @@ export class GameRoom {
 		this.lastActivity = Date.now();
 	}
 
-	updatePaddle(playerId, direction) {
+	async updatePaddle(playerId, direction) {
 		const player = this.players.get(playerId);
 
 		if (!player) {
@@ -403,6 +466,12 @@ export class GameRoom {
 		if (this.gameState.tournament.gameStatus !== 'playing') {
 			logger.warn(`[GameRoom] updatePaddle: tournament status is ${this.gameState.tournament.gameStatus}`);
 			return;
+		}
+
+		// 🎮 DATABASE: Mark match as started on first paddle move
+		if (this.matchId && !this.matchStarted) {
+			this.matchStarted = true;
+			await startRemoteMatch(this.matchId);
 		}
 
 		const playerKey = `player${player.playerNumber}`;
