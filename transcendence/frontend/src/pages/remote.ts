@@ -436,13 +436,13 @@ export default function (root: HTMLElement) {
 			console.log('🎮 user:', user, 'token:', token);
 			if (!user) { showStatus('You must be signed in to invite', 'error'); return; }
 			try {
-				console.log('🔥 DEBUG: About to send invite request');
-				console.log('🔥 DEBUG: URL:', `/api/user-service/users/${friendId}/invite`);
-				console.log('🔥 DEBUG: Headers:', {
-					'Content-Type': 'application/json',
-					'Authorization': `Bearer ${token || ''}`,
-				});
-				console.log('🔥 DEBUG: Body:', JSON.stringify({ type: 'game_invite' }));
+				// console.log('🔥 DEBUG: About to send invite request');
+				// console.log('🔥 DEBUG: URL:', `/api/user-service/users/${friendId}/invite`);
+				// console.log('🔥 DEBUG: Headers:', {
+				// 	'Content-Type': 'application/json',
+				// 	'Authorization': `Bearer ${token || ''}`,
+				// });
+				//console.log('🔥 DEBUG: Body:', JSON.stringify({ type: 'game_invite' }));
 				
 				console.log('🎮 About to send POST request to:', `/api/user-service/users/${friendId}/invite`);
 				const res = await fetch(`/api/user-service/users/${friendId}/invite`, {
@@ -455,10 +455,10 @@ export default function (root: HTMLElement) {
 					body: JSON.stringify({ type: 'game_invite' })
 				});
 				
-				console.log('🔥 DEBUG: Fetch completed');
-				console.log('🔥 DEBUG: Response status:', res.status);
-				console.log('🔥 DEBUG: Response ok:', res.ok);
-				console.log('🔥 DEBUG: Response headers:', res.headers);
+				// console.log('🔥 DEBUG: Fetch completed');
+				// console.log('🔥 DEBUG: Response status:', res.status);
+				// console.log('🔥 DEBUG: Response ok:', res.ok);
+				// console.log('🔥 DEBUG: Response headers:', res.headers);
 				
 				console.log('🎮 Response received:', res.status, res.statusText);
 				if (res.ok) {

@@ -32,7 +32,7 @@ export function movePaddle(gameState, player, direction) {
   // Aplicar
   gameState.paddles[player] = newPosition;
 
-  logger.debug(`[Paddle] ${player} moved ${direction}: ${currentPosition.toFixed(2)} -> ${newPosition.toFixed(2)}`);
+  //logger.debug(`[Paddle] ${player} moved ${direction}: ${currentPosition.toFixed(2)} -> ${newPosition.toFixed(2)}`);
 
   return gameState;
 }
