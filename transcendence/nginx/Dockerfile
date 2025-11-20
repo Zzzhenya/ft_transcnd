@@ -12,9 +12,13 @@ RUN npm ci
 # Copy the rest of the frontend source
 COPY transcendence/frontend/ .
 
-# Ensure production build
+# Ensure production build and bake Vite env vars used by the app
 ENV NODE_ENV=production
-# If you need to override base path, adjust vite.config.ts to read env and set BASE_PATH here
+# Inline API/Gateway/WS bases expected by the app at build-time
+ENV VITE_API_BASE=/api
+ENV VITE_GATEWAY_BASE=/api
+ENV VITE_WS_BASE=/ws
+# If you serve under a subpath, expose it via BASE_PATH and read it in vite.config.ts
 # ENV BASE_PATH=/
 
 RUN npm run build
