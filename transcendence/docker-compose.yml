@@ -19,7 +19,7 @@ services:
       - transcendence-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost/health"]
+      test: ["CMD-SHELL", "curl -skf https://localhost/healthz || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
