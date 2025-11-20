@@ -37,10 +37,14 @@ let sceneController: { update: (state: any) => void; dispose: () => void } | nul
 // Keep last server-render state to drive a steady RAF render loop
 let lastRenderState: any | null = null;
 let rafId: number | null = null;
+// Local gates
+let inputGateUntil: number = 0; // timestamp until which inputs are gated
+let ignoreStateUntil: number = 0; // timestamp until which gameState updates won't move paddles/ball
 
 // Global mount/connect guards to prevent duplicate WS connections on re-mounts
 let didMountRemoteRoom = false;
 let isConnectingRemoteRoom = false;
+let connectionCounter = 0; // monotonically increasing id for ws connections
 
 export default function (root: HTMLElement, ctx: { params?: { roomId?: string }; url: URL }) {
 	// Get roomId from router params (which includes query parameters)
@@ -118,6 +122,12 @@ export default function (root: HTMLElement, ctx: { params?: { roomId?: string };
             <p class="text-[11px] text-indigo-300/70 mt-2">Share this code with your friend</p>
           </div>
           
+          <!-- Game Info -->
+          <div class="p-3 rounded-lg border border-yellow-400/40 bg-yellow-900/10 mb-4">
+            <p class="text-xs text-yellow-200/80 mb-1">MATCH FORMAT</p>
+            <p class="text-sm text-yellow-100 font-bold">Best of 3 Rounds • First to 5 Points per Round</p>
+          </div>
+
           <h2 class="text-xl font-black neon mt-2">PLAYERS <span class="blink"></span></h2>
 
           <!-- Players List -->
@@ -140,6 +150,7 @@ export default function (root: HTMLElement, ctx: { params?: { roomId?: string };
             </div>
             <div class="flex items-center gap-4">
               <div id="countdownDisplay" class="text-4xl font-bold text-yellow-400"></div>
+              <div id="hudText" class="text-sm text-indigo-200/90"></div>
               <div id="pingDisplay" class="text-sm text-gray-300">Ping: -- ms</div>
             </div>
             <div id="diagBar" class="text-xs text-gray-400 mt-1">Focus: ? | WS: ? | Role: ? | Vis: ?</div>
@@ -154,11 +165,9 @@ export default function (root: HTMLElement, ctx: { params?: { roomId?: string };
           
           <div class="bg-gray-900/50 border border-purple-500/30 p-4 rounded-lg text-center">
             <p class="text-sm text-indigo-200/90">
-              <kbd class="px-2 py-1 bg-black/60 border border-white/20 rounded">↑</kbd>
-              <kbd class="px-2 py-1 bg-black/60 border border-white/20 rounded">↓</kbd> or
-              <kbd class="px-2 py-1 bg-black/60 border border-white/20 rounded">W</kbd>
+              Controls: <kbd class="px-2 py-1 bg-black/60 border border-white/20 rounded">W</kbd>
               <kbd class="px-2 py-1 bg-black/60 border border-white/20 rounded">S</kbd>
-              to move | You are <span id="yourRole" class="font-bold"></span>
+              | You are <span id="yourRole" class="font-bold"></span>
             </p>
           </div>
         </div>
@@ -166,15 +175,18 @@ export default function (root: HTMLElement, ctx: { params?: { roomId?: string };
     </section>
   `;
 
-	// Only connect once
+	// Only connect once - defer to avoid overlap with previous route teardown
 	if (!didMountRemoteRoom) {
-		connectToRoom(root, roomId, playerId, username);
+		setTimeout(() => {
+			connectToRoom(root, roomId, playerId, username);
+		}, 0);
 		didMountRemoteRoom = true;
 	}
 	setupRoomEventListeners(root);
 
 	// Listen for invite declined to automatically exit waiting room
 	const onInviteDeclined = (e: Event) => {
+		if (!gameState) return; // ignore if not active
 		const detail: any = (e as CustomEvent).detail || {};
 		console.log('🔔 Invite declined in remote-room:', detail);
 		updateStatus(root, `❌ ${detail?.from || 'Player'} declined your invitation`, 'error');
@@ -187,6 +199,7 @@ export default function (root: HTMLElement, ctx: { params?: { roomId?: string };
 
 	// Listen for player left to automatically exit waiting room
 	const onPlayerLeft = (e: Event) => {
+		if (!gameState) return; // ignore if not active
 		const detail: any = (e as CustomEvent).detail || {};
 		console.log('🔔 Player left in remote-room:', detail);
 		updateStatus(root, `👋 ${detail?.from || 'Player'} left the waiting room`, 'error');
@@ -260,7 +273,7 @@ function setupRoomEventListeners(root: HTMLElement) {
 		try {
 			if (ws && ws.readyState === WebSocket.OPEN) {
 				ws.send(JSON.stringify({ type: 'ready' }));
-				console.log('📨 Sent ready message (immediate)');
+				//console.log('📨 Sent ready message (immediate)');
 			} else {
 				// Fallback: slight delay, give ws a moment if reference swapped during init
 				const uname = (getAuth()?.name) || (getState().session.alias) || 'Anonymous';
@@ -375,13 +388,15 @@ function connectToRoom(root: HTMLElement, roomId: string, playerId: string, user
 	updateStatus(root, '🔄 Connecting...', 'info');
 
 	const ws = new WebSocket(wsUrl);
-	if (gameState) { gameState.ws = ws; gameState.connected = false; }
+	const thisConnId = ++connectionCounter;
+	if (gameState) { gameState.ws = ws; (gameState as any).connectionId = thisConnId; gameState.connected = false; }
 	(document as any)._lastWS = ws;
 	isConnectingRemoteRoom = false;
 
 	ws.onopen = () => {
+		if (!gameState || (gameState as any).connectionId !== thisConnId) return; // stale
 		console.log('✅ Connected');
-		if (gameState) gameState.connected = true;
+		gameState.connected = true;
 		(document as any)._lastWS = ws;
 		updateStatus(root, '✅ Connected to room!', 'success');
 		updateDiagnostics(root);
@@ -389,11 +404,12 @@ function connectToRoom(root: HTMLElement, roomId: string, playerId: string, user
 	};
 
 	ws.onmessage = async (event) => {
+		if (!gameState || (gameState as any).connectionId !== thisConnId) return; // stale
 		try {
 			let data = event.data;
 			if (data instanceof Blob) data = await data.text();
 			const message = JSON.parse(data);
-			if (gameState && gameState.ws !== ws) gameState.ws = ws;
+			if (gameState.ws !== ws) gameState.ws = ws;
 			(document as any)._lastWS = ws;
 			updateDiagnostics(root);
 			handleServerMessage(root, message);
@@ -403,11 +419,13 @@ function connectToRoom(root: HTMLElement, roomId: string, playerId: string, user
 	};
 
 	ws.onerror = () => {
+		if (!gameState || (gameState as any).connectionId !== thisConnId) return; // stale
 		updateStatus(root, '❌ Connection error', 'error');
 	};
 
 	ws.onclose = () => {
-		if (gameState) gameState.connected = false;
+		if (!gameState || (gameState as any).connectionId !== thisConnId) return; // stale
+		gameState.connected = false;
 		updateStatus(root, '⚠️ Disconnected', 'error');
 		updateDiagnostics(root);
 		try {
@@ -425,7 +443,10 @@ function connectToRoom(root: HTMLElement, roomId: string, playerId: string, user
 function handleServerMessage(root: HTMLElement, message: any) {
 	if (!gameState) return;
 
-	console.log('📨', message.type);
+	// Only log important message types, not the spammy ones
+	if (!['gameState', 'hud', 'pong'].includes(message.type)) {
+		console.log('📨', message.type);
+	}
 
 	switch (message.type) {
         case 'pong':
@@ -506,15 +527,35 @@ function handleServerMessage(root: HTMLElement, message: any) {
 			break;
 
 		case 'countdown':
+			// Hide waiting room and show game container on first countdown
+			root.querySelector('#waitingRoom')?.classList.add('hidden');
+			root.querySelector('#gameContainer')?.classList.remove('hidden');
 			showCountdown(root, message.count);
+			// Show message if provided (for inter-round countdowns)
+			if (message.message) {
+				updateStatus(root, message.message, 'info');
+			}
+			break;
+
+		case 'roundStart':
+			// New round starting
+			if (message.message) {
+				updateStatus(root, message.message, 'success');
+			}
 			break;
 
 		case 'gameStart':
 			startGameUI(root, message.gameState);
+			// Add a small grace window to let players react after GO!
+			inputGateUntil = Date.now() + 500;
+			ignoreStateUntil = Date.now() + 300; // allow HUD and scene init, delay motion a bit
 			break;
 
 		case 'gameState':
 			updateGameState(root, message.state);
+			break;
+		case 'hud':
+			updateHud(root, message);
 			break;
 
 		case 'gameEnd':
@@ -557,20 +598,32 @@ function updatePlayersList(root: HTMLElement) {
 }
 
 function showCountdown(root: HTMLElement, count: number) {
-	const display = root.querySelector('#countdownDisplay')!;
+	const display = root.querySelector('#countdownDisplay') as HTMLElement | null;
+	if (!display) return;
 	display.textContent = count > 0 ? count.toString() : 'GO!';
-	if (count === 0) setTimeout(() => display.textContent = '', 1000);
+	if (count === 0) setTimeout(() => { const d = root.querySelector('#countdownDisplay') as HTMLElement | null; if (d) d.textContent = ''; }, 1000);
 }
 
 function refreshReadyButtonState(root: HTMLElement) {
 	if (!gameState) return;
 	const btn = root.querySelector<HTMLButtonElement>('#readyBtn');
 	if (!btn) return;
+	
+	const wsOpen = isWsOpen();
+	
+	// If WS is open but init hasn't arrived yet, show Syncing and retry shortly
+	if (wsOpen && !gameState.serverIdReady && (!gameState.players || gameState.players.length === 0)) {
+		updateStatus(root, '🔄 Syncing with server…', 'info');
+		setTimeout(() => refreshReadyButtonState(root), 150);
+		btn.disabled = true;
+		btn.textContent = '⏳ Waiting for opponent...';
+		return;
+	}
+	
 	// Opponent presence: exactly one P1 and one P2 assigned by role
 	const p1 = gameState.players.find(p => p.playerNumber === 1);
 	const p2 = gameState.players.find(p => p.playerNumber === 2);
 	const twoRolesAssigned = !!p1 && !!p2;
-	const wsOpen = isWsOpen();
 	// Identify self by server-authoritative playerId
 	const me = gameState.players.find(p => p.playerId === gameState.playerId) || null;
 	const meNotReady = me ? !me.ready : true; // if not in list yet, allow ready once connected
@@ -679,14 +732,15 @@ updateScoreDisplay(root);
 // Map server state to Babylon GameRenderState and update scene
 if (sceneController && typeof sceneController.update === 'function') {
 try {
+// During grace period, freeze ball/paddle visually
+const effectiveBall = (Date.now() < ignoreStateUntil) ? { x: 0, y: 0 } : { x: state.ball?.x ?? 0, y: state.ball?.y ?? 0 };
+const effectiveP1 = (Date.now() < ignoreStateUntil) ? 0 : (state.paddles?.player1 ?? 0);
+const effectiveP2 = (Date.now() < ignoreStateUntil) ? 0 : (state.paddles?.player2 ?? 0);
 const renderState = {
-  ball: {
-    x: state.ball?.x ?? 0,
-    y: state.ball?.y ?? 0,
-  },
+  ball: effectiveBall,
   paddles: {
-    player1: state.paddles?.player1 ?? 0,
-    player2: state.paddles?.player2 ?? 0,
+    player1: effectiveP1,
+    player2: effectiveP2,
   },
   score: {
     player1: state.score?.player1 ?? 0,
@@ -703,11 +757,14 @@ lastRenderState = renderState;
 try { sceneController.update(renderState as any); } catch {}
 return;
 } catch (e) {
-console.warn('Babylon update failed, using 2D fallback', e);
+// Keep 3D active; do not switch to 2D mid-game
+console.warn('Babylon update error, keeping 3D active', e);
 }
 }
-// 2D fallback if Babylon scene unavailable
+// 2D fallback only if Babylon never initialized
+if (!sceneController) {
 drawGame(state);
+}
 }
 
 function drawGame(state: any) {
@@ -761,15 +818,22 @@ function handleKeyDown(e: KeyboardEvent) {
   const isUp = e.key === 'w' || e.key === 'W';
   const isDown = e.key === 's' || e.key === 'S';
 
+  // Input grace: if within gate, allow but don't spam
+  const now = Date.now();
+
   if (isUp && !keysPressed.has('up')) {
     keysPressed.add('up');
-    gameState.ws.send(JSON.stringify({ type: 'paddleMove', direction: 'up' }));
+    if (now >= inputGateUntil) {
+      gameState.ws.send(JSON.stringify({ type: 'paddleMove', direction: 'up' }));
+    }
     // No repeat timer: rely on server to keep moving until stop
     e.preventDefault();
     e.stopPropagation();
   } else if (isDown && !keysPressed.has('down')) {
     keysPressed.add('down');
-    gameState.ws.send(JSON.stringify({ type: 'paddleMove', direction: 'down' }));
+    if (now >= inputGateUntil) {
+      gameState.ws.send(JSON.stringify({ type: 'paddleMove', direction: 'down' }));
+    }
     // No repeat timer: rely on server to keep moving until stop
     e.preventDefault();
     e.stopPropagation();
@@ -810,6 +874,15 @@ function updateScoreDisplay(root: HTMLElement) {
 	root.querySelector('#scoreP2')!.textContent = gameState.score.player2.toString();
 }
 
+function updateHud(root: HTMLElement, hud: { currentRound: number; roundsWon: { player1: number; player2: number }; score: { player1: number; player2: number }; scoreLimit: number; status: string; }) {
+	try {
+		const hudEl = root.querySelector('#hudText') as HTMLElement | null;
+		if (hudEl) {
+			hudEl.textContent = `Round ${hud.currentRound}/3 | P1 ${hud.roundsWon.player1} - P2 ${hud.roundsWon.player2} | to ${hud.scoreLimit}`;
+		}
+	} catch {}
+}
+
 function endGame(root: HTMLElement, data: any) {
 	if (!gameState) return;
 
@@ -829,8 +902,9 @@ function endGame(root: HTMLElement, data: any) {
 }
 
 function updateStatus(root: HTMLElement, message: string, type: 'info' | 'success' | 'error') {
-	const box = root.querySelector('#statusBox')!;
-	const text = root.querySelector('#statusText')!;
+	const box = root.querySelector('#statusBox') as HTMLElement | null;
+	const text = root.querySelector('#statusText') as HTMLElement | null;
+	if (!box || !text) return; // avoid null errors if elements hidden/unmounted
 
 	box.className = `rounded border-2 p-4 ${type === 'success' ? 'bg-green-50 border-green-400' :
 			type === 'error' ? 'bg-red-50 border-red-400' :

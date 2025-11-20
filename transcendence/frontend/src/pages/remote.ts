@@ -296,6 +296,7 @@ export default function (root: HTMLElement) {
 		}
 	}
 
+	let isInviting = false; // guard to prevent multiple invites
 	function setupEventListeners() {
 		// Quick Match
 		const quickMatchBtn = root.querySelector<HTMLButtonElement>("#quickMatchBtn");
@@ -397,13 +398,21 @@ export default function (root: HTMLElement) {
 		// Friend invitations
 		root.querySelectorAll<HTMLButtonElement>('.invite-friend-btn').forEach(btn => {
 			console.log('🎮 Found invite button:', btn);
-			btn.onclick = () => {
+			btn.onclick = async () => {
+				if (isInviting) { console.log('⏳ Invite already in progress'); return; }
 				console.log('🎮 Invite button clicked!');
 				const friendId = btn.getAttribute('data-friend-id');
 				const friendUsername = btn.getAttribute('data-friend-username');
 				console.log('🎮 friendId from button:', friendId, 'username:', friendUsername);
 				if (friendId && friendUsername) {
-					inviteFriend(friendId, friendUsername);
+					try {
+						isInviting = true;
+						btn.disabled = true;
+						btn.textContent = 'CREATING...';
+						await inviteFriend(friendId, friendUsername);
+					} finally {
+						setTimeout(() => { isInviting = false; try { btn.disabled = false; btn.textContent = ' INVITE '; } catch {} }, 1000);
+					}
 				}
 			};
 		});
@@ -427,68 +436,52 @@ export default function (root: HTMLElement) {
 		return Math.random().toString(36).substr(2, 6).toUpperCase();
 	}
 
-	function inviteFriend(friendId: string, friendUsername: string) {
+	async function inviteFriend(friendId: string, friendUsername: string) {
 		console.log('🎮 inviteFriend called with friendId:', friendId, 'username:', friendUsername);
 		// Send invitation to backend (creates a notification for the target)
-		(async () => {
-			const user = getAuth();
-			const token = getToken();
-			console.log('🎮 user:', user, 'token:', token);
-			if (!user) { showStatus('You must be signed in to invite', 'error'); return; }
-			try {
-				// console.log('🔥 DEBUG: About to send invite request');
-				// console.log('🔥 DEBUG: URL:', `/api/user-service/users/${friendId}/invite`);
-				// console.log('🔥 DEBUG: Headers:', {
-				// 	'Content-Type': 'application/json',
-				// 	'Authorization': `Bearer ${token || ''}`,
-				// });
-				//console.log('🔥 DEBUG: Body:', JSON.stringify({ type: 'game_invite' }));
+		const user = getAuth();
+		const token = getToken();
+		console.log('🎮 user:', user, 'token:', token);
+		if (!user) { showStatus('You must be signed in to invite', 'error'); return; }
+		try {
+			console.log('🎮 About to send POST request to:', `/api/user-service/users/${friendId}/invite`);
+			const res = await fetch(`/api/user-service/users/${friendId}/invite`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					'Authorization': `Bearer ${token || ''}`
+				},
+				credentials: 'include',
+				body: JSON.stringify({ type: 'game_invite' })
+			});
+			console.log('🎮 Response received:', res.status, res.statusText);
+			if (res.ok) {
+				const result = await res.json();
+				console.log('🎮 Invite result:', result);
 				
-				console.log('🎮 About to send POST request to:', `/api/user-service/users/${friendId}/invite`);
-				const res = await fetch(`/api/user-service/users/${friendId}/invite`, {
-					method: 'POST',
-					headers: {
-						'Content-Type': 'application/json',
-						'Authorization': `Bearer ${token || ''}`
-					},
-					credentials: 'include',
-					body: JSON.stringify({ type: 'game_invite' })
-				});
-				
-				// console.log('🔥 DEBUG: Fetch completed');
-				// console.log('🔥 DEBUG: Response status:', res.status);
-				// console.log('🔥 DEBUG: Response ok:', res.ok);
-				// console.log('🔥 DEBUG: Response headers:', res.headers);
-				
-				console.log('🎮 Response received:', res.status, res.statusText);
-				if (res.ok) {
-					const result = await res.json();
-					console.log('🎮 Invite result:', result);
+				if (result.roomCode) {
+					console.log('🎮 ✅ Room created:', result.roomCode);
 					
-					if (result.roomCode) {
-						console.log('🎮 ✅ Room created:', result.roomCode);
-						
-						// ✅ FIX: El que invita VA INMEDIATAMENTE a la room
-						showStatus('🎮 Room created! Entering...', 'success');
-						
-						// Esperar 500ms para que el mensaje se vea
-						setTimeout(() => {
-							navigate(`/remote/room/${result.roomCode}`);
-						}, 500);
-						
-					} else {
-						showStatus('Invitation sent but no room code received', 'error');
-					}
+					// ✅ FIX: El que invita VA INMEDIATAMENTE a la room
+					showStatus('🎮 Room created! Entering...', 'success');
+					
+					// Esperar 500ms para que el mensaje se vea
+					setTimeout(() => {
+						navigate(`/remote/room/${result.roomCode}`);
+					}, 500);
+					
 				} else {
-					const err = await res.json().catch(() => ({}));
-					console.log('🎮 Error response:', err);
-					showStatus(err.message || 'Failed to send invitation', 'error');
+					showStatus('Invitation sent but no room code received', 'error');
 				}
-			} catch (err) {
-				console.error('🎮 Invite error', err);
-				showStatus('Failed to send invitation', 'error');
+			} else {
+				const err = await res.json().catch(() => ({}));
+				console.log('🎮 Error response:', err);
+				showStatus(err.message || 'Failed to send invitation', 'error');
 			}
-		})();
+		} catch (err) {
+			console.error('🎮 Invite error', err);
+			showStatus('Failed to send invitation', 'error');
+		}
 	}
 
 	// Listen for invite declined to exit waiting room if present

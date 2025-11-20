@@ -22,11 +22,11 @@ const userConnections = new Map(); // userId -> WebSocket
 
 // Helper function to send real-time notifications
 function sendLiveNotification(userId, notification) {
-  console.log(`📨 Attempting to send live notification to user ${userId}`);
-  console.log(`📨 Current connections: ${Array.from(userConnections.keys()).join(', ')}`);
+  //console.log(`📨 Attempting to send live notification to user ${userId}`);
+  //console.log(`📨 Current connections: ${Array.from(userConnections.keys()).join(', ')}`);
 
   const ws = userConnections.get(parseInt(userId));
-  console.log(`📨 WebSocket for user ${userId}:`, ws ? 'EXISTS' : 'NOT FOUND');
+  //console.log(`📨 WebSocket for user ${userId}:`, ws ? 'EXISTS' : 'NOT FOUND');
 
   if (ws && typeof ws.send === 'function' && ws.readyState === 1) { // WebSocket.OPEN = 1
     try {
@@ -754,7 +754,7 @@ fastify.post('/users/:userId/invite', {
       }
     };
 
-    console.log('📨 Writing to database:', JSON.stringify(writePayload, null, 2));
+    //console.log('📨 Writing to database:', JSON.stringify(writePayload, null, 2));
 
     const writeRes = await fetch('http://database-service:3006/internal/users', {
       method: 'POST',
@@ -765,7 +765,7 @@ fastify.post('/users/:userId/invite', {
       body: JSON.stringify(writePayload)
     });
 
-    console.log('📨 Database write response status:', writeRes.status);
+    //console.log('📨 Database write response status:', writeRes.status);
 
     if (!writeRes.ok) {
       const errorText = await writeRes.text();
@@ -789,10 +789,10 @@ fastify.post('/users/:userId/invite', {
     };
 
     const sentLive = sendLiveNotification(userId, liveNotification);
-    console.log(`📨 Live notification ${sentLive ? 'sent successfully' : 'queued for DB only'}`);
+    //console.log(`📨 Live notification ${sentLive ? 'sent successfully' : 'queued for DB only'}`);
 
     // Success - return created with room code
-    console.log('📨 Invitation created successfully');
+    //console.log('📨 Invitation created successfully');
     return {
       success: true,
       message: 'Invitation created',
@@ -834,7 +834,7 @@ fastify.get('/users/:userId/notifications', {
       body: JSON.stringify(queryPayload)
     });
 
-    console.log('📨 Database response status:', response.status);
+    //console.log('📨 Database response status:', response.status);
 
     if (!response.ok) {
       const errorText = await response.text();

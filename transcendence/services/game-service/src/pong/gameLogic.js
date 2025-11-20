@@ -168,7 +168,7 @@ function endRound(gameState, roundWinner) {
   gameState.tournament.gameStatus = 'roundEnd';
   
   // Check if game is over (best of 3)
-  const roundsToWin = Math.ceil(gameState.tournament.maxRounds / 2); // 2 rounds to win
+  const roundsToWin = Math.ceil(gameState.tournament.maxRounds / 2); // best of 3 -> 2 rounds to win
   
   if (gameState.tournament.roundsWon[roundWinner] >= roundsToWin) {
     // Game is over!
@@ -313,7 +313,7 @@ function initialGameState() {
     tournament: {
       currentRound: 1,
       maxRounds: 3,
-      scoreLimit: 3,
+      scoreLimit: 5,
       roundsWon: { player1: 0, player2: 0 },
       gameStatus: 'waiting', // 'waiting', 'playing', 'roundEnd', 'gameEnd', 'roundCountdown'
       winner: null,
