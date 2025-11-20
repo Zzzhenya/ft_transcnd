@@ -1,26 +1,26 @@
 // transcendence/services/game-service/src/room/GameRoom.js
+// FIXED VERSION - Addresses countdown visibility and multi-round issues
 
 import { initialGameState, moveBall, movePaddle } from '../pong/gameLogic.js';
 import logger from '../utils/logger.js';
-import { createRemoteMatch, startRemoteMatch, finishRemoteMatch, cancelRemoteMatch } from '../utils/remoteMatchDB.js';
 
 function safePaddleSet(gameState, player, value, source) {
-	//logger.info(`[DEBUG] Setting ${player} paddle to ${value} from ${source}`);
+	logger.info(`[DEBUG] Setting ${player} paddle to ${value} from ${source}`);
 
 	if (isNaN(value)) {
 		logger.error(`[DEBUG] ⚠️ Attempted to set ${player} to NaN from ${source}! Stack trace:`);
 		console.trace();
-		gameState.paddles[player] = 0; // Forzar a 0 si es NaN
+		gameState.paddles[player] = 0;
 	} else {
 		gameState.paddles[player] = value;
 	}
 
-	//logger.info(`[DEBUG] ${player} paddle is now: ${gameState.paddles[player]}`);
+	logger.info(`[DEBUG] ${player} paddle is now: ${gameState.paddles[player]}`);
 }
 
 
 export class GameRoom {
-	constructor(roomId, options = {}) {
+	constructor(roomId) {
 		this.roomId = roomId;
 		this.players = new Map();
 		this.maxPlayers = 2;
@@ -31,12 +31,8 @@ export class GameRoom {
 		this.isPaused = false;
 		this.createdAt = Date.now();
 		this.lastActivity = Date.now();
-		this.matchId = null; // Database match ID
-		this.matchStarted = false; // Track if match has been marked as started in DB
-		this.gameType = options.gameType || 'remote'; // 'remote' or 'tournament'
-		this.tournamentId = options.tournamentId || null; // Tournament ID if applicable
 
-		logger.info(`[GameRoom] Room ${roomId} created (type: ${this.gameType})`);
+		logger.info(`[GameRoom] Room ${roomId} created`);
 	}
 
 	createInitialGameState() {
@@ -45,14 +41,19 @@ export class GameRoom {
 		state.paddles.player1 = 0;
 		state.paddles.player2 = 0;
 
-		state.tournament.maxRounds = 1;
+		// FIX: Configure for multiple rounds (best of 3)
+		state.tournament.maxRounds = 3;
 		state.tournament.scoreLimit = 11;
+		state.tournament.currentRound = 1;
+		state.tournament.roundsWon = { player1: 0, player2: 0 };
 		state.tournament.gameStatus = 'waiting';
 
 		logger.info(`[GameRoom] Created initial game state:`, {
 			paddle1: state.paddles.player1,
 			paddle2: state.paddles.player2,
-			ball: state.ball
+			ball: state.ball,
+			maxRounds: state.tournament.maxRounds,
+			scoreLimit: state.tournament.scoreLimit
 		});
 
 		return state;
@@ -65,36 +66,8 @@ export class GameRoom {
 		}
 
 		if (this.players.has(playerId)) {
-			// Reconnect logic: replace old socket with the new one for the same playerId
-			const existing = this.players.get(playerId);
-			logger.warn(`[GameRoom] Player ${playerId} already in room ${this.roomId} - performing reconnect`);
-			try {
-				if (existing.socket && (existing.socket.readyState === 0 || existing.socket.readyState === 1)) { // CONNECTING or OPEN
-					existing.socket.close(1012, 'Replaced by new connection');
-				}
-			} catch (e) {
-				logger.warn(`[GameRoom] Error closing previous socket for player ${playerId}:`, e);
-			}
-
-			// Keep playerNumber and ready state; swap socket and info
-			existing.socket = socket;
-			existing.info = {
-				username: playerInfo.username || existing.info?.username || `Player ${existing.playerNumber}`,
-				avatar: playerInfo.avatar || existing.info?.avatar || null,
-				...playerInfo
-			};
-			this.players.set(playerId, existing);
-			this.lastActivity = Date.now();
-
-			// Notify only the reconnected player (optional)
-			this.sendToPlayer(playerId, {
-				type: 'playerReconnected',
-				playerId,
-				playerNumber: existing.playerNumber
-			});
-
-			logger.info(`[GameRoom] Player ${playerId} reconnected in room ${this.roomId} as P${existing.playerNumber}`);
-			return true;
+			logger.warn(`[GameRoom] Player ${playerId} already in room ${this.roomId}`);
+			return false;
 		}
 
 		const playerNumber = this.players.size + 1;
@@ -121,11 +94,6 @@ export class GameRoom {
 			playerInfo: this.players.get(playerId).info,
 			totalPlayers: this.players.size
 		}, playerId);
-
-		// 🎮 DATABASE: Create match when both players have joined
-		if (this.players.size === 2 && !this.matchId) {
-			this.createDatabaseMatch();
-		}
 
 		return true;
 	}
@@ -187,7 +155,7 @@ export class GameRoom {
 		}
 	}
 
-	async startCountdown() {
+	startCountdown() {
 		if (this.countdownInterval) {
 			clearInterval(this.countdownInterval);
 			this.countdownInterval = null;
@@ -195,11 +163,9 @@ export class GameRoom {
 
 		logger.info(`[GameRoom] 🕐 Starting countdown in room ${this.roomId}`);
 
-		// 🎮 DATABASE: Create match when both players are ready
-		await this.createDatabaseMatch();
-
 		let count = 3;
 
+		// FIX: Broadcast initial countdown value immediately
 		this.broadcast({
 			type: 'countdown',
 			count
@@ -209,62 +175,39 @@ export class GameRoom {
 			count--;
 
 			if (count > 0) {
+				// FIX: Continue broadcasting countdown
 				this.broadcast({
 					type: 'countdown',
 					count
 				});
 				logger.info(`[GameRoom] Countdown: ${count}`);
 			} else {
+				// FIX: Broadcast "GO!" (count = 0)
+				this.broadcast({
+					type: 'countdown',
+					count: 0
+				});
+
 				clearInterval(this.countdownInterval);
 				this.countdownInterval = null;
+
 				logger.info(`[GameRoom] 🎮 Countdown finished! Starting game...`);
-				this.startGame();
+
+				// Small delay before starting game to show "GO!"
+				setTimeout(() => {
+					this.startGame();
+				}, 500);
 			}
 		}, 1000);
 	}
 
-	async createDatabaseMatch() {
-		// Only create Remote_Match records for remote games, not tournaments
-		if (this.gameType !== 'remote') {
-			logger.info(`[GameRoom] Skipping Remote_Match creation for ${this.gameType} game`);
-			return;
-		}
-
-		// Get player user IDs from playerInfo (must be set when players connect)
-		const playersArray = Array.from(this.players.values());
-		
-		if (playersArray.length !== 2) {
-			logger.warn(`[GameRoom] Cannot create DB match: need 2 players, have ${playersArray.length}`);
-			return;
-		}
-
-		const player1UserId = playersArray[0].info.userId;
-		const player2UserId = playersArray[1].info.userId;
-
-		if (!player1UserId || !player2UserId) {
-			logger.warn(`[GameRoom] Cannot create DB match: missing user IDs (P1=${player1UserId}, P2=${player2UserId})`);
-			return;
-		}
-
-		this.matchId = await createRemoteMatch(player1UserId, player2UserId);
-		
-		if (this.matchId) {
-			logger.info(`[GameRoom] ✅ Remote_Match created: ID=${this.matchId}`);
-		}
-	}
-
-	async startGame() {
+	startGame() {
 		if (this.isPlaying) {
 			logger.warn(`[GameRoom] Game already started in room ${this.roomId}`);
 			return;
 		}
 
 		logger.info(`[GameRoom] 🚀 Starting game in room ${this.roomId}`);
-
-		// 🎮 DATABASE: Mark match as started
-		if (this.matchId) {
-			await startRemoteMatch(this.matchId);
-		}
 
 		this.gameState = this.createInitialGameState();
 
@@ -300,6 +243,7 @@ export class GameRoom {
 
 		this.lastActivity = Date.now();
 	}
+
 	pauseGame() {
 		if (!this.isPlaying || this.isPaused) {
 			return;
@@ -364,15 +308,32 @@ export class GameRoom {
 			return;
 		}
 
+		// FIX: Handle round countdown state
+		if (this.gameState.tournament.gameStatus === 'roundCountdown') {
+			// During countdown, don't move the ball
+			this.broadcast({
+				type: 'gameState',
+				state: {
+					ball: this.gameState.ball,
+					paddles: this.gameState.paddles,
+					score: this.gameState.score,
+					tournament: this.gameState.tournament
+				},
+				timestamp: Date.now()
+			});
+			return;
+		}
+
 		if (this.gameState.tournament.gameStatus !== 'playing') {
 			return;
 		}
 
 		this.gameState = moveBall(this.gameState);
 
-		const winner = this.checkWinCondition();
-		if (winner) {
-			this.endGame(winner);
+		// FIX: Check for round win (not game win yet)
+		const roundWinner = this.checkRoundWin();
+		if (roundWinner) {
+			this.endRound(roundWinner);
 			return;
 		}
 
@@ -390,7 +351,8 @@ export class GameRoom {
 		this.lastActivity = Date.now();
 	}
 
-	checkWinCondition() {
+	// FIX: Check if someone won the ROUND (not the whole game)
+	checkRoundWin() {
 		if (!this.gameState) return null;
 
 		const scoreLimit = this.gameState.tournament.scoreLimit;
@@ -405,7 +367,103 @@ export class GameRoom {
 		return null;
 	}
 
-	async endGame(winner) {
+	// FIX: Handle end of a round (not the whole game)
+	endRound(roundWinner) {
+		logger.info(`[GameRoom] 🏆 Round ${this.gameState.tournament.currentRound} ended, winner: P${roundWinner}`);
+
+		// Update rounds won
+		const winnerKey = `player${roundWinner}`;
+		this.gameState.tournament.roundsWon[winnerKey]++;
+
+		// Check if someone won the match (best of 3 = 2 rounds needed)
+		const roundsToWin = Math.ceil(this.gameState.tournament.maxRounds / 2); // 2 rounds for best of 3
+
+		if (this.gameState.tournament.roundsWon[winnerKey] >= roundsToWin) {
+			// Game over!
+			this.endGame(roundWinner);
+		} else {
+			// Start next round
+			this.startRoundCountdown();
+		}
+	}
+
+	// FIX: New method for countdown between rounds
+	startRoundCountdown() {
+		logger.info(`[GameRoom] Starting countdown for next round...`);
+
+		this.gameState.tournament.gameStatus = 'roundCountdown';
+		this.gameState.tournament.nextRoundNumber = this.gameState.tournament.currentRound + 1;
+		this.gameState.tournament.nextRoundCountdown = 3;
+
+		// Broadcast round end info
+		this.broadcast({
+			type: 'roundEnd',
+			roundNumber: this.gameState.tournament.currentRound,
+			roundsWon: this.gameState.tournament.roundsWon,
+			nextRound: this.gameState.tournament.nextRoundNumber
+		});
+
+		// Start countdown interval
+		if (this.countdownInterval) {
+			clearInterval(this.countdownInterval);
+		}
+
+		this.countdownInterval = setInterval(() => {
+			this.gameState.tournament.nextRoundCountdown--;
+
+			this.broadcast({
+				type: 'roundCountdown',
+				count: this.gameState.tournament.nextRoundCountdown,
+				nextRound: this.gameState.tournament.nextRoundNumber
+			});
+
+			if (this.gameState.tournament.nextRoundCountdown <= 0) {
+				clearInterval(this.countdownInterval);
+				this.countdownInterval = null;
+				this.startNextRound();
+			}
+		}, 1000);
+	}
+
+	// FIX: New method to start the next round
+	startNextRound() {
+		logger.info(`[GameRoom] 🎮 Starting round ${this.gameState.tournament.nextRoundNumber}`);
+
+		// Increment round number
+		this.gameState.tournament.currentRound = this.gameState.tournament.nextRoundNumber;
+
+		// Reset scores for new round
+		this.gameState.score.player1 = 0;
+		this.gameState.score.player2 = 0;
+
+		// Reset paddles
+		this.gameState.paddles.player1 = 0;
+		this.gameState.paddles.player2 = 0;
+
+		// Reset ball
+		this.gameState.ball.x = 0;
+		this.gameState.ball.y = 0;
+		this.gameState.ball.dx = Math.random() > 0.5 ? 2 : -2;
+		this.gameState.ball.dy = (Math.random() - 0.5) * 4;
+
+		// Set status to playing
+		this.gameState.tournament.gameStatus = 'playing';
+		this.gameState.tournament.nextRoundCountdown = 0;
+
+		// Broadcast new round start
+		this.broadcast({
+			type: 'roundStart',
+			roundNumber: this.gameState.tournament.currentRound,
+			gameState: {
+				score: this.gameState.score,
+				ball: this.gameState.ball,
+				paddles: this.gameState.paddles,
+				tournament: this.gameState.tournament
+			}
+		});
+	}
+
+	endGame(winner) {
 		logger.info(`[GameRoom] 🏆 Game ended in room ${this.roomId}, winner: P${winner}`);
 
 		this.stopGame();
@@ -415,32 +473,18 @@ export class GameRoom {
 			this.gameState.tournament.winner = `player${winner}`;
 		}
 
-		// 🎮 DATABASE: Save match result
-		if (this.matchId && this.gameState) {
-			const playersArray = Array.from(this.players.values());
-			const winnerUserId = playersArray[winner - 1]?.info.userId;
-			
-			if (winnerUserId) {
-				await finishRemoteMatch(
-					this.matchId,
-					winnerUserId,
-					this.gameState.score.player1,
-					this.gameState.score.player2
-				);
-			}
-		}
-
 		this.broadcast({
 			type: 'gameEnd',
 			winner,
 			finalScores: this.gameState.score,
+			roundsWon: this.gameState.tournament.roundsWon,
 			matchDuration: Date.now() - this.createdAt
 		});
 
 		this.lastActivity = Date.now();
 	}
 
-	async updatePaddle(playerId, direction) {
+	updatePaddle(playerId, direction) {
 		const player = this.players.get(playerId);
 
 		if (!player) {
@@ -463,15 +507,11 @@ export class GameRoom {
 			return;
 		}
 
-		if (this.gameState.tournament.gameStatus !== 'playing') {
+		// FIX: Allow paddle movement during roundCountdown too
+		if (this.gameState.tournament.gameStatus !== 'playing' &&
+			this.gameState.tournament.gameStatus !== 'roundCountdown') {
 			logger.warn(`[GameRoom] updatePaddle: tournament status is ${this.gameState.tournament.gameStatus}`);
 			return;
-		}
-
-		// 🎮 DATABASE: Mark match as started on first paddle move
-		if (this.matchId && !this.matchStarted) {
-			this.matchStarted = true;
-			await startRemoteMatch(this.matchId);
 		}
 
 		const playerKey = `player${player.playerNumber}`;
@@ -503,6 +543,7 @@ export class GameRoom {
 
 		logger.info(`[GameRoom] 🎮 AFTER movePaddle: ${playerKey}=${this.gameState.paddles[playerKey]}`);
 	}
+
 	broadcast(message, excludePlayerId = null) {
 		const messageStr = JSON.stringify(message);
 

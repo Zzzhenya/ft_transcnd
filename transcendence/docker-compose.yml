@@ -6,7 +6,7 @@ services:
       - "8000:80"
       - "8443:443"
     volumes:
-      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/ssl:/etc/nginx/ssl:ro
       - ./frontend/dist:/usr/share/nginx/html:ro  # Serve built frontend
     depends_on:
@@ -298,7 +298,7 @@ services:
   frontend:
     build:
       context: ./frontend
-      target: development  # Use development for hot reload
+#      target: production  # Use development for hot reload
     ports:
       - "${FRONTEND_PORT:-3004}:${FRONTEND_PORT:-3004}"
     env_file:
