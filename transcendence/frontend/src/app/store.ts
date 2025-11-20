@@ -24,12 +24,11 @@ export interface State {
 
 type Listener = (s: State) => void;
 
-const STORAGE_KEY = "ft_transcendence_ui_state";
-const LEGACY_STORAGE_KEY = "ft_transcendence_version1";
+const STORAGE_KEY = "ft_transcendence_version1";
 
 function load(): State | undefined {
 	try {
-		const raw = sessionStorage.getItem(STORAGE_KEY) ?? sessionStorage.getItem(LEGACY_STORAGE_KEY);
+		const raw = sessionStorage.getItem(STORAGE_KEY);
 		return raw ? (JSON.parse(raw) as State) : undefined;
 	} catch {
 		return undefined;
@@ -42,13 +41,7 @@ function save(s: State) {
 	} catch {}
 }
 
-const persisted = load();
-
-const state: State = {
-	session: persisted?.session ?? {},
-	tournament: persisted?.tournament ?? {},
-	myMatch: persisted?.myMatch,
-};
+const state: State = load() ?? { session: {}, tournament: {} };
 
 const listeners = new Set<Listener>();
 

@@ -63,10 +63,7 @@ function initOnlineStatus() {
 // Listen for auth changes to manage online status
 window.addEventListener('auth:changed', initOnlineStatus);
 
-async function bootstrap() {
-  await ensureFreshAuth();
-  initOnlineStatus();
-  render(location.pathname + location.search);
-}
+// Initialize on app start
+initOnlineStatus();
 
-bootstrap();
+render(location.pathname + location.search);

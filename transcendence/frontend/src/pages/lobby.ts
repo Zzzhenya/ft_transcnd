@@ -55,7 +55,8 @@ export default function (root: HTMLElement) {
 		return "Unknown Player";
 	}
 
-	return user?.displayName
+	return user?.name
+		?? user?.displayName
 		?? user?.username
 		?? user?.alias
 		?? user?.email
@@ -70,17 +71,22 @@ export default function (root: HTMLElement) {
 	if (user && user.id) {
       userInfo.innerHTML = `
         <div class="flex items-center gap-1">
-          <span class="text-green-600"> ● </span>
-          <button type="button" id="userProfileBtn" class="font-medium text-blue-700 bg-blue-100 hover:bg-blue-200 rounded px-2 py-1 transition" title="Go to your profile">
-            ${displayName(user)}
-          </button>
-          <span class="mx-1 text-gray-800">|</span>
-          <span class="text-red-600"> ● </span>
-          <button id="signOutBtn"
-            class="font-medium text-gray-800 hover:text-black cursor-pointer"
-            title="Sign out">
-            Sign out
-          </button>
+			<span class="text-green-600"> ● </span>
+		
+			<a href="/profile" id="userProfileLink"
+          		class="font-medium text-gray-800 hover:text-blue-600 transition"
+          		title="View Profile">
+          		${displayName(user)}
+        	</a>
+
+			<span class="mx-1 text-gray-800">|</span>
+
+			<span class="text-red-600"> ● </span>
+			<button id="signOutBtn"
+				class="font-medium text-gray-800 hover:text-black cursor-pointer"
+					title="Sign out">
+            	Sign out
+          	</button>
         </div>`;
     } else if (state?.session?.alias) {
       userInfo.innerHTML = `
@@ -109,16 +115,6 @@ export default function (root: HTMLElement) {
 	}
   };
   userInfo.addEventListener("click", onUserInfoClick);
-  // Profile button click
-  userInfo.addEventListener("click", (e) => {
-    const t = e.target as HTMLElement;
-    if (t?.id === "userProfileBtn" && getAuth()) {
-      const user = getAuth();
-      if (user?.username) {
-        navigate(`/profile`);
-      }
-    }
-  });
 
   const onAuthChanged = () => { renderUserInfo(); };
   window.addEventListener("auth:changed", onAuthChanged);
