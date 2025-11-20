@@ -143,32 +143,34 @@ export default function (root: HTMLElement, ctx: { params?: { roomId?: string };
         </div>
 
         <!-- Game Canvas -->
-        <div id="gameContainer" class="hidden space-y-4 mt-6">
-          <div class="flex justify-between items-center bg-gray-900/80 text-white p-4 rounded-lg border border-purple-500/30">
-            <div class="text-3xl font-mono font-bold">
+        <div id="gameContainer" class="hidden mt-6 relative">
+          <!-- Ping Display - Upper Right Corner -->
+          <div id="pingDisplay" class="absolute top-4 right-4 z-10 bg-black/70 text-white px-3 py-2 rounded-lg text-sm font-mono border border-purple-500/30">
+            Ping: -- ms
+          </div>
+          
+          <!-- Player Scores - Top Corners -->
+          <div class="absolute top-4 left-4 z-10 bg-black/70 text-white px-4 py-2 rounded-lg border border-blue-500/50">
+            <div class="text-2xl font-mono font-bold">
               <span class="text-blue-400">P1</span> <span id="scoreP1">0</span>
             </div>
-            <div class="flex items-center gap-4">
-              <div id="countdownDisplay" class="text-4xl font-bold text-yellow-400"></div>
-              <div id="hudText" class="text-sm text-indigo-200/90"></div>
-              <div id="pingDisplay" class="text-sm text-gray-300">Ping: -- ms</div>
-            </div>
-            <div id="diagBar" class="text-xs text-gray-400 mt-1">Focus: ? | WS: ? | Role: ? | Vis: ?</div>
-            <div class="text-3xl font-mono font-bold">
+          </div>
+          
+          <div class="absolute top-4 right-24 z-10 bg-black/70 text-white px-4 py-2 rounded-lg border border-red-500/50">
+            <div class="text-2xl font-mono font-bold">
               <span id="scoreP2">0</span> <span class="text-red-400">P2</span>
             </div>
           </div>
           
+          <!-- Countdown Display - Center -->
+          <div id="countdownDisplay" class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-20 text-6xl font-bold text-yellow-400"></div>
+          
+          <!-- HUD Text - Top Center (Round info) -->
+          <div id="hudText" class="absolute top-4 left-1/2 transform -translate-x-1/2 z-10 bg-black/70 text-white px-4 py-2 rounded-lg text-sm font-mono border border-purple-500/30"></div>
+          
+          <!-- Game Canvas -->
           <div class="mx-auto" style="width: 1000px; max-width: 100%;">
             <canvas id="gameCanvas" tabindex="0" width="1000" height="600" class="bg-black block w-full h-auto"></canvas>
-          </div>
-          
-          <div class="bg-gray-900/50 border border-purple-500/30 p-4 rounded-lg text-center">
-            <p class="text-sm text-indigo-200/90">
-              Controls: <kbd class="px-2 py-1 bg-black/60 border border-white/20 rounded">W</kbd>
-              <kbd class="px-2 py-1 bg-black/60 border border-white/20 rounded">S</kbd>
-              | You are <span id="yourRole" class="font-bold"></span>
-            </p>
           </div>
         </div>
       </div>
@@ -713,15 +715,14 @@ updateStatus(root, '🎮 Game started!', 'success');
 }
 
 function updateDiagnostics(root: HTMLElement) {
-  try {
-    const el = root.querySelector('#diagBar');
-    if (!el) return;
-    const wsState = gameState?.ws?.readyState === 1 ? 'OPEN' : (gameState?.ws ? String(gameState.ws.readyState) : 'NO-WS');
-    const role = gameState?.playerNumber ?? 'null';
-    const vis = document.visibilityState;
-    const foc = document.hasFocus();
-    (el as HTMLElement).textContent = `Focus: ${foc} | WS: ${wsState} | Role: ${role} | Vis: ${vis}`;
-  } catch {}
+  // Diagnostics removed from UI - can be logged to console if needed for debugging
+  // Uncomment below for console debugging:
+  // console.log('[Diagnostics]', {
+  //   focus: document.hasFocus(),
+  //   ws: gameState?.ws?.readyState === 1 ? 'OPEN' : gameState?.ws?.readyState,
+  //   role: gameState?.playerNumber,
+  //   visibility: document.visibilityState
+  // });
 }
 
 function updateGameState(root: HTMLElement, state: any) {
@@ -890,15 +891,24 @@ function endGame(root: HTMLElement, data: any) {
 	const winner = data.winner;
 	const isYouWinner = winner === gameState.playerNumber;
 
+	// Show winner message in center of screen like countdown
+	const display = root.querySelector('#countdownDisplay') as HTMLElement | null;
+	if (display) {
+		display.textContent = isYouWinner ? '🏆 YOU WON! 🏆' : `Player ${winner} Won!`;
+		display.style.display = 'block';
+		display.className = 'absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-20 text-5xl font-bold drop-shadow-lg ' + 
+			(isYouWinner ? 'text-green-400' : 'text-yellow-400');
+	}
+
 	updateStatus(root,
 		isYouWinner ? '🎉🏆 YOU WON! 🏆🎉' : `Player ${winner} won!`,
 		isYouWinner ? 'success' : 'info'
 	);
 
-	// Auto-return to remote page after short delay
+	// Auto-return to remote page after 3 seconds
 	setTimeout(() => {
 		navigate('/remote');
-	}, 1500);
+	}, 3000);
 }
 
 function updateStatus(root: HTMLElement, message: string, type: 'info' | 'success' | 'error') {

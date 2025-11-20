@@ -211,6 +211,11 @@ export class GameRoom {
 				});
 				logger.info(`[GameRoom] Countdown: ${count}`);
 			} else {
+				// Send GO!
+				this.broadcast({
+					type: 'countdown',
+					count: 0
+				});
 				clearInterval(this.countdownInterval);
 				this.countdownInterval = null;
 				logger.info(`[GameRoom] 🎮 Countdown finished! Starting game...`);
@@ -288,7 +293,7 @@ export class GameRoom {
 
 		this.gameLoopInterval = setInterval(() => {
 			this.tick();
-		}, 1000 / 30);
+		}, 1000 / 60); // 60 FPS for smoother gameplay
 
 		this.lastActivity = Date.now();
 	}
@@ -380,6 +385,12 @@ export class GameRoom {
 		const scoreLimit = this.gameState.tournament.scoreLimit;
 		if (this.gameState.score.player1 >= scoreLimit || this.gameState.score.player2 >= scoreLimit) {
 			const roundWinner = this.gameState.score.player1 >= scoreLimit ? 'player1' : 'player2';
+			
+			// Increment rounds won for the winner
+			this.gameState.tournament.roundsWon[roundWinner]++;
+			logger.info(`[GameRoom] Round ${this.gameState.tournament.currentRound} won by ${roundWinner}! Rounds won: P1=${this.gameState.tournament.roundsWon.player1}, P2=${this.gameState.tournament.roundsWon.player2}`);
+			
+			// Call endRound to set status (but it no longer increments roundsWon)
 			endRound(this.gameState, roundWinner);
 			
 			// Check if match is over (best of 3: need 2 rounds to win)
@@ -388,6 +399,7 @@ export class GameRoom {
 				// Match over
 				this.gameState.tournament.gameStatus = 'gameEnd';
 				const winnerNum = roundWinner === 'player1' ? 1 : 2;
+				logger.info(`[GameRoom] Match over! ${roundWinner} wins ${this.gameState.tournament.roundsWon[roundWinner]}-${this.gameState.tournament.roundsWon[roundWinner === 'player1' ? 'player2' : 'player1']}`);
 				this.endGame(winnerNum);
 				return;
 			} else {
@@ -446,6 +458,11 @@ export class GameRoom {
 					count
 				});
 			} else {
+				// Send GO!
+				this.broadcast({
+					type: 'countdown',
+					count: 0
+				});
 				clearInterval(this.countdownInterval);
 				this.countdownInterval = null;
 				logger.info(`[GameRoom] Inter-round countdown finished, starting next round`);
@@ -531,12 +548,7 @@ export class GameRoom {
 			return;
 		}
 
-		// 🎮 DATABASE: Mark match as started on first paddle move
-		if (this.matchId && !this.matchStarted) {
-			this.matchStarted = true;
-			await startRemoteMatch(this.matchId);
-		}
-
+		// Note: Match is already started in startGame(), no need to start again here
 		const playerKey = `player${player.playerNumber}`;
 
 		const paddleSpeed = 15;
