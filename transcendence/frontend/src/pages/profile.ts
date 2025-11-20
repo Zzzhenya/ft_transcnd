@@ -1050,62 +1050,116 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
     });
   }
 
+  // function renderFriendsSection() {
+  //   const friendsContainer = root.querySelector('#friends-container');
+  //   if (!friendsContainer) return;
+
+
+
+  //   // friendsContainer.innerHTML = `
+  //   //   <div class="space-y-3">
+  //   //     ${friends.length > 0 ? friends.map(friend => `
+  //   //       <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
+  //   //         <div class="flex items-center gap-3">
+  //   //           <div class="w-3 h-3 rounded-full ${friend.status === 'accepted' ? 'bg-green-400' : friend.status === 'pending' ? 'bg-yellow-400' : 'bg-gray-400'}"></div>
+  //   //           <div>
+  //   //             <span class="font-semibold">${friend.username || 'Unknown User'}</span>
+  //   //             <div class="text-xs text-gray-500">
+  //   //               Status: ${friend.status} • Added: ${new Date(friend.created_at).toLocaleDateString()}
+  //   //             </div>
+  //   //           </div>
+  //   //         </div>
+  //   friendsContainer.innerHTML = `
+  //     <div class="space-y-3">
+  //     ${friends.length > 0 ? friends.map(friend => {
+  //     const safeFriendUsername = escapeHtml(friend.username || 'Unknown User');
+        
+  //       return `
+  //         <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
+  //           <div class="flex items-center gap-3">
+  //             <div class="w-3 h-3 rounded-full ${friend.status === 'accepted' ? 'bg-green-400' : friend.status === 'pending' ? 'bg-yellow-400' : 'bg-gray-400'}"></div>
+  //             <div>
+  //               <span class="font-semibold">${safeFriendUsername}</span>  <!-- HIER verwenden -->
+  //               <div class="text-xs text-gray-500">
+  //                 Status: ${friend.status} • Added: ${new Date(friend.created_at).toLocaleDateString()}
+  //               </div>
+  //             </div>
+  //           </div>
+  //           <div class="text-right">
+  //             ${friend.status === 'accepted' ? `
+  //               <span class="text-xs text-green-600 font-semibold px-2 py-1 rounded-full bg-green-100">✅ Friends</span>
+  //             ` : friend.status === 'pending' ? `
+  //               <span class="text-xs text-yellow-600 font-semibold px-2 py-1 rounded-full bg-yellow-100">⏳ Pending</span>
+  //             ` : `
+  //               <span class="text-xs text-gray-400 px-2 py-1 rounded-full bg-gray-100">❌ ${friend.status}</span>
+  //             `}
+  //           </div>
+  //         </div>
+  //       `;
+  //     }).join('') : `
+  //         <div class="text-center py-8 text-gray-500">
+  //           <div class="text-6xl mb-3 opacity-20">👥</div>
+  //           <p class="font-semibold text-lg">No friends yet</p>
+  //           <p class="text-sm">Add some friends to play together!</p>
+  //         </div>
+  //       `}
+  //     </div>
+  //   `;
+  // }
+
   function renderFriendsSection() {
-    const friendsContainer = root.querySelector('#friends-container');
-    if (!friendsContainer) return;
+  const friendsContainer = root.querySelector('#friends-container');
+  if (!friendsContainer) return;
 
-
-
-    // friendsContainer.innerHTML = `
-    //   <div class="space-y-3">
-    //     ${friends.length > 0 ? friends.map(friend => `
-    //       <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
-    //         <div class="flex items-center gap-3">
-    //           <div class="w-3 h-3 rounded-full ${friend.status === 'accepted' ? 'bg-green-400' : friend.status === 'pending' ? 'bg-yellow-400' : 'bg-gray-400'}"></div>
-    //           <div>
-    //             <span class="font-semibold">${friend.username || 'Unknown User'}</span>
-    //             <div class="text-xs text-gray-500">
-    //               Status: ${friend.status} • Added: ${new Date(friend.created_at).toLocaleDateString()}
-    //             </div>
-    //           </div>
-    //         </div>
-    friendsContainer.innerHTML = `
-      <div class="space-y-3">
+  friendsContainer.innerHTML = `
+    <div class="space-y-3">
       ${friends.length > 0 ? friends.map(friend => {
-      const safeFriendUsername = escapeHtml(friend.username || 'Unknown User');
+        // Für accepted friends: zeige online/offline
+        // Für andere: zeige nur den Status
+        let badge = '';
+        let dotColor = 'bg-gray-400';
+        
+        if (friend.friends_status === 'accepted') {
+          if (friend.online) {
+            badge = '<span class="text-xs text-green-600 font-semibold px-2 py-1 rounded-full bg-green-100">🟢 Online</span>';
+            dotColor = 'bg-green-500 animate-pulse';
+          } else {
+            badge = '<span class="text-xs text-gray-600 font-semibold px-2 py-1 rounded-full bg-gray-100">⚫ Offline</span>';
+            dotColor = 'bg-gray-400';
+          }
+        } else if (friend.friends_status === 'pending') {
+          badge = '<span class="text-xs text-yellow-600 font-semibold px-2 py-1 rounded-full bg-yellow-100">⏳ Pending</span>';
+          dotColor = 'bg-yellow-400';
+        } else {
+          badge = `<span class="text-xs text-gray-400 px-2 py-1 rounded-full bg-gray-100">❌ ${friend.friends_status}</span>`;
+        }
         
         return `
           <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
             <div class="flex items-center gap-3">
-              <div class="w-3 h-3 rounded-full ${friend.status === 'accepted' ? 'bg-green-400' : friend.status === 'pending' ? 'bg-yellow-400' : 'bg-gray-400'}"></div>
+              <div class="w-3 h-3 rounded-full ${dotColor}"></div>
               <div>
-                <span class="font-semibold">${safeFriendUsername}</span>  <!-- HIER verwenden -->
+                <span class="font-semibold">${friend.username || 'Unknown User'}</span>
                 <div class="text-xs text-gray-500">
-                  Status: ${friend.status} • Added: ${new Date(friend.created_at).toLocaleDateString()}
+                  Status: ${friend.friends_status} • Added: ${new Date(friend.created_at).toLocaleDateString()}
                 </div>
               </div>
             </div>
             <div class="text-right">
-              ${friend.status === 'accepted' ? `
-                <span class="text-xs text-green-600 font-semibold px-2 py-1 rounded-full bg-green-100">✅ Friends</span>
-              ` : friend.status === 'pending' ? `
-                <span class="text-xs text-yellow-600 font-semibold px-2 py-1 rounded-full bg-yellow-100">⏳ Pending</span>
-              ` : `
-                <span class="text-xs text-gray-400 px-2 py-1 rounded-full bg-gray-100">❌ ${friend.status}</span>
-              `}
+              ${badge}
             </div>
           </div>
         `;
       }).join('') : `
-          <div class="text-center py-8 text-gray-500">
-            <div class="text-6xl mb-3 opacity-20">👥</div>
-            <p class="font-semibold text-lg">No friends yet</p>
-            <p class="text-sm">Add some friends to play together!</p>
-          </div>
-        `}
-      </div>
-    `;
-  }
+        <div class="text-center py-8 text-gray-500">
+          <div class="text-6xl mb-3 opacity-20">👥</div>
+          <p class="font-semibold text-lg">No friends yet</p>
+          <p class="text-sm">Add some friends to play together!</p>
+        </div>
+      `}
+    </div>
+  `;
+}
 
   root.innerHTML = `
     <section class="py-6 md:py-8 lg:py-10 space-y-6">

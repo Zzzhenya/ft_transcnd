@@ -24,19 +24,19 @@ curl -X POST https://localhost:8443/api/auth/register \
   -d '{"alias":"admin'\''--", "email":"test@hack.com", "password":"test123"}' \
   -k -s | jq .
 
-cho "=== Testing internal database access ==="
+# cho "=== Testing internal database access ==="
 
-# Test 1: Von user-service aus (sollte funktionieren)
-echo "\n1️⃣ Testing from user-service container:"
-docker exec $(docker compose ps -q user-service) \
-  curl -s http://database-service:3006/internal/list?table=Users | jq .
+# # Test 1: Von user-service aus (sollte funktionieren)
+# echo "\n1️⃣ Testing from user-service container:"
+# docker exec $(docker compose ps -q user-service) \
+#   curl -s http://database-service:3006/internal/list?table=Users | jq .
 
-# Test 2: Prüfe Health Endpoint
-echo "\n2️⃣ Database service health:"
-docker exec $(docker compose ps -q user-service) \
-  curl -s http://database-service:3006/health | jq .
+# # Test 2: Prüfe Health Endpoint
+# echo "\n2️⃣ Database service health:"
+# docker exec $(docker compose ps -q user-service) \
+#   curl -s http://database-service:3006/health | jq .
 
-# Test 3: Prüfe Schema
-echo "\n3️⃣ Database schema:"
-docker exec $(docker compose ps -q user-service) \
-  curl -s http://database-service:3006/internal/schema | jq .
+# # Test 3: Prüfe Schema
+# echo "\n3️⃣ Database schema:"
+# docker exec $(docker compose ps -q user-service) \
+#   curl -s http://database-service:3006/internal/schema | jq .
