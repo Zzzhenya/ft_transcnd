@@ -5,6 +5,7 @@ import fs from 'fs';
 import cors from '@fastify/cors';
 import Database from 'better-sqlite3';
 import PQueue from 'p-queue';
+import { registerRemoteMatchRoutes } from './remoteMatchRoutes.js';
 
 // =============== Fastify Setup ===============
 const fastify = Fastify({ logger: true });
@@ -326,8 +327,8 @@ fastify.post('/internal/users', async (request, reply) => {
       db.transaction(() => dbRun(sql, Object.values(values)))()
     );
 
-  // ✅ Return lastInsertRowid for inserts
-  return { success: true, id: result.lastInsertRowid, changes: result.changes };
+    // ✅ Return the lastInsertRowid from SQLite
+    return { success: true, id: result.lastInsertRowid, changes: result.changes };
   } catch (err) {
     fastify.log.error(err);
     
@@ -501,6 +502,16 @@ fastify.get('/internal/list', async (request, reply) => {
   const sql = `SELECT ${sqlColumns} FROM ${safeIdentifier(table)} LIMIT ? OFFSET ?`;
   const rows = dbAll(sql, [limit, offset]);
   return { success: true, count: rows.length, data: rows };
+});
+
+// ================= REMOTE MATCH ROUTES =================
+registerRemoteMatchRoutes(fastify, {
+  db,
+  dbRun,
+  dbGet,
+  addToQueue,
+  writeQueue,
+  allowedTables,
 });
 
 // ================= Start Server =================

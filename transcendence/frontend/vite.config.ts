@@ -1,12 +1,6 @@
 import { defineConfig } from "vite";
-import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
-
-const rootDir = dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
-  // Load .env from the monorepo root so frontend shares the same env values
-  envDir: resolve(rootDir, ".."),
   server: {
     port: 3004,
     host: true, // Allow external connections

@@ -89,81 +89,80 @@ export default function (root: HTMLElement, ctx: { params?: { roomId?: string };
 	}
 
 	root.innerHTML = `
-    <section class="py-6 md:py-8 space-y-6 max-w-6xl mx-auto px-4">
-      <div class="flex items-center justify-between">
-        <h1 class="text-2xl sm:text-3xl font-bold">Room: ${roomId}</h1>
-        <button id="leaveRoom" 
-          class="px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700">
-          Leave Room
-        </button>
-      </div>
+    <section class="retro-wait py-6 md:py-8 space-y-6 max-w-6xl mx-auto px-4">
+      <div class="crt-scan vignette bezel rounded-2xl p-5 md:p-6 border border-purple-500/30">
+        <div class="flex items-center justify-between">
+          <h1 class="text-2xl sm:text-3xl font-black neon">WAITING ROOM</h1>
+          <button id="leaveRoom" 
+            class="btn-retro px-4 py-2 rounded-lg text-white">
+            ⏎ LEAVE
+          </button>
+        </div>
 
-      <!-- Status -->
-      <div id="statusBox" class="rounded border-2 p-4 bg-blue-50 border-blue-400">
-        <p id="statusText" class="font-semibold text-blue-900">Connecting...</p>
-      </div>
+        <!-- Status -->
+        <div id="statusBox" class="mt-4 rounded-lg p-4 border border-purple-400/40 bg-purple-900/20">
+          <p id="statusText" class="font-black neon-soft">Connecting...</p>
+        </div>
 
-      <!-- Waiting Room -->
-      <div id="waitingRoom" class="rounded border p-6 space-y-4">
-        <h2 class="text-xl font-semibold">Waiting Room</h2>
-        
-        <!-- Share Room Code -->
-        <div class="bg-gray-50 p-4 rounded">
-          <p class="text-sm text-gray-600 mb-2">Room Code:</p>
-          <div class="flex items-center gap-2">
-            <code class="text-2xl font-mono font-bold">${roomId}</code>
-            <button id="copyCode" class="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm">
-              📋 Copy
-            </button>
+        <!-- Waiting Room -->
+        <div id="waitingRoom" class="mt-6 rounded-xl p-6 space-y-5 bezel border border-purple-500/30 bg-black/30">
+          <!-- Share Room Code -->
+          <div class="p-4 rounded-lg border border-indigo-400/40 bg-indigo-900/10">
+            <p class="text-xs text-indigo-200/80 mb-2">ROOM CODE</p>
+            <div class="flex flex-wrap items-center gap-3">
+              <code class="text-2xl code-chip font-black text-indigo-200 tracking-widest">${roomId}</code>
+              <button id="copyCode" class="btn-retro px-3 py-2 rounded-lg text-white text-sm">
+                📋 COPY
+              </button>
+            </div>
+            <p class="text-[11px] text-indigo-300/70 mt-2">Share this code with your friend</p>
           </div>
-          <p class="text-xs text-gray-500 mt-2">Share this code with your friend</p>
+          
+          <h2 class="text-xl font-black neon mt-2">PLAYERS <span class="blink"></span></h2>
+
+          <!-- Players List -->
+          <div class="space-y-2">
+            <div id="playersList" class="space-y-2"></div>
+          </div>
+
+          <!-- Ready Button -->
+          <button id="readyBtn" disabled
+            class="btn-retro w-full px-4 py-4 rounded-lg text-indigo-50 font-black text-lg disabled:opacity-60">
+            ⏳ Waiting for opponent...
+          </button>
         </div>
 
-        <!-- Players List -->
-        <div class="space-y-2">
-          <h3 class="font-semibold">Players</h3>
-          <div id="playersList" class="space-y-2"></div>
+        <!-- Game Canvas -->
+        <div id="gameContainer" class="hidden space-y-4 mt-6">
+          <div class="flex justify-between items-center bg-gray-900/80 text-white p-4 rounded-lg border border-purple-500/30">
+            <div class="text-3xl font-mono font-bold">
+              <span class="text-blue-400">P1</span> <span id="scoreP1">0</span>
+            </div>
+            <div class="flex items-center gap-4">
+              <div id="countdownDisplay" class="text-4xl font-bold text-yellow-400"></div>
+              <div id="pingDisplay" class="text-sm text-gray-300">Ping: -- ms</div>
+            </div>
+            <div id="diagBar" class="text-xs text-gray-400 mt-1">Focus: ? | WS: ? | Role: ? | Vis: ?</div>
+            <div class="text-3xl font-mono font-bold">
+              <span id="scoreP2">0</span> <span class="text-red-400">P2</span>
+            </div>
+          </div>
+          
+          <div class="mx-auto" style="width: 1000px; max-width: 100%;">
+            <canvas id="gameCanvas" tabindex="0" width="1000" height="600" class="bg-black block w-full h-auto"></canvas>
+          </div>
+          
+          <div class="bg-gray-900/50 border border-purple-500/30 p-4 rounded-lg text-center">
+            <p class="text-sm text-indigo-200/90">
+              <kbd class="px-2 py-1 bg-black/60 border border-white/20 rounded">↑</kbd>
+              <kbd class="px-2 py-1 bg-black/60 border border-white/20 rounded">↓</kbd> or
+              <kbd class="px-2 py-1 bg-black/60 border border-white/20 rounded">W</kbd>
+              <kbd class="px-2 py-1 bg-black/60 border border-white/20 rounded">S</kbd>
+              to move | You are <span id="yourRole" class="font-bold"></span>
+            </p>
+          </div>
         </div>
-
-        <!-- Ready Button -->
-        <button id="readyBtn" disabled
-          class="w-full px-4 py-3 rounded bg-yellow-500 text-white font-semibold text-lg
-                 hover:bg-yellow-600 disabled:bg-gray-300 disabled:cursor-not-allowed">
-          Waiting for opponent...
-        </button>
       </div>
-
-      <!-- Game Canvas -->
-      <div id="gameContainer" class="hidden space-y-4">
-        <div class="flex justify-between items-center bg-gray-900 text-white p-4 rounded-lg">
-          <div class="text-3xl font-mono font-bold">
-            <span class="text-blue-400">P1</span> <span id="scoreP1">0</span>
-          </div>
-          <div class="flex items-center gap-4">
-            <div id="countdownDisplay" class="text-4xl font-bold text-yellow-400"></div>
-            <div id="pingDisplay" class="text-sm text-gray-300">Ping: -- ms</div>
-          </div>
-          <div id="diagBar" class="text-xs text-gray-400 mt-1">Focus: ? | WS: ? | Role: ? | Vis: ?</div>
-          <div class="text-3xl font-mono font-bold">
-            <span id="scoreP2">0</span> <span class="text-red-400">P2</span>
-          </div>
-        </div>
-        
-        <div class="mx-auto" style="width: 1000px; max-width: 100%;">
-        <canvas id="gameCanvas" tabindex="0" width="1000" height="600" class="bg-black block w-full h-auto"></canvas>
-        </div>
-        
-        <div class="bg-gray-100 p-4 rounded-lg text-center">
-          <p class="text-sm">
-            <kbd class="px-2 py-1 bg-white border rounded">↑</kbd>
-            <kbd class="px-2 py-1 bg-white border rounded">↓</kbd> or
-            <kbd class="px-2 py-1 bg-white border rounded">W</kbd>
-            <kbd class="px-2 py-1 bg-white border rounded">S</kbd>
-            to move | You are <span id="yourRole" class="font-bold"></span>
-          </p>
-        </div>
-      </div>
-
     </section>
   `;
 
@@ -173,6 +172,30 @@ export default function (root: HTMLElement, ctx: { params?: { roomId?: string };
 		didMountRemoteRoom = true;
 	}
 	setupRoomEventListeners(root);
+
+	// Listen for invite declined to automatically exit waiting room
+	const onInviteDeclined = (e: Event) => {
+		const detail: any = (e as CustomEvent).detail || {};
+		console.log('🔔 Invite declined in remote-room:', detail);
+		updateStatus(root, `❌ ${detail?.from || 'Player'} declined your invitation`, 'error');
+		// Automatically navigate back to remote lobby after 1.5 seconds
+		setTimeout(() => {
+			navigate('/remote');
+		}, 1500);
+	};
+	window.addEventListener('invite:declined', onInviteDeclined as EventListener);
+
+	// Listen for player left to automatically exit waiting room
+	const onPlayerLeft = (e: Event) => {
+		const detail: any = (e as CustomEvent).detail || {};
+		console.log('🔔 Player left in remote-room:', detail);
+		updateStatus(root, `👋 ${detail?.from || 'Player'} left the waiting room`, 'error');
+		// Automatically navigate back to remote lobby after 1.5 seconds
+		setTimeout(() => {
+			navigate('/remote');
+		}, 1500);
+	};
+	window.addEventListener('player:left', onPlayerLeft as EventListener);
 
 	return () => {
 	try {
@@ -192,6 +215,8 @@ export default function (root: HTMLElement, ctx: { params?: { roomId?: string };
 	window.removeEventListener('keyup', handleKeyUp);
 	if (moveRepeatTimer) { clearInterval(moveRepeatTimer); moveRepeatTimer = null; }
 	if (pingTimer) { clearInterval(pingTimer); pingTimer = null; }
+	window.removeEventListener('invite:declined', onInviteDeclined as EventListener);
+	window.removeEventListener('player:left', onPlayerLeft as EventListener);
 	gameState = null;
 	didMountRemoteRoom = false;
 	isConnectingRemoteRoom = false;
@@ -518,16 +543,15 @@ function updatePlayersList(root: HTMLElement) {
 	// Sort by playerNumber for stable display
 	const players = [...gameState.players].sort((a, b) => a.playerNumber - b.playerNumber);
 	container.innerHTML = players.map(p => `
-    <div class="flex items-center gap-3 p-3 rounded ${p.ready ? 'bg-green-100 border-2 border-green-400' : 'bg-gray-100'}">
-      <div class="w-10 h-10 rounded-full ${p.playerNumber === 1 ? 'bg-blue-500' : 'bg-red-500'} 
-                  flex items-center justify-center text-white font-bold">
-        P${p.playerNumber}
-      </div>
+    <div class="player-card">
+      <div class="player-badge ${p.playerNumber === 1 ? 'bg-blue-600' : 'bg-red-600'}">P${p.playerNumber}</div>
       <div class="flex-1">
-        <div class="font-semibold">${p.username}</div>
-        ${p.playerId === gameState?.playerId ? '<div class="text-xs text-blue-600">👈 You</div>' : ''}
+        <div class="font-black text-indigo-100">${p.username}</div>
+        ${p.playerId === gameState?.playerId ? '<div class="chip text-[11px] text-indigo-200/90">YOU</div>' : ''}
       </div>
-      ${p.ready ? '<span class="text-green-600 font-bold">✓</span>' : '<span class="text-gray-400">○</span>'}
+      ${p.ready 
+        ? '<div class="status-ready text-sm"><span class="status-dot" style="background:#4ade80; box-shadow:0 0 10px rgba(74,222,128,.8);"></span>READY</div>' 
+        : '<div class="status-wait text-sm"><span class="status-dot" style="background:#94a3b8;"></span>WAITING</div>'}
     </div>
   `).join('');
 }
