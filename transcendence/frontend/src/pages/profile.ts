@@ -942,10 +942,10 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
     // Bestätigungs-Dialog
     const confirmed = confirm(
       '⚠️ Are you sure you want to delete your account?\n\n' +
-      'This action will:\n' +
-      '• Mark your account as deleted\n' +
-      '• Add "deleted_" prefix to your username\n' +
-      '• Log you out immediately\n\n' +
+      // 'This action will:\n' +
+      // '• Mark your account as deleted\n' +
+      // '• Add "deleted_" prefix to your username\n' +
+      // '• Log you out immediately\n\n' +
       'This action cannot be undone. Do you want to continue?'
     );
     
