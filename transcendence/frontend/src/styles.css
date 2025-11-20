@@ -1,3 +1,6 @@
+/* Import Google Font only if available by the bundler/network; harmless if blocked */
+@import url('https://fonts.googleapis.com/css2?family=VT323&family=Silkscreen:wght@400;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -165,9 +168,6 @@ body { background: var(--app-bg); }
   font-weight: 400; /* not bold */
   text-transform: uppercase;
 }
-
-/* Import Google Font only if available by the bundler/network; harmless if blocked */
-@import url('https://fonts.googleapis.com/css2?family=VT323&family=Silkscreen:wght@400;700&display=swap');
 
 /* Local Arcade Classic font (served from public/fonts/arcadeclassic) */
 @font-face {

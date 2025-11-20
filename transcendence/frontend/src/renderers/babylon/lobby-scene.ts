@@ -32,6 +32,9 @@ const BALL_DIAMETER= 130;
 const BALL_ARC_LIFT = 50;
 const BALL_ARC_STEPS = 80;
 
+// 3. Font size
+const BASE_FONT_SIZE = 25;
+
 /* Helpers */
 // 1. Aiming guide line update.
 function qBezier(p0: BABYLON.Vector3, p1: BABYLON.Vector3, p2: BABYLON.Vector3, t: number) {
@@ -56,6 +59,9 @@ function makeArcPath(from: BABYLON.Vector3, to: BABYLON.Vector3, lift = 380, ste
 export function mountLobbyScene({
 	host, onLocal, onRemote, onTournaments
   }: Options) {
+	// Check, whether this function starts in console.
+	console.log(">>> mountLobbyScene LOADED, FONT =", BASE_FONT_SIZE);
+
 	// Canvas
 	const canvas = document.createElement("canvas");
 	Object.assign(canvas.style, { width: "100%", height: "100%", display: "block" });
@@ -67,13 +73,12 @@ export function mountLobbyScene({
 	// Scene
 	const scene = new BABYLON.Scene(engine);
 	scene.defaultCursor = "default";
-	scene.hoverCursor = "default"; // Explicit manage the hoverCursor
-	scene.clearColor = new BABYLON.Color4(1, 1, 1, 1); // Out of wall, all white color.
+	scene.hoverCursor = "default";						// Explicit manage the hoverCursor
+	scene.clearColor = new BABYLON.Color4(1, 1, 1, 1);	// Out of wall, all white color.
 	
 	// UI
 	const ui = GUI.AdvancedDynamicTexture.CreateFullscreenUI("ui", true, scene);
-	ui.renderAtIdealSize = true;
-	ui.idealWidth = 1920;
+	ui.renderAtIdealSize = false;
 
 	// Error message to not-logged in user, who wants to join remote or tournaments.
 	function showUserAlert(message: string) {
@@ -115,6 +120,10 @@ export function mountLobbyScene({
 	cam.minZ = 0.1;
 	cam.maxZ = 10000;
 	cam.inputs.clear();
+
+	// Bug handling
+	scene.activeCamera = cam;
+	cam.attachControl(canvas, true);
 
 	// Light
 	const hemi = new BABYLON.HemisphericLight(
@@ -412,12 +421,7 @@ export function mountLobbyScene({
 			targetRoot = center.root;
 		else
 			targetRoot = right.root;
-		/* 
-    	const isLeftSide = scene.pointerX < (canvas.clientWidth / 2);
-    	const targetRoot = isLeftSide ? left.root : right.root;
-    	const to = targetRoot.getAbsolutePosition().add(new BABYLON.Vector3(0, 150, 0));
-    	const from = ball.position.clone();
-		*/
+
 		const to = targetRoot.getAbsolutePosition().add(new BABYLON.Vector3(0, 150, 0));
 		const from = ball.position.clone();
     	const path = makeArcPath(from, to, BALL_ARC_LIFT);
@@ -445,8 +449,8 @@ export function mountLobbyScene({
 
 	// Events: Launch ball to paddles, when confilts -> call back function.
 	function launchBallTo(
-	target: { root: BABYLON.TransformNode; hit: BABYLON.AbstractMesh },
-	onHit?: () => void
+		target: { root: BABYLON.TransformNode; hit: BABYLON.AbstractMesh },
+		onHit?: () => void
 	) {
 		isFlying = true;
 		hasHit = false;
@@ -459,8 +463,8 @@ export function mountLobbyScene({
 
 		const to = target.root.getAbsolutePosition().add(new BABYLON.Vector3(0, 150, 0));
 		const from = ball.position.clone();
-
 		const path = makeArcPath(from, to, BALL_ARC_LIFT, BALL_ARC_STEPS);
+
 		const anim = new BABYLON.Animation(
 			"shoot", "position", 60,
 			BABYLON.Animation.ANIMATIONTYPE_VECTOR3,
@@ -484,7 +488,12 @@ export function mountLobbyScene({
 			if (intersectsBall(target.hit)) {
 				hasHit = true;
 				isFlying = false;
-				onHit?.();
+
+				if (onHit) {
+					setTimeout(() => {
+						onHit?.();
+					}, 0);
+				}
 			}
 		});
 
@@ -508,23 +517,6 @@ export function mountLobbyScene({
 	let leftTarget = BASE.clone();
 	let centerTarget = BASE.clone();
 	let rightTarget = BASE.clone();
-
-	// Add
-	// const runRemote = () => {
-    //     if (!!getAuth()?.id) {
-    //         onRemote?.();
-    //     } else {
-	// 		showUserAlert("Please sign in to play remote matches.");
-    //     }
-    // };
-
-	// const runTournaments = () => {
-    //     if (!!getAuth()?.id) {
-    //         onTournaments?.();
-    //     } else {
-    //         showUserAlert("Please sign in to join tournaments.");
-    //     }
-    // };
 
 	// Event: Tracking pointer.
 	scene.onPointerObservable.add((pi) => {
@@ -590,8 +582,9 @@ export function mountLobbyScene({
 		const tb = new GUI.TextBlock();
 		tb.text = text;
 		tb.color = "black";
-		tb.fontSize = 22;
 		tb.fontWeight = "600";
+		tb.fontSize = BASE_FONT_SIZE;
+
 		rect.addControl(tb);
 		return rect;
 	}
@@ -606,13 +599,24 @@ export function mountLobbyScene({
 	// Rendering: Loop & Resize
 	const onResize = () => engine.resize();
 	window.addEventListener("resize", onResize);
-	engine.setHardwareScalingLevel(1 / (window.devicePixelRatio || 1));
-	engine.runRenderLoop(() => scene.render());
+	// When needs to modify size of font matching with screen size, on.
+	// engine.setHardwareScalingLevel(1 / (window.devicePixelRatio || 1));
+	const render = () => {
+		if (scene.isDisposed)
+			return;
+		const cam = scene.activeCamera;
+		if (!cam || cam.isDisposed())
+			return;
+		scene.render();
+	}
+
+	engine.runRenderLoop(render);
 
 	// Cleanup before return.
 	return () => {
 		window.removeEventListener("resize", onResize);
-		engine.stopRenderLoop();
+		scene.onBeforeRenderObservable.clear();
+		engine.stopRenderLoop(render);
 		scene.dispose();
 		engine.dispose();
 		canvas.remove();
