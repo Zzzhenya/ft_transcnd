@@ -1,6 +1,6 @@
-import { lstat } from 'fs';
 import logger from '../utils/logger.js';
-import { games } from './createGame.js';
+
+const DEBUG_GAME = process.env.DEBUG_GAME === 'true';
 
 // Game configuration - centralized settings sent to frontend
 export const GAME_CONFIG = {
@@ -52,7 +52,7 @@ export function moveBall(gameState) {
   const paddleWidth = GAME_CONFIG.paddle.width;
   const paddleX = 50;       // Paddles are at the boundaries: x = ±50 (same as scoring line)
   const speedIncrement = 0.1;
-  const ballspeed = GAME_CONFIG.ball.speed; // Base ball speed
+  const ballspeed = 1.0; // Reduced ball speed for slower gameplay
   const ballRadius = GAME_CONFIG.ball.radius; // Ball radius for collision
 
   // Simple ball movement - no speed multiplier
@@ -82,7 +82,7 @@ export function moveBall(gameState) {
     }
     
     // Keep constant speed - don't increase speed on each hit
-    const baseSpeed = GAME_CONFIG.ball.bounceSpeed; // Constant ball speed after bounce
+    const baseSpeed = 1.5; // Reduced bounce speed for slower gameplay
     
     gameState.ball.dx = gameState.ball.dx > 0 ? -baseSpeed : baseSpeed; // Reverse direction with constant speed
     gameState.ball.dy = normalizedY * baseSpeed; // Set Y velocity based on paddle hit position
@@ -166,17 +166,9 @@ function checkRoundEnd(gameState) {
   // Note: Do NOT increment roundsWon here - that's GameRoom's responsibility
   // This function just checks and returns the winner
   if (gameState.score.player1 >= scoreLimit) {
-    // Player 1 wins the round
-    gameState.tournament.roundsWon.player1++;
-    gameState.totalScore.player1 += (gameState.score.player1 || 0);
-    gameState.totalScore.player2 += (gameState.score.player2 || 0);
-    endRound(gameState, 'player1');
+    return 'player1';
   } else if (gameState.score.player2 >= scoreLimit) {
-    // Player 2 wins the round
-    gameState.tournament.roundsWon.player2++;
-    gameState.totalScore.player1 += (gameState.score.player1 || 0);
-    gameState.totalScore.player2 += (gameState.score.player2 || 0);
-    endRound(gameState, 'player2');
+    return 'player2';
   }
   return null;
 }
@@ -248,14 +240,7 @@ function restartGame(gameState) {
     gameState.tournament.countdownInterval = null;
   }
   
-  if (gameState.gameLoopInterval) {
-    clearInterval(gameState.gameLoopInterval);
-    gameState.gameLoopInterval = null;
-  }
-  
-  gameState.totalScore.player1 = 0;
-  gameState.totalScore.player2 = 0;
-  gameState.score.player1 = 0;
+    gameState.score.player1 = 0;
   gameState.score.player2 = 0;
   gameState.paddles.player1 = 0;  // Reset paddle positions
   gameState.paddles.player2 = 0;
@@ -332,9 +317,7 @@ function startGameLoop(gameState, broadcastState, moveBall, getClientCount) {
       // Update last values for next comparison
       lastBallX = gameState.ball.x;
       lastBallY = gameState.ball.y;
-      //lastTotalScore1 = gameState.totalScore.player1 + gameState.score.player1;
       lastScore1 = gameState.score.player1;
-     // lastTotalScore2 = gameState.totalScore.player2 + gameState.score.player2;
       lastScore2 = gameState.score.player2;
       lastPaddle1 = gameState.paddles.player1;
       lastPaddle2 = gameState.paddles.player2;
@@ -348,7 +331,6 @@ function startGameLoop(gameState, broadcastState, moveBall, getClientCount) {
 // Game state
 function initialGameState() {
   return {
-    totalScore: { player1: 0, player2: 0 },
     score: { player1: 0, player2: 0 },
     ball: { x: 0, y: 0, dx: 2, dy: 2 },
     paddles: { player1: 0, player2: 0 },

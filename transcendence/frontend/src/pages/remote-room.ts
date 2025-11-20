@@ -362,10 +362,15 @@ async function httpFallbackReady(root: HTMLElement, uname: string) {
 	if (document.visibilityState === 'hidden') {
 	if (pingTimer) { clearInterval(pingTimer); pingTimer = null; }
 	} else if (document.visibilityState === 'visible') {
-	if (!pingTimer && gameState?.ws) {
+	if (!pingTimer && gameState?.ws && gameState.ws.readyState === WebSocket.OPEN) {
 	const ws = gameState.ws;
 	pingTimer = window.setInterval(() => {
-	try { lastPingTs = Date.now(); ws.send(JSON.stringify({ type: 'ping', ts: lastPingTs })); } catch {}
+	try { 
+		if (ws.readyState === WebSocket.OPEN) {
+			lastPingTs = Date.now(); 
+			ws.send(JSON.stringify({ type: 'ping', ts: lastPingTs })); 
+		}
+	} catch {}
 	}, 3000);
 	}
 	}
@@ -396,8 +401,11 @@ function connectToRoom(root: HTMLElement, roomId: string, playerId: string, user
 	isConnectingRemoteRoom = false;
 
 	ws.onopen = () => {
-		if (!gameState || (gameState as any).connectionId !== thisConnId) return; // stale
-		console.log('✅ Connected');
+		if (!gameState || (gameState as any).connectionId !== thisConnId) {
+			console.warn('⚠️ Stale connection onopen, ignoring');
+			return; // stale
+		}
+		console.log('✅ WebSocket OPEN - readyState:', ws.readyState);
 		gameState.connected = true;
 		(document as any)._lastWS = ws;
 		updateStatus(root, '✅ Connected to room!', 'success');
@@ -420,13 +428,21 @@ function connectToRoom(root: HTMLElement, roomId: string, playerId: string, user
 		}
 	};
 
-	ws.onerror = () => {
-		if (!gameState || (gameState as any).connectionId !== thisConnId) return; // stale
+	ws.onerror = (error) => {
+		if (!gameState || (gameState as any).connectionId !== thisConnId) {
+			console.warn('⚠️ Stale connection onerror, ignoring');
+			return; // stale
+		}
+		console.error('❌ WebSocket ERROR:', error);
 		updateStatus(root, '❌ Connection error', 'error');
 	};
 
-	ws.onclose = () => {
-		if (!gameState || (gameState as any).connectionId !== thisConnId) return; // stale
+	ws.onclose = (event) => {
+		if (!gameState || (gameState as any).connectionId !== thisConnId) {
+			console.warn('⚠️ Stale connection onclose, ignoring');
+			return; // stale
+		}
+		console.log('❌ WebSocket CLOSED - code:', event.code, 'reason:', event.reason);
 		gameState.connected = false;
 		updateStatus(root, '⚠️ Disconnected', 'error');
 		updateDiagnostics(root);
@@ -462,6 +478,10 @@ function handleServerMessage(root: HTMLElement, message: any) {
             } catch {}
             break;
 		case 'init':
+			console.log('📨 INIT message received:', message);
+			console.log('📨 Current gameState.connected:', gameState.connected);
+			console.log('📨 Current ws.readyState:', gameState.ws?.readyState);
+			
 			// Prefer server authoritative identity if provided
 			if (message.playerId && gameState.playerId !== message.playerId) {
 				console.log('🪪 Updating local playerId from server', { old: gameState.playerId, new: message.playerId });
@@ -694,13 +714,27 @@ ctx = canvas.getContext('2d')!;
 
 // Start ping interval (client-side ping/pong) only when visible
 try {
-  if (gameState?.ws && document.visibilityState === 'visible') {
+  if (gameState?.ws && gameState.ws.readyState === WebSocket.OPEN && document.visibilityState === 'visible') {
     const ws = gameState.ws;
     pingTimer = window.setInterval(() => {
       try {
-        lastPingTs = Date.now();
-        ws.send(JSON.stringify({ type: 'ping', ts: lastPingTs }));
-      } catch {}
+        if (ws.readyState === WebSocket.OPEN) {
+          lastPingTs = Date.now();
+          ws.send(JSON.stringify({ type: 'ping', ts: lastPingTs }));
+        } else {
+          // WebSocket closed, clear the interval
+          if (pingTimer) {
+            clearInterval(pingTimer);
+            pingTimer = null;
+          }
+        }
+      } catch (e) {
+        // Error sending, clear the interval
+        if (pingTimer) {
+          clearInterval(pingTimer);
+          pingTimer = null;
+        }
+      }
     }, 3000);
   }
 } catch {}
@@ -806,8 +840,10 @@ function drawGame(state: any) {
 }
 
 function handleKeyDown(e: KeyboardEvent) {
-  if (!gameState?.ws || gameState.ws.readyState !== WebSocket.OPEN) {
-    console.warn('Key ignored: WS not open');
+  if (!gameState?.ws) {
+    return;
+  }
+  if (gameState.ws.readyState !== WebSocket.OPEN) {
     return;
   }
   // Guard: only assigned players can send input (allow pre-start for testing responsiveness)
@@ -843,12 +879,13 @@ function handleKeyDown(e: KeyboardEvent) {
 
 function handleKeyUp(e: KeyboardEvent) {
   if (!gameState?.ws) {
-    console.warn('KeyUp ignored: no ws');
+    return;
+  }
+  if (gameState.ws.readyState !== WebSocket.OPEN) {
     return;
   }
   // Guard: only assigned players can send input
   if (gameState.playerNumber !== 1 && gameState.playerNumber !== 2) {
-    console.warn('KeyUp ignored: no role');
     return;
   }
 
@@ -860,8 +897,12 @@ function handleKeyUp(e: KeyboardEvent) {
     if (wasDown) keysPressed.delete('down');
     if (!keysPressed.has('up') && !keysPressed.has('down')) {
       // No repeat to clear; just send stop once
-      if (gameState.ws.readyState === WebSocket.OPEN) {
-        gameState.ws.send(JSON.stringify({ type: 'paddleMove', direction: 'stop' }));
+      try {
+        if (gameState.ws.readyState === WebSocket.OPEN) {
+          gameState.ws.send(JSON.stringify({ type: 'paddleMove', direction: 'stop' }));
+        }
+      } catch (e) {
+        // WebSocket closed, ignore
       }
     }
     e.preventDefault();
