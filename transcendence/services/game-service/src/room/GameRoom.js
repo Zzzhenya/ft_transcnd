@@ -5,17 +5,13 @@ import { initialGameState, moveBall, movePaddle } from '../pong/gameLogic.js';
 import logger from '../utils/logger.js';
 
 function safePaddleSet(gameState, player, value, source) {
-	logger.info(`[DEBUG] Setting ${player} paddle to ${value} from ${source}`);
-
+	// Trim verbose debug logs to reduce I/O overhead
 	if (isNaN(value)) {
-		logger.error(`[DEBUG] ⚠️ Attempted to set ${player} to NaN from ${source}! Stack trace:`);
-		console.trace();
+		logger.warn(`[GameRoom] Attempted to set ${player} to NaN from ${source}. Resetting to 0.`);
 		gameState.paddles[player] = 0;
 	} else {
 		gameState.paddles[player] = value;
 	}
-
-	logger.info(`[DEBUG] ${player} paddle is now: ${gameState.paddles[player]}`);
 }
 
 
@@ -41,17 +37,16 @@ export class GameRoom {
 		state.paddles.player1 = 0;
 		state.paddles.player2 = 0;
 
-		// FIX: Configure for multiple rounds (best of 3)
+		// Configure for best of 3 rounds; first to 5 points per round
 		state.tournament.maxRounds = 3;
-		state.tournament.scoreLimit = 11;
+		state.tournament.scoreLimit = 5;
 		state.tournament.currentRound = 1;
 		state.tournament.roundsWon = { player1: 0, player2: 0 };
 		state.tournament.gameStatus = 'waiting';
+		// Track total points across all rounds for persistence
+		state.tournament.totalPoints = { player1: 0, player2: 0 };
 
-		logger.info(`[GameRoom] Created initial game state:`, {
-			paddle1: state.paddles.player1,
-			paddle2: state.paddles.player2,
-			ball: state.ball,
+		logger.info(`[GameRoom] Created initial game state`, {
 			maxRounds: state.tournament.maxRounds,
 			scoreLimit: state.tournament.scoreLimit
 		});
@@ -218,6 +213,7 @@ export class GameRoom {
 			paddle2_type: typeof this.gameState.paddles.player2,
 		});
 
+		// Reset paddles
 		safePaddleSet(this.gameState, 'player1', 0, 'startGame-init');
 		safePaddleSet(this.gameState, 'player2', 0, 'startGame-init');
 
@@ -330,7 +326,7 @@ export class GameRoom {
 
 		this.gameState = moveBall(this.gameState);
 
-		// FIX: Check for round win (not game win yet)
+		// Check for round win (not game win yet)
 		const roundWinner = this.checkRoundWin();
 		if (roundWinner) {
 			this.endRound(roundWinner);
@@ -351,7 +347,6 @@ export class GameRoom {
 		this.lastActivity = Date.now();
 	}
 
-	// FIX: Check if someone won the ROUND (not the whole game)
 	checkRoundWin() {
 		if (!this.gameState) return null;
 
@@ -367,16 +362,19 @@ export class GameRoom {
 		return null;
 	}
 
-	// FIX: Handle end of a round (not the whole game)
 	endRound(roundWinner) {
 		logger.info(`[GameRoom] 🏆 Round ${this.gameState.tournament.currentRound} ended, winner: P${roundWinner}`);
+
+		// Aggregate total points across rounds
+		this.gameState.tournament.totalPoints.player1 += this.gameState.score.player1;
+		this.gameState.tournament.totalPoints.player2 += this.gameState.score.player2;
 
 		// Update rounds won
 		const winnerKey = `player${roundWinner}`;
 		this.gameState.tournament.roundsWon[winnerKey]++;
 
 		// Check if someone won the match (best of 3 = 2 rounds needed)
-		const roundsToWin = Math.ceil(this.gameState.tournament.maxRounds / 2); // 2 rounds for best of 3
+		const roundsToWin = Math.ceil(this.gameState.tournament.maxRounds / 2);
 
 		if (this.gameState.tournament.roundsWon[winnerKey] >= roundsToWin) {
 			// Game over!
@@ -425,7 +423,6 @@ export class GameRoom {
 		}, 1000);
 	}
 
-	// FIX: New method to start the next round
 	startNextRound() {
 		logger.info(`[GameRoom] 🎮 Starting round ${this.gameState.tournament.nextRoundNumber}`);
 
@@ -437,8 +434,8 @@ export class GameRoom {
 		this.gameState.score.player2 = 0;
 
 		// Reset paddles
-		this.gameState.paddles.player1 = 0;
-		this.gameState.paddles.player2 = 0;
+		safePaddleSet(this.gameState, 'player1', 0, 'startNextRound');
+		safePaddleSet(this.gameState, 'player2', 0, 'startNextRound');
 
 		// Reset ball
 		this.gameState.ball.x = 0;
@@ -466,6 +463,12 @@ export class GameRoom {
 	endGame(winner) {
 		logger.info(`[GameRoom] 🏆 Game ended in room ${this.roomId}, winner: P${winner}`);
 
+		// Add last round points to total
+		if (this.gameState) {
+			this.gameState.tournament.totalPoints.player1 += this.gameState.score.player1;
+			this.gameState.tournament.totalPoints.player2 += this.gameState.score.player2;
+		}
+
 		this.stopGame();
 
 		if (this.gameState) {
@@ -478,6 +481,7 @@ export class GameRoom {
 			winner,
 			finalScores: this.gameState.score,
 			roundsWon: this.gameState.tournament.roundsWon,
+			totalPoints: this.gameState.tournament.totalPoints,
 			matchDuration: Date.now() - this.createdAt
 		});
 
@@ -516,7 +520,8 @@ export class GameRoom {
 
 		const playerKey = `player${player.playerNumber}`;
 
-		logger.info(`[GameRoom] 🎮 BEFORE movePaddle: ${playerKey}=${this.gameState.paddles[playerKey]}, direction=${direction}`);
+		// Reduce noisy paddle logs for performance
+		// logger.info(`[GameRoom] BEFORE movePaddle: ${playerKey}=${this.gameState.paddles[playerKey]}, direction=${direction}`);
 
 		const paddleSpeed = 15;
 		const topBoundary = -70;
@@ -541,7 +546,7 @@ export class GameRoom {
 
 		safePaddleSet(this.gameState, playerKey, newPos, 'updatePaddle');
 
-		logger.info(`[GameRoom] 🎮 AFTER movePaddle: ${playerKey}=${this.gameState.paddles[playerKey]}`);
+		// logger.info(`[GameRoom] AFTER movePaddle: ${playerKey}=${this.gameState.paddles[playerKey]}`);
 	}
 
 	broadcast(message, excludePlayerId = null) {

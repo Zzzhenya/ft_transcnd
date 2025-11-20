@@ -175,14 +175,15 @@ function setupRoomEventListeners(root: HTMLElement) {
 function connectToRoom(root: HTMLElement, roomId: string, playerId: string, username: string) {
 	const wsUrl = `${WS_BASE}/remote?roomId=${roomId}&playerId=${playerId}&username=${encodeURIComponent(username)}`;
 
-	console.log('🔌 Connecting:', wsUrl);
+	// Reduce console noise
+	// console.log('🔌 Connecting:', wsUrl);
 	updateStatus(root, '🔄 Connecting...', 'info');
 
 	const ws = new WebSocket(wsUrl);
 	if (gameState) gameState.ws = ws;
 
 	ws.onopen = () => {
-		console.log('✅ Connected');
+		// console.log('✅ Connected');
 		if (gameState) gameState.connected = true;
 		updateStatus(root, '✅ Connected to room!', 'success');
 	};
@@ -205,7 +206,7 @@ function connectToRoom(root: HTMLElement, roomId: string, playerId: string, user
 function handleServerMessage(root: HTMLElement, message: any) {
 	if (!gameState) return;
 
-	console.log('📨', message.type);
+	// console.debug('msg:', message.type);
 
 	switch (message.type) {
 		case 'init':
@@ -251,14 +252,25 @@ function handleServerMessage(root: HTMLElement, message: any) {
 			break;
 
 		case 'countdown':
-			// FIX: Show countdown in overlay BEFORE game starts
 			showCountdown(root, message.count, message.message);
 			break;
 
 		case 'gameStart':
-			// FIX: Hide countdown overlay when game starts
 			hideCountdown(root);
 			startGameUI(root, message.gameState);
+			break;
+
+		case 'roundEnd':
+			updateStatus(root, `Round ${message.roundNumber} ended. Next: Round ${message.nextRound}`, 'info');
+			break;
+
+		case 'roundCountdown':
+			showCountdown(root, message.count, `Round ${message.nextRound} starting in ${message.count}...`);
+			break;
+
+		case 'roundStart':
+			hideCountdown(root);
+			updateStatus(root, `Round ${message.roundNumber} started!`, 'success');
 			break;
 
 		case 'gameState':
@@ -425,8 +437,13 @@ function endGame(root: HTMLElement, data: any) {
 	const winner = data.winner;
 	const isYouWinner = winner === gameState.playerNumber;
 
+	const totalP1 = data.totalPoints?.player1 ?? 0;
+	const totalP2 = data.totalPoints?.player2 ?? 0;
+	const rounds = data.roundsWon ? ` (Rounds: P1 ${data.roundsWon.player1} - P2 ${data.roundsWon.player2})` : '';
+
 	updateStatus(root,
-		isYouWinner ? '🎉🏆 YOU WON! 🏆🎉' : `Player ${winner} won!`,
+		isYouWinner ? `🎉🏆 YOU WON THE MATCH! 🏆🎉 Total Points P1:${totalP1} P2:${totalP2}${rounds}`
+					: `Player ${winner} won! Total Points P1:${totalP1} P2:${totalP2}${rounds}`,
 		isYouWinner ? 'success' : 'info'
 	);
 

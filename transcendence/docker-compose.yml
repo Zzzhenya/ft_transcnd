@@ -1,17 +1,20 @@
 services:
   nginx:
-    image: nginx:alpine
+    build:
+      context: ..
+      dockerfile: transcendence/nginx/Dockerfile
+    image: transcendence-nginx:latest
     container_name: transcendence-nginx
     ports:
       - "8000:80"
       - "8443:443"
+    # If you prefer to live-edit nginx.conf/ssl without rebuilds, keep these volumes.
+    # Otherwise, remove them to rely purely on the image content.
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/ssl:/etc/nginx/ssl:ro
-      - ./frontend/dist:/usr/share/nginx/html:ro  # Serve built frontend
     depends_on:
       - gateway
-      - frontend
     networks:
       - transcendence-network
     restart: unless-stopped
