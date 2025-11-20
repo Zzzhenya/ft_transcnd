@@ -26,15 +26,22 @@ RUN npm run build
 # Stage 2: Nginx runtime serving the SPA
 FROM nginx:1.25-alpine
 
-# Copy nginx configuration and SSL certs
+# Copy nginx configuration
 COPY transcendence/nginx/nginx.conf /etc/nginx/nginx.conf
-COPY transcendence/nginx/ssl/ /etc/nginx/ssl/
+
+# Generate self-signed SSL certs for CI/dev to avoid missing path errors
+RUN apk add --no-cache openssl \
+    && mkdir -p /etc/nginx/ssl \
+    && openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+         -subj "/CN=localhost" \
+         -keyout /etc/nginx/ssl/private.key \
+         -out /etc/nginx/ssl/certificate.crt
 
 # Copy built frontend into web root
 COPY --from=build /app/frontend/dist/ /usr/share/nginx/html/
 
 # Reasonable permissions
-RUN chmod -R 755 /usr/share/nginx/html
+RUN chmod -R 755 /usr/share/nginx/html /etc/nginx/ssl
 
 EXPOSE 80 443
 CMD ["nginx", "-g", "daemon off;"]
