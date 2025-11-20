@@ -21,6 +21,7 @@
     "@fastify/cors": "^11.1.0",
     "@fastify/websocket": "^11.2.0",
     "axios": "^1.12.2",
+    "babylonjs": "^8.37.0",
     "fastify": "^5.6.1",
     "sqlite3": "^5.1.7",
     "ws": "^8.18.3"

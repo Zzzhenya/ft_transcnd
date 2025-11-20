@@ -45,7 +45,17 @@ export function setupRemoteWebSocket(fastify) {
 		// UNIR JUGADOR A LA ROOM
 		// ========================================
 
-		const room = roomManager.joinRoom(roomId, playerId, socket, { username });
+		// Pass userId in playerInfo for database persistence
+		// playerId format is "userId_timestamp_random", extract the userId part
+		const userIdMatch = playerId.match(/^(\d+)_/);
+		const userId = userIdMatch ? parseInt(userIdMatch[1]) : null;
+		
+		logger.info(`[RemoteWS] Extracted userId: ${userId} from playerId: ${playerId}`);
+		
+		const room = roomManager.joinRoom(roomId, playerId, socket, { 
+			username,
+			userId: userId
+		});
 
 		if (!room) {
 			socket.send(JSON.stringify({

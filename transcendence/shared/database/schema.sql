@@ -117,7 +117,7 @@ CREATE INDEX idx_tournament_status ON Tournament(Tournament_status);
 CREATE TABLE Tournament_Players (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   tournament_id INTEGER NOT NULL,
-  user_id INTEGER NOT NULL,
+  user_id INTEGER,
   tournament_alias VARCHAR(50) NOT NULL,
   
   -- For future modules:
@@ -136,7 +136,7 @@ CREATE INDEX idx_tournament_players ON Tournament_Players(tournament_id);
 -- -------------------- MATCHES --------------------
 CREATE TABLE Tournament_Matches (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  tournament_id INTEGER,
+  tournament_id INTEGER NOT NULL,
   
   -- Tournament Info
   round INTEGER,
@@ -144,24 +144,23 @@ CREATE TABLE Tournament_Matches (
   -- bracket_type VARCHAR(20),
   
   -- Players
-  player1_id INTEGER NOT NULL,
-  player2_id INTEGER NOT NULL,
+  player1_id INTEGER,
+  player2_id INTEGER,
+
+  player1_alias VARCHAR(50),
+  player2_alias VARCHAR(50),
   
   -- Results
   winner_id INTEGER,
-  loser_id INTEGER,
+  winner_username VARCHAR(50),
   player1_score INTEGER DEFAULT 0,
   player2_score INTEGER DEFAULT 0,
   
   -- Match Details
   matches_status VARCHAR(20) DEFAULT 'waiting',
-  game_mode VARCHAR(20) DEFAULT 'normal',
-  match_type VARCHAR(20),
-  duration INTEGER,
   
   -- Timestamps
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  started_at TIMESTAMP,
   finished_at TIMESTAMP,
   
   FOREIGN KEY (tournament_id) REFERENCES Tournament(id) ON DELETE CASCADE,

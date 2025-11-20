@@ -57,13 +57,26 @@ export default function (root: HTMLElement, ctx: any) {
     paddles: { player1: 0, player2: 0 },
     score: { player1: 0, player2: 0 },
     tournament: { roundsWon: { player1: 0, player2: 0 }, winner: null, currentRound: 1 },
+    totalScore: { player1: 0, player2: 0 },
     gameStatus: 'waiting'
+  };
+
+  // Game configuration received from backend
+  // Default values for rendering before game starts (only paddle/court dimensions matter)
+  let gameConfig: any = {
+    paddle: { width: 2, height: 40 },
+    ball: { radius: 2},
+    court: { width: 100, height: 200 }
   };
 
   let gameLoop: number | null = null;
   let lastTime = 0;
   let connectionAttempts = 0;
   const maxConnectionAttempts = 3;
+  
+  // Throttle paddle movement updates to reduce network spam
+  let lastPaddleUpdateTime = 0;
+  const PADDLE_UPDATE_INTERVAL = 50; // Send paddle updates every 50ms (20 times per second)
   
   // Track if match has started and is active
   // These flags determine when to trigger interruption
@@ -151,6 +164,24 @@ export default function (root: HTMLElement, ctx: any) {
   canvas = root.querySelector('#gameCanvas') as unknown as HTMLCanvasElement;
   ctx2d = canvas.getContext('2d')!;
 
+  const START_BTN_ACTIVE_CLASS = "bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-indigo-600 hover:to-blue-500 text-white px-8 py-3 rounded-xl font-bold shadow-lg transition-all duration-200";
+  const START_BTN_DISABLED_CLASS = "bg-gray-600 text-gray-300 px-8 py-3 rounded-xl font-bold shadow-lg transition-all duration-200 cursor-not-allowed";
+
+  function setStartButtonState() {
+    if (!startBtn) return;
+    if (matchStarted) {
+      startBtn.disabled = true;
+      startBtn.className = START_BTN_DISABLED_CLASS;
+      startBtn.innerHTML = `<span class="mr-2">🚀</span>Match In Progress`;
+    } else {
+      startBtn.disabled = false;
+      startBtn.className = START_BTN_ACTIVE_CLASS;
+      startBtn.innerHTML = `<span class="mr-2">🚀</span>Start Match`;
+    }
+  }
+
+  setStartButtonState();
+
   function updateStatus(message: string) {
     gameStatus.textContent = message;
   }
@@ -163,11 +194,16 @@ export default function (root: HTMLElement, ctx: any) {
     try {
       updateStatus('🔄 Creating tournament match...');
       updateConnectionStatus('📡 Connecting to gateway...');
-      const response = await fetch(`${API_BASE}/pong/demo`, {
+      const response = await fetch(`${API_BASE}/pong/game`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ players: [player1Name, player2Name] })
+        body: JSON.stringify({ 
+          player1_id: `tournament_${matchId}_p1`,
+          player1_name: player1Name,
+          player2_id: `tournament_${matchId}_p2`,
+          player2_name: player2Name
+        })
       });
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       const result = await response.json();
@@ -238,7 +274,9 @@ export default function (root: HTMLElement, ctx: any) {
         } else if (connectionAttempts >= maxConnectionAttempts) {
           updateStatus('❌ Backend connection failed - please try again');
           updateConnectionStatus('❌ Unable to connect to backend');
-          startBtn.disabled = false;
+          matchStarted = false;
+          sessionStorage.removeItem(matchKey);
+          setStartButtonState();
         }
       };
 
@@ -250,30 +288,85 @@ export default function (root: HTMLElement, ctx: any) {
     } catch (error) {
       updateStatus('❌ Failed to connect - please try again');
       updateConnectionStatus('❌ Network connection failed');
-      startBtn.disabled = false;
+      matchStarted = false;
+      sessionStorage.removeItem(matchKey);
+      setStartButtonState();
     }
   }
 
   let hasSentStartGame = false;
+
+// async function reportWinner(winnerName: string) {
+//   if (!tournamentId || !matchId) {
+//     console.log("No tournament context - skipping winner report");
+//     return;
+//   }
+  
+//   try {
+//     console.log(`Reporting winner: ${winnerName} for match ${matchId} in tournament ${tournamentId}`);
+//     const response = await fetch(`${API_BASE}/tournaments/${tournamentId}/advance`, {
+//       method: 'POST',
+//       headers: { 'Content-Type': 'application/json' },
+//       body: JSON.stringify({ matchId: matchId, winner: winnerName })
+//     });
+    
+//     if (response.ok) {
+//       const result = await response.json();
+//       console.log(`Winner ${winnerName} reported to tournament ${tournamentId}`, result);
+//     } else {
+//       const errorText = await response.text();
+//       console.error('Failed to report winner:', response.status, errorText);
+//     }
+//   } catch (error) {
+//     console.error('Error reporting winner:', error);
+//   }
+// }
 
 async function reportWinner(winnerName: string) {
   if (!tournamentId || !matchId) {
     console.log("No tournament context - skipping winner report");
     return;
   }
-  
+
+  // Decide what you want to store:
+  // - totalScore: all points across all rounds
+  // - score: last round only
+  const p1Score =
+    gameState.totalScore?.player1 ??
+    gameState.score?.player1 ??
+    0;
+
+  const p2Score =
+    gameState.totalScore?.player2 ??
+    gameState.score?.player2 ??
+    0;
+
   try {
-    console.log(`Reporting winner: ${winnerName} for match ${matchId} in tournament ${tournamentId}`);
-    const response = await fetch(`${API_BASE}/tournaments/${tournamentId}/advance`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({ matchId: matchId, winner: winnerName })
-    });
-    
+    console.log(
+      `Reporting winner: ${winnerName} for match ${matchId} in tournament ${tournamentId}`,
+      { p1Score, p2Score }
+    );
+
+    const response = await fetch(
+      `${API_BASE}/tournaments/${tournamentId}/advance`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          matchId: matchId,
+          winner: winnerName,
+          player1Score: p1Score,
+          player2Score: p2Score,
+        }),
+      }
+    );
+
     if (response.ok) {
       const result = await response.json();
-      console.log(`Winner ${winnerName} reported to tournament ${tournamentId}`, result);
+      console.log(
+        `Winner ${winnerName} reported to tournament ${tournamentId}`,
+        result
+      );
     } else {
       const errorText = await response.text();
       console.error('Failed to report winner:', response.status, errorText);
@@ -282,6 +375,7 @@ async function reportWinner(winnerName: string) {
     console.error('Error reporting winner:', error);
   }
 }
+
 
 async function markMatchAsInterrupted() {
   if (!tournamentId || !matchId) {
@@ -450,13 +544,24 @@ function showWinnerDialog(winner: string) {
 
   function handleBackendMessage(data: any) {
     if (data.type === 'STATE_UPDATE' && data.gameState) {
+      // Debug: log backend-provided totalScore so we can confirm server is sending it
+      console.log('DEBUG: received totalScore from server (tournament):', data.gameState.totalScore, 'top-level:', data.player1_totalScore, data.player2_totalScore);
       gameState = {
         ball: data.gameState.ball || gameState.ball,
         paddles: data.gameState.paddles || gameState.paddles,
         score: data.gameState.score || gameState.score,
         tournament: data.gameState.tournament || gameState.tournament,
+        // totalScore may be sent inside gameState or as top-level compatibility fields
+        totalScore: data.gameState.totalScore || { player1: data.player1_totalScore ?? gameState.totalScore?.player1 ?? 0, player2: data.player2_totalScore ?? gameState.totalScore?.player2 ?? 0 },
         gameStatus: data.gameState.tournament?.gameStatus || 'playing'
       };
+
+      // Update game configuration from backend if provided
+      if (data.config) {
+        gameConfig = data.config;
+        console.log('📊 Received game config from backend:', gameConfig);
+      }
+
       player1Name = data.gameState.player1_name || player1Name;
       player2Name = data.gameState.player2_name || player2Name;
 
@@ -482,14 +587,43 @@ function showWinnerDialog(winner: string) {
 
   function sendPaddleMovement() {
     if (!ws || ws.readyState !== WebSocket.OPEN) return;
-    if (player1Keys.up) ws.send(JSON.stringify({ type: 'MOVE_PADDLE', player: 'player1', direction: 'up' }));
-    if (player1Keys.down) ws.send(JSON.stringify({ type: 'MOVE_PADDLE', player: 'player1', direction: 'down' }));
-    if (player2Keys.up) ws.send(JSON.stringify({ type: 'MOVE_PADDLE', player: 'player2', direction: 'up' }));
-    if (player2Keys.down) ws.send(JSON.stringify({ type: 'MOVE_PADDLE', player: 'player2', direction: 'down' }));
+    
+    // Determine player1's direction
+    let player1Direction = null;
+    if (player1Keys.up && !player1Keys.down) {
+      player1Direction = 'up';
+    } else if (player1Keys.down && !player1Keys.up) {
+      player1Direction = 'down';
+    }
+    
+    // Determine player2's direction
+    let player2Direction = null;
+    if (player2Keys.up && !player2Keys.down) {
+      player2Direction = 'up';
+    } else if (player2Keys.down && !player2Keys.up) {
+      player2Direction = 'down';
+    }
+    
+    // Send only if there's a direction to move
+    if (player1Direction) {
+      ws.send(JSON.stringify({
+        type: 'MOVE_PADDLE',
+        player: 'player1',
+        direction: player1Direction
+      }));
+    }
+    
+    if (player2Direction) {
+      ws.send(JSON.stringify({
+        type: 'MOVE_PADDLE',
+        player: 'player2',
+        direction: player2Direction
+      }));
+    }
   }
 
   function startNetworkGame() {
-    startBtn.disabled = true;
+    setStartButtonState();
     if (gameLoop) {
       cancelAnimationFrame(gameLoop);
       gameLoop = null;
@@ -498,7 +632,13 @@ function showWinnerDialog(winner: string) {
     const updateNetworkGame = (currentTime: number) => {
       if (lastTime === 0) lastTime = currentTime;
       lastTime = currentTime;
-      sendPaddleMovement();
+      
+      // Throttle paddle movement updates to reduce network spam
+      if (currentTime - lastPaddleUpdateTime >= PADDLE_UPDATE_INTERVAL) {
+        sendPaddleMovement();
+        lastPaddleUpdateTime = currentTime;
+      }
+      
       drawGame();
       if (gameState.gameStatus === 'playing') {
         gameLoop = requestAnimationFrame(updateNetworkGame);
@@ -526,28 +666,42 @@ function showWinnerDialog(winner: string) {
     function toCanvasX(gameX: number) { return (gameX + 50) * scaleX; }
     function toCanvasY(gameY: number) { return (100 - gameY) * scaleY; }
 
-    const paddleWidth = 2;
-    const paddleHeight = 60;
+    // Use paddle dimensions from backend config
+    const paddleWidth = gameConfig.paddle.width;   // Use width from backend config
+    const paddleHeight = gameConfig.paddle.height; // Use height from backend config
 
+    // Draw paddles with rounded corners
     ctx2d.fillStyle = '#00ff00';
+    const borderRadius = 5 * scaleX; // Rounded corner radius
+
+    // Left paddle (Player 1)
     const leftPaddleX = -50;
     const leftPaddleY = gameState.paddles.player1 + paddleHeight / 2;
-    ctx2d.fillRect(
+    ctx2d.beginPath();
+    ctx2d.roundRect(
       toCanvasX(leftPaddleX),
       toCanvasY(leftPaddleY),
       paddleWidth * scaleX,
-      paddleHeight * scaleY
+      paddleHeight * scaleY,
+      borderRadius
     );
+    ctx2d.fill();
+
+    // Right paddle (Player 2)
     const rightPaddleX = 50 - paddleWidth;
     const rightPaddleY = gameState.paddles.player2 + paddleHeight / 2;
-    ctx2d.fillRect(
+    ctx2d.beginPath();
+    ctx2d.roundRect(
       toCanvasX(rightPaddleX),
       toCanvasY(rightPaddleY),
       paddleWidth * scaleX,
-      paddleHeight * scaleY
+      paddleHeight * scaleY,
+      borderRadius
     );
+    ctx2d.fill();
 
-    const ballRadius = 1;
+    // Draw ball using radius from backend config
+    const ballRadius = gameConfig.ball?.radius || 4; // Use backend config or default to 4
     ctx2d.shadowColor = '#ffff00';
     ctx2d.shadowBlur = 15;
     ctx2d.beginPath();
@@ -590,6 +744,14 @@ function showWinnerDialog(winner: string) {
       30,
       65
     );
+    ctx2d.font = '16px Arial';
+    ctx2d.fillStyle = '#00bfff';
+    ctx2d.textAlign = 'left';
+    ctx2d.fillText(
+      `Total Score: ${gameState.totalScore?.player1 ?? gameState.totalscore?.player1 ?? 0}`,
+      30,
+      85
+    );
 
     ctx2d.font = '20px Arial';
     ctx2d.fillStyle = '#00ffcc';
@@ -602,6 +764,14 @@ function showWinnerDialog(winner: string) {
       `Rounds Won: ${gameState.tournament?.roundsWon?.player2 || 0}`,
       canvas.width - 30,
       65
+    );
+    ctx2d.font = '16px Arial';
+    ctx2d.fillStyle = '#00bfff';
+    ctx2d.textAlign = 'right';
+    ctx2d.fillText(
+      `Total Score: ${gameState.totalScore?.player2 ?? gameState.totalscore?.player2 ?? 0}`,
+      canvas.width - 30,
+      85
     );
 
     ctx2d.font = 'bold 24px Arial';
@@ -658,7 +828,6 @@ function showWinnerDialog(winner: string) {
   }
 
   async function handleStartMatch() {
-    startBtn.disabled = true;
     connectionAttempts = 0;
     matchStarted = true;
     
@@ -667,6 +836,8 @@ function showWinnerDialog(winner: string) {
       status: 'in-progress',
       startTime: Date.now()
     }));
+
+    setStartButtonState();
     
     updateStatus('🔄 Starting tournament match...');
     try {
@@ -676,11 +847,15 @@ function showWinnerDialog(winner: string) {
         connectWebSocket(gameId);
       } else {
         updateStatus('❌ Failed to create match - please try again');
-        startBtn.disabled = false;
+        matchStarted = false;
+        sessionStorage.removeItem(matchKey);
+        setStartButtonState();
       }
     } catch (error) {
       updateStatus('❌ Network error - please try again');
-      startBtn.disabled = false;
+      matchStarted = false;
+      sessionStorage.removeItem(matchKey);
+      setStartButtonState();
     }
   }
 

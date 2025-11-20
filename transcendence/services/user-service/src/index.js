@@ -910,10 +910,22 @@ fastify.get('/notifications/unread', {
         payload = {};
       }
 
+      // Determine the 'from' field based on notification type
+      let fromName = 'Unknown';
+      if (notification.Noti_type === 'invitation_declined') {
+        fromName = payload.declinerName || 'Unknown';
+      } else if (notification.Noti_type === 'invitation_accepted') {
+        fromName = payload.accepterName || 'Unknown';
+      } else if (notification.Noti_type === 'player_left_room') {
+        fromName = payload.leaverName || 'Unknown';
+      } else {
+        fromName = payload.inviterName || 'Unknown';
+      }
+
       return {
         id: notification.id,
         type: notification.Noti_type,
-        from: payload.inviterName || 'Unknown',
+        from: fromName,
         fromId: notification.actor_id,
         roomCode: payload.roomCode,
         payload: payload,
@@ -1201,7 +1213,8 @@ fastify.post('/notifications/:notificationId/decline', {
           actor_id: userId,               // The user who declined
           Noti_type: 'invitation_declined',
           payload: JSON.stringify(inviterNotificationPayload),
-          Noti_read: 0
+          Noti_read: 0,
+          created_at: new Date().toISOString()  // Set current timestamp
         }
       };
 

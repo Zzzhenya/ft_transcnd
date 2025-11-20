@@ -1,21 +1,25 @@
 services:
   nginx:
-    image: nginx:alpine
+    build:
+      context: ..
+      dockerfile: transcendence/nginx/Dockerfile
+    image: transcendence-nginx:latest
     container_name: transcendence-nginx
     ports:
       - "8000:80"
       - "8443:443"
+    # If you prefer to live-edit nginx.conf/ssl without rebuilds, keep these volumes.
+    # Otherwise, remove them to rely purely on the image content.
     volumes:
-      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/ssl:/etc/nginx/ssl:ro
     depends_on:
       - gateway
-      - frontend
     networks:
       - transcendence-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost/health"]
+      test: ["CMD-SHELL", "curl -skf https://localhost/healthz || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -297,7 +301,7 @@ services:
   frontend:
     build:
       context: ./frontend
-      target: development  # Use development for hot reload
+#      target: production  # Use development for hot reload
     ports:
       - "${FRONTEND_PORT:-3004}:${FRONTEND_PORT:-3004}"
     env_file:

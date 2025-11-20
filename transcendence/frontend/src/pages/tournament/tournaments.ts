@@ -35,17 +35,32 @@ export default function (root: HTMLElement) {
     let tournaments: any[] = [];
     let filter: number | "all" = "all";
 
-    // Clean up tournament-specific data when returning to lobby
-    sessionStorage.removeItem("currentTournamentSize");
-    sessionStorage.removeItem("currentTournamentId");
-    sessionStorage.removeItem("tournamentPlayers");
-    sessionStorage.removeItem("tournamentLocalPlayers");
-    sessionStorage.removeItem("tournamentPlayerTypes");
+    const clearTournamentSession = () => {
+        sessionStorage.removeItem("currentTournamentSize");
+        sessionStorage.removeItem("currentTournamentId");
+        sessionStorage.removeItem("tournamentPlayers");
+        sessionStorage.removeItem("tournamentLocalPlayers");
+        sessionStorage.removeItem("tournamentPlayerTypes");
+    };
+
+    const maybeClearTournamentSession = () => {
+        const activeId = sessionStorage.getItem("currentTournamentId");
+        if (!activeId) {
+            clearTournamentSession();
+            return;
+        }
+
+        const activeTournament = tournaments.find(t => t.id === Number(activeId));
+        if (!activeTournament || activeTournament.status === 'completed' || activeTournament.status === 'interrupted') {
+            clearTournamentSession();
+        }
+    };
 
     async function fetchTournaments() {
         const res = await fetch(`${API_BASE}/tournaments`);
         const data = await res.json();
         tournaments = data.tournaments || [];
+        maybeClearTournamentSession();
     }
 
     async function render() {
@@ -106,19 +121,25 @@ export default function (root: HTMLElement) {
                             .filter(t => filter === "all" || t.size === filter)
                             .map(t => {
                                 const isInterrupted = t.status === 'interrupted';
+                                const isFinished = t.status === 'finished';
+                                const isSpecialStatus = isInterrupted || isFinished;
                                 return `
-                                <div class="group relative bg-white/5 backdrop-blur-lg rounded-2xl p-4 border ${isInterrupted ? 'border-red-500/50' : 'border-white/10 hover:border-white/30'} ${isInterrupted ? '' : 'hover:bg-white/10'} transition-all duration-300 ${isInterrupted ? 'opacity-70' : ''}">
+                                <div class="group relative bg-white/5 backdrop-blur-lg rounded-2xl p-4 border ${isInterrupted ? 'border-red-500/50' : isFinished ? 'border-green-500/50' : 'border-white/10 hover:border-white/30'} ${isSpecialStatus ? '' : 'hover:bg-white/10'} transition-all duration-300 ${isSpecialStatus ? 'opacity-70' : ''}">
                                     ${isInterrupted ? `
                                         <div class="absolute top-3 left-3 px-3 py-1 rounded-full bg-red-500/30 border border-red-500 backdrop-blur-sm">
                                             <span class="text-xs font-black text-red-200">⚠️ INTERRUPTED</span>
                                         </div>
+                                    ` : isFinished ? `
+                                        <div class="absolute top-3 left-3 px-3 py-1 rounded-full bg-green-500/30 border border-green-500 backdrop-blur-sm">
+                                            <span class="text-xs font-black text-green-200">🏆 FINISHED</span>
+                                        </div>
                                     ` : ''}
                                     <div class="absolute top-3 right-3">
-                                        <div class="w-10 h-10 rounded-full bg-gradient-to-br ${t.size === 4 ? 'from-cyan-500 to-blue-600' : 'from-orange-500 to-pink-600'} flex items-center justify-center text-white font-black shadow-lg ${isInterrupted ? 'opacity-50' : ''}">
+                                        <div class="w-10 h-10 rounded-full bg-gradient-to-br ${t.size === 4 ? 'from-cyan-500 to-blue-600' : 'from-orange-500 to-pink-600'} flex items-center justify-center text-white font-black shadow-lg ${isSpecialStatus ? 'opacity-50' : ''}">
                                             ${t.size}
                                         </div>
                                     </div>
-                                    <div class="mb-3 ${isInterrupted ? 'mt-8' : ''}">
+                                    <div class="mb-3 ${isSpecialStatus ? 'mt-8' : ''}">
                                         <div class="text-purple-300 font-mono text-xs mb-1">TOURNAMENT #${t.id}</div>
                                         <div class="text-2xl font-black text-white mb-1">${t.size} PLAYERS</div>
                                         <div class="flex items-center gap-2 text-sm text-gray-300">
@@ -130,10 +151,14 @@ export default function (root: HTMLElement) {
                                             <div class="mt-2 text-xs text-red-300 font-semibold">
                                                 Match interrupted - Cannot join
                                             </div>
+                                        ` : isFinished ? `
+                                            <div class="mt-2 text-xs text-green-300 font-semibold">
+                                                Tournament completed - View results
+                                            </div>
                                         ` : ''}
                                     </div>
-                                    <a href="/tournaments/waitingroom/${t.id}" data-tournament-size="${t.size}" data-tournament-id="${t.id}" class="join-btn block w-full py-3 rounded-xl font-black text-center transition-all ${isInterrupted ? 'bg-gray-600/50 text-gray-300 hover:bg-gray-600/70 cursor-pointer' : 'bg-white text-gray-900 hover:bg-gray-100 transform hover:scale-105'} ${(!signedIn && !isGuest) ? "opacity-30 pointer-events-none" : ""}">
-                                        ${isInterrupted ? '👁️ VIEW DETAILS' : 'JOIN NOW →'}
+                                    <a href="/tournaments/waitingroom/${t.id}" data-tournament-size="${t.size}" data-tournament-id="${t.id}" class="join-btn block w-full py-3 rounded-xl font-black text-center transition-all ${isInterrupted ? 'bg-gray-600/50 text-gray-300 hover:bg-gray-600/70 cursor-pointer' : isFinished ? 'bg-green-600/50 text-green-200 hover:bg-green-600/70 cursor-pointer' : 'bg-white text-gray-900 hover:bg-gray-100 transform hover:scale-105'} ${(!signedIn && !isGuest) ? "opacity-30 pointer-events-none" : ""}">
+                                        ${isInterrupted ? '👁️ VIEW DETAILS' : isFinished ? '🏆 VIEW RESULTS' : 'JOIN NOW →'}
                                     </a>
                                 </div>
                             `}).join('')
@@ -162,7 +187,7 @@ export default function (root: HTMLElement) {
 
                 <!-- Back Button -->
                 <div class="flex justify-center">
-                    <button id="backBtn" class="px-6 py-2 rounded-full bg-white/10 backdrop-blur-sm text-white text-sm font-bold hover:bg-white/20 transition-all">
+                    <button id="backBtnBottom" class="px-6 py-2 rounded-full bg-white/10 backdrop-blur-sm text-white text-sm font-bold hover:bg-white/20 transition-all">
                         ← BACK
                     </button>
                 </div>
@@ -176,9 +201,19 @@ export default function (root: HTMLElement) {
             userInfo.innerHTML = `
                 <div class="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-white/10 backdrop-blur-sm border border-white/20">
                     <span class="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
-                    <span class="text-white font-bold">${user.name}</span>
+                    <button id="userProfileBtn" class="text-white font-bold bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded transition" title="Go to your profile">
+                        ${user.name}
+                    </button>
                 </div>
             `;
+            setTimeout(() => {
+                const btn = userInfo.querySelector<HTMLButtonElement>("#userProfileBtn");
+                if (btn) {
+                    btn.addEventListener("click", () => {
+                        navigate(`/profile`);
+                    });
+                }
+            }, 0);
         } else if (isGuest) {
             userInfo.innerHTML = `
                 <div class="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-white/10 backdrop-blur-sm border border-white/20">
@@ -218,6 +253,7 @@ export default function (root: HTMLElement) {
             if (create4Btn) {
                 create4Btn.onclick = async () => {
                     const creator = user ? user.name : state.session.alias;
+                    const creatorId = user ? user.id : null;
                     // Backend will generate the tournament ID
                     const response = await fetch(`${API_BASE}/tournaments`, {
                         method: "POST",
@@ -242,6 +278,7 @@ export default function (root: HTMLElement) {
             if (create8Btn) {
                 create8Btn.onclick = async () => {
                     const creator = user ? user.name : state.session.alias;
+                    const creatorId = user ? user.id : null;
                     // Backend will generate the tournament ID
                     const response = await fetch(`${API_BASE}/tournaments`, {
                         method: "POST",
@@ -287,6 +324,15 @@ export default function (root: HTMLElement) {
             });
         }
 
+        // Add event listener for the bottom back button
+        const lobbyBtnBottom = root.querySelector<HTMLButtonElement>("#backBtnBottom");
+        if (lobbyBtnBottom) {
+            lobbyBtnBottom.addEventListener('click', (e) => {
+                e.preventDefault();
+                navigate("/");
+            });
+        }
+
         // Add event listener for logout button
         const logoutBtn = root.querySelector<HTMLButtonElement>("#logoutBtn");
         if (logoutBtn) {
@@ -321,6 +367,8 @@ export default function (root: HTMLElement) {
             window.removeEventListener("auth:changed", onAuthChanged);
         };
     }
+
+    
 
     // Initial load
     fetchTournaments().then(render);
