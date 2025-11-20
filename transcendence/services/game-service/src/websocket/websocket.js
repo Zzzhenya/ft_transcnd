@@ -1,6 +1,6 @@
 /**
  * WebSocket Module - Handles real-time game communication
- * Supports all game types: demo, normal, tournament
+ * Supports game types: normal, tournament
  */
 
 import { movePaddle, restartGame, startGame, startGameLoop, moveBall } from '../pong/gameLogic.js';
@@ -40,9 +40,7 @@ export function registerWebSocketRoutes(fastify, games, broadcastState) {
     logger.info(`[WS] Client added to WebSocket connection for game ${gameId}`);
     // Determine game type for logging
     let gameTypeLabel = 'NORMAL';
-    if (game.isDemo) {
-      gameTypeLabel = 'DEMO';
-    } else if (game.gameType === 'tournament') {
+    if (game.gameType === 'tournament') {
       gameTypeLabel = 'TOURNAMENT';
     }
 
@@ -87,61 +85,6 @@ export function registerWebSocketRoutes(fastify, games, broadcastState) {
       clients.delete(ws);
     });
   });
-
-  /**
-   * WebSocket route for demo games (alternative endpoint)
-   * GET /demo-ws/:gameId (WebSocket upgrade)
-   */
-  fastify.get('/ws/pong/demo-ws/:gameId', { websocket: true }, (connection, request) => {
-    const gameId = parseInt(request.params.gameId, 10);
-    const game = games.get(gameId);
-
-    if (!game || !game.isDemo) {
-      logger.warn(`[Demo-WS] Connection attempt to invalid demo game ID: ${gameId}`);
-      connection.socket.close(1000, 'Demo game not found');
-      return;
-    }
-
-    // Redirect to main WebSocket handler with demo flag
-    logger.info(`[Demo-WS] Redirecting demo game ${gameId} to main WebSocket handler`);
-    
-    // Use the same logic as the main WebSocket route
-
-    const ws = connection.socket;
-    const gameState = game.state;
-    const clients = game.clients;
-    clients.add(ws);
-
-    logger.info(`[Demo-WS] Client connected to DEMO game ${gameId} (${game.player1_name} vs ${game.player2_name}). Total clients: ${clients.size}`);
-
-    // Send initial state
-    ws.send(createInitialStateMessage(game, gameId));
-
-    // Handle messages
-    ws.on('message', (rawMessage) => {
-      try {
-        const message = JSON.parse(rawMessage.toString());
-        handleWebSocketMessage(message, gameState, gameId, broadcastState, games);
-      } catch (error) {
-        logger.error(`[Demo-WS] Message parse error in demo game ${gameId}:`, { error: error.message, stack: error.stack });
-        ws.send(JSON.stringify({
-          type: 'ERROR',
-          message: 'Invalid message format'
-        }));
-      }
-    });
-
-    // Handle disconnection
-    ws.on('close', (code, reason) => {
-      clients.delete(ws);
-      logger.info(`[Demo-WS] Client disconnected from DEMO game ${gameId}. Remaining: ${clients.size}`);
-    });
-
-    ws.on('error', (error) => {
-      logger.error(`[Demo-WS] Socket error in demo game ${gameId}:`, { error: error.message, stack: error.stack });
-      clients.delete(ws);
-    });
-  });
 }
 
 /**
@@ -156,6 +99,7 @@ function createInitialStateMessage(game, gameId) {
     score: game.state.score,
     ball: game.state.ball,
     paddles: game.state.paddles,
+    totalScore: game.state.totalScore,
     tournament: {
       currentRound: game.state.tournament.currentRound,
       maxRounds: game.state.tournament.maxRounds,
@@ -188,7 +132,11 @@ function createInitialStateMessage(game, gameId) {
     isRegistered: game.isRegistered || false,
     round: game.round || null,
     matchNumber: game.matchNumber || null,
-    gameState: cleanGameState
+    gameState: cleanGameState,
+    // timestamps
+    createdAt: game.createdAt || null,
+    startedAt: game.startedAt || null,
+    completedAt: game.completedAt || null
   });
 }
 

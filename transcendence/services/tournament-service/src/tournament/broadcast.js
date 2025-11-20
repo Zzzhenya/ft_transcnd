@@ -1,4 +1,16 @@
-
+/**
+ * broadcast.js
+ *
+ * Responsible for broadcasting tournament updates to connected WebSocket
+ * clients. Exports a small factory `createBroadcast(tournaments)` which
+ * returns a `broadcastTournamentUpdate(tournamentId)` function bound to the
+ * provided tournaments Map.
+ *
+ * Behavior:
+ * - Serializes a compact tournament snapshot (id, name, players, bracket,
+ *   status) and sends it to all open clients.
+ * - Cleans up dead/closed clients from the tournament's client Set.
+ */
 export function createBroadcast(tournaments) {
   return function broadcastTournamentUpdate(tournamentId) {
     const t = tournaments.get(tournamentId);

@@ -179,3 +179,4 @@ sessions/
 
 # Legacy folder (if you want to ignore it)
 # legacy/
+transcendence/.env.remote

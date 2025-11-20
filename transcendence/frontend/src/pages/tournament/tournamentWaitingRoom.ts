@@ -34,6 +34,38 @@ import { getState } from "@/app/store";
 import { renderTournamentWinner, attachWinnerEventListeners } from "./tournamentWinner";
 import { API_BASE } from "@/app/config";
 
+/**
+ * Build payload for backend: [{ alias, userId }]
+ * - alias = player name in the waiting room
+ * - userId = real Users.id if known, else null (guest or unknown)
+ */
+function buildBackendPlayersPayload(
+  players: { name: string; type: "user" | "guest" }[],
+  user: any,
+  state: any,
+  isGuest: boolean
+) {
+  return players.map(p => {
+    let userId: number | null = null;
+
+    // If this player is the logged-in user, use their id
+    if (user && p.name === user.name) {
+      userId = user.id ?? null;
+    } else if (isGuest && p.name === state.session?.alias) {
+      // Guest in this browser: no real Users.id
+      userId = null;
+    } else {
+      // Other guests or remote players we don't know → null
+      userId = null;
+    }
+
+    return {
+      alias: p.name,
+      userId,
+    };
+  });
+}
+
 export default function (root: HTMLElement, ctx: any) {
   const user = getAuth();
   const state = getState();
@@ -101,6 +133,11 @@ export default function (root: HTMLElement, ctx: any) {
         const data = await response.json();
         bracket = data.bracket; // Extract the bracket object from the response
         tournamentStatus = data.status || 'waiting'; // Get tournament status
+
+        if (tournamentStatus === 'completed' || tournamentStatus === 'interrupted') {
+          sessionStorage.removeItem('tournamentLocalPlayers');
+          sessionStorage.removeItem('tournamentPlayerTypes');
+        }
         // Update maxPlayers from bracket response if available (works even for finished tournaments)
         if (data.size) {
           maxPlayers = data.size;
@@ -314,9 +351,18 @@ export default function (root: HTMLElement, ctx: any) {
                      * Other conditions (only checked if not interrupted):
                      * - match.player1 && match.player2: Both players assigned
                      * - !match.winner: No winner declared yet
+                     * - match.status: Not 'completed', 'interrupted', or 'forfeited'
                      * - hasLocalPlayer: At least one local player in this match
                      */
-                    const canPlayMatch = tournamentStatus !== 'interrupted' && match.player1 && match.player2 && !match.winner && hasLocalPlayer;
+                    const isMatchPlayable = !match.winner && 
+                                           match.status !== 'completed' && 
+                                           match.status !== 'interrupted' && 
+                                           match.status !== 'forfeited';
+                    const canPlayMatch = tournamentStatus !== 'interrupted' && 
+                                        match.player1 && 
+                                        match.player2 && 
+                                        isMatchPlayable && 
+                                        hasLocalPlayer;
                     
                     return `
                     <div class="flex justify-between items-center p-4 rounded-xl border transition-all ${
@@ -406,7 +452,6 @@ export default function (root: HTMLElement, ctx: any) {
       e.preventDefault();
       sessionStorage.removeItem("tournamentPlayers");
       sessionStorage.removeItem("currentTournamentSize");
-      sessionStorage.removeItem("tournamentLocalPlayers");
       sessionStorage.removeItem("tournamentPlayerTypes");
       navigate("/tournaments");
     });
@@ -417,7 +462,6 @@ export default function (root: HTMLElement, ctx: any) {
       e.preventDefault();
       sessionStorage.removeItem("tournamentPlayers");
       sessionStorage.removeItem("currentTournamentSize");
-      sessionStorage.removeItem("tournamentLocalPlayers");
       sessionStorage.removeItem("tournamentPlayerTypes");
       navigate("/tournaments");
     });
@@ -468,6 +512,9 @@ export default function (root: HTMLElement, ctx: any) {
               alert("Tournament ID not found!");
               return;
             }
+
+            // Build [{ alias, userId }] payload for backend
+            const backendPlayers = buildBackendPlayersPayload(players, user, state, isGuest);
             
             // Start the tournament using the /tournaments/:id/start endpoint
             const response = await fetch(`${API_BASE}/tournaments/${tid}/start`, {
@@ -475,7 +522,7 @@ export default function (root: HTMLElement, ctx: any) {
               headers: { "Content-Type": "application/json" },
               credentials: 'include',
               body: JSON.stringify({ 
-                players: players.map(p => p.name),
+                players: backendPlayers,
                 size: maxPlayers
               })
             });

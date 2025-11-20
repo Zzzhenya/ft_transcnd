@@ -18,7 +18,6 @@ import wsRoute from './routes/ws-proxy.route.js'
 import wsNotificationRoute from './routes/ws-notification.route.js'
 import remoteOnlyRoute from './routes/remote-only.route.js'
 import pongGameRoute from './routes/pong.game.route.js'
-import pongDemoRoute from './routes/pong.demo.route.js'
 import statsRoute from './routes/stats.route.js'
 import userRoute from './routes/user.route.js'
 import tournamentRoute from './routes/tournament.route.js'
@@ -207,8 +206,8 @@ try {
   Fastify.register(wsNotificationRoute, { prefix: '/user-service/ws' });
   logger.info('[[Gateway]] ✅ Registered ws route with prefix /user-service/ws');
   logger.info('[[Gateway]] register /pong/demo routes ');
-  Fastify.register(pongDemoRoute, { prefix: '/pong/demo' });
-  logger.info('[[Gateway]] register /pong/game routes ');
+  //Fastify.register(pongDemoRoute, { prefix: '/pong/demo' });
+  //logger.info('[[Gateway]] register /pong/game routes ');
   Fastify.register(pongGameRoute, { prefix: '/pong/game' });
   // Register Ready proxy so it matches /game/rooms/:roomId/players/:playerId/ready
   logger.info('[[Gateway]] register ready fallback route ');
