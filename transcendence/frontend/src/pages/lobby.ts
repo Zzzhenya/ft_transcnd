@@ -23,6 +23,9 @@ export default function (root: HTMLElement) {
   const effectsOff = new URLSearchParams(location.search).get("fx") === "off";
   const bgHost = root.querySelector<HTMLElement>("#bg3d")!;
 
+  // Check mount starts well
+  console.log("Before mountLobbyScene", mountLobbyScene);
+
   const unmountBg = effectsOff
   	? () => {}
 	: mountLobbyScene({
@@ -31,6 +34,9 @@ export default function (root: HTMLElement) {
 		onTournaments: () => navigate("/tournaments"),
 		onRemote: () => navigate("/remote"),
 	});
+
+  // Check After mountLobbyScene
+  console.log("After mountLobbyScene");
 
   // Viewport info
   const viewportInfo = root.querySelector<HTMLElement>("#viewportInfo")!;
