@@ -1050,62 +1050,50 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
     });
   }
 
-  // function renderFriendsSection() {
-  //   const friendsContainer = root.querySelector('#friends-container');
-  //   if (!friendsContainer) return;
+// ================================================================= Checke ===============================
+async function loadFriends() {
+  if (!user) {
+    console.log('❌ loadFriends: No user!');
+    return;
+  }
+  
+  console.log('🔄 loadFriends: Starting...', { userId: userProfile.id });
+  
+  try {
+    const token = getToken();
+    console.log('🔑 Token:', token ? `${token.substring(0, 20)}...` : 'NO TOKEN');
+    
+    const url = `${GATEWAY_BASE}/user-service/users/${userProfile.id}/friends`;
+    console.log('🌐 Fetching:', url);
+    
+    const res = await fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${token || ''}`
+      },
+      credentials: 'include'
+    });
+    
+    console.log('📡 Response status:', res.status, res.ok ? '✅' : '❌');
+    
+    if (res.ok) {
+      const data = await res.json();
+      console.log('📦 Raw API response:', data);
+      
+      friends = data.friends || [];
+      console.log('👥 Friends array:', friends);
+      console.log('👥 First friend:', friends[0]);
+      
+      renderFriendsSection();
+    } else {
+      const errorText = await res.text();
+      console.error('❌ API error:', res.status, errorText);
+    }
+  } catch (error) {
+    console.error('❌ loadFriends exception:', error);
+  }
+}
 
-
-
-  //   // friendsContainer.innerHTML = `
-  //   //   <div class="space-y-3">
-  //   //     ${friends.length > 0 ? friends.map(friend => `
-  //   //       <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
-  //   //         <div class="flex items-center gap-3">
-  //   //           <div class="w-3 h-3 rounded-full ${friend.status === 'accepted' ? 'bg-green-400' : friend.status === 'pending' ? 'bg-yellow-400' : 'bg-gray-400'}"></div>
-  //   //           <div>
-  //   //             <span class="font-semibold">${friend.username || 'Unknown User'}</span>
-  //   //             <div class="text-xs text-gray-500">
-  //   //               Status: ${friend.status} • Added: ${new Date(friend.created_at).toLocaleDateString()}
-  //   //             </div>
-  //   //           </div>
-  //   //         </div>
-  //   friendsContainer.innerHTML = `
-  //     <div class="space-y-3">
-  //     ${friends.length > 0 ? friends.map(friend => {
-  //     const safeFriendUsername = escapeHtml(friend.username || 'Unknown User');
-        
-  //       return `
-  //         <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
-  //           <div class="flex items-center gap-3">
-  //             <div class="w-3 h-3 rounded-full ${friend.status === 'accepted' ? 'bg-green-400' : friend.status === 'pending' ? 'bg-yellow-400' : 'bg-gray-400'}"></div>
-  //             <div>
-  //               <span class="font-semibold">${safeFriendUsername}</span>  <!-- HIER verwenden -->
-  //               <div class="text-xs text-gray-500">
-  //                 Status: ${friend.status} • Added: ${new Date(friend.created_at).toLocaleDateString()}
-  //               </div>
-  //             </div>
-  //           </div>
-  //           <div class="text-right">
-  //             ${friend.status === 'accepted' ? `
-  //               <span class="text-xs text-green-600 font-semibold px-2 py-1 rounded-full bg-green-100">✅ Friends</span>
-  //             ` : friend.status === 'pending' ? `
-  //               <span class="text-xs text-yellow-600 font-semibold px-2 py-1 rounded-full bg-yellow-100">⏳ Pending</span>
-  //             ` : `
-  //               <span class="text-xs text-gray-400 px-2 py-1 rounded-full bg-gray-100">❌ ${friend.status}</span>
-  //             `}
-  //           </div>
-  //         </div>
-  //       `;
-  //     }).join('') : `
-  //         <div class="text-center py-8 text-gray-500">
-  //           <div class="text-6xl mb-3 opacity-20">👥</div>
-  //           <p class="font-semibold text-lg">No friends yet</p>
-  //           <p class="text-sm">Add some friends to play together!</p>
-  //         </div>
-  //       `}
-  //     </div>
-  //   `;
-  // }
+// ==================
 
   function renderFriendsSection() {
   const friendsContainer = root.querySelector('#friends-container');
