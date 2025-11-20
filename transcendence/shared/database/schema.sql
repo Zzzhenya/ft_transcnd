@@ -1,5 +1,6 @@
 -- ============================================
--- FT_TRANSCENDENCE - Your Exact DBML Schema
+-- FT_TRANSCENDENCE - Complete Database Schema
+-- SQLite Version
 -- ============================================
 
 -- Drop existing tables (if any)
@@ -34,7 +35,7 @@ CREATE TABLE Users (
   bio TEXT,
   
   -- Status
-  user_user_status VARCHAR(20) DEFAULT 'offline',
+  user_status VARCHAR(20) DEFAULT 'offline',
   
   -- Online Status
   last_seen TEXT DEFAULT CURRENT_TIMESTAMP,
@@ -49,127 +50,130 @@ CREATE TABLE Users (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   last_login TIMESTAMP
 
-  last_login TIMESTAMP
-
 );
 
 CREATE INDEX idx_users_username ON Users(username);
 CREATE INDEX idx_users_email ON Users(email);
 CREATE INDEX idx_users_intra_id ON Users(intra_id);
+CREATE INDEX idx_users_online ON Users(is_online);
+CREATE INDEX idx_users_last_seen ON Users(last_seen);
 
--- ============ FRIENDS ============
-CREATE TABLE IF NOT EXISTS Friends (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL,
-    friend_id INTEGER NOT NULL,
-    friends_status VARCHAR(20) DEFAULT 'pending',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    accepted_at TIMESTAMP,
-    
-    FOREIGN KEY (user_id) REFERENCES Users(id) ON DELETE CASCADE,
-    FOREIGN KEY (friend_id) REFERENCES Users(id) ON DELETE CASCADE,
-    UNIQUE(user_id, friend_id)
+-- -------------------- FRIENDS --------------------
+CREATE TABLE Friends (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  friend_id INTEGER NOT NULL,
+  friends_status VARCHAR(20) DEFAULT 'pending',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  accepted_at TIMESTAMP,
+  
+  FOREIGN KEY (user_id) REFERENCES Users(id) ON DELETE CASCADE,
+  FOREIGN KEY (friend_id) REFERENCES Users(id) ON DELETE CASCADE,
+  UNIQUE(user_id, friend_id)
 );
 
 CREATE INDEX idx_friends_user_id ON Friends(user_id);
 CREATE INDEX idx_friends_friend_id ON Friends(friend_id);
 CREATE INDEX idx_friends_friends_status ON Friends(friends_status);
-CREATE INDEX idx_friends_user ON Friends(user_id);
-CREATE INDEX idx_friends_friend ON Friends(friend_id);
-REATE INDEX idx_friends_friends_status ON Friends(friends_status);
 
--- ============ BLOCKED USERS ============
-CREATE TABLE IF NOT EXISTS Blocked_Users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL,
-    blocked_user_id INTEGER NOT NULL,
-    blocked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    
-    FOREIGN KEY (user_id) REFERENCES Users(id) ON DELETE CASCADE,
-    FOREIGN KEY (blocked_user_id) REFERENCES Users(id) ON DELETE CASCADE,
-    UNIQUE(user_id, blocked_user_id)
+-- -------------------- BLOCKED USERS --------------------
+CREATE TABLE Blocked_Users (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  blocked_user_id INTEGER NOT NULL,
+  blocked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  
+  FOREIGN KEY (user_id) REFERENCES Users(id) ON DELETE CASCADE,
+  FOREIGN KEY (blocked_user_id) REFERENCES Users(id) ON DELETE CASCADE,
+  UNIQUE(user_id, blocked_user_id)
 );
 
-CREATE INDEX idx_blocked_user ON Blocked_Users(user_id);
+CREATE INDEX idx_blocked_users ON Blocked_Users(user_id, blocked_user_id);
 
--- ============ TOURNAMENT ============
-CREATE TABLE IF NOT EXISTS Tournament (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name VARCHAR(100),
-    description TEXT,
-    
-    status VARCHAR(20) DEFAULT 'registration',
-    player_count INTEGER NOT NULL,
-    current_players INTEGER DEFAULT 0,
-    
-    winner_id INTEGER,
-    winner_username VARCHAR(50),
-    
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    started_at TIMESTAMP,
-    finished_at TIMESTAMP,
-    
-    FOREIGN KEY (winner_id) REFERENCES Users(id)
+-- -------------------- TOURNAMENTS --------------------
+CREATE TABLE Tournament (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  T_name VARCHAR(100) NOT NULL,
+  T_description TEXT,
+  -- is_tournament BOOLEAN DEFAULT 1,
+  
+  Tournament_status VARCHAR(20) DEFAULT 'registration',
+  player_count INTEGER NOT NULL,
+  current_players INTEGER DEFAULT 0,
+  
+  winner_id INTEGER,
+  winner_username VARCHAR(50),
+  
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  started_at TIMESTAMP,
+  finished_at TIMESTAMP,
+  
+  FOREIGN KEY (winner_id) REFERENCES Users(id)
 );
 
 CREATE INDEX idx_tournament_status ON Tournament(Tournament_status);
 
--- ============ TOURNAMENT PLAYERS ============
-CREATE TABLE IF NOT EXISTS Tournament_Players (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    tournament_id INTEGER NOT NULL,
-    user_id INTEGER,
-    tournament_alias VARCHAR(50) NOT NULL,
-    
-    joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    
-    FOREIGN KEY (tournament_id) REFERENCES Tournament(id) ON DELETE CASCADE,
-    FOREIGN KEY (user_id) REFERENCES Users(id),
-    UNIQUE(tournament_id, user_id)
+-- -------------------- TOURNAMENT PARTICIPANTS --------------------
+CREATE TABLE Tournament_Players (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  tournament_id INTEGER NOT NULL,
+  user_id INTEGER,
+  tournament_alias VARCHAR(50) NOT NULL,
+  
+  -- For future modules:
+  -- placement INTEGER,
+  -- eliminated_in_round INTEGER,
+  
+  joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  
+  FOREIGN KEY (tournament_id) REFERENCES Tournament(id) ON DELETE CASCADE,
+  FOREIGN KEY (user_id) REFERENCES Users(id),
+  UNIQUE(tournament_id, user_id)
 );
 
 CREATE INDEX idx_tournament_players ON Tournament_Players(tournament_id);
 
--- ============ MATCHES TOURNAMENT ============
-CREATE TABLE IF NOT EXISTS Matches_Tournament (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    tournament_id INTEGER NOT NULL,
-    
-    -- Tournament Info
-    round INTEGER,
-    match_number INTEGER,
-    
-    -- Players
-    player1_id INTEGER,
-    player2_id INTEGER,
+-- -------------------- MATCHES --------------------
+CREATE TABLE Tournament_Matches (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  tournament_id INTEGER NOT NULL,
+  
+  -- Tournament Info
+  round INTEGER,
+  match_number INTEGER,
+  -- bracket_type VARCHAR(20),
+  
+  -- Players
+  player1_id INTEGER,
+  player2_id INTEGER,
 
-    player1_alias VARCHAR(50),
-    player2_alias VARCHAR(50),
-    
-    -- Results
-    winner_id INTEGER,
-    winner_username VARCHAR(50),
-    player1_score INTEGER DEFAULT 0,
-    player2_score INTEGER DEFAULT 0,
-    
-    -- Match Details
-    status VARCHAR(20) DEFAULT 'waiting',
-    
-    -- Timestamps
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    finished_at TIMESTAMP,
-    
-    FOREIGN KEY (tournament_id) REFERENCES Tournament(id) ON DELETE CASCADE,
-    FOREIGN KEY (player1_id) REFERENCES Users(id),
-    FOREIGN KEY (player2_id) REFERENCES Users(id),
-    FOREIGN KEY (winner_id) REFERENCES Users(id)
+  player1_alias VARCHAR(50),
+  player2_alias VARCHAR(50),
+  
+  -- Results
+  winner_id INTEGER,
+  winner_username VARCHAR(50),
+  player1_score INTEGER DEFAULT 0,
+  player2_score INTEGER DEFAULT 0,
+  
+  -- Match Details
+  matches_status VARCHAR(20) DEFAULT 'waiting',
+  
+  -- Timestamps
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  finished_at TIMESTAMP,
+  
+  FOREIGN KEY (tournament_id) REFERENCES Tournament(id) ON DELETE CASCADE,
+  FOREIGN KEY (player1_id) REFERENCES Users(id),
+  FOREIGN KEY (player2_id) REFERENCES Users(id),
+  FOREIGN KEY (winner_id) REFERENCES Users(id)
 );
 
-CREATE INDEX idx_match_tournament ON Matches_Tournament(tournament_id);
-CREATE INDEX idx_match_players ON Matches_Tournament(player1_id, player2_id);
-CREATE INDEX idx_match_status ON Matches_Tournament(status);
+CREATE INDEX idx_matches_tournament ON Tournament_Matches(tournament_id);
+CREATE INDEX idx_matches_players ON Tournament_Matches(player1_id, player2_id);
+CREATE INDEX idx_matches_status ON Tournament_Matches(matches_status);
 
--- ============ REMOTE MATCH (1v1) ============
+-- ============ REMOTE MATCHES ============
 CREATE TABLE IF NOT EXISTS Remote_Match (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     
@@ -183,7 +187,7 @@ CREATE TABLE IF NOT EXISTS Remote_Match (
     player2_score INTEGER DEFAULT 0,
     
     -- Match Details
-    status VARCHAR(20) DEFAULT 'waiting',
+    Remote_status VARCHAR(20) DEFAULT 'waiting',
     
     -- Timestamps
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -196,7 +200,26 @@ CREATE TABLE IF NOT EXISTS Remote_Match (
 );
 
 CREATE INDEX idx_remote_match_players ON Remote_Match(player1_id, player2_id);
-CREATE INDEX idx_remote_match_status ON Remote_Match(status);
+CREATE INDEX idx_remote_match_status ON Remote_Match(Remote_status);
+
+-- -------------------- CHANNELS (CHAT) --------------------
+CREATE TABLE Channels (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  C_name VARCHAR(100) UNIQUE NOT NULL,
+  C_type VARCHAR(20) DEFAULT 'public',
+  password_hash VARCHAR(255),
+  
+  owner_id INTEGER NOT NULL,
+  C_description TEXT,
+  
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  
+  FOREIGN KEY (owner_id) REFERENCES Users(id)
+);
+
+CREATE INDEX idx_channels_name ON Channels(C_name);
+CREATE INDEX idx_channels_owner ON Channels(owner_id);
 
 -- -------------------- CHANNEL MEMBERS --------------------
 CREATE TABLE Channel_Members (

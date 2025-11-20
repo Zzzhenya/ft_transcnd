@@ -64,61 +64,11 @@ function initDatabase() {
   });
 }
 
-// function insertTestData(db) {
-//   console.log('📝 Inserting test data...');
-  
-//   const testUsers = `
-//     INSERT INTO Users (username, email, password_hash, display_name, is_guest)
-//     VALUES 
-//       ('testuser', 'test@test.test', '$2b$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW', 'Alice', 0);
-//   `;
-  
-//   db.exec(testUsers, (err) => {
-//     if (err) {
-//       console.error('⚠️  Error inserting test data:', err);
-//     } else {
-//       console.log('✅ Test data inserted (4 users)');
-//     }
-    
-//     db.close((err) => {
-//       if (err) {
-//         console.error('❌ Error closing database:', err);
-//       } else {
-//         console.log('🎉 Database initialization complete!');
-        
-//         // ════════════════════════════════════════════════════════════
-//         // ✨ NEU: PERMISSIONS SETZEN! ✨
-//         // ════════════════════════════════════════════════════════════
-//         try {
-//           // DB File Permissions: rw-rw-rw-
-//           fs.chmodSync(DB_PATH, 0o666);
-//           console.log('✅ Database file permissions set to 666 (rw-rw-rw-)');
-          
-//           // Ordner Permissions: rwxrwxrwx
-//           const dbDir = path.dirname(DB_PATH);
-//           fs.chmodSync(dbDir, 0o777);
-//           console.log('✅ Database directory permissions set to 777 (rwxrwxrwx)');
-          
-//           // Check final permissions
-//           const stats = fs.statSync(DB_PATH);
-//           console.log('📊 Final file permissions:', (stats.mode & parseInt('777', 8)).toString(8));
-//         } catch (chmodErr) {
-//           console.error('⚠️  Could not c$2b$10$u75P8Zyn1lAb3miGKYPe5.ydJsc.MKrTlrjOfKWr24s ...hange permissions:', chmodErr.message);
-//           console.error('    This will cause write errors in other services!');
-//         }
-//         // ════════════════════════════════════════════════════════════
-//       }
-//     });
-//   });
-// }
-
-
-
 function insertTestData(db) {
   console.log('📝 Inserting initial test data for NEW database...');
 
   const testUsers = `
-    INSERT INTO Users (username, email, password_hash, display_name, Guest)
+    INSERT INTO Users (username, email, password_hash, display_name, is_guest)
     VALUES 
       ('admin', 'admin@transcendence.com', '$2b$10$rqiU7VNSMuFgwdXaK/2Gie8GskBUYFr8fI7RO7kI2GjOt1.3fE9Ym', 'Admin User', 0),
       ('player1', 'player1@test.com', '$2b$10$rqiU7VNSMuFgwdXaK/2Gie8GskBUYFr8fI7RO7kI2GjOt1.3fE9Ym', 'Player One', 0),
@@ -141,6 +91,7 @@ function insertTestData(db) {
         console.log('🎉 NEW Database initialization complete!');
 
         try {
+          // DB File Permissions: rw-rw-rw-
           fs.chmodSync(DB_PATH, 0o666);
           console.log('✅ Database file permissions set to 666 (rw-rw-rw-)');
 
