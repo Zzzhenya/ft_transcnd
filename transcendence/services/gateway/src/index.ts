@@ -206,8 +206,8 @@ try {
   Fastify.register(wsNotificationRoute, { prefix: '/api/user-service/ws' });
   logger.info('[[Gateway]] ✅ Registered ws route with prefix /user-service/ws');
   logger.info('[[Gateway]] register /pong/demo routes ');
-  Fastify.register(pongDemoRoute, { prefix: '/pong/demo' });
-  logger.info('[[Gateway]] register /pong/game routes ');
+  //Fastify.register(pongDemoRoute, { prefix: '/pong/demo' });
+  //logger.info('[[Gateway]] register /pong/game routes ');
   Fastify.register(pongGameRoute, { prefix: '/pong/game' });
   // Register Ready proxy so it matches /game/rooms/:roomId/players/:playerId/ready
   logger.info('[[Gateway]] register ready fallback route ');
