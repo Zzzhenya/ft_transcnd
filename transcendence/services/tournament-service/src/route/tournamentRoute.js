@@ -244,7 +244,7 @@ fastify.post('/tournaments/:id/start', async (req, reply) => {
       await updateMatchFields(currentMatch.dbId, {
         winner_id: winnerUserId,
         winner_username: winner,
-        status: currentMatch.status,
+        matches_status: currentMatch.status,
         player1_score: player1Score ?? null,   // or keep previous value
         player2_score: player2Score ?? null,
         started_at: toDbTimestamp(currentMatch.startedAt),
@@ -433,7 +433,7 @@ if (currentRoundIndex < t.bracket.rounds.length - 1) {
     if (currentMatch.dbId) {
       const finishedAtIso = new Date().toISOString();
       await updateMatchFields(currentMatch.dbId, {
-        status: 'interrupted',
+        matches_status: 'interrupted',
         finished_at: toDbTimestamp(finishedAtIso),
       });
     } else {
@@ -528,7 +528,7 @@ fastify.post('/tournaments/:id/forfeit', async (req, reply) => {
     if (currentMatch.dbId) {
       await updateMatchFields(currentMatch.dbId, {
         winner_id: winnerUserId,
-        status: currentMatch.status,         // 'forfeited'
+        matches_status: currentMatch.status,         // 'forfeited'
         // If you have scores at time of forfeit, put them here instead of null:
         player1_score: null,
         player2_score: null,
