@@ -10,6 +10,7 @@ const LOG_SERVICE_URL = process.env.LOG_SERVICE_URL || 'http://log-service:3003'
 const TESTDB_URL = process.env.TESTDB_URL || 'http://testdb:3010';
 
 const healthRoutes: FastifyPluginAsync = async (fastify) => {
+    logger.info(`healthRoutes: `)
 
 // health route for gateway
     fastify.get('/health', async (request, reply) => {
