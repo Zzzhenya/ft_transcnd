@@ -9,6 +9,7 @@ import type { FastifyHttpOptions, FastifyInstance, FastifyServerOptions, Fastify
 const TOURNAMENT_SERVICE_URL = process.env.TOURNAMENT_SERVICE_INTERNAL_URL || 'http://tournament-service:3005';
 
 const tournamentRoute: FastifyPluginAsync = async (fastify) => {
+	logger.info(`tournamentRoute: `)
 
 	fastify.post('/', async (request, reply) => {
 		return queueAwareProxyRequest(fastify, request, reply, `${TOURNAMENT_SERVICE_URL}/tournaments`, 'POST');
@@ -25,11 +26,11 @@ const tournamentRoute: FastifyPluginAsync = async (fastify) => {
 			var tournIdStr = request.params.id;
 			tournId = parseInt(tournIdStr.replace(/[^0-9]/g, ''),10); 
 			// tournId = req.params.id;
-			logger.info(`[[Gateway]] Gateway received GET request for /tournaments/${tournId}/players`)
-	    	fastify.log.info(`[[Gateway]] Gateway received GET request for /tournaments/${tournId}/players`)
+			logger.info(`tournamentRoute: Gateway received GET request for /tournaments/${tournId}/players`)
+	    	fastify.log.info(`tournamentRoute: Gateway received GET request for /tournaments/${tournId}/players`)
 		} else {
-			logger.info(`[[Gateway]] 400 :Bad Request at /tournaments/:id/players :Required request parameter is missing`)
-			fastify.log.info(`[[Gateway]] 400 :Bad Request at /tournaments/:id/players :Required request parameter is missing`)
+			logger.info(`tournamentRoute: 400 :Bad Request at /tournaments/:id/players :Required request parameter is missing`)
+			fastify.log.info(`tournamentRoute: 400 :Bad Request at /tournaments/:id/players :Required request parameter is missing`)
 			// throw 400 Bad Request
 			throw fastify.httpErrors.badRequest('Missing required parameter: id');
 		}
@@ -41,11 +42,11 @@ const tournamentRoute: FastifyPluginAsync = async (fastify) => {
 		if (request.params) {
 			var tournIdStr = request.params.id;
 			tournId = parseInt(tournIdStr.replace(/[^0-9]/g, ''),10); 
-			logger.info(`[[Gateway]] Gateway received GET request for /tournaments/${tournId}/bracket`)
-		    fastify.log.info(`Gateway received GET request for /tournaments/${tournId}/bracket`)
+			logger.info(`tournamentRoute: Gateway received GET request for /tournaments/${tournId}/bracket`)
+		    fastify.log.info(`tournamentRoute: Gateway received GET request for /tournaments/${tournId}/bracket`)
 		} else {
-			logger.info(`[[Gateway]] 400 :Bad Request at /tournaments/:id/bracket :Required request parameter is missing`)
-			fastify.log.info(`[[Gateway]] 400 :Bad Request at /tournaments/:id/bracket :Required request parameter is missing`)
+			logger.info(`tournamentRoute: 400 :Bad Request at /tournaments/:id/bracket :Required request parameter is missing`)
+			fastify.log.info(`tournamentRoute: 400 :Bad Request at /tournaments/:id/bracket :Required request parameter is missing`)
 			// throw 400 Bad Request
 			throw fastify.httpErrors.badRequest('Missing required parameter: id');
 		}
@@ -57,11 +58,11 @@ const tournamentRoute: FastifyPluginAsync = async (fastify) => {
 		if (request.params) {
 			var tournIdStr = request.params.id;
 			tournId = parseInt(tournIdStr.replace(/[^0-9]/g, ''),10); 
-			logger.info(`[[Gateway]] Gateway received POST request for /tournaments/${tournId}/advance`)
-		    fastify.log.info(`Gateway received POST request for /tournaments/${tournId}/advance`)
+			logger.info(`tournamentRoute: Gateway received POST request for /tournaments/${tournId}/advance`)
+		    fastify.log.info(`tournamentRoute: Gateway received POST request for /tournaments/${tournId}/advance`)
 		} else {
-			logger.info(`[[Gateway]] 400 :Bad Request at /tournaments/:id/advance :Required request parameter is missing`)
-			fastify.log.info(`[[Gateway]] 400 :Bad Request at /tournaments/:id/advance :Required request parameter is missing`)
+			logger.info(`tournamentRoute: 400 :Bad Request at /tournaments/:id/advance :Required request parameter is missing`)
+			fastify.log.info(`tournamentRoute: 400 :Bad Request at /tournaments/:id/advance :Required request parameter is missing`)
 			// throw 400 Bad Request
 			throw fastify.httpErrors.badRequest('Missing required parameter: id');
 		}
@@ -97,11 +98,11 @@ const tournamentRoute: FastifyPluginAsync = async (fastify) => {
 		if (request.params) {
 			var tournIdStr = request.params.id;
 			tournId = parseInt(tournIdStr.replace(/[^0-9]/g, ''),10); 
-			logger.info(`[[Gateway]] Gateway received POST request for /tournaments/${tournId}/interrupt`)
-		    fastify.log.info(`Gateway received POST request for /tournaments/${tournId}/interrupt`)
+			logger.info(`tournamentRoute: Gateway received POST request for /tournaments/${tournId}/interrupt`)
+		    fastify.log.info(`tournamentRoute: Gateway received POST request for /tournaments/${tournId}/interrupt`)
 		} else {
-			logger.info(`[[Gateway]] 400 :Bad Request at /tournaments/:id/interrupt :Required request parameter is missing`)
-			fastify.log.info(`[[Gateway]] 400 :Bad Request at /tournaments/:id/interrupt :Required request parameter is missing`)
+			logger.info(`tournamentRoute: 400 :Bad Request at /tournaments/:id/interrupt :Required request parameter is missing`)
+			fastify.log.info(`tournamentRoute: 400 :Bad Request at /tournaments/:id/interrupt :Required request parameter is missing`)
 			// throw 400 Bad Request
 			throw fastify.httpErrors.badRequest('Missing required parameter: id');
 		}
@@ -126,11 +127,11 @@ const tournamentRoute: FastifyPluginAsync = async (fastify) => {
 		if (request.params) {
 			var tournIdStr = request.params.id;
 			tournId = parseInt(tournIdStr.replace(/[^0-9]/g, ''),10);
-			logger.info(`[[Gateway]] Gateway received POST request for /tournaments/${tournId}/start`)
-			fastify.log.info(`[[Gateway]] Gateway received POST request for /tournaments/${tournId}/start`)
+			logger.info(`tournamentRoute: Gateway received POST request for /tournaments/${tournId}/start`)
+			fastify.log.info(`tournamentRoute: Gateway received POST request for /tournaments/${tournId}/start`)
 		} else {
-			logger.info(`[[Gateway]] 400 :Bad Request at /tournaments/:id/start :Required request parameter is missing`)
-			fastify.log.info(`[[Gateway]] 400 :Bad Request at /tournaments/:id/start :Required request parameter is missing`)
+			logger.info(`tournamentRoute: 400 :Bad Request at /tournaments/:id/start :Required request parameter is missing`)
+			fastify.log.info(`tournamentRoute: 400 :Bad Request at /tournaments/:id/start :Required request parameter is missing`)
 			throw fastify.httpErrors.badRequest('Missing required parameter: id');
 		}
 		return proxyRequest(fastify, request, reply, `${TOURNAMENT_SERVICE_URL}/tournaments/${tournId}/start`, 'POST');

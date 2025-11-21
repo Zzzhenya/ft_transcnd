@@ -1,8 +1,10 @@
 // src/routes/remote-only.route.ts
 import type { FastifyInstance } from 'fastify'
+import logger from '../utils/logger.js';
 import WebSocket from 'ws'
 
 export default async function remoteOnlyRoute(fastify: FastifyInstance) {
+  logger.info(`remoteOnlyRoute: `)
   
   // Log when this plugin is loaded
   fastify.log.info('🎮 Loading remote-only WebSocket route...')

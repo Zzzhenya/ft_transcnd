@@ -14,6 +14,7 @@ const USER_SERVICE_URL = process.env.USER_SERVICE_URL || 'http://user-service:30
 
 const userRoutes: FastifyPluginAsync = async (fastify) => {
 
+	logger.info(`userRoutes: `)
 	// Health check for user-service (through gateway)
 	fastify.get('/health', async (request, reply) => {
 		return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/health`, 'GET');
@@ -26,20 +27,16 @@ const userRoutes: FastifyPluginAsync = async (fastify) => {
 	});
 
 	fastify.post('/auth/register', async (request, reply) => {
-		// fastify.log.info("Gateway received POST request for /register")
-		// fastify.log.info({ body: request.body }, "Request body")
 		return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/auth/register`, 'POST');
 	});
 
 	fastify.post('/auth/login', async (request, reply) => {
-		// fastify.log.info("Gateway received POST request for /register")
-		// fastify.log.info({ body: request.body }, "Request body")
 		return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/auth/login`, 'POST');
 	});
 
 	// Guest login route
 	fastify.post('/auth/guest', async (request, reply) => {
-		fastify.log.info("Gateway received POST request for /auth/guest");
+		fastify.log.info("userRoutes: Gateway received POST request for /auth/guest");
 		fastify.log.info({ body: request.body }, "Guest login request body");
 		return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/auth/guest`, 'POST');
 	});
@@ -122,7 +119,7 @@ const userRoutes: FastifyPluginAsync = async (fastify) => {
 	// Get unread notifications (for polling)
 	fastify.get('/notifications/unread', async (request, reply) => {
 		return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/notifications/unread`, 'GET');
-	}); // ✅ FIXED: Added missing closing brace
+	});
 
 	// Get user's remote match history
 	fastify.get('/users/:userId/remote-matches', { preHandler: fastify.mustAuth }, async (request, reply) => {
@@ -181,17 +178,17 @@ const userRoutes: FastifyPluginAsync = async (fastify) => {
 		} catch (error) {
 			// TypeScript-konform: Error richtig behandeln
 			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-			fastify.log.error(`Failed to fetch avatar: ${errorMessage}`);
+			fastify.log.error(`userRoutes: Failed to fetch avatar: ${errorMessage}`);
 			return reply.code(500).send({ error: 'Failed to fetch avatar' });
 		}
 	});
 
 	// Delete account endpoint
 	fastify.delete('/auth/account', { preHandler: fastify.mustAuth }, async (request, reply) => {
-		fastify.log.info("Gateway received DELETE request for /auth/account");
+		fastify.log.info("userRoutes: Gateway received DELETE request for /auth/account");
 		return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/auth/account`, 'DELETE');
 	});
 
-} // ✅ Closing brace for userRoutes function
+}
 
 export default userRoutes
