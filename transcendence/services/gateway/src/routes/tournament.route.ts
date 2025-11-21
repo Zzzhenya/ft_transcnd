@@ -11,16 +11,16 @@ const TOURNAMENT_SERVICE_URL = process.env.TOURNAMENT_SERVICE_INTERNAL_URL || 'h
 const tournamentRoute: FastifyPluginAsync = async (fastify) => {
 	logger.info(`tournamentRoute: `)
 
-	fastify.post('/', async (request, reply) => {
+	fastify.post('/', { preHandler: fastify.mustAuth }, async (request, reply) => {
 		return queueAwareProxyRequest(fastify, request, reply, `${TOURNAMENT_SERVICE_URL}/tournaments`, 'POST');
 	});
 
 	// List tournaments (proxy to tournament-service)
-	fastify.get('/', async (request, reply) => {
+	fastify.get('/', { preHandler: fastify.mustAuth }, async (request, reply) => {
 		return proxyRequest(fastify, request, reply, `${TOURNAMENT_SERVICE_URL}/tournaments`, 'GET');
 	});
 
-	fastify.get<{Params: { id: string }}>('/:id/players', async (request, reply) => {
+	fastify.get<{Params: { id: string }}>('/:id/players', { preHandler: fastify.mustAuth }, async (request, reply) => {
 		let tournId = null;
 		if (request.params) {
 			var tournIdStr = request.params.id;
@@ -37,7 +37,7 @@ const tournamentRoute: FastifyPluginAsync = async (fastify) => {
 		return proxyRequest(fastify, request, reply, `${TOURNAMENT_SERVICE_URL}/tournaments/${tournId}/players`, 'GET');
 	});
 
-	fastify.get<{Params: { id: string }}>('/:id/bracket', async (request, reply) => {
+	fastify.get<{Params: { id: string }}>('/:id/bracket', { preHandler: fastify.mustAuth }, async (request, reply) => {
 		let tournId = null;
 		if (request.params) {
 			var tournIdStr = request.params.id;
@@ -53,7 +53,7 @@ const tournamentRoute: FastifyPluginAsync = async (fastify) => {
 		return proxyRequest(fastify, request, reply, `${TOURNAMENT_SERVICE_URL}/tournaments/${tournId}/bracket`, 'GET');
 	});
 
-	fastify.post<{Params: { id: string }}>('/:id/advance', async (request, reply) => {
+	fastify.post<{Params: { id: string }}>('/:id/advance', { preHandler: fastify.mustAuth }, async (request, reply) => {
 		let tournId = null;
 		if (request.params) {
 			var tournIdStr = request.params.id;
@@ -93,7 +93,7 @@ const tournamentRoute: FastifyPluginAsync = async (fastify) => {
 	 * - Validates tournament ID parameter
 	 * - Returns 400 if ID missing, 404 if tournament not found
 	 */
-	fastify.post<{Params: { id: string }}>('/:id/interrupt', async (request, reply) => {
+	fastify.post<{Params: { id: string }}>('/:id/interrupt', { preHandler: fastify.mustAuth }, async (request, reply) => {
 		let tournId = null;
 		if (request.params) {
 			var tournIdStr = request.params.id;
@@ -110,7 +110,7 @@ const tournamentRoute: FastifyPluginAsync = async (fastify) => {
 	});
 
 	// Join tournament
-	fastify.post<{Params: { id: string }}>('/:id/join', async (request, reply) => {
+	fastify.post<{Params: { id: string }}>('/:id/join', { preHandler: fastify.mustAuth }, async (request, reply) => {
 		let tournId = null;
 		if (request.params) {
 			var tournIdStr = request.params.id;
@@ -122,7 +122,7 @@ const tournamentRoute: FastifyPluginAsync = async (fastify) => {
 	});
 
 	// Start tournament
-	fastify.post<{Params: { id: string }}>('/:id/start', async (request, reply) => {
+	fastify.post<{Params: { id: string }}>('/:id/start', { preHandler: fastify.mustAuth }, async (request, reply) => {
 		let tournId = null;
 		if (request.params) {
 			var tournIdStr = request.params.id;
@@ -137,7 +137,7 @@ const tournamentRoute: FastifyPluginAsync = async (fastify) => {
 		return proxyRequest(fastify, request, reply, `${TOURNAMENT_SERVICE_URL}/tournaments/${tournId}/start`, 'POST');
 	});
 
-	fastify.get('/stats', async (request, reply) => {
+	fastify.get('/stats', { preHandler: fastify.mustAuth }, async (request, reply) => {
 		return proxyRequest(fastify, request, reply, `${TOURNAMENT_SERVICE_URL}/stats`, 'GET');
 	});
 

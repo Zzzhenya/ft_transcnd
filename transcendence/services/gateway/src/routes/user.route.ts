@@ -74,14 +74,14 @@ const userRoutes: FastifyPluginAsync = async (fastify) => {
 	});
 
 	// Get specific user info endpoint
-	fastify.get('/users/:userId', async (request, reply) => {
+	fastify.get('/users/:userId', { preHandler: fastify.mustAuth }, async (request, reply) => {
 		const { userId } = request.params as { userId: string };
 		return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/users/${userId}`, 'GET');
 	});
 
 
 	// User status endpoint { preHandler: fastify.mustAuth },?
-	fastify.post('/users/:userId/status', async (request, reply) => {
+	fastify.post('/users/:userId/status', { preHandler: fastify.mustAuth }, async (request, reply) => {
 		const { userId } = request.params as { userId: string };
 		return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/users/${userId}/online-status`, 'POST');
 	});
@@ -117,7 +117,7 @@ const userRoutes: FastifyPluginAsync = async (fastify) => {
 	});
 
 	// Get unread notifications (for polling)
-	fastify.get('/notifications/unread', async (request, reply) => {
+	fastify.get('/notifications/unread', { preHandler: fastify.mustAuth }, async (request, reply) => {
 		return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/notifications/unread`, 'GET');
 	});
 
@@ -158,7 +158,7 @@ const userRoutes: FastifyPluginAsync = async (fastify) => {
 	});
 
 	// Fileupload
-	fastify.get('/avatars/:filename', async (request, reply) => {
+	fastify.get('/avatars/:filename',{ preHandler: fastify.mustAuth }, async (request, reply) => {
 		const { filename } = request.params as { filename: string };
 
 		try {

@@ -24,7 +24,7 @@ export default async function readyRoute(fastify: FastifyInstance) {
 
   fastify.post<{
     Params: ReadyParams
-  }>('/rooms/:roomId/players/:playerId/ready', async (req: FastifyRequest<{ Params: ReadyParams }>, reply: FastifyReply) => {
+  }>('/rooms/:roomId/players/:playerId/ready', { preHandler: fastify.mustAuth }, async (req: FastifyRequest<{ Params: ReadyParams }>, reply: FastifyReply) => {
     const { roomId, playerId } = req.params;
     const upstream = `${GAME_SERVICE_URL}/rooms/${encodeURIComponent(roomId)}/players/${encodeURIComponent(playerId)}/ready`;
     try {

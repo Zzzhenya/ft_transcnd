@@ -12,17 +12,17 @@ const gameRoute: FastifyPluginAsync = async (fastify) => {
   logger.info(`gameRoute: `)
   
   // POST /api/rooms - Create new room
-  fastify.post('/rooms', async (request, reply) => {
+  fastify.post('/rooms', { preHandler: fastify.mustAuth }, async (request, reply) => {
       return queueAwareProxyRequest(fastify, request, reply, `${GAME_SERVICE_URL}/api/rooms`, 'POST');
   });
 
   // GET /api/rooms - List all rooms
-  fastify.get('/rooms', async (request, reply) => {
+  fastify.get('/rooms', { preHandler: fastify.mustAuth }, async (request, reply) => {
       return proxyRequest(fastify, request, reply, `${GAME_SERVICE_URL}/api/rooms`, 'GET');
   });
 
   // GET /api/rooms/:roomId - Get room info
-  fastify.get('/rooms/:roomId', async (request, reply) => {
+  fastify.get('/rooms/:roomId',{ preHandler: fastify.mustAuth }, async (request, reply) => {
     const { roomId } = request.params as { roomId: string };
     if (!roomId){
       // throw 400 Bad Request
@@ -33,12 +33,12 @@ const gameRoute: FastifyPluginAsync = async (fastify) => {
   })
 
   // POST /api/matchmaking/join - Quick match
-  fastify.post('/matchmaking/join', async (request, reply) => {
+  fastify.post('/matchmaking/join', { preHandler: fastify.mustAuth }, async (request, reply) => {
       return queueAwareProxyRequest(fastify, request, reply, `${GAME_SERVICE_URL}/api/matchmaking/join`, 'POST');
   });
 
   // GET /api/stats - Get server stats
-  fastify.get('/stats', async (request, reply) => {
+  fastify.get('/stats', { preHandler: fastify.mustAuth }, async (request, reply) => {
     return proxyRequest(fastify, request, reply, `${GAME_SERVICE_URL}/api/stats`, 'GET');
   });
 
