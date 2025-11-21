@@ -42,28 +42,26 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 const setupcors = async () => {
 
     await Fastify.register(cors, {
-    // Fastify.register(cors, {
     // origin: ['null'], // to test fetch with a file/ demo
-    origin: FRONT_END_URL, // <-- your frontend origin 
-    // origin: 'http://localhost:3004', // <-- your frontend origin 
+    origin: FRONT_END_URL, // <-- your frontend origin  
     credentials: true,                   // <-- allow sending cookies cross-origin
       });
-    logger.info('[[Gateway]] cors settings registered');
+    logger.info('Cors settings registered');
 }
 
 try {
   await setupcors();
 }
 catch (error: any){
-  logger.error('[[Gateway]] error occured while registering cors settings: ', error);
+  logger.error('Error occured while registering cors settings: ', error);
 }
 
-logger.info('[[Gateway]] registering cookie plugin');
+logger.info('Registering cookie plugin');
 await Fastify.register(cookie, {
   // secret: 'my-secret-key', // Optional (for signed cookies)
 
 });
-logger.info('[[Gateway]] cookie registered');
+logger.info('Cookie registered');
 
 
 await Fastify.register(fastifyJwt, {
@@ -139,7 +137,6 @@ Fastify.addHook('onRequest', async (request, reply) => {
       logger.info(`🆕 New sessionId created: ${newSessionId}`);
       Fastify.log.info(`🆕 New sessionId created: ${newSessionId}`);
     }
-    console.log(`🌟🌟🌟🌟🌟🌟 token = ${request.headers['x-token']} :: sessionId = ${request.headers['x-session-id']}`)
   }
   catch (error: any){
     logger.error(`An error occured while extracting or setting sessionId/token: ${error.message}`, error);
@@ -171,19 +168,19 @@ await Fastify.addHook('preHandler', Fastify.verifyAuth);
 
 const setupWebSocket = async () => {
   await Fastify.register(websocket);
-  logger.info('[[Gateway]] WebSocket plugin registered');
+  logger.info('WebSocket plugin registered');
 }
 
 const start = async () => {
   try {
-    logger.info('[[Gateway]] Starting gateway', { port: PORT });
+    logger.info('Starting gateway', { port: PORT });
     await Fastify.listen({ port: PORT, host: '0.0.0.0' })
-    logger.info('[[Gateway]] Gateway listening at port: ', { port: PORT });
+    logger.info('Gateway listening at port: ', { port: PORT });
   }
   catch (error: any) {
     // Just stringify the whole error object
-    logger.error('[[Gateway]] Failed to start gateway: ', { error: JSON.stringify(error) });
-    Fastify.log.error('[[Gateway]] Failed to start gateway: ' + error)
+    logger.error('Failed to start gateway: ', { error: JSON.stringify(error) });
+    Fastify.log.error('Failed to start gateway: ' + error)
     process.exit(1)
   }
 }
@@ -191,45 +188,45 @@ const start = async () => {
 await setupWebSocket();
 logger.info("port: " + PORT);
 try {
-  logger.info('[[Gateway]] register root route');
+  logger.info('Register root route');
   Fastify.register(firstRoute);
-  logger.info('[[Gateway]] register health routes');
+  logger.info('Register health routes');
   Fastify.register(healthRoute);
-  logger.info('[[Gateway]] register stats route');
+  logger.info('Register stats route');
   Fastify.register(statsRoute);
-  logger.info('[[Gateway]] register remote-only ws routes ');
+  logger.info('Register remote-only ws routes ');
   Fastify.register(remoteOnlyRoute);
-  logger.info('[[Gateway]] register user-service ws routes ');
+  logger.info('Register user-service ws routes ');
   // Register WebSocket for internal calls
   Fastify.register(wsRoute, { prefix: '/ws' });
   // Register WebSocket for frontend calls (nginx removes /api prefix, so we register without it)
   Fastify.register(wsNotificationRoute, { prefix: '/user-service/ws' });
-  logger.info('[[Gateway]] ✅ Registered ws route with prefix /user-service/ws');
-  logger.info('[[Gateway]] register /pong/demo routes ');
+  logger.info('✅ Registered ws route with prefix /user-service/ws');
+  // logger.info('Register /pong/demo routes ');
   //Fastify.register(pongDemoRoute, { prefix: '/pong/demo' });
-  //logger.info('[[Gateway]] register /pong/game routes ');
+  //logger.info('Register /pong/game routes ');
   Fastify.register(pongGameRoute, { prefix: '/pong/game' });
   // Register Ready proxy so it matches /game/rooms/:roomId/players/:playerId/ready
-  logger.info('[[Gateway]] register ready fallback route ');
+  logger.info('Register ready fallback route ');
   Fastify.register(readyRoute, { prefix: '/game' })
-  logger.info('[[Gateway]] register game routes ');
+  logger.info('Register game routes ');
   Fastify.register(gameRoute)
-  logger.info('[[Gateway]] register user routes ');
+  logger.info('Register user routes ');
   // Register for internal service calls (without /api prefix)
   Fastify.register(userRoute, { prefix: '/user-service' });
   // Register for frontend calls (with /api prefix)  
   Fastify.register(userRoute, { prefix: '/api/user-service' });
-  logger.info('[[Gateway]] register tournament routes ');
+  logger.info('Register tournament routes ');
   Fastify.register(tournamentRoute, { prefix: '/tournaments' });
 }
 catch (error: any) {
-  logger.error('[[Gateway]] an error occured while registering routes', error);
+  logger.error('An error occured while registering routes', error);
 }
 
 
 try {
-  logger.info('[[Gateway]] Launching gateway...');
+  logger.info('Launching gateway...');
   await start();
 } catch ( error: any) {
-  logger.error('[[Gateway]] an error occured while launching gateway or at runtime', error);
+  logger.error('An error occured while launching gateway or at runtime', error);
 }
