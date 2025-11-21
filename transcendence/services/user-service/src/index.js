@@ -5,9 +5,24 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const logger = require('./utils/logger');
 const PORT = parseInt(process.env.USER_SERVICE_PORT || process.env.PORT || '3001');
+
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-this';
 const fs = require('fs').promises;
 const path = require('path');
+
+// ⭐ NEW: Helper function to generate JWT token
+function generateToken(user) {
+  return jwt.sign(
+    {
+      userId: user.id,
+      username: user.username,
+      displayName: user.display_name,
+      isGuest: user.is_guest || false
+    },
+    JWT_SECRET,
+    { expiresIn: '24h' }
+  );
+}
 
 // Register WebSocket support FIRST
 fastify.register(require('@fastify/websocket'));
@@ -1551,68 +1566,25 @@ fastify.post('/test-status', async (request, reply) => {
   return { test: 'working' };
 });
 
-// // Update user online status
-// fastify.post('/users/:userId/online-status', {
-//   preHandler: fastify.authenticate
-// }, async (request, reply) => {
-//   console.log('🚀 STATUS ENDPOINT HIT - START OF HANDLER');
-//   try {
-//     const { userId } = request.params;
-//     const { is_online } = request.body;
-
-//     console.log(`🟢 ONLINE STATUS UPDATE REQUEST: userId=${userId}, is_online=${is_online}, type=${typeof is_online}`);
-//     logger.info(`🟢 ONLINE STATUS UPDATE REQUEST: userId=${userId}, is_online=${is_online}, type=${typeof is_online}`);
-
-//     if (typeof is_online !== 'number') {
-//       logger.warn(`❌ Invalid is_online type: expected number, got ${typeof is_online}`);
-//       return reply.code(400).send({ error: 'is_online must be 0 or 1' });
-//     }
-
-//     logger.info(`🔄 Updating online status for user ${userId} to ${is_online}`);
-
-//     const response = await fetch('http://database-service:3006/internal/write', {
-//       method: 'POST',
-//       headers: {
-//         'Content-Type': 'application/json',
-//         'x-service-auth': 'super_secret_internal_token'
-//       },
-//       body: JSON.stringify({
-//         table: 'Users',
-//         id: parseInt(userId),
-//         column: 'is_online',
-//         value: is_online
-//       })
-//     });
-
-//     if (!response.ok) {
-//       logger.error('Database update failed:', response.status);
-//       return reply.code(500).send({ error: 'Failed to update status' });
-//     }
-
-//     return { success: true, message: 'Status updated' };
-
-//   } catch (error) {
-//     logger.error('Error updating status:', error);
-//     return reply.code(500).send({ error: 'Internal server error' });
-//   }
-// });
-
-
+// Update user online status
 fastify.post('/users/:userId/online-status', {
   preHandler: fastify.authenticate
 }, async (request, reply) => {
+  console.log('🚀 STATUS ENDPOINT HIT - START OF HANDLER');
   try {
     const { userId } = request.params;
     const { is_online } = request.body;
-    
-    console.log(`🟢 ONLINE STATUS UPDATE REQUEST: userId=${userId}, is_online=${is_online}`);
-    logger.info(`🟢 ONLINE STATUS UPDATE REQUEST: userId=${userId}, is_online=${is_online}`);
-    
+
+    console.log(`🟢 ONLINE STATUS UPDATE REQUEST: userId=${userId}, is_online=${is_online}, type=${typeof is_online}`);
+    logger.info(`🟢 ONLINE STATUS UPDATE REQUEST: userId=${userId}, is_online=${is_online}, type=${typeof is_online}`);
+
     if (typeof is_online !== 'number') {
       logger.warn(`❌ Invalid is_online type: expected number, got ${typeof is_online}`);
       return reply.code(400).send({ error: 'is_online must be 0 or 1' });
     }
-    
+
+    logger.info(`🔄 Updating online status for user ${userId} to ${is_online}`);
+
     // Update is_online
     const response = await fetch('http://database-service:3006/internal/write', {
       method: 'POST',
@@ -1980,7 +1952,7 @@ fastify.put('/users/:userId/display-name', {
     const { userId } = request.params;
     const { displayName } = request.body;
 
-    if (parseInt(userId) !== request.user.userId) {
+    if (request.user.userId !== parseInt(userId)) {
       return reply.code(403).send({ error: 'Unauthorized to update this profile' });
     }
 
@@ -1989,10 +1961,8 @@ fastify.put('/users/:userId/display-name', {
     }
 
     if (displayName.length > 50) {
-      return reply.code(400).send({ error: 'Display name too long (max 50 characters)' });
+      return reply.code(400).send({ error: 'Display name must be 50 characters or less' });
     }
-
-    logger.info(`Updating display name for user ${userId} to ${displayName}`);
 
     const response = await fetch('http://database-service:3006/internal/write', {
       method: 'POST',
@@ -2010,14 +1980,28 @@ fastify.put('/users/:userId/display-name', {
 
     if (!response.ok) {
       logger.error('Database update failed:', response.status);
-      return reply.code(500).send({ error: 'Failed to update display name' });
+      return reply.code(500).send({ error: 'Failed to update display name in database' });
     }
+
+    // ⭐ CRITICAL: Fetch updated user and generate new token
+    const updatedUser = await User.findById(userId);
+    if (!updatedUser) {
+      return reply.code(404).send({ error: 'User not found after update' });
+    }
+
+    const newToken = generateToken(updatedUser);
 
     logger.info(`Display name updated successfully for user ${userId}`);
     return {
       success: true,
       message: 'Display name updated successfully',
-      displayName: displayName.trim()
+      user: {
+        id: updatedUser.id,
+        username: updatedUser.username,
+        email: updatedUser.email,
+        display_name: updatedUser.display_name
+      },
+      token: newToken  // ⭐ Return new token
     };
 
   } catch (error) {
@@ -2050,14 +2034,10 @@ fastify.put('/users/:userId/username', {
       return reply.code(400).send({ error: 'Username can only contain letters, numbers, and underscores' });
     }
 
-    logger.info(`Updating username for user ${userId} to ${username}`);
 
-    const existingUser = await User.findByUsername(username);
+    const existingUser = await User.findByUsername(username.trim());
     if (existingUser && existingUser.id !== parseInt(userId)) {
-      return reply.code(409).send({
-        error: 'Username already taken',
-        message: 'This username is already in use'
-      });
+      return reply.code(409).send({ error: 'Username already taken' });
     }
 
     const response = await fetch('http://database-service:3006/internal/write', {
@@ -2076,14 +2056,28 @@ fastify.put('/users/:userId/username', {
 
     if (!response.ok) {
       logger.error('Database update failed:', response.status);
-      return reply.code(500).send({ error: 'Failed to update username' });
+      return reply.code(500).send({ error: 'Failed to update username in database' });
     }
+
+    // ⭐ CRITICAL: Fetch updated user and generate new token
+    const updatedUser = await User.findById(userId);
+    if (!updatedUser) {
+      return reply.code(404).send({ error: 'User not found after update' });
+    }
+
+    const newToken = generateToken(updatedUser);
 
     logger.info(`Username updated successfully for user ${userId}`);
     return {
       success: true,
       message: 'Username updated successfully',
-      username: username.trim()
+      user: {
+        id: updatedUser.id,
+        username: updatedUser.username,
+        email: updatedUser.email,
+        display_name: updatedUser.display_name
+      },
+      token: newToken  // ⭐ Return new token
     };
 
   } catch (error) {
