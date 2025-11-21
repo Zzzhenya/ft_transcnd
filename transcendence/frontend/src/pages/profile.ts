@@ -103,8 +103,8 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
               </div>
             </div>
             <div>
-              <p class="text-sm text-gray-500 mb-1">User ID</p>
-              <p class="font-mono text-sm bg-gray-100 px-2 py-1 rounded">${userProfile.id}</p>
+              <p class="text-sm text-gray-400 mb-1">User ID</p>
+              <p class="font-mono text-sm input-violet px-2 py-1 rounded">${userProfile.id}</p>
             </div>
             <div>
               <p class="text-sm text-gray-500 mb-1">Username</p>
@@ -166,10 +166,10 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
       <div id="avatar-modal" class="fixed inset-0 z-50 hidden">
         <div id="avatar-modal-backdrop" class="absolute inset-0 bg-black bg-opacity-50"></div>
         <div class="relative flex items-center justify-center min-h-screen p-4">
-          <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+          <div class="card-violet rounded-lg border shadow-xl max-w-md w-full p-6">
             <div class="flex justify-between items-center mb-4">
-              <h3 class="text-xl font-bold text-gray-800">📷 Change Avatar</h3>
-              <button id="close-avatar-modal" class="text-gray-400 hover:text-gray-600">
+              <h3 class="text-xl text-gray-200">📷 Change Avatar</h3>
+              <button id="close-avatar-modal" class="text-gray-300 hover:text-gray-100">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                 </svg>
@@ -211,7 +211,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
             </div>
             
             <div class="flex gap-3 mt-6">
-              <button id="cancel-avatar-btn" class="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 font-semibold transition-colors">
+              <button id="cancel-avatar-btn" class="flex-1 px-4 py-2 border rounded-lg font-normal transition-colors card-violet">
                 Cancel
               </button>
               <button id="save-avatar-btn" class="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors disabled:bg-gray-400"
@@ -391,10 +391,10 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
         <div id="email-modal-backdrop" class="absolute inset-0 bg-black bg-opacity-50"></div>
         <!-- Modal -->
         <div class="relative flex items-center justify-center min-h-screen p-4">
-          <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+          <div class="card-violet rounded-lg border shadow-xl max-w-md w-full p-6">
             <div class="flex justify-between items-center mb-4">
-              <h3 class="text-xl font-bold text-gray-800">📧 Change Email</h3>
-              <button id="close-email-modal" class="text-gray-400 hover:text-gray-600">
+              <h3 class="text-xl text-gray-200">📧 Change Email</h3>
+              <button id="close-email-modal" class="text-gray-300 hover:text-gray-100">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                 </svg>
@@ -406,7 +406,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
                 <input 
                   type="email" 
                   id="new-email" 
-                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  class="w-full px-3 py-2 input-violet rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-purple-600 outline-none"
                   placeholder="Enter new email address"
                 />
                 <p id="email-error" class="text-red-500 text-sm mt-1 hidden"></p>
@@ -416,14 +416,14 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
                 <input 
                   type="password" 
                   id="confirm-password-email" 
-                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  class="w-full px-3 py-2 input-violet rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-purple-600 outline-none"
                   placeholder="Enter your password to confirm"
                 />
                 <p id="password-error-email" class="text-red-500 text-sm mt-1 hidden"></p>
               </div>
             </div>
             <div class="flex gap-3 mt-6">
-              <button id="cancel-email-btn" class="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 font-semibold transition-colors">
+              <button id="cancel-email-btn" class="flex-1 px-4 py-2 border rounded-lg font-normal transition-colors card-violet">
                 Cancel
               </button>
               <button id="save-email-btn" class="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors">
@@ -547,10 +547,10 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
       <div id="display-name-modal" class="fixed inset-0 z-50 hidden">
         <div id="display-name-modal-backdrop" class="absolute inset-0 bg-black bg-opacity-50"></div>
         <div class="relative flex items-center justify-center min-h-screen p-4">
-          <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+          <div class="card-violet rounded-lg border shadow-xl max-w-md w-full p-6">
             <div class="flex justify-between items-center mb-4">
-              <h3 class="text-xl font-bold text-gray-800">✏️ Change Display Name</h3>
-              <button id="close-display-name-modal" class="text-gray-400 hover:text-gray-600">
+              <h3 class="text-xl text-gray-200">✏️ Change Display Name</h3>
+              <button id="close-display-name-modal" class="text-gray-300 hover:text-gray-100">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                 </svg>
@@ -562,7 +562,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
                 <input 
                   type="text" 
                   id="new-display-name" 
-                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  class="w-full px-3 py-2 input-violet rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-purple-600 outline-none"
                   placeholder="Enter new display name"
                   value="${userProfile.display_name || userProfile.username || ''}"
                   maxlength="50"
@@ -572,7 +572,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
               </div>
             </div>
             <div class="flex gap-3 mt-6">
-              <button id="cancel-display-name-btn" class="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 font-semibold transition-colors">
+              <button id="cancel-display-name-btn" class="flex-1 px-4 py-2 border rounded-lg font-normal transition-colors card-violet">
                 Cancel
               </button>
               <button id="save-display-name-btn" class="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors">
@@ -666,10 +666,10 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
       <div id="username-modal" class="fixed inset-0 z-50 hidden">
         <div id="username-modal-backdrop" class="absolute inset-0 bg-black bg-opacity-50"></div>
         <div class="relative flex items-center justify-center min-h-screen p-4">
-          <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+          <div class="card-violet rounded-lg border shadow-xl max-w-md w-full p-6">
             <div class="flex justify-between items-center mb-4">
-              <h3 class="text-xl font-bold text-gray-800">👤 Change Username</h3>
-              <button id="close-username-modal" class="text-gray-400 hover:text-gray-600">
+              <h3 class="text-xl text-gray-200">👤 Change Username</h3>
+              <button id="close-username-modal" class="text-gray-300 hover:text-gray-100">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                 </svg>
@@ -681,7 +681,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
                 <input 
                   type="text" 
                   id="new-username" 
-                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  class="w-full px-3 py-2 input-violet rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-purple-600 outline-none"
                   placeholder="Enter new username"
                   value="${userProfile.username || ''}"
                   maxlength="20"
@@ -691,7 +691,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
               </div>
             </div>
             <div class="flex gap-3 mt-6">
-              <button id="cancel-username-btn" class="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 font-semibold transition-colors">
+              <button id="cancel-username-btn" class="flex-1 px-4 py-2 border rounded-lg font-normal transition-colors card-violet">
                 Cancel
               </button>
               <button id="save-username-btn" class="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors">
@@ -1077,17 +1077,17 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
       </div>
 
       <!-- User Info Section -->
-      <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
+      <div class="card-violet rounded-lg p-6 mb-8">
         <div id="user-info-container">
           <!-- User info will be loaded here -->
         </div>
       </div>
 
       <!-- Friend Requests Section -->
-      <div class="bg-white rounded-lg border border-gray-200 p-6 shadow-sm mb-6">
+      <div class="card-violet rounded-lg border p-6 shadow-sm mb-6">
         <div class="flex items-center justify-between mb-4">
-          <h2 class="text-xl font-bold text-gray-800">📨 Friend Requests</h2>
-          <span class="text-sm text-gray-500">${friendRequests.length} pending</span>
+          <h2 class="text-xl neon">📨 Friend Requests</h2>
+          <span class="text-sm text-gray-300">${friendRequests.length} pending</span>
         </div>
         
         <div id="friend-requests-container" class="min-h-[80px]">
@@ -1098,35 +1098,35 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
       </div>
 
       <!-- Friends Management Section -->
-      <div class="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
+      <div class="card-violet rounded-lg border p-6 shadow-sm">
         <div class="flex items-center justify-between mb-4">
-          <h2 class="text-xl font-bold text-gray-800">👥 Friends Management</h2>
-          <button id="refresh-friends-btn" class="text-sm text-blue-600 hover:text-blue-800 font-semibold">
+          <h2 class="text-xl neon">👥 Friends Management</h2>
+          <button id="refresh-friends-btn" class="text-sm link-violet">
             🔄 Refresh
           </button>
         </div>
         
         <!-- Add Friend Form -->
-        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-          <h3 class="font-semibold mb-3 text-blue-800">➕ Add New Friend</h3>
+        <div class="card-violet rounded-lg p-4 mb-6 border">
+          <h3 class="mb-3 neon-soft">➕ Add New Friend</h3>
           <div class="flex gap-3">
             <input id="friend-username-input" type="text" 
-                   class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" 
+                   class="flex-1 px-3 py-2 input-violet rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-purple-600 outline-none" 
                    placeholder="Enter friend's username" />
-            <button id="add-friend-btn" class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors">
+            <button id="add-friend-btn" class="px-6 py-2 btn-retro rounded-lg transition-colors">
               Add Friend
             </button>
           </div>
-          <p class="text-xs text-gray-600 mt-2">
+          <p class="text-xs text-gray-300 mt-2">
             💡 Enter the exact username of the player you want to add as a friend.
           </p>
         </div>
         
         <!-- Friends List -->
         <div>
-          <h3 class="font-semibold mb-3 text-gray-800">Your Friends (${friends.length})</h3>
+          <h3 class="mb-3 text-gray-200">Your Friends (${friends.length})</h3>
           <div id="friends-container" class="min-h-[100px]">
-            <div class="text-center py-4 text-gray-500">
+            <div class="text-center py-4 text-gray-400">
               Loading friends...
             </div>
           </div>

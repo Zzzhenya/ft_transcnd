@@ -5,11 +5,45 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Global: apply Arcade font everywhere */
+html, body, body * {
+  font-family: 'ArcadeClassic', "Silkscreen", "VT323", ui-monospace, Menlo, Monaco, Consolas, "Courier New", monospace !important;
+  letter-spacing: 0.01em;
+  -webkit-font-smoothing: none !important;
+  -moz-osx-font-smoothing: auto !important;
+  text-rendering: optimizeSpeed !important;
+  font-weight: 400 !important;
+  text-transform: uppercase;
+}
+
 /* 선택: 전역 커스텀 */
 :root {
   --app-bg: #0b1020;
 }
-body { background: var(--app-bg); }
+body { background: var(--app-bg); color: #e8e8e8; }
+
+/* Global neon headings (formerly scoped to .retro-wait) */
+.neon { color: #facc15; text-shadow: 0 0 10px rgba(250, 204, 21, 0.5); }
+.neon-soft { color: #fbbf24; text-shadow: 0 0 8px rgba(251, 191, 36, .4); }
+
+/* Default headings to neon style */
+h1, h2, h3, h4, h5, h6 { color: #facc15; text-shadow: 0 0 10px rgba(250,204,21,0.35); font-weight: 400 !important; }
+
+/* Global retro button */
+.btn-retro {
+  background: #7c3aed; /* violet */
+  border: 1px solid #6d28d9;
+  color: #ffffff;
+  box-shadow: none;
+  transition: none;
+}
+.btn-retro:hover:not(:disabled) {
+  transform: none;
+  box-shadow: none;
+  filter: none;
+  background: #6d28d9; /* darker violet */
+}
+.btn-retro:disabled { opacity: .6; filter: none; }
 
 /* Retro dark theme utilities scoped to .retro-wait */
 .retro-wait {
@@ -57,8 +91,8 @@ body { background: var(--app-bg); }
   text-shadow: 0 0 8px rgba(251, 191, 36, .4);
 }
 .retro-wait .btn-retro {
-  background: #a855f7; /* purple */
-  border: 1px solid #7e22ce;
+  background: #7c3aed; /* violet */
+  border: 1px solid #6d28d9;
   box-shadow: none;
   transition: none;
 }
@@ -66,7 +100,7 @@ body { background: var(--app-bg); }
   transform: none;
   box-shadow: none;
   filter: none;
-  background: #9333ea; /* darker purple */
+  background: #6d28d9; /* darker violet */
 }
 .retro-wait .btn-retro:disabled {
   opacity: .6;
@@ -89,15 +123,9 @@ body { background: var(--app-bg); }
   50% { opacity: 0; }
 }
 
-/* Optional: lightweight pixel font via system stack fallback */
-/* Full 8-bit look in waiting room */
-.retro-wait, .retro-wait * {
-  font-family: 'ArcadeClassic', "Silkscreen", "VT323", ui-monospace, Menlo, Monaco, Consolas, "Courier New", monospace !important;
-  letter-spacing: 0.01em;
-  -webkit-font-smoothing: none !important;
-  -moz-osx-font-smoothing: auto !important;
-  text-rendering: optimizeSpeed !important;
-}
+/* Optional: lightweight pixel font via system stack fallback - now global in html/body */
+/* Keep class for compatibility, but redundant after global font application */
+.retro-wait, .retro-wait * { }
 
 /* Clean headings and chips: no outline, no heavy shadows */
 .retro-wait h1, .retro-wait h2, .retro-wait h3, .retro-wait .chip, .retro-wait .code-chip, .retro-wait .player-badge, .retro-wait .btn-retro {
@@ -189,9 +217,17 @@ body { background: var(--app-bg); }
   object-fit: contain;
   image-rendering: pixelated;
   display: inline-block;
+  filter: drop-shadow(0 0 2px rgba(124,58,237,0.4));
 }
 .icon-px-lg { width: 48px; height: 48px; }
 /* Tint helpers for dark PNGs */
 .icon-px--violet { filter: invert(85%) sepia(30%) saturate(600%) hue-rotate(240deg) brightness(110%) contrast(95%); }
 .icon-px--yellow { filter: invert(85%) sepia(80%) saturate(600%) hue-rotate(340deg) brightness(110%) contrast(95%); }
 .icon-px--white { filter: invert(100%) brightness(180%); }
+
+/* Violet-accent helpers */
+.card-violet { background: #0b1020; border: 1px solid #8b5cf6; box-shadow: none; }
+.input-violet { background: rgba(255,255,255,0.05); border: 1px solid #6d28d9; color: #f3f4f6; }
+.input-violet::placeholder { color: rgba(255,255,255,0.4); }
+.link-violet { color: #c4b5fd; }
+.link-violet:hover { color: #a78bfa; }
