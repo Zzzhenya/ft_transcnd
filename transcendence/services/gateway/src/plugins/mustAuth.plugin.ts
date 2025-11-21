@@ -9,9 +9,11 @@ const mustAuthHandler: preHandlerHookHandler = async (request: FastifyRequest , 
   const user = request.user as User | undefined;
 
   if (!user || !user.authState) {
+    logger.info(`no user or no user authState`)
     return reply.code(401).send({ error: "Unauthorized", reason: "missing-user-context" });
   }
 
+  logger.info(`check user authState`)
   switch (user.authState) {
     case "valid":
       logger.info(`valid user`)
