@@ -66,6 +66,8 @@ export async function proxyRequest(
         sameSite: 'lax',
         path: '/',
       });
+      // remove token from the body
+      delete data.token;
     }
     return reply.send(data);
 
