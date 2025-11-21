@@ -35,7 +35,7 @@ CREATE TABLE Users (
   bio TEXT,
   
   -- Status
-  user_status VARCHAR(20) DEFAULT 'registed',
+  user_status VARCHAR(20) DEFAULT 'offline',
   
   -- Online Status
   last_seen TEXT DEFAULT CURRENT_TIMESTAMP,
@@ -47,8 +47,8 @@ CREATE TABLE Users (
   mfa_backup_codes TEXT,
   
   -- Timestamps
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-  -- last_login TIMESTAMP
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  last_login TIMESTAMP
 
 );
 
