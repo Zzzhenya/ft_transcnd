@@ -1,8 +1,37 @@
 // frontend/src/pages/profile.ts
 import { getAuth, signOut, getToken } from "@/app/auth";
 import { navigate } from "@/app/router";
-import { escapeHtml, sanitizeInput } from '@/utils/security';
 const GATEWAY_BASE = import.meta.env.VITE_GATEWAY_BASE || '/api';
+
+// Keep in sync with app/auth.ts
+const STORAGE_KEY = "ft_transcendence_version1";
+
+function readAuthState(): any {
+  try { return JSON.parse(sessionStorage.getItem(STORAGE_KEY) || "{}"); } catch { return {}; }
+}
+function writeAuthState(s: any) { sessionStorage.setItem(STORAGE_KEY, JSON.stringify(s)); }
+
+function updateSessionAuthUser(partialUser: Partial<{ id: string; username: string; email: string; name: string; displayName?: string; alias?: string; role?: string }>, newToken?: string) {
+  const s = readAuthState();
+  if (!s.auth) s.auth = { user: null, token: null };
+  const prev = s.auth.user || {};
+  const updated = { ...prev, ...partialUser } as any;
+  // Keep name consistent with display preference
+  if (updated.display_name && !updated.displayName) {
+    updated.displayName = updated.display_name;
+  }
+  // Prefer display name, then username, as name field used across UI
+  if (!updated.name) {
+    updated.name = updated.displayName || updated.display_name || updated.username || prev.name;
+  } else {
+    // If name exists but we changed display fields, refresh it
+    updated.name = updated.displayName || updated.display_name || updated.username || updated.name;
+  }
+  s.auth.user = updated;
+  if (newToken) s.auth.token = newToken;
+  writeAuthState(s);
+  window.dispatchEvent(new CustomEvent('auth:changed'));
+}
 
 export default function (root: HTMLElement, ctx?: { url?: URL }) {
   const user = getAuth();
@@ -18,6 +47,12 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
   let friendRequests: any[] = [];
   let selectedAvatarFile: File | null = null;
 
+  // ⭐ Replace: Update token and user in session storage used by the app
+  function updateStoredToken(newToken: string) {
+    updateSessionAuthUser({}, newToken);
+    console.log('✅ Token updated in session storage');
+  }
+
   // Load complete user profile from database
   async function loadUserProfile() {
     if (!user) return;
@@ -31,9 +66,14 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
       });
       if (res.ok) {
         userProfile = await res.json();
-        // console.log('🔍 LOADED USER PROFILE:', userProfile);
-        // console.log('🔍 display_name value:', userProfile.display_name);
-        // console.log('🔍 username value:', userProfile.username);
+        // Keep session auth in sync with latest profile
+        updateSessionAuthUser({
+          id: userProfile.id,
+          username: userProfile.username,
+          email: userProfile.email,
+          displayName: userProfile.display_name || userProfile.displayName,
+          name: (userProfile.display_name || userProfile.displayName || userProfile.username || userProfile.name)
+        });
         renderUserInfo();
         updateAvatarDisplay();
       }
@@ -44,24 +84,24 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
   }
 
 
-    function updateAvatarDisplay() {
-      const timestamp = Date.now(); 
-      const currentUser = getAuth();
-      if (!currentUser) return;
-      
-      const mainAvatar = document.getElementById('main-avatar') as HTMLImageElement;
-      if (mainAvatar) {
-        mainAvatar.src = userProfile.avatar 
-          ? `${GATEWAY_BASE}/user-service${userProfile.avatar}?t=${timestamp}`
-          : `${GATEWAY_BASE}/user-service/avatars/${currentUser.id}.jpg?t=${timestamp}`;
-      }
-      
-      const headerAvatar = document.getElementById('header-avatar') as HTMLImageElement;
-      if (headerAvatar) {
-        headerAvatar.src = userProfile.avatar 
-          ? `${GATEWAY_BASE}/user-service${userProfile.avatar}?t=${timestamp}`
-          : `${GATEWAY_BASE}/user-service/avatars/${currentUser.id}.jpg?t=${timestamp}`;
-      }
+  function updateAvatarDisplay() {
+    const timestamp = Date.now();
+    const currentUser = getAuth();
+    if (!currentUser) return;
+
+    const mainAvatar = document.getElementById('main-avatar') as HTMLImageElement;
+    if (mainAvatar) {
+      mainAvatar.src = userProfile.avatar
+        ? `${GATEWAY_BASE}/user-service${userProfile.avatar}?t=${timestamp}`
+        : `${GATEWAY_BASE}/user-service/avatars/${currentUser.id}.jpg?t=${timestamp}`;
+    }
+
+    const headerAvatar = document.getElementById('header-avatar') as HTMLImageElement;
+    if (headerAvatar) {
+      headerAvatar.src = userProfile.avatar
+        ? `${GATEWAY_BASE}/user-service${userProfile.avatar}?t=${timestamp}`
+        : `${GATEWAY_BASE}/user-service/avatars/${currentUser.id}.jpg?t=${timestamp}`;
+    }
   }
 
 
@@ -145,13 +185,6 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
           </div>
         </div>
       </div>
-      <!-- User Info Section -->
-      <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
-        <!-- ... existing content ... -->
-        <div id="user-info-container">
-          <!-- User info will be loaded here -->
-        </div>
-      </div>
     `;
 
     // Add event listeners
@@ -165,9 +198,9 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
   function createAvatarModal() {
     const currentUser = getAuth();
     if (!currentUser) return;
-    
+
     const timestamp = Date.now();
-    
+
     const modalHTML = `
       <div id="avatar-modal" class="fixed inset-0 z-50 hidden">
         <div id="avatar-modal-backdrop" class="absolute inset-0 bg-black bg-opacity-50"></div>
@@ -229,11 +262,11 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
         </div>
       </div>
     `;
-    
+
     const container = document.createElement('div');
     container.innerHTML = modalHTML;
     document.body.appendChild(container);
-    
+
     // Event listeners
     document.getElementById('avatar-input')?.addEventListener('change', handleAvatarSelect);
     document.getElementById('close-avatar-modal')?.addEventListener('click', hideAvatarModal);
@@ -252,7 +285,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
     }
     document.getElementById('avatar-modal')?.classList.remove('hidden');
     selectedAvatarFile = null;
-    
+
     // Reset save button
     const saveBtn = document.getElementById('save-avatar-btn') as HTMLButtonElement;
     if (saveBtn) {
@@ -268,12 +301,12 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
   function handleAvatarSelect(e: Event) {
     const input = e.target as HTMLInputElement;
     const file = input.files?.[0];
-    
+
     if (!file) return;
-    
+
     const errorEl = document.getElementById('avatar-error');
     errorEl?.classList.add('hidden');
-    
+
     // Validate file size (2MB max)
     if (file.size > 2 * 1024 * 1024) {
       if (errorEl) {
@@ -282,7 +315,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
       }
       return;
     }
-    
+
     // Validate file type
     if (!['image/jpeg', 'image/jpg', 'image/png', 'image/gif'].includes(file.type)) {
       if (errorEl) {
@@ -291,9 +324,9 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
       }
       return;
     }
-    
+
     selectedAvatarFile = file;
-    
+
     // Preview
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -303,7 +336,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
       }
     };
     reader.readAsDataURL(file);
-    
+
     // Enable save button
     const saveBtn = document.getElementById('save-avatar-btn') as HTMLButtonElement;
     if (saveBtn) {
@@ -320,27 +353,25 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
       }
       return;
     }
-    
-    // ⭐ WICHTIG: Aktuelle User-ID holen!
+
     const currentUser = getAuth();
     if (!currentUser) {
       showMessage('Not authenticated', 'error');
       return;
     }
-    
+
     const saveBtn = document.getElementById('save-avatar-btn') as HTMLButtonElement;
     if (saveBtn) {
       saveBtn.disabled = true;
       saveBtn.textContent = 'Uploading...';
     }
-    
+
     try {
       const reader = new FileReader();
       reader.onload = async (e) => {
         const base64 = e.target?.result as string;
-        
+
         const token = getToken();
-        // ⭐ HIER: currentUser.id verwenden!
         const res = await fetch(`${GATEWAY_BASE}/user-service/users/${currentUser.id}/avatar`, {
           method: 'POST',
           headers: {
@@ -348,19 +379,16 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
             'Authorization': `Bearer ${token || ''}`
           },
           credentials: 'include',
-          body: JSON.stringify({ 
+          body: JSON.stringify({
             imageData: base64
           })
         });
-        
+
         const data = await res.json();
-        
+
         if (res.ok && data.success) {
           showMessage('Avatar updated successfully!', 'success');
-          
-          // Profil neu laden
           await loadUserProfile();
-          
           hideAvatarModal();
           selectedAvatarFile = null;
         } else {
@@ -369,19 +397,19 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
             errorEl.textContent = data.error || 'Failed to upload avatar';
             errorEl.classList.remove('hidden');
           }
-          
+
           if (saveBtn) {
             saveBtn.disabled = false;
             saveBtn.textContent = 'Save Avatar';
           }
         }
       };
-      
+
       reader.readAsDataURL(selectedAvatarFile);
     } catch (error) {
       console.error('Error uploading avatar:', error);
       showMessage('Failed to upload avatar', 'error');
-      
+
       if (saveBtn) {
         saveBtn.disabled = false;
         saveBtn.textContent = 'Save Avatar';
@@ -517,9 +545,9 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
           'Authorization': `Bearer ${token || ''}`
         },
         credentials: 'include',
-        body: JSON.stringify({ 
-          newEmail, 
-          password 
+        body: JSON.stringify({
+          newEmail,
+          password
         })
       });
 
@@ -620,6 +648,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
     document.getElementById('display-name-modal')?.classList.add('hidden');
   }
 
+  // ⭐ UPDATED: Display name update with token handling
   async function updateDisplayName() {
     const displayNameInput = document.getElementById('new-display-name') as HTMLInputElement;
     const displayNameError = document.getElementById('display-name-error');
@@ -662,7 +691,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
           'Authorization': `Bearer ${token || ''}`
         },
         credentials: 'include',
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           displayName: newDisplayName
         })
       });
@@ -670,6 +699,9 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
       const data = await res.json();
 
       if (res.ok && data.success) {
+        // ⭐ Update session auth user and token
+        updateSessionAuthUser({ display_name: newDisplayName, displayName: newDisplayName, name: newDisplayName }, data.token);
+
         showMessage('Display name updated successfully!', 'success');
         userProfile.display_name = newDisplayName;
         renderUserInfo();
@@ -789,7 +821,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
           'Authorization': `Bearer ${token || ''}`
         },
         credentials: 'include',
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           username: newUsername
         })
       });
@@ -797,6 +829,9 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
       const data = await res.json();
 
       if (res.ok && data.success) {
+        // ⭐ Update session auth user and token. Name falls back to username if no display name
+        updateSessionAuthUser({ username: newUsername, name: userProfile.display_name || userProfile.displayName || newUsername }, data.token);
+
         showMessage('Username updated successfully!', 'success');
         userProfile.username = newUsername;
         renderUserInfo();
@@ -818,12 +853,11 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
     }
   }
 
-
   //================================================================Friendsupdate============================================
   // Load incoming friend requests
   async function loadFriendRequests() {
     if (!user) return;
-    
+
     try {
       const token = getToken();
       const res = await fetch(`${GATEWAY_BASE}/user-service/users/${userProfile.id}/friend-requests`, {
@@ -832,7 +866,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
         },
         credentials: 'include'
       });
-      
+
       if (res.ok) {
         const data = await res.json();
         friendRequests = data.requests || [];
@@ -857,7 +891,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
         credentials: 'include',
         body: JSON.stringify({ action })
       });
-      
+
       if (res.ok) {
         const data = await res.json();
         showMessage(data.message, 'success');
@@ -909,7 +943,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
         credentials: 'include',
         body: JSON.stringify({ friendUsername: username })
       });
-      
+
       if (res.ok) {
         showMessage('Friend request sent successfully!', 'success');
         await loadFriends();
@@ -935,25 +969,21 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
     }
   }
 
-  // DELETE ACCOUNT FUNCTION - NEU
+  // DELETE ACCOUNT FUNCTION
   async function deleteAccount() {
     if (!user) return;
-    
-    // Bestätigungs-Dialog
+
+    // User Dialog
     const confirmed = confirm(
       '⚠️ Are you sure you want to delete your account?\n\n' +
-      // 'This action will:\n' +
-      // '• Mark your account as deleted\n' +
-      // '• Add "deleted_" prefix to your username\n' +
-      // '• Log you out immediately\n\n' +
       'This action cannot be undone. Do you want to continue?'
     );
-    
+
     if (!confirmed) {
       showMessage('Account deletion cancelled', 'info');
       return;
     }
-    
+
     try {
       const token = getToken();
       const res = await fetch(`${GATEWAY_BASE}/user-service/auth/account`, {
@@ -963,12 +993,12 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
         },
         credentials: 'include'
       });
-      
+
       if (res.ok) {
         const result = await res.json();
         showMessage('Account successfully deleted. Logging out...', 'success');
-        
-        // Warte 2 Sekunden, damit der User die Nachricht sieht
+
+        // Warte 2 sec befor pop up message
         setTimeout(async () => {
           await signOut();
           navigate('/auth');
@@ -992,7 +1022,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
     }`;
     messageEl.textContent = message;
     document.body.appendChild(messageEl);
-    
+
     setTimeout(() => {
       messageEl.style.transform = 'translateX(100%)';
       setTimeout(() => messageEl.remove(), 300);
@@ -1096,33 +1126,33 @@ async function loadFriends() {
 // ==================
 
   function renderFriendsSection() {
-  const friendsContainer = root.querySelector('#friends-container');
-  if (!friendsContainer) return;
+    const friendsContainer = root.querySelector('#friends-container');
+    if (!friendsContainer) return;
 
-  friendsContainer.innerHTML = `
-    <div class="space-y-3">
-      ${friends.length > 0 ? friends.map(friend => {
-        // Für accepted friends: zeige online/offline
-        // Für andere: zeige nur den Status
-        let badge = '';
-        let dotColor = 'bg-gray-400';
-        
-        if (friend.friends_status === 'accepted') {
-          if (friend.online) {
-            badge = '<span class="text-xs text-green-600 font-semibold px-2 py-1 rounded-full bg-green-100">🟢 Online</span>';
-            dotColor = 'bg-green-500 animate-pulse';
+    friendsContainer.innerHTML = `
+      <div class="space-y-3">
+        ${friends.length > 0 ? friends.map(friend => {
+          // Für accepted friends: zeige online/offline
+          // Für andere: zeige nur den Status
+          let badge = '';
+          let dotColor = 'bg-gray-400';
+          
+          if (friend.friends_status === 'accepted') {
+            if (friend.online) {
+              badge = '<span class="text-xs text-green-600 font-semibold px-2 py-1 rounded-full bg-green-100">🟢 Online</span>';
+              dotColor = 'bg-green-500 animate-pulse';
+            } else {
+              badge = '<span class="text-xs text-gray-600 font-semibold px-2 py-1 rounded-full bg-gray-100">⚫ Offline</span>';
+              dotColor = 'bg-gray-400';
+            }
+          } else if (friend.friends_status === 'pending') {
+            badge = '<span class="text-xs text-yellow-600 font-semibold px-2 py-1 rounded-full bg-yellow-100">⏳ Pending</span>';
+            dotColor = 'bg-yellow-400';
           } else {
-            badge = '<span class="text-xs text-gray-600 font-semibold px-2 py-1 rounded-full bg-gray-100">⚫ Offline</span>';
-            dotColor = 'bg-gray-400';
+            badge = `<span class="text-xs text-gray-400 px-2 py-1 rounded-full bg-gray-100">❌ ${friend.friends_status}</span>`;
           }
-        } else if (friend.friends_status === 'pending') {
-          badge = '<span class="text-xs text-yellow-600 font-semibold px-2 py-1 rounded-full bg-yellow-100">⏳ Pending</span>';
-          dotColor = 'bg-yellow-400';
-        } else {
-          badge = `<span class="text-xs text-gray-400 px-2 py-1 rounded-full bg-gray-100">❌ ${friend.friends_status}</span>`;
-        }
-        
-        return `
+          
+          return `
           <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
             <div class="flex items-center gap-3">
               <div class="w-3 h-3 rounded-full ${dotColor}"></div>
