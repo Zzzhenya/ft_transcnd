@@ -89,6 +89,12 @@ const userRoutes: FastifyPluginAsync = async (fastify) => {
 		return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/users/${userId}/online-status`, 'POST');
 	});
 
+	// Weiterleitung von Online status
+	fastify.post('/users/:userId/online-status', async (request, reply) => {
+    const { userId } = request.params as { userId: string };
+    return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/users/${userId}/online-status`, 'POST');
+	});
+
 	// Update email endpoint
 	fastify.put('/users/:userId/update-email', { preHandler: fastify.mustAuth }, async (request, reply) => {
 		const { userId } = request.params as { userId: string };

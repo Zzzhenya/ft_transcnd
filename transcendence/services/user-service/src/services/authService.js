@@ -8,8 +8,57 @@ const path = require('path');
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
 class AuthService {
+  // Check User Name for special Charater
+  static checkDangerousChars(input, fieldName) {
+    const dangerousChars = ['<', '>', '"', "'", '&', '(', ')', '{', '}', '[', ']', '`', '$', '\\'];
+    for (const char of dangerousChars) {
+      if (input.includes(char)) {
+        throw new Error(`${fieldName} contains invalid characters`);
+      }
+    }
+    return true;
+  }
+
+  // Username-spezifische Validierung
+  static validateUsername(username) {
+    if (!username || username.length < 3 || username.length > 20) {
+      throw new Error('Username must be between 3 and 20 characters');
+    }
+    
+    const usernameRegex = /^[a-zA-Z0-9_-]+$/;
+    if (!usernameRegex.test(username)) {
+      throw new Error('Username can only contain letters, numbers, underscores, and hyphens');
+    }
+    
+    // Zusätzliche Sicherheitsprüfung
+    this.checkDangerousChars(username, 'Username');
+    
+    return true;
+  }
+
+  // Email-spezifische Validierung
+  static validateEmail(email) {
+    if (!email || email.length > 254) {
+      throw new Error('Invalid email format');
+    }
+    
+    // Email-spezifische Regex (erlaubt @ und .)
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    if (!emailRegex.test(email)) {
+      throw new Error('Invalid email format');
+    }
+    
+    // Zusätzliche Sicherheitsprüfung
+    this.checkDangerousChars(email, 'Email');
+    
+    return true;
+  }
+
   static async register(username, email, password, displayName = null) {
     try {
+
+      this.validateUsername(username);
+      this.validateEmail(email)
       // Check if user already exists
       const existingEmail = await User.findByEmail(email);
       if (existingEmail) {
