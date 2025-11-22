@@ -7,6 +7,7 @@ const logger = require('./utils/logger');
 const PORT = parseInt(process.env.USER_SERVICE_PORT || process.env.PORT || '3001');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-this';
+const DB_SERVICE_TOKEN = process.env.DB_SERVICE_TOKEN || 'super_secret_internal_token';
 const fs = require('fs').promises;
 const path = require('path');
 
@@ -572,7 +573,7 @@ fastify.get('/users/online', async (request, reply) => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-service-auth': 'super_secret_internal_token'
+        'x-service-auth': DB_SERVICE_TOKEN
       },
       body: JSON.stringify({
         table: 'Users',
