@@ -43,7 +43,6 @@ services:
       - LOG_SERVICE_URL=${LOG_SERVICE_URL:-http://log-service:3003}
       - FRONT_END_URL=${FRONT_END_URL:-http://localhost:3004}
     depends_on:
-      - testdb
       - user-service
       - game-service
       - log-service
