@@ -51,20 +51,50 @@ export function registerWebSocketRoutes(fastify, games, broadcastState) {
     // Send initial state to the new client
     ws.send(createInitialStateMessage(game, gameId));
 
-    // Handle incoming WebSocket messages
     ws.on('message', (rawMessage) => {
-      try {
-        const message = JSON.parse(rawMessage.toString());
-        logger.info(`[WS] Message received in game ${gameId}:`, { type: message.type, data: message });
-        handleWebSocketMessage(message, gameState, gameId, broadcastState, games);
-      } catch (error) {
-        logger.error(`[WS] Message parse error in game ${gameId}:`, { error: error.message, stack: error.stack });
+  try {
+    const message = JSON.parse(rawMessage.toString());
+
+    // === QUICK PING HANDLER ===
+    if (message && message.type === 'ping') {
+      // Only reply if socket is open
+      if (ws.readyState === 1) {
+        try {
+          // If client provided ts, echo it back; include serverTime for debugging/clock info
+          ws.send(JSON.stringify({
+            type: 'pong',
+            ts: typeof message.ts !== 'undefined' ? message.ts : Date.now(),
+            serverTime: Date.now()
+          }));
+        } catch (err) {
+          // log but don't crash; avoid super-verbose logging for every ping
+          logger.debug && logger.debug(`[WS] Failed to send pong for game ${gameId}: ${err && err.message}`);
+        }
+      }
+      // We handled it — no need to pass to the main message handler
+      return;
+    }
+    // ==========================
+
+    // Delegate other message types to the main handler
+    handleWebSocketMessage(message, gameState, gameId, broadcastState, games);
+
+  } catch (error) {
+    logger.error(`[WS] Message parse error in game ${gameId}:`, { error: error.message, stack: error.stack });
+    // reply with an error to the sender if socket still open
+    try {
+      if (ws.readyState === 1) {
         ws.send(JSON.stringify({
           type: 'ERROR',
           message: 'Invalid message format'
         }));
       }
-    });
+    } catch (e) {
+      logger.debug && logger.debug(`[WS] Failed to send error message in game ${gameId}: ${e && e.message}`);
+    }
+  }
+});
+
 
     // Handle client disconnection
     ws.on('close', (code, reason) => {
@@ -202,6 +232,12 @@ function handleWebSocketMessage(message, gameState, gameId, broadcastState, game
       // getStats(gameState);
       break;
 
+    case 'ping':
+    // Echo back a pong with same timestamp for client RTT calc
+      client.send(JSON.stringify({ type: 'pong', ts: message.ts ?? Date.now() }));
+    break;
+
+
     default:
       console.warn(`[WS] Unknown message type in game ${gameId}: ${message.type}`);
   }
@@ -213,13 +249,67 @@ function handleWebSocketMessage(message, gameState, gameId, broadcastState, game
  * @param {Object} game - The game object
  * @param {number} gameId - Game ID
  * @param {Function} broadcastState - Broadcast function
- */
+//  */
+// function handlePlayerReady(message, game, gameId, broadcastState) {
+//   const { player_id } = message;
+
+//   if (!game || game.isDemo) {
+//     console.warn(`[WS] PLAYER_READY message ignored for demo game ${gameId}`);
+//     return;
+//   }
+
+//   if (game.status !== 'ready') {
+//     console.warn(`[WS] PLAYER_READY message ignored, game ${gameId} status: ${game.status}`);
+//     broadcastToGame(game, {
+//       type: 'ERROR',
+//       message: `Game is not ready for players to ready up. Status: ${game.status}`
+//     });
+//     return;
+//   }
+
+//   // Check if this player belongs to the game
+//   let playerSlot = null;
+//   if (game.player1_id === parseInt(player_id)) {
+//     playerSlot = 'player1';
+//   } else if (game.player2_id === parseInt(player_id)) {
+//     playerSlot = 'player2';
+//   } else {
+//     console.warn(`[WS] PLAYER_READY from unknown player ${player_id} in game ${gameId}`);
+//     return;
+//   }
+
+//   // Mark player as ready
+//   game.playersReady[playerSlot] = true;
+//   logger.info(`[WS] Player ${playerSlot} (${player_id}) is ready in game ${gameId}`);
+
+//   // Broadcast player ready status
+//   broadcastToGame(game, {
+//     type: 'PLAYER_READY_UPDATE',
+//     gameId,
+//     playerSlot,
+//     playersReady: game.playersReady,
+//     message: `${game[playerSlot + '_name']} is ready!`
+//   });
+
+//   // Check if both players are ready
+//   if (game.playersReady.player1 && game.playersReady.player2) {
+//     logger.info(`[WS] Both players ready in game ${gameId}, starting countdown`);
+//     game.status = 'starting';
+    
+//     // Start countdown
+//     startGameCountdown(game, gameId, broadcastState);
+//   }
+// }
 function handlePlayerReady(message, game, gameId, broadcastState) {
-  const { player_id } = message;
+  const { player_id, player } = message; // player is expected to be "player1" or "player2"
 
   if (!game || game.isDemo) {
     console.warn(`[WS] PLAYER_READY message ignored for demo game ${gameId}`);
     return;
+  }
+
+  if (!game.playersReady) {
+    game.playersReady = { player1: false, player2: false };
   }
 
   if (game.status !== 'ready') {
@@ -231,20 +321,36 @@ function handlePlayerReady(message, game, gameId, broadcastState) {
     return;
   }
 
-  // Check if this player belongs to the game
+  // Decide which slot this message belongs to
   let playerSlot = null;
-  if (game.player1_id === parseInt(player_id)) {
-    playerSlot = 'player1';
-  } else if (game.player2_id === parseInt(player_id)) {
-    playerSlot = 'player2';
+
+  // 1) Prefer explicit slot from client (remote mode)
+  if (player === 'player1' || player === 'player2') {
+    playerSlot = player;
+  } else if (player_id != null) {
+    // 2) Fallback: map numeric player_id (for existing single-game clients)
+    const pid = parseInt(player_id, 10);
+    if (Number.isNaN(pid)) {
+      console.warn(`[WS] PLAYER_READY with invalid player_id "${player_id}" in game ${gameId}`);
+      return;
+    }
+
+    if (game.player1_id === pid) {
+      playerSlot = 'player1';
+    } else if (game.player2_id === pid) {
+      playerSlot = 'player2';
+    } else {
+      console.warn(`[WS] PLAYER_READY from unknown player_id ${player_id} in game ${gameId}`);
+      return;
+    }
   } else {
-    console.warn(`[WS] PLAYER_READY from unknown player ${player_id} in game ${gameId}`);
+    console.warn(`[WS] PLAYER_READY without player or player_id in game ${gameId}`);
     return;
   }
 
   // Mark player as ready
   game.playersReady[playerSlot] = true;
-  logger.info(`[WS] Player ${playerSlot} (${player_id}) is ready in game ${gameId}`);
+  logger.info(`[WS] Player ${playerSlot} (${player_id ?? 'no-id'}) is ready in game ${gameId}`);
 
   // Broadcast player ready status
   broadcastToGame(game, {
@@ -259,8 +365,8 @@ function handlePlayerReady(message, game, gameId, broadcastState) {
   if (game.playersReady.player1 && game.playersReady.player2) {
     logger.info(`[WS] Both players ready in game ${gameId}, starting countdown`);
     game.status = 'starting';
-    
-    // Start countdown
+
+    // Start countdown (existing logic)
     startGameCountdown(game, gameId, broadcastState);
   }
 }

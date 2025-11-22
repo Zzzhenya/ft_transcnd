@@ -50,7 +50,7 @@ export function setupRemoteWebSocket(fastify) {
 		const userIdMatch = playerId.match(/^(\d+)_/);
 		const userId = userIdMatch ? parseInt(userIdMatch[1]) : null;
 		
-		logger.debug(`[RemoteWS] Extracted userId: ${userId} from playerId: ${playerId}`);
+		logger.info(`[RemoteWS] Extracted userId: ${userId} from playerId: ${playerId}`);
 		
 		const room = roomManager.joinRoom(roomId, playerId, socket, { 
 			username,
@@ -68,7 +68,7 @@ export function setupRemoteWebSocket(fastify) {
 
 		const playerNumber = room.getPlayerNumber(playerId);
 
-		logger.info(`[RemoteWS] Player ${playerId} joined room ${roomId} as P${playerNumber}`);
+		logger.info(`[RemoteWS] ✅ Player ${playerId} joined room ${roomId} as P${playerNumber}`);
 
 		// ========================================
 		// ENVIAR MENSAJE DE INICIALIZACIÓN
@@ -81,16 +81,6 @@ export function setupRemoteWebSocket(fastify) {
 			playerNumber,
 			roomInfo: room.getInfo()
 		}));
-		// Optional: explicitly inform others about this join to speed up UI, if GameRoom didn't already
-		try {
-			room.broadcast({
-				type: 'playerJoined',
-				playerId,
-				playerNumber,
-				playerInfo: { username },
-				totalPlayers: room.players?.size ?? 0
-			}, playerId);
-		} catch {}
 
 		// ========================================
 		// EVENT LISTENERS
@@ -124,38 +114,39 @@ export function setupRemoteWebSocket(fastify) {
  */
 function handleClientMessage(room, playerId, message) {
 	const { type } = message;
-	logger.debug(`[RemoteWS] msg ${type} from ${playerId}`);
+	logger.info(`[RemoteWS] 📨 Message from ${playerId}: ${type}`, message);
 
 	switch (type) {
-		case 'paddleMove': {
+		case 'paddleMove':
 			const { direction } = message;
-			// Reduce noise; validate direction and forward
+			logger.info(`[RemoteWS] 🎮 Paddle move: player=${playerId}, direction=${direction}`);
+
 			if (['up', 'down', 'stop'].includes(direction)) {
-				try { room.updatePaddle(playerId, direction); } catch {}
+				room.updatePaddle(playerId, direction);
 			} else {
 				logger.warn(`[RemoteWS] Invalid paddle direction: ${direction}`);
 			}
 			break;
-		}
 
 		case 'ready':
-			logger.info(`[RemoteWS] Player ${playerId} ready`);
-			try { room.setPlayerReady(playerId); } catch {}
+			// Cliente marca que está listo para jugar
+			logger.info(`[RemoteWS] Player ${playerId} marked as ready`);
+			room.setPlayerReady(playerId);
 			break;
 
 		case 'ping':
-			// Reply with 'ts' to match frontend expectation
-			try {
-				room.sendToPlayer(playerId, {
-					type: 'pong',
-					ts: message.ts ?? message.timestamp ?? Date.now()
-				});
-			} catch {}
+			// Responder con pong para calcular latencia
+			room.sendToPlayer(playerId, {
+				type: 'pong',
+				timestamp: message.timestamp,
+				serverTime: Date.now()
+			});
 			break;
 
 		case 'leave':
-			logger.info(`[RemoteWS] Player ${playerId} leave request`);
-			try { roomManager.leaveRoom(room.roomId, playerId); } catch {}
+			// Cliente quiere salir
+			logger.info(`[RemoteWS] Player ${playerId} requested to leave`);
+			roomManager.leaveRoom(room.roomId, playerId);
 			break;
 
 		default:

@@ -89,6 +89,8 @@ export default function (root: HTMLElement) {
 			showMessage('Failed to add friend', 'error');
 		}
 	}
+	// Reference the function to avoid "declared but its value is never read" compile error while keeping it available for future use.
+	void addFriend;
 
 	// Show message function
 	function showMessage(message: string, type: 'success' | 'error' | 'info') {

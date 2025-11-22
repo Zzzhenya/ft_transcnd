@@ -29,16 +29,14 @@ export function movePaddle(gameState, player, direction) {
   const bottomBoundary = 100 - paddleHeight / 2;  // 100 - 20 = 80
 
   let dir = direction;
-  if (direction === 'up') dir = -1;    // up moves paddle up (negative Y in screen coords)
-  if (direction === 'down') dir = 1;   // down moves paddle down (positive Y in screen coords)
+  if (direction === 'up') dir = 1;     // up moves paddle up (positive Y)
+  if (direction === 'down') dir = -1;  // down moves paddle down (negative Y)
   
   const oldPosition = gameState.paddles[player];
   gameState.paddles[player] += dir * paddleSpeed;
   gameState.paddles[player] = Math.max(topBoundary, Math.min(bottomBoundary, gameState.paddles[player]));
   
-  if (DEBUG_GAME) {
-    logger.debug(`[Paddle] ${player} moved ${direction}: ${oldPosition} -> ${gameState.paddles[player]} (boundaries: ${topBoundary} to ${bottomBoundary})`);
-  }
+  logger.debug(`[Paddle] ${player} moved ${direction}: ${oldPosition} -> ${gameState.paddles[player]} (boundaries: ${topBoundary} to ${bottomBoundary})`);
 
   return gameState;
 }
@@ -60,7 +58,7 @@ export function moveBall(gameState) {
   gameState.ball.y += gameState.ball.dy * (ballspeed + speedIncrement);
 
   // Debug ball position when near boundaries
-  if (DEBUG_GAME && Math.abs(gameState.ball.x) > 45) {
+  if (Math.abs(gameState.ball.x) > 45) {
     logger.debug(`[Ball] Near boundary: x=${gameState.ball.x}, y=${gameState.ball.y}, dx=${gameState.ball.dx}, dy=${gameState.ball.dy}`);
   }
 
@@ -77,9 +75,7 @@ export function moveBall(gameState) {
     const relativeY = gameState.ball.y - paddleY;
     const normalizedY = relativeY / (paddleHeight / 2);
     
-    if (DEBUG_GAME) {
-      logger.debug(`[Bounce] Ball speed before: dx=${gameState.ball.dx}, dy=${gameState.ball.dy}`);
-    }
+    logger.debug(`[Bounce] Ball speed before: dx=${gameState.ball.dx}, dy=${gameState.ball.dy}`);
     
     // Keep constant speed - don't increase speed on each hit
     const baseSpeed = GAME_CONFIG.ball.bounceSpeed; // Constant ball speed after bounce
@@ -87,9 +83,7 @@ export function moveBall(gameState) {
     gameState.ball.dx = gameState.ball.dx > 0 ? -baseSpeed : baseSpeed; // Reverse direction with constant speed
     gameState.ball.dy = normalizedY * baseSpeed; // Set Y velocity based on paddle hit position
     
-    if (DEBUG_GAME) {
-      logger.debug(`[Bounce] Ball speed after: dx=${gameState.ball.dx}, dy=${gameState.ball.dy}`);
-    }
+    logger.debug(`[Bounce] Ball speed after: dx=${gameState.ball.dx}, dy=${gameState.ball.dy}`);
   }
 
   // Left paddle collision
@@ -128,13 +122,13 @@ export function moveBall(gameState) {
     logger.info(`[SCORE] Ball missed left paddle! Final ball position: x=${gameState.ball.x}, y=${gameState.ball.y}`);
     gameState.score.player2++;
     gameState.tournament.lastPointWinner = 'player2';
-    // Don't call checkRoundEnd here - GameRoom handles round end logic
+    checkRoundEnd(gameState);
     resetBall(gameState, 'player1'); // Ball goes to loser (player1)
   } else if (gameState.ball.x > 50) {
     logger.info(`[SCORE] Ball missed right paddle! Final ball position: x=${gameState.ball.x}, y=${gameState.ball.y}`);
     gameState.score.player1++;
     gameState.tournament.lastPointWinner = 'player1';
-    // Don't call checkRoundEnd here - GameRoom handles round end logic
+    checkRoundEnd(gameState);
     resetBall(gameState, 'player2'); // Ball goes to loser (player2)
   }
 
@@ -163,8 +157,6 @@ function checkRoundEnd(gameState) {
   const scoreLimit = gameState.tournament.scoreLimit;
   
   // Check if round is over (someone reached score limit)
-  // Note: Do NOT increment roundsWon here - that's GameRoom's responsibility
-  // This function just checks and returns the winner
   if (gameState.score.player1 >= scoreLimit) {
     // Player 1 wins the round
     gameState.tournament.roundsWon.player1++;
@@ -178,13 +170,9 @@ function checkRoundEnd(gameState) {
     gameState.totalScore.player2 += (gameState.score.player2 || 0);
     endRound(gameState, 'player2');
   }
-  return null;
 }
 
-// DEPRECATED: GameRoom now handles inter-round countdowns directly
-// This function is kept for backward compatibility but should not be used
 function startRoundCountdown(gameState, broadcastState) {
-  logger.warn('[gameLogic] startRoundCountdown is deprecated - GameRoom handles countdowns');
   if (gameState.tournament.gameStatus !== 'roundCountdown') return;
   if (gameState.tournament.countdownInterval) return; // Already counting down
   
@@ -208,7 +196,7 @@ function endRound(gameState, roundWinner) {
   gameState.tournament.gameStatus = 'roundEnd';
   
   // Check if game is over (best of 3)
-  const roundsToWin = Math.ceil(gameState.tournament.maxRounds / 2); // best of 3 -> 2 rounds to win
+  const roundsToWin = Math.ceil(gameState.tournament.maxRounds / 2); // 2 rounds to win
   
   if (gameState.tournament.roundsWon[roundWinner] >= roundsToWin) {
     // Game is over!
@@ -241,8 +229,7 @@ function startNextRound(gameState) {
 }
 
 function restartGame(gameState) {
-  // Clear tournament-specific intervals
-  // Note: gameLoopInterval is managed by GameRoom, not gameState
+  // Clear any active intervals to prevent memory leaks
   if (gameState.tournament.countdownInterval) {
     clearInterval(gameState.tournament.countdownInterval);
     gameState.tournament.countdownInterval = null;
@@ -275,11 +262,15 @@ function startGame(gameState) {
 }
 
 function cleanupGame(gameState) {
-  // Clean up tournament-specific intervals
-  // Note: gameLoopInterval is managed by GameRoom, not gameState
+  // Clean up all intervals to prevent memory leaks
   if (gameState.tournament.countdownInterval) {
     clearInterval(gameState.tournament.countdownInterval);
     gameState.tournament.countdownInterval = null;
+  }
+  
+  if (gameState.gameLoopInterval) {
+    clearInterval(gameState.gameLoopInterval);
+    gameState.gameLoopInterval = null;
   }
 }
 
@@ -355,7 +346,7 @@ function initialGameState() {
     tournament: {
       currentRound: 1,
       maxRounds: 3,
-      scoreLimit: 5,
+      scoreLimit: 3,
       roundsWon: { player1: 0, player2: 0 },
       gameStatus: 'waiting', // 'waiting', 'playing', 'roundEnd', 'gameEnd', 'roundCountdown'
       winner: null,

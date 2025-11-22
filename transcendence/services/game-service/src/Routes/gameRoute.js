@@ -97,7 +97,7 @@ export function registerSingleGameRoutes(fastify, games, counters, broadcastStat
         createdAt: game.createdAt,
         maxRounds: game.maxRounds,
         scoreLimit: game.scoreLimit,
-        websocketUrl: `ws://${process.env.GAME_SERVICE_HOST || 'localhost'}:${process.env.GAME_SERVICE_PORT || '3002'}/ws/pong/game-ws/${gameId}`,
+        websocketUrl: `${process.env.PUBLIC_WS_BASE}/pong/game-ws/${gameId}`,
         message: 'Single game created successfully (3 rounds, score limit: 3)'
       };
 
