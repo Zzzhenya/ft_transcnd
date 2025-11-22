@@ -1035,7 +1035,14 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
           </div>
         `).join('') : `
           <div class="text-center py-6 text-gray-500">
-            <div class="text-4xl mb-3 opacity-20">📨</div>
+            <!-- Icon for notifications / refresh -->
+            <div
+              id="status-icon"
+              class="text-4xl mb-3 opacity-20 cursor-default"
+            >
+              📨
+            </div>
+
             <p class="font-semibold">No pending friend requests</p>
             <p class="text-sm">You're all caught up!</p>
           </div>
@@ -1122,6 +1129,9 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
         <div class="flex items-center justify-between mb-4">
           <h2 class="text-xl font-bold text-gray-800">📨 Friend Requests</h2>
           <span class="text-sm text-gray-500">${friendRequests.length} pending</span>
+          <button id="refresh-requests-btn" class="text-sm text-blue-600 hover:text-blue-800 font-semibold">
+            🔄 Refresh
+          </button>
         </div>
         
         <div id="friend-requests-container" class="min-h-[80px]">
@@ -1221,6 +1231,11 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
       root.querySelector<HTMLButtonElement>("#add-friend-btn")?.click();
     }
   });
+
+  root.querySelector<HTMLButtonElement>("#refresh-requests-btn")?.addEventListener("click", () => {
+    loadFriendRequests();
+  });
+
 
   root.querySelector<HTMLButtonElement>("#refresh-friends-btn")?.addEventListener("click", () => {
     loadFriends();
