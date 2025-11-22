@@ -108,7 +108,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
       <!-- Tournament History -->
       <div class="card-violet rounded-lg border p-6 shadow-sm">
         <h2 class="text-xl font-bold mb-4 title-violet flex items-center gap-2">
-          <img src="/icons/trophy.png" class="icon-px icon-px--yellow" alt="Tournament History">
+          <img src="/icons/trophy.png" class="icon-px icon-px--violet" alt="Tournament History">
           Tournament History
         </h2>
         
@@ -119,9 +119,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
         </div>
 
         <!-- Error State -->
-        <div id="tournaments-error" class="hidden chip chip-red">
-          <p> Failed to load tournament history</p>
-        </div>
+        <div id="tournaments-error" class="hidden chip chip-red" aria-live="polite"></div>
 
         <!-- Empty State -->
         <div id="tournaments-empty" class="hidden text-center py-8 text-gray-400">
@@ -142,7 +140,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
       <!-- Navigation -->
       <div class="flex gap-3">
         <button id="back-to-profile-btn" class="px-6 py-3 rounded-lg btn-retro font-semibold transition-colors">
-          <img src="/icons/trophy.png" class="icon-px icon-px--yellow" alt="" aria-hidden="true">
+          <img src="/icons/profile.png" class="icon-px icon-px--violet" alt="" aria-hidden="true">
           Back to Profile
         </button>
       </div>
@@ -153,7 +151,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
           <!-- Modal Header -->
           <div class="flex items-center justify-between p-6 border-b border-gray-700">
             <h3 id="modal-title" class="text-2xl font-bold title-violet flex items-center gap-2">
-              <img src="/icons/trophy.png" class="icon-px icon-px--yellow" alt="" aria-hidden="true">
+              <img src="/icons/trophy.png" class="icon-px icon-px--violet" alt="" aria-hidden="true">
               Tournament Matches
             </h3>
             <button id="close-modal" class="text-gray-300 hover:text-gray-100 text-2xl font-bold">&times;</button>
@@ -219,6 +217,14 @@ async function loadRemoteMatches(userId: number) {
         'Authorization': `Bearer ${token}`
       }, credentials: 'include'
     });
+
+    // Treat 204/404 as empty list, not error
+    if (response.status === 204 || response.status === 404) {
+      loadingEl?.classList.add('hidden');
+      errorEl?.classList.add('hidden');
+      emptyEl?.classList.remove('hidden');
+      return;
+    }
 
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`);
@@ -335,6 +341,14 @@ async function loadTournaments(userId: number) {
       }, credentials: 'include'
     });
 
+    // Treat 204/404 as empty list, not error
+    if (response.status === 204 || response.status === 404) {
+      loadingEl?.classList.add('hidden');
+      errorEl?.classList.add('hidden');
+      emptyEl?.classList.remove('hidden');
+      return;
+    }
+
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`);
     }
@@ -342,8 +356,9 @@ async function loadTournaments(userId: number) {
     const data = await response.json();
     const tournaments: TournamentParticipation[] = data.tournaments || [];
 
-    // Hide loading
+    // Hide loading and error
     loadingEl?.classList.add('hidden');
+    errorEl?.classList.add('hidden');
 
     if (tournaments.length === 0) {
       // Show empty state
@@ -380,7 +395,10 @@ async function loadTournaments(userId: number) {
   } catch (error) {
     console.error('Failed to load tournaments:', error);
     loadingEl?.classList.add('hidden');
-    errorEl?.classList.remove('hidden');
+    if (errorEl) {
+      errorEl.textContent = 'Failed to load tournament history';
+      errorEl.classList.remove('hidden');
+    }
   }
 }
 

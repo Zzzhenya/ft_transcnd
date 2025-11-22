@@ -139,12 +139,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
           </div>
         </div>
       </div>
-      <!-- User Info Section -->
-      <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
-        <!-- ... existing content ... -->
-        <div id="user-info-container">
-          <!-- User info will be loaded here -->
-        </div>
+
       </div>
     `;
 
@@ -991,17 +986,19 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
               </div>
             </div>
             <div class="flex gap-2">
-              <button class="accept-request-btn px-3 py-1 rounded-lg btn-retro text-sm font-semibold transition-all" data-requester-id="${request.id}">
-                ✅ Accept
+              <button class="accept-request-btn px-3 py-1 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-semibold transition-all" data-requester-id="${request.id}">
+                Accept
               </button>
               <button class="reject-request-btn px-3 py-1 rounded-lg bg-red-700 hover:bg-red-800 text-white text-sm font-semibold transition-all" data-requester-id="${request.id}">
-                ❌ Reject
+                Reject
               </button>
             </div>
           </div>
         `).join('') : `
           <div class="text-center py-6 text-gray-400">
-            <div class="text-4xl mb-3 opacity-20">📨</div>
+            <div class="mb-3 opacity-50 flex justify-center">
+              <img src="/icons/message.png" class="icon-px icon-px--violet" alt="No requests">
+            </div>
             <p class="font-semibold">No pending friend requests</p>
             <p class="text-sm">You're all caught up!</p>
           </div>
@@ -1043,17 +1040,19 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
             </div>
             <div class="text-right">
               ${friend.status === 'accepted' ? `
-                <span class="chip chip-green">✅ Friends</span>
+                <span class="chip chip-green">Friends</span>
               ` : friend.status === 'pending' ? `
-                <span class="chip chip-yellow">⏳ Pending</span>
+                <span class="chip chip-yellow">Pending</span>
               ` : `
-                <span class="chip chip-red">❌ ${friend.status}</span>
+                <span class="chip chip-red">${friend.status}</span>
               `}
             </div>
           </div>
         `).join('') : `
           <div class="text-center py-8 text-gray-400">
-            <div class="text-6xl mb-3 opacity-20">👥</div>
+            <div class="mb-3 opacity-50 flex justify-center">
+              <img src="/icons/people.png" class="icon-px icon-px--violet" alt="No friends">
+            </div>
             <p class="font-semibold text-lg">No friends yet</p>
             <p class="text-sm">Add some friends to play together!</p>
           </div>
@@ -1065,10 +1064,13 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
   root.innerHTML = `
     <section class="py-6 md:py-8 lg:py-10 space-y-6">
       <div class="flex items-center justify-between">
-        <h1 class="text-2xl sm:text-3xl lg:text-4xl font-bold title-yellow">👤 Profile</h1>
+        <h1 class="text-2xl sm:text-3xl lg:text-4xl font-bold title-yellow flex items-center gap-2">
+          <img src="/icons/profile.png" class="icon-px icon-px--yellow" alt="Profile">
+          Profile
+        </h1>
         <div class="flex gap-2">
           <button id="delete-account-btn" class="px-4 py-2 rounded-lg bg-red-800 hover:bg-red-900 text-white font-semibold transition-colors">
-            🗑️ Delete Account
+            Delete Account
           </button>
           <button id="logout" class="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white font-semibold transition-colors">
             Sign Out
@@ -1086,7 +1088,10 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
       <!-- Friend Requests Section -->
       <div class="card-violet rounded-lg border p-6 shadow-sm mb-6">
         <div class="flex items-center justify-between mb-4">
-          <h2 class="text-xl title-violet">📨 Friend Requests</h2>
+          <h2 class="text-xl title-violet flex items-center gap-2">
+            <img src="/icons/message.png" class="icon-px icon-px--violet" alt="Friend Requests">
+            Friend Requests
+          </h2>
           <span class="text-sm text-gray-300">${friendRequests.length} pending</span>
         </div>
         
@@ -1100,15 +1105,18 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
       <!-- Friends Management Section -->
       <div class="card-violet rounded-lg border p-6 shadow-sm">
         <div class="flex items-center justify-between mb-4">
-          <h2 class="text-xl title-violet">👥 Friends Management</h2>
+          <h2 class="text-xl title-violet flex items-center gap-2">
+            <img src="/icons/people.png" class="icon-px icon-px--violet" alt="Friends Management">
+            Friends Management
+          </h2>
           <button id="refresh-friends-btn" class="text-sm link-violet">
-            🔄 Refresh
+             Refresh
           </button>
         </div>
         
         <!-- Add Friend Form -->
         <div class="card-violet rounded-lg p-4 mb-6 border">
-          <h3 class="mb-3">➕ Add New Friend</h3>
+          <h3 class="mb-3"> Add New Friend</h3>
           <div class="flex gap-3">
             <input id="friend-username-input" type="text" 
                    class="flex-1 px-3 py-2 input-violet rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-purple-600 outline-none" 
@@ -1118,7 +1126,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
             </button>
           </div>
           <p class="text-xs text-gray-300 mt-2">
-            💡 Enter the exact username of the player you want to add as a friend.
+             Enter the exact username of the player you want to add as a friend.
           </p>
         </div>
         
@@ -1132,21 +1140,16 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
           </div>
         </div>
       </div>
-
       <!-- Navigation Section -->
       <div class="flex flex-wrap gap-3">
-        <button id="dashboard-btn" class="px-6 py-3 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-semibold transition-colors">
-          📊 Dashboard
-        </button>
-        <a href="/" class="px-6 py-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold transition-colors">
-          🏠 Go to Lobby
+        <button id="dashboard-btn" class="btn-retro px-8 py-3 rounded-full text-white flex items-center gap-2"><img class="icon-px icon-px--violet" src="/icons/dashboard.png" alt="Dashboard" /> Dashboard</button>
+        <a href="/" class="btn-retro px-8 py-3 rounded-full text-white flex items-center gap-2"><img class="icon-px icon-px--violet" src="/icons/lobby.png" alt="Lobby" /> 
+          Go to Lobby
         </a>
-        <a href="/remote" class="px-6 py-3 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-semibold transition-colors">
-          🌐 Remote Play
+        <a href="/remote" class="btn-retro px-8 py-3 rounded-full text-white flex items-center gap-2"><img class="icon-px icon-px--violet" src="/icons/rocket.png" alt="Remote" /> 
+          Remote Play
         </a>
-        <button id="backBtn" class="px-6 py-3 rounded-lg bg-gray-500 hover:bg-gray-600 text-white font-semibold transition-colors">
-          🏆 Tournament Lobby
-        </button>
+        <button id="backBtn" class="btn-retro px-8 py-3 rounded-full text-white flex items-center gap-2"><img class="icon-px icon-px--violet" src="/icons/trophy.png" alt="Tournaments" /> Tournament Lobby</button>
       </div>
     </section>
   `;
