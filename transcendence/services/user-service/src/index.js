@@ -610,7 +610,7 @@ fastify.get('/users/:userId', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-service-auth': 'super_secret_internal_token'
+        'x-service-auth': DB_SERVICE_TOKEN
       },
       body: JSON.stringify({
         table: 'Users',
@@ -660,7 +660,7 @@ fastify.get('/users/:userId/friends', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-service-auth': 'super_secret_internal_token'
+        'x-service-auth': DB_SERVICE_TOKEN
       },
       body: JSON.stringify({
         table: 'Friends',
@@ -689,7 +689,7 @@ fastify.get('/users/:userId/friends', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'x-service-auth': 'super_secret_internal_token'
+            'x-service-auth': DB_SERVICE_TOKEN
           },
           body: JSON.stringify({
             table: 'Users',
@@ -776,7 +776,7 @@ fastify.post('/users/:userId/invite', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-service-auth': 'super_secret_internal_token'
+        'x-service-auth': DB_SERVICE_TOKEN
       },
       body: JSON.stringify(writePayload)
     });
@@ -845,7 +845,7 @@ fastify.get('/users/:userId/notifications', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-service-auth': 'super_secret_internal_token'
+        'x-service-auth': DB_SERVICE_TOKEN
       },
       body: JSON.stringify(queryPayload)
     });
@@ -900,7 +900,7 @@ fastify.get('/notifications/unread', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-service-auth': 'super_secret_internal_token'
+        'x-service-auth': DB_SERVICE_TOKEN
       },
       body: JSON.stringify(queryPayload)
     });
@@ -991,7 +991,7 @@ fastify.post('/notifications/:notificationId/accept', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-service-auth': 'super_secret_internal_token'
+        'x-service-auth': DB_SERVICE_TOKEN
       },
       body: JSON.stringify(queryPayload)
     });
@@ -1044,7 +1044,7 @@ fastify.post('/notifications/:notificationId/accept', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-service-auth': 'super_secret_internal_token'
+        'x-service-auth': DB_SERVICE_TOKEN
       },
       body: JSON.stringify(deletePayload)
     });
@@ -1087,7 +1087,7 @@ fastify.post('/notifications/:notificationId/accept', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-service-auth': 'super_secret_internal_token'
+          'x-service-auth': DB_SERVICE_TOKEN
         },
         body: JSON.stringify(writePayload)
       });
@@ -1150,7 +1150,7 @@ fastify.post('/notifications/:notificationId/decline', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-service-auth': 'super_secret_internal_token'
+        'x-service-auth': DB_SERVICE_TOKEN
       },
       body: JSON.stringify(queryPayload)
     });
@@ -1196,7 +1196,7 @@ fastify.post('/notifications/:notificationId/decline', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-service-auth': 'super_secret_internal_token'
+        'x-service-auth': DB_SERVICE_TOKEN
       },
       body: JSON.stringify(deletePayload)
     });
@@ -1240,7 +1240,7 @@ fastify.post('/notifications/:notificationId/decline', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-service-auth': 'super_secret_internal_token'
+          'x-service-auth': DB_SERVICE_TOKEN
         },
         body: JSON.stringify(writePayload)
       });
@@ -1317,7 +1317,7 @@ fastify.get('/users/:userId/friend-requests', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-service-auth': 'super_secret_internal_token'
+        'x-service-auth': DB_SERVICE_TOKEN
       },
       body: JSON.stringify({
         table: 'Friends',
@@ -1396,7 +1396,7 @@ fastify.post('/users/:userId/friends', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-service-auth': 'super_secret_internal_token'
+        'x-service-auth': DB_SERVICE_TOKEN
       },
       body: JSON.stringify({
         table: 'Friends',
@@ -1461,7 +1461,7 @@ fastify.put('/users/:userId/friend-requests/:requesterId', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-service-auth': 'super_secret_internal_token'
+        'x-service-auth': DB_SERVICE_TOKEN
       },
       body: JSON.stringify({
         table: 'Friends',
@@ -1490,7 +1490,7 @@ fastify.put('/users/:userId/friend-requests/:requesterId', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-service-auth': 'super_secret_internal_token'
+        'x-service-auth': DB_SERVICE_TOKEN
       },
       body: JSON.stringify({
         table: 'Friends',
@@ -1518,7 +1518,7 @@ fastify.put('/users/:userId/friend-requests/:requesterId', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-service-auth': 'super_secret_internal_token'
+          'x-service-auth': DB_SERVICE_TOKEN
         },
         body: JSON.stringify({
           table: 'Friends',
@@ -1590,7 +1590,7 @@ fastify.post('/users/:userId/online-status', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-service-auth': 'super_secret_internal_token'
+        'x-service-auth': DB_SERVICE_TOKEN
       },
       body: JSON.stringify({
         table: 'Users',
@@ -1630,7 +1630,7 @@ fastify.get('/users/:userId/remote-matches', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-service-auth': 'super_secret_internal_token'
+        'x-service-auth': DB_SERVICE_TOKEN
       },
       body: JSON.stringify({
         table: 'Remote_Match',
@@ -1717,7 +1717,7 @@ fastify.get('/users/:userId/tournaments', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-service-auth': 'super_secret_internal_token'
+        'x-service-auth': DB_SERVICE_TOKEN
       },
       body: JSON.stringify({
         table: 'Tournament_Players',
@@ -1768,7 +1768,7 @@ fastify.get('/tournaments/:tournamentId/matches', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-service-auth': 'super_secret_internal_token'
+        'x-service-auth': DB_SERVICE_TOKEN
       },
       body: JSON.stringify({
         table: 'Tournament_Matches',
@@ -1893,7 +1893,7 @@ fastify.put('/users/:userId/update-email', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-service-auth': 'super_secret_internal_token'
+        'x-service-auth': DB_SERVICE_TOKEN
       },
       body: JSON.stringify({
         table: 'Users',
@@ -1946,7 +1946,7 @@ fastify.put('/users/:userId/display-name', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-service-auth': 'super_secret_internal_token'
+        'x-service-auth': DB_SERVICE_TOKEN
       },
       body: JSON.stringify({
         table: 'Users',
@@ -2022,7 +2022,7 @@ fastify.put('/users/:userId/username', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-service-auth': 'super_secret_internal_token'
+        'x-service-auth': DB_SERVICE_TOKEN
       },
       body: JSON.stringify({
         table: 'Users',
@@ -2102,7 +2102,7 @@ fastify.post('/users/:userId/avatar', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-service-auth': 'super_secret_internal_token'
+        'x-service-auth': DB_SERVICE_TOKEN
       },
       body: JSON.stringify({
         table: 'Users',
@@ -2191,7 +2191,7 @@ fastify.delete('/auth/account', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-service-auth': 'super_secret_internal_token'
+        'x-service-auth': DB_SERVICE_TOKEN
       },
       body: JSON.stringify({
         table: 'Users',
@@ -2214,7 +2214,7 @@ fastify.delete('/auth/account', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-service-auth': 'super_secret_internal_token'
+        'x-service-auth': DB_SERVICE_TOKEN
       },
       body: JSON.stringify({
         table: 'Users',
@@ -2237,7 +2237,7 @@ fastify.delete('/auth/account', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-service-auth': 'super_secret_internal_token'
+        'x-service-auth': DB_SERVICE_TOKEN
       },
       body: JSON.stringify({
         table: 'Users',
