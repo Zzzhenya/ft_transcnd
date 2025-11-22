@@ -150,8 +150,8 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
               </div>
             </div>
             <div>
-              <p class="text-sm text-gray-500 mb-1">User ID</p>
-              <p class="font-mono text-sm bg-gray-100 px-2 py-1 rounded">${userProfile.id}</p>
+              <p class="text-sm text-gray-400 mb-1">User ID</p>
+              <p class="font-mono text-sm input-violet px-2 py-1 rounded">${userProfile.id}</p>
             </div>
             <div>
               <p class="text-sm text-gray-500 mb-1">Username</p>
@@ -186,6 +186,8 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
           </div>
         </div>
       </div>
+
+      </div>
     `;
 
     // Add event listeners
@@ -206,10 +208,10 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
       <div id="avatar-modal" class="fixed inset-0 z-50 hidden">
         <div id="avatar-modal-backdrop" class="absolute inset-0 bg-black bg-opacity-50"></div>
         <div class="relative flex items-center justify-center min-h-screen p-4">
-          <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+          <div class="card-violet rounded-lg border shadow-xl max-w-md w-full p-6">
             <div class="flex justify-between items-center mb-4">
-              <h3 class="text-xl font-bold text-gray-800">📷 Change Avatar</h3>
-              <button id="close-avatar-modal" class="text-gray-400 hover:text-gray-600">
+              <h3 class="text-xl text-gray-200">📷 Change Avatar</h3>
+              <button id="close-avatar-modal" class="text-gray-300 hover:text-gray-100">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                 </svg>
@@ -251,7 +253,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
             </div>
             
             <div class="flex gap-3 mt-6">
-              <button id="cancel-avatar-btn" class="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 font-semibold transition-colors">
+              <button id="cancel-avatar-btn" class="flex-1 px-4 py-2 border rounded-lg font-normal transition-colors card-violet">
                 Cancel
               </button>
               <button id="save-avatar-btn" class="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors disabled:bg-gray-400"
@@ -426,10 +428,10 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
         <div id="email-modal-backdrop" class="absolute inset-0 bg-black bg-opacity-50"></div>
         <!-- Modal -->
         <div class="relative flex items-center justify-center min-h-screen p-4">
-          <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+          <div class="card-violet rounded-lg border shadow-xl max-w-md w-full p-6">
             <div class="flex justify-between items-center mb-4">
-              <h3 class="text-xl font-bold text-gray-800">📧 Change Email</h3>
-              <button id="close-email-modal" class="text-gray-400 hover:text-gray-600">
+              <h3 class="text-xl text-gray-200">📧 Change Email</h3>
+              <button id="close-email-modal" class="text-gray-300 hover:text-gray-100">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                 </svg>
@@ -441,7 +443,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
                 <input 
                   type="email" 
                   id="new-email" 
-                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  class="w-full px-3 py-2 input-violet rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-purple-600 outline-none"
                   placeholder="Enter new email address"
                 />
                 <p id="email-error" class="text-red-500 text-sm mt-1 hidden"></p>
@@ -451,14 +453,14 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
                 <input 
                   type="password" 
                   id="confirm-password-email" 
-                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  class="w-full px-3 py-2 input-violet rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-purple-600 outline-none"
                   placeholder="Enter your password to confirm"
                 />
                 <p id="password-error-email" class="text-red-500 text-sm mt-1 hidden"></p>
               </div>
             </div>
             <div class="flex gap-3 mt-6">
-              <button id="cancel-email-btn" class="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 font-semibold transition-colors">
+              <button id="cancel-email-btn" class="flex-1 px-4 py-2 border rounded-lg font-normal transition-colors card-violet">
                 Cancel
               </button>
               <button id="save-email-btn" class="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors">
@@ -591,10 +593,10 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
       <div id="display-name-modal" class="fixed inset-0 z-50 hidden">
         <div id="display-name-modal-backdrop" class="absolute inset-0 bg-black bg-opacity-50"></div>
         <div class="relative flex items-center justify-center min-h-screen p-4">
-          <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+          <div class="card-violet rounded-lg border shadow-xl max-w-md w-full p-6">
             <div class="flex justify-between items-center mb-4">
-              <h3 class="text-xl font-bold text-gray-800">✏️ Change Display Name</h3>
-              <button id="close-display-name-modal" class="text-gray-400 hover:text-gray-600">
+              <h3 class="text-xl text-gray-200">✏️ Change Display Name</h3>
+              <button id="close-display-name-modal" class="text-gray-300 hover:text-gray-100">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                 </svg>
@@ -606,7 +608,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
                 <input 
                   type="text" 
                   id="new-display-name" 
-                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  class="w-full px-3 py-2 input-violet rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-purple-600 outline-none"
                   placeholder="Enter new display name"
                   value="${userProfile.display_name || userProfile.username || ''}"
                   maxlength="50"
@@ -616,7 +618,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
               </div>
             </div>
             <div class="flex gap-3 mt-6">
-              <button id="cancel-display-name-btn" class="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 font-semibold transition-colors">
+              <button id="cancel-display-name-btn" class="flex-1 px-4 py-2 border rounded-lg font-normal transition-colors card-violet">
                 Cancel
               </button>
               <button id="save-display-name-btn" class="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors">
@@ -723,10 +725,10 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
       <div id="username-modal" class="fixed inset-0 z-50 hidden">
         <div id="username-modal-backdrop" class="absolute inset-0 bg-black bg-opacity-50"></div>
         <div class="relative flex items-center justify-center min-h-screen p-4">
-          <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+          <div class="card-violet rounded-lg border shadow-xl max-w-md w-full p-6">
             <div class="flex justify-between items-center mb-4">
-              <h3 class="text-xl font-bold text-gray-800">👤 Change Username</h3>
-              <button id="close-username-modal" class="text-gray-400 hover:text-gray-600">
+              <h3 class="text-xl text-gray-200">👤 Change Username</h3>
+              <button id="close-username-modal" class="text-gray-300 hover:text-gray-100">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                 </svg>
@@ -738,7 +740,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
                 <input 
                   type="text" 
                   id="new-username" 
-                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  class="w-full px-3 py-2 input-violet rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-purple-600 outline-none"
                   placeholder="Enter new username"
                   value="${userProfile.username || ''}"
                   maxlength="20"
@@ -748,7 +750,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
               </div>
             </div>
             <div class="flex gap-3 mt-6">
-              <button id="cancel-username-btn" class="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 font-semibold transition-colors">
+              <button id="cancel-username-btn" class="flex-1 px-4 py-2 border rounded-lg font-normal transition-colors card-violet">
                 Cancel
               </button>
               <button id="save-username-btn" class="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors">
@@ -1038,28 +1040,30 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
     requestsContainer.innerHTML = `
       <div class="space-y-3">
         ${friendRequests.length > 0 ? friendRequests.map(request => `
-          <div class="flex items-center justify-between p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+          <div class="flex items-center justify-between p-4 card-violet rounded-lg border">
             <div class="flex items-center gap-3">
               <div class="w-3 h-3 rounded-full bg-yellow-400 animate-pulse"></div>
               <div>
-                <span class="font-semibold text-yellow-800">${request.username}</span>
-                <div class="text-xs text-yellow-600">
+                <span class="font-semibold text-gray-200">${request.username}</span>
+                <div class="text-xs text-gray-400">
                   Sent: ${new Date(request.created_at).toLocaleDateString()}
                 </div>
               </div>
             </div>
             <div class="flex gap-2">
-              <button class="accept-request-btn px-3 py-1 rounded-lg bg-green-500 hover:bg-green-600 text-white text-sm font-semibold transition-all" data-requester-id="${request.id}">
-                ✅ Accept
+              <button class="accept-request-btn px-3 py-1 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-semibold transition-all" data-requester-id="${request.id}">
+                Accept
               </button>
-              <button class="reject-request-btn px-3 py-1 rounded-lg bg-red-500 hover:bg-red-600 text-white text-sm font-semibold transition-all" data-requester-id="${request.id}">
-                ❌ Reject
+              <button class="reject-request-btn px-3 py-1 rounded-lg bg-red-700 hover:bg-red-800 text-white text-sm font-semibold transition-all" data-requester-id="${request.id}">
+                Reject
               </button>
             </div>
           </div>
         `).join('') : `
-          <div class="text-center py-6 text-gray-500">
-            <div class="text-4xl mb-3 opacity-20">📨</div>
+          <div class="text-center py-6 text-gray-400">
+            <div class="mb-3 opacity-50 flex justify-center">
+              <img src="/icons/message.png" class="icon-px icon-px--violet" alt="No requests">
+            </div>
             <p class="font-semibold">No pending friend requests</p>
             <p class="text-sm">You're all caught up!</p>
           </div>
@@ -1128,67 +1132,155 @@ async function loadFriends() {
 
 // ==================
 
-  function renderFriendsSection() {
-    const friendsContainer = root.querySelector('#friends-container');
-    if (!friendsContainer) return;
+  // function renderFriendsSection() {
+  //   const friendsContainer = root.querySelector('#friends-container');
+  //   if (!friendsContainer) return;
 
-    friendsContainer.innerHTML = `
-      <div class="space-y-3">
-        ${friends.length > 0 ? friends.map(friend => {
-          // Für accepted friends: zeige online/offline
-          // Für andere: zeige nur den Status
-          let badge = '';
-          let dotColor = 'bg-gray-400';
+  //   friendsContainer.innerHTML = `
+  //     <div class="space-y-3">
+
+  //       ${friends.length > 0 ? friends.map(friend => {
+  //         // Für accepted friends: zeige online/offline
+  //         // Für andere: zeige nur den Status
+  //         let badge = '';
+  //         let dotColor = 'bg-gray-400';
           
-          if (friend.friends_status === 'accepted') {
-            if (friend.online) {
-              badge = '<span class="text-xs text-green-600 font-semibold px-2 py-1 rounded-full bg-green-100">🟢 Online</span>';
-              dotColor = 'bg-green-500 animate-pulse';
-            } else {
-              badge = '<span class="text-xs text-gray-600 font-semibold px-2 py-1 rounded-full bg-gray-100">⚫ Offline</span>';
-              dotColor = 'bg-gray-400';
-            }
-          } else if (friend.friends_status === 'pending') {
-            badge = '<span class="text-xs text-yellow-600 font-semibold px-2 py-1 rounded-full bg-yellow-100">⏳ Pending</span>';
-            dotColor = 'bg-yellow-400';
+  //         if (friend.friends_status === 'accepted') {
+  //           if (friend.online) {
+  //             badge = '<span class="text-xs text-green-600 font-semibold px-2 py-1 rounded-full bg-green-100">🟢 Online</span>';
+  //             dotColor = 'bg-green-500 animate-pulse';
+  //           } else {
+  //             badge = '<span class="text-xs text-gray-600 font-semibold px-2 py-1 rounded-full bg-gray-100">⚫ Offline</span>';
+  //             dotColor = 'bg-gray-400';
+  //           }
+  //         } else if (friend.friends_status === 'pending') {
+  //           badge = '<span class="text-xs text-yellow-600 font-semibold px-2 py-1 rounded-full bg-yellow-100">⏳ Pending</span>';
+  //           dotColor = 'bg-yellow-400';
+  //         } else {
+  //           badge = `<span class="text-xs text-gray-400 px-2 py-1 rounded-full bg-gray-100">❌ ${friend.friends_status}</span>`;
+  //         }
+          
+  //         return `
+  //           <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
+  //             <div class="flex items-center gap-3">
+  //               <div class="w-3 h-3 rounded-full ${dotColor}"></div>
+  //               <div>
+  //                 <span class="font-semibold">${friend.username || 'Unknown User'}</span>
+  //                 <div class="text-xs text-gray-500">
+  //                   Status: ${friend.friends_status} • Added: ${new Date(friend.created_at).toLocaleDateString()}
+  //                 </div>
+
+  //       ${friends.length > 0 ? friends.map(friend => `
+  //         <div class="flex items-center justify-between p-4 card-violet rounded-lg border">
+  //           <div class="flex items-center gap-3">
+  //             <div class="w-3 h-3 rounded-full ${friend.status === 'accepted' ? 'bg-green-400' : friend.status === 'pending' ? 'bg-yellow-400' : 'bg-gray-500'}"></div>
+  //             <div>
+  //               <span class="font-semibold title-yellow">${friend.username || 'Unknown User'}</span>
+  //               <div class="text-xs text-gray-400">
+  //                 Status: ${friend.status} • Added: ${new Date(friend.created_at).toLocaleDateString()}
+
+  //               </div>
+  //             </div>
+  //             <div class="text-right">
+  //               ${badge}
+  //             </div>
+  //           </div>
+
+  //         `;
+  //       }).join('') : `
+  //         <div class="text-center py-8 text-gray-500">
+  //           <div class="text-6xl mb-3 opacity-20">👥</div>
+
+  //           <div class="text-right">
+  //             ${friend.status === 'accepted' ? `
+  //               <span class="chip chip-green">Friends</span>
+  //             ` : friend.status === 'pending' ? `
+  //               <span class="chip chip-yellow">Pending</span>
+  //             ` : `
+  //               <span class="chip chip-red">${friend.status}</span>
+  //             `}
+  //           </div>
+  //         </div>
+  //       `).join('') : `
+  //         <div class="text-center py-8 text-gray-400">
+  //           <div class="mb-3 opacity-50 flex justify-center">
+  //             <img src="/icons/people.png" class="icon-px icon-px--violet" alt="No friends">
+  //           </div>
+
+  //           <p class="font-semibold text-lg">No friends yet</p>
+  //           <p class="text-sm">Add some friends to play together!</p>
+  //         </div>
+  //       `}
+  //     </div>
+  //   `;
+  // }
+
+  function renderFriendsSection() {
+  const friendsContainer = root.querySelector('#friends-container');
+  if (!friendsContainer) return;
+  
+  friendsContainer.innerHTML = `
+    <div class="space-y-3">
+      ${friends.length > 0 ? friends.map(friend => {
+        // Status-Badge und Dot-Color bestimmen
+        let badge = '';
+        let dotColor = 'bg-gray-400';
+        
+        if (friend.friends_status === 'accepted') {
+          if (friend.online) {
+            badge = '<span class="text-xs text-green-600 font-semibold px-2 py-1 rounded-full bg-green-100">🟢 Online</span>';
+            dotColor = 'bg-green-500 animate-pulse';
           } else {
-            badge = `<span class="text-xs text-gray-400 px-2 py-1 rounded-full bg-gray-100">❌ ${friend.friends_status}</span>`;
+            badge = '<span class="text-xs text-gray-600 font-semibold px-2 py-1 rounded-full bg-gray-100">⚫ Offline</span>';
+            dotColor = 'bg-gray-400';
           }
-          
-          return `
-            <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
-              <div class="flex items-center gap-3">
-                <div class="w-3 h-3 rounded-full ${dotColor}"></div>
-                <div>
-                  <span class="font-semibold">${friend.username || 'Unknown User'}</span>
-                  <div class="text-xs text-gray-500">
-                    Status: ${friend.friends_status} • Added: ${new Date(friend.created_at).toLocaleDateString()}
-                  </div>
+        } else if (friend.friends_status === 'pending') {
+          badge = '<span class="text-xs text-yellow-600 font-semibold px-2 py-1 rounded-full bg-yellow-100">⏳ Pending</span>';
+          dotColor = 'bg-yellow-400';
+        } else {
+          badge = `<span class="text-xs text-gray-400 px-2 py-1 rounded-full bg-gray-100">❌ ${friend.friends_status}</span>`;
+          dotColor = 'bg-gray-400';
+        }
+        
+        return `
+          <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
+            <div class="flex items-center gap-3">
+              <div class="w-3 h-3 rounded-full ${dotColor}"></div>
+              <div>
+                <span class="font-semibold">${friend.username || 'Unknown User'}</span>
+                <div class="text-xs text-gray-500">
+                  Status: ${friend.friends_status} • Added: ${new Date(friend.created_at).toLocaleDateString()}
                 </div>
               </div>
-              <div class="text-right">
-                ${badge}
-              </div>
             </div>
-          `;
-        }).join('') : `
-          <div class="text-center py-8 text-gray-500">
-            <div class="text-6xl mb-3 opacity-20">👥</div>
-            <p class="font-semibold text-lg">No friends yet</p>
-            <p class="text-sm">Add some friends to play together!</p>
+            <div class="text-right">
+              ${badge}
+            </div>
           </div>
-        `}
-      </div>
-    `;
-  }
+        `;
+      }).join('') : `
+        <div class="text-center py-8 text-gray-400">
+          <div class="mb-3 opacity-50 flex justify-center">
+            <img src="/icons/people.png" class="icon-px icon-px--violet" alt="No friends">
+          </div>
+          <p class="font-semibold text-lg">No friends yet</p>
+          <p class="text-sm">Add some friends to play together!</p>
+        </div>
+      `}
+    </div>
+  `;
+}
 
   root.innerHTML = `
     <section class="py-6 md:py-8 lg:py-10 space-y-6">
       <div class="flex items-center justify-between">
-        <h1 class="text-2xl sm:text-3xl lg:text-4xl font-bold">👤 Profile</h1>
+        <h1 class="text-2xl sm:text-3xl lg:text-4xl font-bold title-yellow flex items-center gap-2">
+          <img src="/icons/profile.png" class="icon-px icon-px--yellow" alt="Profile">
+          Profile
+        </h1>
         <div class="flex gap-2">
           <button id="delete-account-btn" class="px-4 py-2 rounded-lg bg-red-800 hover:bg-red-900 text-white font-semibold transition-colors">
-            🗑️ Delete Account
+            Delete Account
           </button>
           <button id="logout" class="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white font-semibold transition-colors">
             Sign Out
@@ -1197,17 +1289,20 @@ async function loadFriends() {
       </div>
 
       <!-- User Info Section -->
-      <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
+      <div class="card-violet rounded-lg p-6 mb-8">
         <div id="user-info-container">
           <!-- User info will be loaded here -->
         </div>
       </div>
 
       <!-- Friend Requests Section -->
-      <div class="bg-white rounded-lg border border-gray-200 p-6 shadow-sm mb-6">
+      <div class="card-violet rounded-lg border p-6 shadow-sm mb-6">
         <div class="flex items-center justify-between mb-4">
-          <h2 class="text-xl font-bold text-gray-800">📨 Friend Requests</h2>
-          <span class="text-sm text-gray-500">${friendRequests.length} pending</span>
+          <h2 class="text-xl title-violet flex items-center gap-2">
+            <img src="/icons/message.png" class="icon-px icon-px--violet" alt="Friend Requests">
+            Friend Requests
+          </h2>
+          <span class="text-sm text-gray-300">${friendRequests.length} pending</span>
         </div>
         
         <div id="friend-requests-container" class="min-h-[80px]">
@@ -1218,55 +1313,53 @@ async function loadFriends() {
       </div>
 
       <!-- Friends Management Section -->
-      <div class="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
+      <div class="card-violet rounded-lg border p-6 shadow-sm">
         <div class="flex items-center justify-between mb-4">
-          <h2 class="text-xl font-bold text-gray-800">👥 Friends Management</h2>
-          <button id="refresh-friends-btn" class="text-sm text-blue-600 hover:text-blue-800 font-semibold">
-            🔄 Refresh
+          <h2 class="text-xl title-violet flex items-center gap-2">
+            <img src="/icons/people.png" class="icon-px icon-px--violet" alt="Friends Management">
+            Friends Management
+          </h2>
+          <button id="refresh-friends-btn" class="text-sm link-violet">
+             Refresh
           </button>
         </div>
         
         <!-- Add Friend Form -->
-        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-          <h3 class="font-semibold mb-3 text-blue-800">➕ Add New Friend</h3>
+        <div class="card-violet rounded-lg p-4 mb-6 border">
+          <h3 class="mb-3"> Add New Friend</h3>
           <div class="flex gap-3">
             <input id="friend-username-input" type="text" 
-                   class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" 
+                   class="flex-1 px-3 py-2 input-violet rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-purple-600 outline-none" 
                    placeholder="Enter friend's username" />
-            <button id="add-friend-btn" class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors">
+            <button id="add-friend-btn" class="px-6 py-2 btn-retro rounded-lg transition-colors">
               Add Friend
             </button>
           </div>
-          <p class="text-xs text-gray-600 mt-2">
-            💡 Enter the exact username of the player you want to add as a friend.
+          <p class="text-xs text-gray-300 mt-2">
+             Enter the exact username of the player you want to add as a friend.
           </p>
         </div>
         
         <!-- Friends List -->
         <div>
-          <h3 class="font-semibold mb-3 text-gray-800">Your Friends (${friends.length})</h3>
+          <h3 class="mb-3 text-gray-200">Your Friends (${friends.length})</h3>
           <div id="friends-container" class="min-h-[100px]">
-            <div class="text-center py-4 text-gray-500">
+            <div class="text-center py-4 text-gray-400">
               Loading friends...
             </div>
           </div>
         </div>
       </div>
-
       <!-- Navigation Section -->
       <div class="flex flex-wrap gap-3">
-        <button id="dashboard-btn" class="px-6 py-3 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-semibold transition-colors">
-          📊 Dashboard
-        </button>
-        <a href="/" class="px-6 py-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold transition-colors">
-          🏠 Go to Lobby
+        <button id="dashboard-btn" class="btn-retro px-8 py-3 rounded-full text-white flex items-center gap-2"><img class="icon-px icon-px--violet" src="/icons/dashboard.png" alt="Dashboard" /> Dashboard</button>
+        <a href="/" class="btn-retro px-8 py-3 rounded-full text-white flex items-center gap-2"><img class="icon-px icon-px--violet" src="/icons/lobby.png" alt="Lobby" /> 
+          Go to Lobby
         </a>
-        <a href="/remote" class="px-6 py-3 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-semibold transition-colors">
-          🌐 Remote Play
+        <a href="/remote" class="btn-retro px-8 py-3 rounded-full text-white flex items-center gap-2"><img class="icon-px icon-px--violet" src="/icons/rocket.png" alt="Remote" /> 
+          Remote Play
         </a>
-        <button id="backBtn" class="px-6 py-3 rounded-lg bg-gray-500 hover:bg-gray-600 text-white font-semibold transition-colors">
-          🏆 Tournament Lobby
-        </button>
+        <button id="backBtn" class="btn-retro px-8 py-3 rounded-full text-white flex items-center gap-2"><img class="icon-px icon-px--violet" src="/icons/trophy.png" alt="Tournaments" /> Tournament Lobby</button>
       </div>
     </section>
   `;

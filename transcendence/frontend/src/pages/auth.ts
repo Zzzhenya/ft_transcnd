@@ -13,12 +13,12 @@ export default function (root: HTMLElement, ctx: { url: URL }) {
 
   root.innerHTML = `
     <section class="py-6 md:py-8 lg:py-10 space-y-6">
-      <h1 class="text-2xl sm:text-3xl lg:text-4xl font-bold">Authentication</h1>
+      <h1 class="text-2xl sm:text-3xl lg:text-4xl font-bold title-yellow">Authentication</h1>
 
-      <div class="rounded border p-4 space-y-4">
+      <div class="card-violet rounded border p-4 space-y-4">
         ${user ? `
           <p class="text-gray-700">Signed in as <strong>${dn}</strong></p>
-          <button id="logout" class="px-3 py-2 rounded bg-slate-700 text-white">Sign out</button>
+          <button id="logout" class="px-3 py-2 rounded btn-retro">Sign out</button>
         ` : `
           <!-- Guest Play Option -->
           <!--
@@ -46,23 +46,23 @@ export default function (root: HTMLElement, ctx: { url: URL }) {
 
           <div class="space-y-4">
             <div>
-              <h2 class="text-lg font-semibold mb-2">Sign In</h2>
+              <h2 class="text-lg font-semibold mb-2 title-violet">Sign In</h2>
               <form id="signin-form" class="space-y-2">
-                <input id="signin-email" type="email" class="border rounded px-3 py-2 w-full" placeholder="Email" required />
-                <input id="signin-password" type="password" class="border rounded px-3 py-2 w-full" placeholder="Password" required />
-                <button type="submit" class="px-3 py-2 rounded bg-indigo-600 text-white w-full">Sign In</button>
+                <input id="signin-email" type="email" class="input-violet rounded px-3 py-2 w-full" placeholder="Email" required />
+                <input id="signin-password" type="password" class="input-violet rounded px-3 py-2 w-full" placeholder="Password" required />
+                <button type="submit" class="px-3 py-2 rounded btn-retro w-full">Sign In</button>
               </form>
             </div>
             
             <hr class="border-gray-300">
             
             <div>
-              <h2 class="text-lg font-semibold mb-2">Register</h2>
+              <h2 class="text-lg font-semibold mb-2 title-violet">Register</h2>
               <form id="register-form" class="space-y-2">
-                <input id="register-username" type="text" class="border rounded px-3 py-2 w-full" placeholder="Alias/Display Name" required />
-                <input id="register-email" type="email" class="border rounded px-3 py-2 w-full" placeholder="Email" required />
-                <input id="register-password" type="password" class="border rounded px-3 py-2 w-full" placeholder="Password" required />
-                <button type="submit" class="px-3 py-2 rounded bg-green-600 text-white w-full">Register</button>
+                <input id="register-username" type="text" class="input-violet rounded px-3 py-2 w-full" placeholder="Alias/Display Name" required />
+                <input id="register-email" type="email" class="input-violet rounded px-3 py-2 w-full" placeholder="Email" required />
+                <input id="register-password" type="password" class="input-violet rounded px-3 py-2 w-full" placeholder="Password" required />
+                <button type="submit" class="px-3 py-2 rounded btn-retro w-full">Register</button>
               </form>
               <!--
               <p class="text-xs text-gray-500 mt-1">Your alias is how others will see you in the game</p>

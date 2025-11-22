@@ -1,0 +1,206 @@
+# Nginx Configuration with HTTPS (templated)
+# Values are injected at runtime via envsubst
+
+user  nginx;
+worker_processes  auto;
+
+events {
+    worker_connections 1024;
+}
+
+http {
+    include       /etc/nginx/mime.types;
+    default_type  application/octet-stream;
+    sendfile      on;
+    keepalive_timeout 65;
+
+    # HTTP Server for healthcheck and redirect
+    server {
+        listen 80 default_server;
+        listen [::]:80 default_server;
+        server_name ${SERVER_NAME};
+        
+        location = /healthz {
+            return 200 "OK";
+            add_header Content-Type text/plain;
+            access_log off;
+        }
+
+        location = /health {
+            return 200 "OK";
+            add_header Content-Type text/plain;
+            access_log off;
+        }
+        
+        location / {
+            return 301 https://$host$request_uri;
+        }
+    }
+
+    # Main HTTPS Server
+    server {
+        listen 443 ssl ;
+        listen [::]:443 ssl;
+        http2 on;
+        server_name ${SERVER_NAME};
+
+        location = /healthz {
+            return 200 "OK";
+            add_header Content-Type text/plain;
+            access_log off;
+        }
+
+        # SSL Certificate Configuration
+        ssl_certificate /etc/nginx/ssl/certificate.crt;
+        ssl_certificate_key /etc/nginx/ssl/private.key;
+
+        # SSL Security Configuration
+        ssl_protocols TLSv1.2 TLSv1.3;
+        ssl_ciphers HIGH:!aNULL:!MD5;
+        ssl_prefer_server_ciphers on;
+        ssl_session_cache shared:SSL:10m;
+        ssl_session_timeout 10m;
+
+        # Security Headers
+        add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+        add_header X-Frame-Options "SAMEORIGIN" always;
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header X-XSS-Protection "1; mode=block" always;
+
+        # Max upload size
+        client_max_body_size ${CLIENT_MAX_BODY_SIZE};
+        
+        # Large header buffers for JWT tokens
+        large_client_header_buffers 4 16k;
+
+        # Logs
+        access_log /var/log/nginx/access.log;
+        error_log /var/log/nginx/error.log;
+
+        # Frontend (SPA)
+        location = /index.html {
+            root /usr/share/nginx/html;
+            add_header Cache-Control "no-store, must-revalidate";
+        }
+
+        location /assets/ {
+            root /usr/share/nginx/html;
+            access_log off;
+            expires 1y;
+            add_header Cache-Control "public, immutable";
+        }
+
+        location / {
+            root /usr/share/nginx/html;
+            try_files $uri $uri/ /index.html;
+        }
+
+        # Auth routes - Map /api/auth/* to /user-service/auth/* via gateway
+        location /api/auth/ {
+            rewrite ^/api/auth/(.*) /user-service/auth/$1 break;
+            proxy_pass http://${GATEWAY_HOST}:${GATEWAY_PORT};
+            proxy_http_version 1.1;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_set_header X-Forwarded-Host $host;
+            proxy_buffering on;
+            proxy_buffer_size 4k;
+            proxy_buffers 8 4k;
+            proxy_busy_buffers_size 8k;
+            proxy_connect_timeout 120s;
+            proxy_send_timeout 120s;
+            proxy_read_timeout 120s;
+            proxy_next_upstream error timeout invalid_header http_500 http_502 http_503 http_504;
+            proxy_intercept_errors off;
+        }
+
+        # WebSocket for User Service Notifications
+        location /api/user-service/ws/ {
+            rewrite ^/api/(.*) /$1 break;
+            proxy_pass http://${GATEWAY_HOST}:${GATEWAY_PORT};
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_read_timeout 86400s;
+            proxy_send_timeout 86400s;
+        }
+
+        # Gateway API - All other microservices routes through gateway
+        location /api/ {
+            rewrite ^/api/(.*) /$1 break;
+            proxy_pass http://${GATEWAY_HOST}:${GATEWAY_PORT};
+            proxy_http_version 1.1;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_set_header X-Forwarded-Host $host;
+            proxy_buffering on;
+            proxy_buffer_size 16k;
+            proxy_buffers 8 16k;
+            proxy_busy_buffers_size 32k;
+            proxy_connect_timeout 120s;
+            proxy_send_timeout 120s;
+            proxy_read_timeout 120s;
+            proxy_next_upstream error timeout invalid_header http_500 http_502 http_503 http_504;
+            proxy_intercept_errors off;
+        }
+
+        # WebSocket Support (game)
+        location /ws/ {
+            proxy_pass http://${GATEWAY_HOST}:${GATEWAY_PORT};
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_cache off;
+            proxy_buffering off;
+            proxy_read_timeout 86400s;
+            proxy_send_timeout 86400s;
+        }
+
+        # Socket.io support
+        location /socket.io/ {
+            proxy_pass http://${GATEWAY_HOST}:${GATEWAY_PORT};
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_read_timeout 86400s;
+            proxy_send_timeout 86400s;
+        }
+
+        # Pong routes
+        location /pong/ {
+            proxy_pass http://${GATEWAY_HOST}:${GATEWAY_PORT};
+            proxy_http_version 1.1;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_set_header X-Forwarded-Host $host;
+            proxy_connect_timeout 60s;
+            proxy_send_timeout 60s;
+            proxy_read_timeout 60s;
+        }
+
+        # Health proxy
+        location /health {
+            proxy_pass http://${GATEWAY_HOST}:${GATEWAY_PORT}/health;
+            proxy_set_header Host $host;
+            access_log off;
+        }
+    }
+}
