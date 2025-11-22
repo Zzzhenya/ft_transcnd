@@ -1,5 +1,5 @@
 // Simple polling-based notification system as fallback
-import { getAuth, getToken } from '../app/auth';
+import { getAuth, getToken, refreshTokenIfNeeded } from '../app/auth';
 import { GATEWAY_BASE } from '../app/config';
 
 interface SimpleNotification {
@@ -50,19 +50,31 @@ export class SimpleNotificationPoller {
 
   private async checkNotifications() {
     try {
-      const token = getToken();
       const user = getAuth();
-      
-      if (!token || !user) {
-        this.stop();
-        return;
+      if (!user) { this.stop(); return; }
+
+      let token = getToken();
+      if (!token) {
+        const refreshed = await (refreshTokenIfNeeded && refreshTokenIfNeeded());
+        token = getToken();
+        if (!refreshed || !token) { this.stop(); return; }
       }
 
-      const response = await fetch(`${GATEWAY_BASE}/user-service/notifications/unread`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+      let response = await fetch(`${GATEWAY_BASE}/user-service/notifications/unread`, {
+        headers: { 'Authorization': `Bearer ${token}` }
       });
+
+      if (response.status === 401 || response.status === 403) {
+        const refreshed = await (refreshTokenIfNeeded && refreshTokenIfNeeded());
+        if (refreshed) {
+          token = getToken();
+          if (token) {
+            response = await fetch(`${GATEWAY_BASE}/user-service/notifications/unread`, {
+              headers: { 'Authorization': `Bearer ${token}` }
+            });
+          }
+        }
+      }
 
       if (response.ok) {
         const data = await response.json();
@@ -105,6 +117,10 @@ export class SimpleNotificationPoller {
         const now = Date.now();
         this.lastCheck = now;
         localStorage.setItem('notificationLastCheck', now.toString());
+      } else if (response.status === 429) {
+        await new Promise(r => setTimeout(r, 1500));
+      } else if (response.status === 409 || response.status === 410) {
+        // ignore
       } else {
         // Silent fail
       }
@@ -217,8 +233,13 @@ export class SimpleNotificationPoller {
 
   async acceptInvitation(notificationId: number, roomCode: string) {
     try {
-      const token = getToken();
-      const response = await fetch(`${GATEWAY_BASE}/user-service/notifications/${notificationId}/accept`, {
+      let token = getToken();
+      if (!token) {
+        const refreshed = await (refreshTokenIfNeeded && refreshTokenIfNeeded());
+        token = getToken();
+        if (!refreshed || !token) return;
+      }
+      let response = await fetch(`${GATEWAY_BASE}/user-service/notifications/${notificationId}/accept`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -226,18 +247,33 @@ export class SimpleNotificationPoller {
         },
         body: JSON.stringify({})
       });
+      if (response.status === 401 || response.status === 403) {
+        const refreshed = await (refreshTokenIfNeeded && refreshTokenIfNeeded());
+        if (refreshed) {
+          token = getToken();
+          if (!token) return;
+          response = await fetch(`${GATEWAY_BASE}/user-service/notifications/${notificationId}/accept`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({})
+          });
+        }
+      }
 
       if (response.ok) {
-        // Remove modal
         const modal = document.getElementById(`simple-invitation-${notificationId}`);
-        if (modal) {
-          document.body.removeChild(modal);
-        }
-        
-        // Navigate to game room
-        if (roomCode) {
-          window.location.href = `/remote/room/${roomCode}`;
-        }
+        if (modal) { document.body.removeChild(modal); }
+        if (roomCode) { window.location.href = `/remote/room/${roomCode}`; }
+      } else if (response.status === 410) {
+        const modal = document.getElementById(`simple-invitation-${notificationId}`);
+        if (modal) { document.body.removeChild(modal); }
+        alert('This invitation has expired.');
+      } else if (response.status === 404) {
+        const modal = document.getElementById(`simple-invitation-${notificationId}`);
+        if (modal) { document.body.removeChild(modal); }
+        // Already handled in another tab or auto-cleaned
+      } else if (response.status === 409) {
+        alert('You are already in a game, cannot accept this invite.');
       }
     } catch (error) {
       // Silent fail
@@ -246,8 +282,13 @@ export class SimpleNotificationPoller {
 
   async declineInvitation(notificationId: number) {
     try {
-      const token = getToken();
-      const response = await fetch(`${GATEWAY_BASE}/user-service/notifications/${notificationId}/decline`, {
+      let token = getToken();
+      if (!token) {
+        const refreshed = await (refreshTokenIfNeeded && refreshTokenIfNeeded());
+        token = getToken();
+        if (!refreshed || !token) throw new Error('not authenticated');
+      }
+      let response = await fetch(`${GATEWAY_BASE}/user-service/notifications/${notificationId}/decline`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -255,15 +296,23 @@ export class SimpleNotificationPoller {
         },
         body: JSON.stringify({})
       });
-      
-      } catch (error) {
+      if (response.status === 401 || response.status === 403) {
+        const refreshed = await (refreshTokenIfNeeded && refreshTokenIfNeeded());
+        if (refreshed) {
+          token = getToken();
+          response = await fetch(`${GATEWAY_BASE}/user-service/notifications/${notificationId}/decline`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({})
+          });
+        }
+      }
+    } catch (error) {
       // Silent fail
     } finally {
       // Remove modal regardless
       const modal = document.getElementById(`simple-invitation-${notificationId}`);
-      if (modal) {
-        document.body.removeChild(modal);
-      }
+      if (modal) { document.body.removeChild(modal); }
     }
   }
 
