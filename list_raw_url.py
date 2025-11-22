@@ -2,7 +2,7 @@ import requests
 
 OWNER = "Zzzhenya"      # change this
 REPO = "ft_transcnd"   # change this
-BRANCH = "rene_KW47"        # change this if your repo uses 'master' or another branch
+BRANCH = "rene_KW48"        # change this if your repo uses 'master' or another branch
 
 
 API_URL = f"https://api.github.com/repos/{OWNER}/{REPO}/git/trees/{BRANCH}?recursive=1"
@@ -20,6 +20,6 @@ print("Files in repo with raw URLs:\n")
 for item in data.get("tree", []):
     if item["type"] == "blob":  # only files
         # Skip files in legacy/ folder
-        if not item["path"].startswith("legacy/") and not item["path"].startswith("frontend_jason/"):
+        if not item["path"].startswith("legacy/") and not item["path"].startswith("frontend_jason/") and not item["path"].startswith("shared/") and not item["path"].startswith("script/"):
             raw_url = RAW_BASE + item["path"]
             print(raw_url)
