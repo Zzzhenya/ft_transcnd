@@ -1,6 +1,7 @@
 // frontend/src/pages/profile.ts
 import { getAuth, signOut, getToken } from "@/app/auth";
 import { navigate } from "@/app/router";
+import { escapeHtml, sanitizeInput } from '@/utils/security';
 const GATEWAY_BASE = import.meta.env.VITE_GATEWAY_BASE || '/api';
 
 // Keep in sync with app/auth.ts
@@ -109,6 +110,11 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
     const userInfoContainer = root.querySelector('#user-info-container');
     if (!userInfoContainer) return;
 
+    // Safe UserData
+    const safeUsername = escapeHtml(userProfile.username || 'N/A');
+    const safeDisplayName = escapeHtml(userProfile.display_name || userProfile.username || userProfile.name || 'Unknown');
+    const safeEmail = escapeHtml(userProfile.email || 'N/A');
+
     userInfoContainer.innerHTML = `
       <div class="flex items-center gap-6 mb-6">
         <!-- Avatar mit Change Button -->
@@ -133,9 +139,9 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
         <div class="flex-1">
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <p class="text-sm text-gray-500 mb-1">Display Name</p>
+              <p class="text-sm text-gray-500 mb-1">Alias Name</p>
               <div class="flex items-center gap-2">
-                <p class="font-semibold text-lg">${userProfile.display_name || userProfile.username || userProfile.name || 'Unknown'}</p>
+                <p class="font-semibold text-lg">${safeDisplayName || safeUsername || 'Unknown'}</p>
                 ${!userProfile.is_guest ? `
                   <button id="change-display-name-btn" class="text-blue-600 hover:text-blue-800 text-sm font-medium">
                     change
@@ -150,7 +156,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
             <div>
               <p class="text-sm text-gray-500 mb-1">Username</p>
               <div class="flex items-center gap-2">
-                <p class="font-semibold">${userProfile.username || 'N/A'}</p>
+                <p class="font-semibold">${safeUsername || 'N/A'}</p>
                 ${!userProfile.is_guest ? `
                   <button id="change-username-btn" class="text-blue-600 hover:text-blue-800 text-sm font-medium">
                     change
@@ -161,7 +167,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
             <div>
               <p class="text-sm text-gray-500 mb-1">Email</p>
               <div class="flex items-center gap-2">
-                <p class="font-semibold">${userProfile.email || 'N/A'}</p>
+                <p class="font-semibold">${safeEmail || 'N/A'}</p>
                 ${!userProfile.is_guest ? `
                   <button id="change-email-btn" class="text-blue-600 hover:text-blue-800 text-sm font-medium">
                     change
@@ -507,10 +513,19 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
       return;
     }
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const emailRegex = /^[a-zA-Z0-9.!#$%&'*+\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
     if (!emailRegex.test(newEmail)) {
       if (emailError) {
         emailError.textContent = 'Please enter a valid email address';
+        emailError.classList.remove('hidden');
+      }
+      return;
+    }
+
+    const dangerousChars = ['<', '>', '"', "'", '&', '(', ')', '{', '}', '[', ']', '`', '$'];
+    if (dangerousChars.some(char => newEmail.includes(char))) {
+      if (emailError) {
+        emailError.textContent = 'Email contains invalid characters';
         emailError.classList.remove('hidden');
       }
       return;
@@ -648,6 +663,15 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
     if (!newDisplayName) {
       if (displayNameError) {
         displayNameError.textContent = 'Please enter a new display name';
+        displayNameError.classList.remove('hidden');
+      }
+      return;
+    }
+
+    const displayNameRegex = /^[a-zA-Z0-9 _\-\.]+$/;
+    if (!displayNameRegex.test(newDisplayName)) {
+      if (displayNameError) {
+        displayNameError.textContent = 'Display name can only contain letters, numbers, spaces, and basic punctuation';
         displayNameError.classList.remove('hidden');
       }
       return;
@@ -888,26 +912,26 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
     }
   }
 
-  // Friends management functions
-  async function loadFriends() {
-    if (!user) return;
-    try {
-      const token = getToken();
-      const res = await fetch(`${GATEWAY_BASE}/user-service/users/${userProfile.id}/friends`, {
-        headers: {
-          'Authorization': `Bearer ${token || ''}`
-        },
-        credentials: 'include'
-      });
-      if (res.ok) {
-        const data = await res.json();
-        friends = data.friends || [];
-        renderFriendsSection();
-      }
-    } catch (error) {
-      console.log('Could not load friends:', error);
-    }
-  }
+  // // Friends management functions
+  // async function loadFriends() {
+  //   if (!user) return;
+  //   try {
+  //     const token = getToken();
+  //     const res = await fetch(`${GATEWAY_BASE}/user-service/users/${userProfile.id}/friends`, {
+  //       headers: {
+  //         'Authorization': `Bearer ${token || ''}`
+  //       },
+  //       credentials: 'include'
+  //     });
+  //     if (res.ok) {
+  //       const data = await res.json();
+  //       friends = data.friends || [];
+  //       renderFriendsSection();
+  //     }
+  //   } catch (error) {
+  //     console.log('Could not load friends:', error);
+  //   }
+  // }
 
   async function addFriend(username: string) {
     if (!user) return;
@@ -954,10 +978,10 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
 
     const confirmed = confirm(
       '⚠️ Are you sure you want to delete your account?\n\n' +
-      'This action will:\n' +
-      '• Mark your account as deleted\n' +
-      '• Add "deleted_" prefix to your username\n' +
-      '• Log you out immediately\n\n' +
+      // 'This action will:\n' +
+      // '• Mark your account as deleted\n' +
+      // '• Add "deleted_" prefix to your username\n' +
+      // '• Log you out immediately\n\n' +
       'This action cannot be undone. Do you want to continue?'
     );
 
@@ -1062,38 +1086,99 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
     });
   }
 
+
+// ================================================================= Checke ===============================
+async function loadFriends() {
+  if (!user) {
+    console.log('❌ loadFriends: No user!');
+    return;
+  }
+  
+  console.log('🔄 loadFriends: Starting...', { userId: userProfile.id });
+  
+  try {
+    const token = getToken();
+    console.log('🔑 Token:', token ? `${token.substring(0, 20)}...` : 'NO TOKEN');
+    
+    const url = `${GATEWAY_BASE}/user-service/users/${userProfile.id}/friends`;
+    console.log('🌐 Fetching:', url);
+    
+    const res = await fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${token || ''}`
+      },
+      credentials: 'include'
+    });
+    
+    console.log('📡 Response status:', res.status, res.ok ? '✅' : '❌');
+    
+    if (res.ok) {
+      const data = await res.json();
+      console.log('📦 Raw API response:', data);
+      
+      friends = data.friends || [];
+      console.log('👥 Friends array:', friends);
+      console.log('👥 First friend:', friends[0]);
+      
+      renderFriendsSection();
+    } else {
+      const errorText = await res.text();
+      console.error('❌ API error:', res.status, errorText);
+    }
+  } catch (error) {
+    console.error('❌ loadFriends exception:', error);
+  }
+}
+
+// ==================
+
+
   function renderFriendsSection() {
     const friendsContainer = root.querySelector('#friends-container');
     if (!friendsContainer) return;
 
     friendsContainer.innerHTML = `
       <div class="space-y-3">
-        ${friends.length > 0 ? friends.map(friend => `
-          <div class="flex items-center justify-between p-4 card-violet rounded-lg border">
-            <div class="flex items-center gap-3">
-              <div class="w-3 h-3 rounded-full ${friend.status === 'accepted' ? 'bg-green-400' : friend.status === 'pending' ? 'bg-yellow-400' : 'bg-gray-500'}"></div>
-              <div>
-                <span class="font-semibold title-yellow">${friend.username || 'Unknown User'}</span>
-                <div class="text-xs text-gray-400">
-                  Status: ${friend.status} • Added: ${new Date(friend.created_at).toLocaleDateString()}
+
+          // Für accepted friends: zeige online/offline
+          // Für andere: zeige nur den Status
+          let badge = '';
+          let dotColor = 'bg-gray-400';
+          
+          if (friend.friends_status === 'accepted') {
+            if (friend.online) {
+              badge = '<span class="text-xs text-green-600 font-semibold px-2 py-1 rounded-full bg-green-100">🟢 Online</span>';
+              dotColor = 'bg-green-500 animate-pulse';
+            } else {
+              badge = '<span class="text-xs text-gray-600 font-semibold px-2 py-1 rounded-full bg-gray-100">⚫ Offline</span>';
+              dotColor = 'bg-gray-400';
+            }
+          } else if (friend.friends_status === 'pending') {
+            badge = '<span class="text-xs text-yellow-600 font-semibold px-2 py-1 rounded-full bg-yellow-100">⏳ Pending</span>';
+            dotColor = 'bg-yellow-400';
+          } else {
+            badge = `<span class="text-xs text-gray-400 px-2 py-1 rounded-full bg-gray-100">❌ ${friend.friends_status}</span>`;
+          }
+          
+          return `
+            <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
+              <div class="flex items-center gap-3">
+                <div class="w-3 h-3 rounded-full ${dotColor}"></div>
+                <div>
+                  <span class="font-semibold">${friend.username || 'Unknown User'}</span>
+                  <div class="text-xs text-gray-500">
+                    Status: ${friend.friends_status} • Added: ${new Date(friend.created_at).toLocaleDateString()}
+                  </div>
                 </div>
               </div>
+              <div class="text-right">
+                ${badge}
+              </div>
             </div>
-            <div class="text-right">
-              ${friend.status === 'accepted' ? `
-                <span class="chip chip-green">Friends</span>
-              ` : friend.status === 'pending' ? `
-                <span class="chip chip-yellow">Pending</span>
-              ` : `
-                <span class="chip chip-red">${friend.status}</span>
-              `}
-            </div>
-          </div>
-        `).join('') : `
-          <div class="text-center py-8 text-gray-400">
-            <div class="mb-3 opacity-50 flex justify-center">
-              <img src="/icons/people.png" class="icon-px icon-px--violet" alt="No friends">
-            </div>
+          `;
+        }).join('') : `
+          <div class="text-center py-8 text-gray-500">
+            <div class="text-6xl mb-3 opacity-20">👥</div>
             <p class="font-semibold text-lg">No friends yet</p>
             <p class="text-sm">Add some friends to play together!</p>
           </div>
@@ -1105,13 +1190,10 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
   root.innerHTML = `
     <section class="py-6 md:py-8 lg:py-10 space-y-6">
       <div class="flex items-center justify-between">
-        <h1 class="text-2xl sm:text-3xl lg:text-4xl font-bold title-yellow flex items-center gap-2">
-          <img src="/icons/profile.png" class="icon-px icon-px--yellow" alt="Profile">
-          Profile
-        </h1>
+        <h1 class="text-2xl sm:text-3xl lg:text-4xl font-bold">👤 Profile</h1>
         <div class="flex gap-2">
           <button id="delete-account-btn" class="px-4 py-2 rounded-lg bg-red-800 hover:bg-red-900 text-white font-semibold transition-colors">
-            Delete Account
+            🗑️ Delete Account
           </button>
           <button id="logout" class="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white font-semibold transition-colors">
             Sign Out
@@ -1120,20 +1202,17 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
       </div>
 
       <!-- User Info Section -->
-      <div class="card-violet rounded-lg p-6 mb-8">
+      <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
         <div id="user-info-container">
           <!-- User info will be loaded here -->
         </div>
       </div>
 
       <!-- Friend Requests Section -->
-      <div class="card-violet rounded-lg border p-6 shadow-sm mb-6">
+      <div class="bg-white rounded-lg border border-gray-200 p-6 shadow-sm mb-6">
         <div class="flex items-center justify-between mb-4">
-          <h2 class="text-xl title-violet flex items-center gap-2">
-            <img src="/icons/message.png" class="icon-px icon-px--violet" alt="Friend Requests">
-            Friend Requests
-          </h2>
-          <span class="text-sm text-gray-300">${friendRequests.length} pending</span>
+          <h2 class="text-xl font-bold text-gray-800">📨 Friend Requests</h2>
+          <span class="text-sm text-gray-500">${friendRequests.length} pending</span>
         </div>
         
         <div id="friend-requests-container" class="min-h-[80px]">
@@ -1144,53 +1223,55 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
       </div>
 
       <!-- Friends Management Section -->
-      <div class="card-violet rounded-lg border p-6 shadow-sm">
+      <div class="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
         <div class="flex items-center justify-between mb-4">
-          <h2 class="text-xl title-violet flex items-center gap-2">
-            <img src="/icons/people.png" class="icon-px icon-px--violet" alt="Friends Management">
-            Friends Management
-          </h2>
-          <button id="refresh-friends-btn" class="text-sm link-violet">
-             Refresh
+          <h2 class="text-xl font-bold text-gray-800">👥 Friends Management</h2>
+          <button id="refresh-friends-btn" class="text-sm text-blue-600 hover:text-blue-800 font-semibold">
+            🔄 Refresh
           </button>
         </div>
         
         <!-- Add Friend Form -->
-        <div class="card-violet rounded-lg p-4 mb-6 border">
-          <h3 class="mb-3"> Add New Friend</h3>
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+          <h3 class="font-semibold mb-3 text-blue-800">➕ Add New Friend</h3>
           <div class="flex gap-3">
             <input id="friend-username-input" type="text" 
-                   class="flex-1 px-3 py-2 input-violet rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-purple-600 outline-none" 
+                   class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" 
                    placeholder="Enter friend's username" />
-            <button id="add-friend-btn" class="px-6 py-2 btn-retro rounded-lg transition-colors">
+            <button id="add-friend-btn" class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors">
               Add Friend
             </button>
           </div>
-          <p class="text-xs text-gray-300 mt-2">
-             Enter the exact username of the player you want to add as a friend.
+          <p class="text-xs text-gray-600 mt-2">
+            💡 Enter the exact username of the player you want to add as a friend.
           </p>
         </div>
         
         <!-- Friends List -->
         <div>
-          <h3 class="mb-3 text-gray-200">Your Friends (${friends.length})</h3>
+          <h3 class="font-semibold mb-3 text-gray-800">Your Friends (${friends.length})</h3>
           <div id="friends-container" class="min-h-[100px]">
-            <div class="text-center py-4 text-gray-400">
+            <div class="text-center py-4 text-gray-500">
               Loading friends...
             </div>
           </div>
         </div>
       </div>
+
       <!-- Navigation Section -->
       <div class="flex flex-wrap gap-3">
-        <button id="dashboard-btn" class="btn-retro px-8 py-3 rounded-full text-white flex items-center gap-2"><img class="icon-px icon-px--violet" src="/icons/dashboard.png" alt="Dashboard" /> Dashboard</button>
-        <a href="/" class="btn-retro px-8 py-3 rounded-full text-white flex items-center gap-2"><img class="icon-px icon-px--violet" src="/icons/lobby.png" alt="Lobby" /> 
-          Go to Lobby
+        <button id="dashboard-btn" class="px-6 py-3 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-semibold transition-colors">
+          📊 Dashboard
+        </button>
+        <a href="/" class="px-6 py-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold transition-colors">
+          🏠 Go to Lobby
         </a>
-        <a href="/remote" class="btn-retro px-8 py-3 rounded-full text-white flex items-center gap-2"><img class="icon-px icon-px--violet" src="/icons/rocket.png" alt="Remote" /> 
-          Remote Play
+        <a href="/remote" class="px-6 py-3 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-semibold transition-colors">
+          🌐 Remote Play
         </a>
-        <button id="backBtn" class="btn-retro px-8 py-3 rounded-full text-white flex items-center gap-2"><img class="icon-px icon-px--violet" src="/icons/trophy.png" alt="Tournaments" /> Tournament Lobby</button>
+        <button id="backBtn" class="px-6 py-3 rounded-lg bg-gray-500 hover:bg-gray-600 text-white font-semibold transition-colors">
+          🏆 Tournament Lobby
+        </button>
       </div>
     </section>
   `;

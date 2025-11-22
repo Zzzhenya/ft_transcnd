@@ -67,14 +67,14 @@ function initDatabase() {
 function insertTestData(db) {
   console.log('📝 Inserting initial test data for NEW database...');
 
-  const testUsers = `
-    INSERT INTO Users (username, email, password_hash, display_name, is_guest)
-    VALUES 
-      ('admin', 'admin@transcendence.com', '$2b$10$rqiU7VNSMuFgwdXaK/2Gie8GskBUYFr8fI7RO7kI2GjOt1.3fE9Ym', 'Admin User', 0),
-      ('player1', 'player1@test.com', '$2b$10$rqiU7VNSMuFgwdXaK/2Gie8GskBUYFr8fI7RO7kI2GjOt1.3fE9Ym', 'Player One', 0),
-      ('player2', 'player2@test.com', '$2b$10$rqiU7VNSMuFgwdXaK/2Gie8GskBUYFr8fI7RO7kI2GjOt1.3fE9Ym', 'Player Two', 0),
-      ('testuser', 'test@test.com', '$2b$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW', 'Test User', 0);
-  `;
+  // const testUsers = `
+  //   INSERT INTO Users (username, email, password_hash, display_name, is_guest)
+  //   VALUES 
+  //     ('admin', 'admin@transcendence.com', '$2b$10$rqiU7VNSMuFgwdXaK/2Gie8GskBUYFr8fI7RO7kI2GjOt1.3fE9Ym', 'Admin User', 0),
+  //     ('player1', 'player1@test.com', '$2b$10$rqiU7VNSMuFgwdXaK/2Gie8GskBUYFr8fI7RO7kI2GjOt1.3fE9Ym', 'Player One', 0),
+  //     ('player2', 'player2@test.com', '$2b$10$rqiU7VNSMuFgwdXaK/2Gie8GskBUYFr8fI7RO7kI2GjOt1.3fE9Ym', 'Player Two', 0),
+  //     ('testuser', 'test@test.com', '$2b$10$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW', 'Test User', 0);
+  // `;
 
   db.exec(testUsers, (err) => {
     if (err) {
