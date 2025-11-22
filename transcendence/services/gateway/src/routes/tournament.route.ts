@@ -16,7 +16,7 @@ const tournamentRoute: FastifyPluginAsync = async (fastify) => {
 	});
 
 	// List tournaments (proxy to tournament-service)
-	fastify.get('/', async (request, reply) => {
+	fastify.get('/', { preHandler: fastify.mustAuth }, async (request, reply) => {
 		return proxyRequest(fastify, request, reply, `${TOURNAMENT_SERVICE_URL}/tournaments`, 'GET');
 	});
 
