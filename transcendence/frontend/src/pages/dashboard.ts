@@ -43,39 +43,43 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
   root.innerHTML = `
     <section class="py-6 md:py-8 lg:py-10 space-y-6">
       <div class="flex items-center justify-between">
-        <h1 class="text-2xl sm:text-3xl lg:text-4xl font-bold">📊 Dashboard ${user.username} </h1>
+        <h1 class="text-2xl sm:text-3xl lg:text-4xl font-bold title-yellow flex items-center gap-2">
+          <img src="/icons/dashboard.png" class="icon-px icon-px--yellow" alt="Dashboard">
+          Dashboard ${user.username}
+        </h1>
       </div>
 
       <!-- Remote Match History -->
-      <div class="bg-white rounded-lg shadow-lg p-6">
-        <h2 class="text-xl font-bold mb-4">🎮 Remote Match History</h2>
+      <div class="card-violet rounded-lg border p-6 shadow-sm">
+        <h2 class="text-xl font-bold mb-4 title-violet flex items-center gap-2">
+          <img src="/icons/rocket.png" class="icon-px icon-px--violet" alt="Remote Matches">
+          Remote Match History
+        </h2>
         
         <!-- Loading State -->
         <div id="matches-loading" class="text-center py-8">
-          <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p class="mt-4 text-gray-600">Loading matches...</p>
+          <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto"></div>
+          <p class="mt-4 text-gray-300">Loading matches...</p>
         </div>
 
         <!-- Error State -->
-        <div id="matches-error" class="hidden bg-red-50 border border-red-200 rounded-lg p-4">
-          <p class="text-red-600">❌ Failed to load match history</p>
-        </div>
+        <div id="matches-error" class="hidden chip chip-red" aria-live="polite"></div>
 
         <!-- Empty State -->
-        <div id="matches-empty" class="hidden text-center py-8 text-gray-500">
+        <div id="matches-empty" class="hidden text-center py-8 text-gray-400">
           <p class="text-lg">No matches played yet</p>
           <p class="text-sm mt-2">Your remote match history will appear here</p>
         </div>
 
         <!-- Matches Table -->
         <div id="matches-container" class="hidden overflow-x-auto">
-          <table class="min-w-full divide-y divide-gray-200">
-            <thead class="bg-gray-50">
+          <table class="min-w-full divide-y divide-gray-700">
+            <thead class="bg-gray-800">
               <tr>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
                   Match #
                 </th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
                   Opponent Alias
                 </th>
                 <!--
@@ -83,18 +87,18 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
                   Opponent Username
                 </th>
                 -->
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
                   Score
                 </th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
                   Result
                 </th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
                   Date
                 </th>
               </tr>
             </thead>
-            <tbody id="matches-tbody" class="bg-white divide-y divide-gray-200">
+            <tbody id="matches-tbody" class="bg-transparent divide-y divide-gray-800 text-gray-200">
               <!-- Matches will be inserted here -->
             </tbody>
           </table>
@@ -102,22 +106,25 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
       </div>
 
       <!-- Tournament History -->
-      <div class="bg-white rounded-lg shadow-lg p-6">
-        <h2 class="text-xl font-bold mb-4">🏆 Tournament History</h2>
+      <div class="card-violet rounded-lg border p-6 shadow-sm">
+        <h2 class="text-xl font-bold mb-4 title-violet flex items-center gap-2">
+          <img src="/icons/trophy.png" class="icon-px icon-px--yellow" alt="Tournament History">
+          Tournament History
+        </h2>
         
         <!-- Loading State -->
         <div id="tournaments-loading" class="text-center py-8">
-          <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p class="mt-4 text-gray-600">Loading tournaments...</p>
+          <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto"></div>
+          <p class="mt-4 text-gray-300">Loading tournaments...</p>
         </div>
 
         <!-- Error State -->
-        <div id="tournaments-error" class="hidden bg-red-50 border border-red-200 rounded-lg p-4">
-          <p class="text-red-600">❌ Failed to load tournament history</p>
+        <div id="tournaments-error" class="hidden chip chip-red">
+          <p> Failed to load tournament history</p>
         </div>
 
         <!-- Empty State -->
-        <div id="tournaments-empty" class="hidden text-center py-8 text-gray-500">
+        <div id="tournaments-empty" class="hidden text-center py-8 text-gray-400">
           <p class="text-lg">No tournaments played yet</p>
           <p class="text-sm mt-2">Your tournament participation will appear here</p>
         </div>
@@ -134,31 +141,35 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
 
       <!-- Navigation -->
       <div class="flex gap-3">
-        <button id="back-to-profile-btn" class="px-6 py-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold transition-colors">
-          👤 Back to Profile
+        <button id="back-to-profile-btn" class="px-6 py-3 rounded-lg btn-retro font-semibold transition-colors">
+          <img src="/icons/trophy.png" class="icon-px icon-px--yellow" alt="" aria-hidden="true">
+          Back to Profile
         </button>
       </div>
 
       <!-- Tournament Matches Modal -->
-      <div id="tournament-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-        <div class="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[80vh] overflow-hidden flex flex-col">
+      <div id="tournament-modal" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
+        <div class="card-violet rounded-lg border shadow-xl max-w-4xl w-full max-h-[80vh] overflow-hidden flex flex-col">
           <!-- Modal Header -->
-          <div class="flex items-center justify-between p-6 border-b">
-            <h3 id="modal-title" class="text-2xl font-bold">🏆 Tournament Matches</h3>
-            <button id="close-modal" class="text-gray-500 hover:text-gray-700 text-2xl font-bold">&times;</button>
+          <div class="flex items-center justify-between p-6 border-b border-gray-700">
+            <h3 id="modal-title" class="text-2xl font-bold title-violet flex items-center gap-2">
+              <img src="/icons/trophy.png" class="icon-px icon-px--yellow" alt="" aria-hidden="true">
+              Tournament Matches
+            </h3>
+            <button id="close-modal" class="text-gray-300 hover:text-gray-100 text-2xl font-bold">&times;</button>
           </div>
           
           <!-- Modal Body -->
-          <div class="flex-1 overflow-y-auto p-6">
+          <div class="flex-1 overflow-y-auto p-6 text-gray-200">
             <!-- Loading State -->
             <div id="modal-loading" class="text-center py-8">
-              <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-              <p class="mt-4 text-gray-600">Loading matches...</p>
+              <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto"></div>
+              <p class="mt-4 text-gray-300">Loading matches...</p>
             </div>
 
             <!-- Error State -->
-            <div id="modal-error" class="hidden bg-red-50 border border-red-200 rounded-lg p-4">
-              <p class="text-red-600">❌ Failed to load matches</p>
+            <div id="modal-error" class="hidden chip chip-red">
+              <p>Failed to load matches</p>
             </div>
 
             <!-- Matches Content -->
@@ -216,8 +227,9 @@ async function loadRemoteMatches(userId: number) {
     const data = await response.json();
     const matches: RemoteMatch[] = data.matches || [];
 
-    // Hide loading
+    // Hide loading and any lingering errors
     loadingEl?.classList.add('hidden');
+    errorEl?.classList.add('hidden');
 
     if (matches.length === 0) {
       // Show empty state
@@ -235,25 +247,25 @@ async function loadRemoteMatches(userId: number) {
         const date = formatDate(match.finishedAt);
         
         return `
-          <tr class="hover:bg-gray-50 transition-colors">
-            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+          <tr class="hover:bg-gray-900/20 transition-colors">
+            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-100">
               #${match.id}
             </td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-200">
               ${match.opponentName}
             </td>
             <!--
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-200">
               ${match.opponentUserName}
             </td>
             -->
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-200">
               <span class="font-semibold">${match.userScore}</span> - <span class="font-semibold">${match.opponentScore}</span>
             </td>
             <td class="px-6 py-4 whitespace-nowrap">
               ${resultBadge}
             </td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
               ${date}
             </td>
           </tr>
@@ -264,18 +276,21 @@ async function loadRemoteMatches(userId: number) {
   } catch (error) {
     console.error('Failed to load remote matches:', error);
     loadingEl?.classList.add('hidden');
-    errorEl?.classList.remove('hidden');
+    if (errorEl) {
+      errorEl.textContent = 'Failed to load match history';
+      errorEl.classList.remove('hidden');
+    }
   }
 }
 
 function getResultBadge(result: 'won' | 'lost' | 'draw'): string {
   switch (result) {
     case 'won':
-      return '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">✓ Victory</span>';
+      return '<span class="chip chip-green">✓ Victory</span>';
     case 'lost':
-      return '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">✗ Defeat</span>';
+      return '<span class="chip chip-red">✗ Defeat</span>';
     case 'draw':
-      return '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">− Draw</span>';
+      return '<span class="chip chip-yellow">− Draw</span>';
     default:
       return '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">?</span>';
   }
@@ -440,16 +455,16 @@ async function openTournamentModal(tournamentId: number) {
         .map(([round, roundMatches]) => {
           return `
             <div class="space-y-3">
-              <h4 class="text-lg font-semibold text-gray-700 border-b pb-2">Round ${round}</h4>
+              <h4 class="text-lg font-semibold title-violet border-b border-gray-700 pb-2">Round ${round}</h4>
               ${roundMatches.map(match => {
                 const isFinished = match.status === 'finished';
                 const winnerName = match.winner?.name || '-';
                 
                 return `
-                  <div class="bg-gray-50 rounded-lg p-4 border ${isFinished ? 'border-gray-200' : 'border-blue-300'}">
+                  <div class="card-violet rounded-lg p-4 border ${isFinished ? 'border-gray-700' : 'border-purple-700'}">
                     <div class="flex items-center justify-between mb-2">
-                      <span class="text-xs font-medium text-gray-500">Match #${match.matchNumber}</span>
-                      <span class="text-xs px-2 py-1 rounded ${isFinished ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'}">
+                      <span class="text-xs font-medium text-gray-400">Match #${match.matchNumber}</span>
+                      <span class="text-xs px-2 py-1 rounded ${isFinished ? 'chip chip-green' : 'chip chip-yellow'}">
                         ${match.status}
                       </span>
                     </div>

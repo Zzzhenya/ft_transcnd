@@ -980,27 +980,27 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
     requestsContainer.innerHTML = `
       <div class="space-y-3">
         ${friendRequests.length > 0 ? friendRequests.map(request => `
-          <div class="flex items-center justify-between p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+          <div class="flex items-center justify-between p-4 card-violet rounded-lg border">
             <div class="flex items-center gap-3">
               <div class="w-3 h-3 rounded-full bg-yellow-400 animate-pulse"></div>
               <div>
-                <span class="font-semibold text-yellow-800">${request.username}</span>
-                <div class="text-xs text-yellow-600">
+                <span class="font-semibold text-gray-200">${request.username}</span>
+                <div class="text-xs text-gray-400">
                   Sent: ${new Date(request.created_at).toLocaleDateString()}
                 </div>
               </div>
             </div>
             <div class="flex gap-2">
-              <button class="accept-request-btn px-3 py-1 rounded-lg bg-green-500 hover:bg-green-600 text-white text-sm font-semibold transition-all" data-requester-id="${request.id}">
+              <button class="accept-request-btn px-3 py-1 rounded-lg btn-retro text-sm font-semibold transition-all" data-requester-id="${request.id}">
                 ✅ Accept
               </button>
-              <button class="reject-request-btn px-3 py-1 rounded-lg bg-red-500 hover:bg-red-600 text-white text-sm font-semibold transition-all" data-requester-id="${request.id}">
+              <button class="reject-request-btn px-3 py-1 rounded-lg bg-red-700 hover:bg-red-800 text-white text-sm font-semibold transition-all" data-requester-id="${request.id}">
                 ❌ Reject
               </button>
             </div>
           </div>
         `).join('') : `
-          <div class="text-center py-6 text-gray-500">
+          <div class="text-center py-6 text-gray-400">
             <div class="text-4xl mb-3 opacity-20">📨</div>
             <p class="font-semibold">No pending friend requests</p>
             <p class="text-sm">You're all caught up!</p>
@@ -1031,28 +1031,28 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
     friendsContainer.innerHTML = `
       <div class="space-y-3">
         ${friends.length > 0 ? friends.map(friend => `
-          <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
+          <div class="flex items-center justify-between p-4 card-violet rounded-lg border">
             <div class="flex items-center gap-3">
-              <div class="w-3 h-3 rounded-full ${friend.status === 'accepted' ? 'bg-green-400' : friend.status === 'pending' ? 'bg-yellow-400' : 'bg-gray-400'}"></div>
+              <div class="w-3 h-3 rounded-full ${friend.status === 'accepted' ? 'bg-green-400' : friend.status === 'pending' ? 'bg-yellow-400' : 'bg-gray-500'}"></div>
               <div>
-                <span class="font-semibold">${friend.username || 'Unknown User'}</span>
-                <div class="text-xs text-gray-500">
+                <span class="font-semibold title-yellow">${friend.username || 'Unknown User'}</span>
+                <div class="text-xs text-gray-400">
                   Status: ${friend.status} • Added: ${new Date(friend.created_at).toLocaleDateString()}
                 </div>
               </div>
             </div>
             <div class="text-right">
               ${friend.status === 'accepted' ? `
-                <span class="text-xs text-green-600 font-semibold px-2 py-1 rounded-full bg-green-100">✅ Friends</span>
+                <span class="chip chip-green">✅ Friends</span>
               ` : friend.status === 'pending' ? `
-                <span class="text-xs text-yellow-600 font-semibold px-2 py-1 rounded-full bg-yellow-100">⏳ Pending</span>
+                <span class="chip chip-yellow">⏳ Pending</span>
               ` : `
-                <span class="text-xs text-gray-400 px-2 py-1 rounded-full bg-gray-100">❌ ${friend.status}</span>
+                <span class="chip chip-red">❌ ${friend.status}</span>
               `}
             </div>
           </div>
         `).join('') : `
-          <div class="text-center py-8 text-gray-500">
+          <div class="text-center py-8 text-gray-400">
             <div class="text-6xl mb-3 opacity-20">👥</div>
             <p class="font-semibold text-lg">No friends yet</p>
             <p class="text-sm">Add some friends to play together!</p>
@@ -1065,7 +1065,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
   root.innerHTML = `
     <section class="py-6 md:py-8 lg:py-10 space-y-6">
       <div class="flex items-center justify-between">
-        <h1 class="text-2xl sm:text-3xl lg:text-4xl font-bold">👤 Profile</h1>
+        <h1 class="text-2xl sm:text-3xl lg:text-4xl font-bold title-yellow">👤 Profile</h1>
         <div class="flex gap-2">
           <button id="delete-account-btn" class="px-4 py-2 rounded-lg bg-red-800 hover:bg-red-900 text-white font-semibold transition-colors">
             🗑️ Delete Account
@@ -1086,7 +1086,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
       <!-- Friend Requests Section -->
       <div class="card-violet rounded-lg border p-6 shadow-sm mb-6">
         <div class="flex items-center justify-between mb-4">
-          <h2 class="text-xl neon">📨 Friend Requests</h2>
+          <h2 class="text-xl title-violet">📨 Friend Requests</h2>
           <span class="text-sm text-gray-300">${friendRequests.length} pending</span>
         </div>
         
@@ -1100,7 +1100,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
       <!-- Friends Management Section -->
       <div class="card-violet rounded-lg border p-6 shadow-sm">
         <div class="flex items-center justify-between mb-4">
-          <h2 class="text-xl neon">👥 Friends Management</h2>
+          <h2 class="text-xl title-violet">👥 Friends Management</h2>
           <button id="refresh-friends-btn" class="text-sm link-violet">
             🔄 Refresh
           </button>
@@ -1108,7 +1108,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
         
         <!-- Add Friend Form -->
         <div class="card-violet rounded-lg p-4 mb-6 border">
-          <h3 class="mb-3 neon-soft">➕ Add New Friend</h3>
+          <h3 class="mb-3">➕ Add New Friend</h3>
           <div class="flex gap-3">
             <input id="friend-username-input" type="text" 
                    class="flex-1 px-3 py-2 input-violet rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-purple-600 outline-none" 
