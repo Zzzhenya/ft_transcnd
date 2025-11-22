@@ -110,11 +110,6 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
     const userInfoContainer = root.querySelector('#user-info-container');
     if (!userInfoContainer) return;
 
-    // Safe UserData
-    const safeUsername = escapeHtml(userProfile.username || 'N/A');
-    const safeDisplayName = escapeHtml(userProfile.display_name || userProfile.username || userProfile.name || 'Unknown');
-    const safeEmail = escapeHtml(userProfile.email || 'N/A');
-
     userInfoContainer.innerHTML = `
       <div class="flex items-center gap-6 mb-6">
         <!-- Avatar mit Change Button -->
@@ -141,7 +136,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
             <div>
               <p class="text-sm text-gray-500 mb-1">Alias Name</p>
               <div class="flex items-center gap-2">
-                <p class="font-semibold text-lg">${safeDisplayName || safeUsername || 'Unknown'}</p>
+                <p class="font-semibold text-lg">${userProfile.display_name || userProfile.username || userProfile.name || 'Unknown'}</p>
                 ${!userProfile.is_guest ? `
                   <button id="change-display-name-btn" class="text-blue-600 hover:text-blue-800 text-sm font-medium">
                     change
@@ -156,7 +151,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
             <div>
               <p class="text-sm text-gray-500 mb-1">Username</p>
               <div class="flex items-center gap-2">
-                <p class="font-semibold">${safeUsername || 'N/A'}</p>
+                <p class="font-semibold">${userProfile.username || 'N/A'}</p>
                 ${!userProfile.is_guest ? `
                   <button id="change-username-btn" class="text-blue-600 hover:text-blue-800 text-sm font-medium">
                     change
@@ -167,7 +162,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
             <div>
               <p class="text-sm text-gray-500 mb-1">Email</p>
               <div class="flex items-center gap-2">
-                <p class="font-semibold">${safeEmail || 'N/A'}</p>
+                <p class="font-semibold">${userProfile.email || 'N/A'}</p>
                 ${!userProfile.is_guest ? `
                   <button id="change-email-btn" class="text-blue-600 hover:text-blue-800 text-sm font-medium">
                     change
@@ -511,19 +506,10 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
       return;
     }
 
-    const emailRegex = /^[a-zA-Z0-9.!#$%&'*+\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(newEmail)) {
       if (emailError) {
         emailError.textContent = 'Please enter a valid email address';
-        emailError.classList.remove('hidden');
-      }
-      return;
-    }
-
-    const dangerousChars = ['<', '>', '"', "'", '&', '(', ')', '{', '}', '[', ']', '`', '$'];
-    if (dangerousChars.some(char => newEmail.includes(char))) {
-      if (emailError) {
-        emailError.textContent = 'Email contains invalid characters';
         emailError.classList.remove('hidden');
       }
       return;
@@ -661,15 +647,6 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
     if (!newDisplayName) {
       if (displayNameError) {
         displayNameError.textContent = 'Please enter a new display name';
-        displayNameError.classList.remove('hidden');
-      }
-      return;
-    }
-
-    const displayNameRegex = /^[a-zA-Z0-9 _\-\.]+$/;
-    if (!displayNameRegex.test(newDisplayName)) {
-      if (displayNameError) {
-        displayNameError.textContent = 'Display name can only contain letters, numbers, spaces, and basic punctuation';
         displayNameError.classList.remove('hidden');
       }
       return;
@@ -910,26 +887,26 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
     }
   }
 
-  // // Friends management functions
-  // async function loadFriends() {
-  //   if (!user) return;
-  //   try {
-  //     const token = getToken();
-  //     const res = await fetch(`${GATEWAY_BASE}/user-service/users/${userProfile.id}/friends`, {
-  //       headers: {
-  //         'Authorization': `Bearer ${token || ''}`
-  //       },
-  //       credentials: 'include'
-  //     });
-  //     if (res.ok) {
-  //       const data = await res.json();
-  //       friends = data.friends || [];
-  //       renderFriendsSection();
-  //     }
-  //   } catch (error) {
-  //     console.log('Could not load friends:', error);
-  //   }
-  // }
+  // Friends management functions
+  async function loadFriends() {
+    if (!user) return;
+    try {
+      const token = getToken();
+      const res = await fetch(`${GATEWAY_BASE}/user-service/users/${userProfile.id}/friends`, {
+        headers: {
+          'Authorization': `Bearer ${token || ''}`
+        },
+        credentials: 'include'
+      });
+      if (res.ok) {
+        const data = await res.json();
+        friends = data.friends || [];
+        renderFriendsSection();
+      }
+    } catch (error) {
+      console.log('Could not load friends:', error);
+    }
+  }
 
   async function addFriend(username: string) {
     if (!user) return;
@@ -976,10 +953,10 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
 
     const confirmed = confirm(
       '⚠️ Are you sure you want to delete your account?\n\n' +
-      // 'This action will:\n' +
-      // '• Mark your account as deleted\n' +
-      // '• Add "deleted_" prefix to your username\n' +
-      // '• Log you out immediately\n\n' +
+      'This action will:\n' +
+      '• Mark your account as deleted\n' +
+      '• Add "deleted_" prefix to your username\n' +
+      '• Log you out immediately\n\n' +
       'This action cannot be undone. Do you want to continue?'
     );
 
@@ -1082,96 +1059,34 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
     });
   }
 
-
-// ================================================================= Checke ===============================
-async function loadFriends() {
-  if (!user) {
-    console.log('❌ loadFriends: No user!');
-    return;
-  }
-  
-  console.log('🔄 loadFriends: Starting...', { userId: userProfile.id });
-  
-  try {
-    const token = getToken();
-    console.log('🔑 Token:', token ? `${token.substring(0, 20)}...` : 'NO TOKEN');
-    
-    const url = `${GATEWAY_BASE}/user-service/users/${userProfile.id}/friends`;
-    console.log('🌐 Fetching:', url);
-    
-    const res = await fetch(url, {
-      headers: {
-        'Authorization': `Bearer ${token || ''}`
-      },
-      credentials: 'include'
-    });
-    
-    console.log('📡 Response status:', res.status, res.ok ? '✅' : '❌');
-    
-    if (res.ok) {
-      const data = await res.json();
-      console.log('📦 Raw API response:', data);
-      
-      friends = data.friends || [];
-      console.log('👥 Friends array:', friends);
-      console.log('👥 First friend:', friends[0]);
-      
-      renderFriendsSection();
-    } else {
-      const errorText = await res.text();
-      console.error('❌ API error:', res.status, errorText);
-    }
-  } catch (error) {
-    console.error('❌ loadFriends exception:', error);
-  }
-}
-
-// ==================
-
   function renderFriendsSection() {
     const friendsContainer = root.querySelector('#friends-container');
     if (!friendsContainer) return;
 
     friendsContainer.innerHTML = `
       <div class="space-y-3">
-        ${friends.length > 0 ? friends.map(friend => {
-          // Für accepted friends: zeige online/offline
-          // Für andere: zeige nur den Status
-          let badge = '';
-          let dotColor = 'bg-gray-400';
-          
-          if (friend.friends_status === 'accepted') {
-            if (friend.online) {
-              badge = '<span class="text-xs text-green-600 font-semibold px-2 py-1 rounded-full bg-green-100">🟢 Online</span>';
-              dotColor = 'bg-green-500 animate-pulse';
-            } else {
-              badge = '<span class="text-xs text-gray-600 font-semibold px-2 py-1 rounded-full bg-gray-100">⚫ Offline</span>';
-              dotColor = 'bg-gray-400';
-            }
-          } else if (friend.friends_status === 'pending') {
-            badge = '<span class="text-xs text-yellow-600 font-semibold px-2 py-1 rounded-full bg-yellow-100">⏳ Pending</span>';
-            dotColor = 'bg-yellow-400';
-          } else {
-            badge = `<span class="text-xs text-gray-400 px-2 py-1 rounded-full bg-gray-100">❌ ${friend.friends_status}</span>`;
-          }
-          
-          return `
-            <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
-              <div class="flex items-center gap-3">
-                <div class="w-3 h-3 rounded-full ${dotColor}"></div>
-                <div>
-                  <span class="font-semibold">${friend.username || 'Unknown User'}</span>
-                  <div class="text-xs text-gray-500">
-                    Status: ${friend.friends_status} • Added: ${new Date(friend.created_at).toLocaleDateString()}
-                  </div>
+        ${friends.length > 0 ? friends.map(friend => `
+          <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
+            <div class="flex items-center gap-3">
+              <div class="w-3 h-3 rounded-full ${friend.status === 'accepted' ? 'bg-green-400' : friend.status === 'pending' ? 'bg-yellow-400' : 'bg-gray-400'}"></div>
+              <div>
+                <span class="font-semibold">${friend.username || 'Unknown User'}</span>
+                <div class="text-xs text-gray-500">
+                  Status: ${friend.status} • Added: ${new Date(friend.created_at).toLocaleDateString()}
                 </div>
               </div>
-              <div class="text-right">
-                ${badge}
-              </div>
             </div>
-          `;
-        }).join('') : `
+            <div class="text-right">
+              ${friend.status === 'accepted' ? `
+                <span class="text-xs text-green-600 font-semibold px-2 py-1 rounded-full bg-green-100">✅ Friends</span>
+              ` : friend.status === 'pending' ? `
+                <span class="text-xs text-yellow-600 font-semibold px-2 py-1 rounded-full bg-yellow-100">⏳ Pending</span>
+              ` : `
+                <span class="text-xs text-gray-400 px-2 py-1 rounded-full bg-gray-100">❌ ${friend.status}</span>
+              `}
+            </div>
+          </div>
+        `).join('') : `
           <div class="text-center py-8 text-gray-500">
             <div class="text-6xl mb-3 opacity-20">👥</div>
             <p class="font-semibold text-lg">No friends yet</p>
