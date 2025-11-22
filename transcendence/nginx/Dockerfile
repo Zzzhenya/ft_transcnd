@@ -26,12 +26,14 @@ RUN npm run build
 # Stage 2: Nginx runtime serving the SPA
 FROM nginx:1.25-alpine
 
-# Copy nginx configuration
-COPY transcendence/nginx/nginx.conf /etc/nginx/nginx.conf
+# Install envsubst (gettext) and openssl for self-signed certs
+RUN apk add --no-cache gettext openssl \
+    && mkdir -p /etc/nginx/ssl
 
-# Generate self-signed SSL certs for CI/dev to avoid missing path errors
-RUN apk add --no-cache openssl \
-    && mkdir -p /etc/nginx/ssl \
+# Copy nginx template and custom entrypoint that renders then starts nginx
+COPY transcendence/nginx/nginx.conf.template /etc/nginx/templates/nginx.conf.template
+COPY transcendence/nginx/run-nginx.sh /usr/local/bin/run-nginx.sh
+RUN chmod +x /usr/local/bin/run-nginx.sh \
     && openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
          -subj "/CN=localhost" \
          -keyout /etc/nginx/ssl/private.key \
@@ -44,4 +46,5 @@ COPY --from=build /app/frontend/dist/ /usr/share/nginx/html/
 RUN chmod -R 755 /usr/share/nginx/html /etc/nginx/ssl
 
 EXPOSE 80 443
-CMD ["nginx", "-g", "daemon off;"]
+# Use our entrypoint script to render config then start nginx
+ENTRYPOINT ["/usr/local/bin/run-nginx.sh"]
