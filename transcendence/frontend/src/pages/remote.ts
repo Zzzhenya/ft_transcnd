@@ -461,22 +461,18 @@ export default function (root: HTMLElement) {
 				
 				if (result.roomCode) {
 					console.log('🎮 ✅ Room created:', result.roomCode);
-					
-					// ✅ FIX: El que invita VA INMEDIATAMENTE a la room
 					showStatus('🎮 Room created! Entering...', 'success');
-					
-					// Esperar 500ms para que el mensaje se vea
-					setTimeout(() => {
-						navigate(`/remote/room/${result.roomCode}`);
-					}, 500);
-					
+					setTimeout(() => { navigate(`/remote/room/${result.roomCode}`); }, 500);
 				} else {
 					showStatus('Invitation sent but no room code received', 'error');
 				}
+			} else if (res.status === 409) {
+				// Clean, user-friendly message when target is already in a game
+				showStatus('User is currently in a game', 'info');
 			} else {
 				const err = await res.json().catch(() => ({}));
 				console.log('🎮 Error response:', err);
-				showStatus(err.message || 'Failed to send invitation', 'error');
+				showStatus(err.error || err.message || 'Failed to send invitation', 'error');
 			}
 		} catch (err) {
 			console.error('🎮 Invite error', err);
