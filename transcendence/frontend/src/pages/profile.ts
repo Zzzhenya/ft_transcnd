@@ -3,6 +3,36 @@ import { getAuth, signOut, getToken } from "@/app/auth";
 import { navigate } from "@/app/router";
 const GATEWAY_BASE = import.meta.env.VITE_GATEWAY_BASE || '/api';
 
+// Keep in sync with app/auth.ts
+const STORAGE_KEY = "ft_transcendence_version1";
+
+function readAuthState(): any {
+  try { return JSON.parse(sessionStorage.getItem(STORAGE_KEY) || "{}"); } catch { return {}; }
+}
+function writeAuthState(s: any) { sessionStorage.setItem(STORAGE_KEY, JSON.stringify(s)); }
+
+function updateSessionAuthUser(partialUser: Partial<{ id: string; username: string; email: string; name: string; displayName?: string; alias?: string; role?: string }>, newToken?: string) {
+  const s = readAuthState();
+  if (!s.auth) s.auth = { user: null, token: null };
+  const prev = s.auth.user || {};
+  const updated = { ...prev, ...partialUser } as any;
+  // Keep name consistent with display preference
+  if (updated.display_name && !updated.displayName) {
+    updated.displayName = updated.display_name;
+  }
+  // Prefer display name, then username, as name field used across UI
+  if (!updated.name) {
+    updated.name = updated.displayName || updated.display_name || updated.username || prev.name;
+  } else {
+    // If name exists but we changed display fields, refresh it
+    updated.name = updated.displayName || updated.display_name || updated.username || updated.name;
+  }
+  s.auth.user = updated;
+  if (newToken) s.auth.token = newToken;
+  writeAuthState(s);
+  window.dispatchEvent(new CustomEvent('auth:changed'));
+}
+
 export default function (root: HTMLElement, ctx?: { url?: URL }) {
   const user = getAuth();
   const currentPath = ctx?.url?.pathname || "/profile";
@@ -17,6 +47,12 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
   let friendRequests: any[] = [];
   let selectedAvatarFile: File | null = null;
 
+  // ⭐ Replace: Update token and user in session storage used by the app
+  function updateStoredToken(newToken: string) {
+    updateSessionAuthUser({}, newToken);
+    console.log('✅ Token updated in session storage');
+  }
+
   // Load complete user profile from database
   async function loadUserProfile() {
     if (!user) return;
@@ -30,9 +66,14 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
       });
       if (res.ok) {
         userProfile = await res.json();
-        // console.log('🔍 LOADED USER PROFILE:', userProfile);
-        // console.log('🔍 display_name value:', userProfile.display_name);
-        // console.log('🔍 username value:', userProfile.username);
+        // Keep session auth in sync with latest profile
+        updateSessionAuthUser({
+          id: userProfile.id,
+          username: userProfile.username,
+          email: userProfile.email,
+          displayName: userProfile.display_name || userProfile.displayName,
+          name: (userProfile.display_name || userProfile.displayName || userProfile.username || userProfile.name)
+        });
         renderUserInfo();
         updateAvatarDisplay();
       }
@@ -43,24 +84,24 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
   }
 
 
-    function updateAvatarDisplay() {
-      const timestamp = Date.now(); 
-      const currentUser = getAuth();
-      if (!currentUser) return;
-      
-      const mainAvatar = document.getElementById('main-avatar') as HTMLImageElement;
-      if (mainAvatar) {
-        mainAvatar.src = userProfile.avatar 
-          ? `${GATEWAY_BASE}/user-service${userProfile.avatar}?t=${timestamp}`
-          : `${GATEWAY_BASE}/user-service/avatars/${currentUser.id}.jpg?t=${timestamp}`;
-      }
-      
-      const headerAvatar = document.getElementById('header-avatar') as HTMLImageElement;
-      if (headerAvatar) {
-        headerAvatar.src = userProfile.avatar 
-          ? `${GATEWAY_BASE}/user-service${userProfile.avatar}?t=${timestamp}`
-          : `${GATEWAY_BASE}/user-service/avatars/${currentUser.id}.jpg?t=${timestamp}`;
-      }
+  function updateAvatarDisplay() {
+    const timestamp = Date.now();
+    const currentUser = getAuth();
+    if (!currentUser) return;
+
+    const mainAvatar = document.getElementById('main-avatar') as HTMLImageElement;
+    if (mainAvatar) {
+      mainAvatar.src = userProfile.avatar
+        ? `${GATEWAY_BASE}/user-service${userProfile.avatar}?t=${timestamp}`
+        : `${GATEWAY_BASE}/user-service/avatars/${currentUser.id}.jpg?t=${timestamp}`;
+    }
+
+    const headerAvatar = document.getElementById('header-avatar') as HTMLImageElement;
+    if (headerAvatar) {
+      headerAvatar.src = userProfile.avatar
+        ? `${GATEWAY_BASE}/user-service${userProfile.avatar}?t=${timestamp}`
+        : `${GATEWAY_BASE}/user-service/avatars/${currentUser.id}.jpg?t=${timestamp}`;
+    }
   }
 
 
@@ -103,8 +144,8 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
               </div>
             </div>
             <div>
-              <p class="text-sm text-gray-500 mb-1">User ID</p>
-              <p class="font-mono text-sm bg-gray-100 px-2 py-1 rounded">${userProfile.id}</p>
+              <p class="text-sm text-gray-400 mb-1">User ID</p>
+              <p class="font-mono text-sm input-violet px-2 py-1 rounded">${userProfile.id}</p>
             </div>
             <div>
               <p class="text-sm text-gray-500 mb-1">Username</p>
@@ -139,12 +180,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
           </div>
         </div>
       </div>
-      <!-- User Info Section -->
-      <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
-        <!-- ... existing content ... -->
-        <div id="user-info-container">
-          <!-- User info will be loaded here -->
-        </div>
+
       </div>
     `;
 
@@ -159,17 +195,17 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
   function createAvatarModal() {
     const currentUser = getAuth();
     if (!currentUser) return;
-    
+
     const timestamp = Date.now();
-    
+
     const modalHTML = `
       <div id="avatar-modal" class="fixed inset-0 z-50 hidden">
         <div id="avatar-modal-backdrop" class="absolute inset-0 bg-black bg-opacity-50"></div>
         <div class="relative flex items-center justify-center min-h-screen p-4">
-          <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+          <div class="card-violet rounded-lg border shadow-xl max-w-md w-full p-6">
             <div class="flex justify-between items-center mb-4">
-              <h3 class="text-xl font-bold text-gray-800">📷 Change Avatar</h3>
-              <button id="close-avatar-modal" class="text-gray-400 hover:text-gray-600">
+              <h3 class="text-xl text-gray-200">📷 Change Avatar</h3>
+              <button id="close-avatar-modal" class="text-gray-300 hover:text-gray-100">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                 </svg>
@@ -211,7 +247,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
             </div>
             
             <div class="flex gap-3 mt-6">
-              <button id="cancel-avatar-btn" class="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 font-semibold transition-colors">
+              <button id="cancel-avatar-btn" class="flex-1 px-4 py-2 border rounded-lg font-normal transition-colors card-violet">
                 Cancel
               </button>
               <button id="save-avatar-btn" class="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors disabled:bg-gray-400"
@@ -223,11 +259,11 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
         </div>
       </div>
     `;
-    
+
     const container = document.createElement('div');
     container.innerHTML = modalHTML;
     document.body.appendChild(container);
-    
+
     // Event listeners
     document.getElementById('avatar-input')?.addEventListener('change', handleAvatarSelect);
     document.getElementById('close-avatar-modal')?.addEventListener('click', hideAvatarModal);
@@ -246,7 +282,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
     }
     document.getElementById('avatar-modal')?.classList.remove('hidden');
     selectedAvatarFile = null;
-    
+
     // Reset save button
     const saveBtn = document.getElementById('save-avatar-btn') as HTMLButtonElement;
     if (saveBtn) {
@@ -262,12 +298,12 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
   function handleAvatarSelect(e: Event) {
     const input = e.target as HTMLInputElement;
     const file = input.files?.[0];
-    
+
     if (!file) return;
-    
+
     const errorEl = document.getElementById('avatar-error');
     errorEl?.classList.add('hidden');
-    
+
     // Validate file size (2MB max)
     if (file.size > 2 * 1024 * 1024) {
       if (errorEl) {
@@ -276,7 +312,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
       }
       return;
     }
-    
+
     // Validate file type
     if (!['image/jpeg', 'image/jpg', 'image/png', 'image/gif'].includes(file.type)) {
       if (errorEl) {
@@ -285,9 +321,9 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
       }
       return;
     }
-    
+
     selectedAvatarFile = file;
-    
+
     // Preview
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -297,7 +333,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
       }
     };
     reader.readAsDataURL(file);
-    
+
     // Enable save button
     const saveBtn = document.getElementById('save-avatar-btn') as HTMLButtonElement;
     if (saveBtn) {
@@ -314,27 +350,25 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
       }
       return;
     }
-    
-    // ⭐ WICHTIG: Aktuelle User-ID holen!
+
     const currentUser = getAuth();
     if (!currentUser) {
       showMessage('Not authenticated', 'error');
       return;
     }
-    
+
     const saveBtn = document.getElementById('save-avatar-btn') as HTMLButtonElement;
     if (saveBtn) {
       saveBtn.disabled = true;
       saveBtn.textContent = 'Uploading...';
     }
-    
+
     try {
       const reader = new FileReader();
       reader.onload = async (e) => {
         const base64 = e.target?.result as string;
-        
+
         const token = getToken();
-        // ⭐ HIER: currentUser.id verwenden!
         const res = await fetch(`${GATEWAY_BASE}/user-service/users/${currentUser.id}/avatar`, {
           method: 'POST',
           headers: {
@@ -342,19 +376,16 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
             'Authorization': `Bearer ${token || ''}`
           },
           credentials: 'include',
-          body: JSON.stringify({ 
+          body: JSON.stringify({
             imageData: base64
           })
         });
-        
+
         const data = await res.json();
-        
+
         if (res.ok && data.success) {
           showMessage('Avatar updated successfully!', 'success');
-          
-          // Profil neu laden
           await loadUserProfile();
-          
           hideAvatarModal();
           selectedAvatarFile = null;
         } else {
@@ -363,19 +394,19 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
             errorEl.textContent = data.error || 'Failed to upload avatar';
             errorEl.classList.remove('hidden');
           }
-          
+
           if (saveBtn) {
             saveBtn.disabled = false;
             saveBtn.textContent = 'Save Avatar';
           }
         }
       };
-      
+
       reader.readAsDataURL(selectedAvatarFile);
     } catch (error) {
       console.error('Error uploading avatar:', error);
       showMessage('Failed to upload avatar', 'error');
-      
+
       if (saveBtn) {
         saveBtn.disabled = false;
         saveBtn.textContent = 'Save Avatar';
@@ -391,10 +422,10 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
         <div id="email-modal-backdrop" class="absolute inset-0 bg-black bg-opacity-50"></div>
         <!-- Modal -->
         <div class="relative flex items-center justify-center min-h-screen p-4">
-          <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+          <div class="card-violet rounded-lg border shadow-xl max-w-md w-full p-6">
             <div class="flex justify-between items-center mb-4">
-              <h3 class="text-xl font-bold text-gray-800">📧 Change Email</h3>
-              <button id="close-email-modal" class="text-gray-400 hover:text-gray-600">
+              <h3 class="text-xl text-gray-200">📧 Change Email</h3>
+              <button id="close-email-modal" class="text-gray-300 hover:text-gray-100">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                 </svg>
@@ -406,7 +437,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
                 <input 
                   type="email" 
                   id="new-email" 
-                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  class="w-full px-3 py-2 input-violet rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-purple-600 outline-none"
                   placeholder="Enter new email address"
                 />
                 <p id="email-error" class="text-red-500 text-sm mt-1 hidden"></p>
@@ -416,14 +447,14 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
                 <input 
                   type="password" 
                   id="confirm-password-email" 
-                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  class="w-full px-3 py-2 input-violet rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-purple-600 outline-none"
                   placeholder="Enter your password to confirm"
                 />
                 <p id="password-error-email" class="text-red-500 text-sm mt-1 hidden"></p>
               </div>
             </div>
             <div class="flex gap-3 mt-6">
-              <button id="cancel-email-btn" class="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 font-semibold transition-colors">
+              <button id="cancel-email-btn" class="flex-1 px-4 py-2 border rounded-lg font-normal transition-colors card-violet">
                 Cancel
               </button>
               <button id="save-email-btn" class="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors">
@@ -502,9 +533,9 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
           'Authorization': `Bearer ${token || ''}`
         },
         credentials: 'include',
-        body: JSON.stringify({ 
-          newEmail, 
-          password 
+        body: JSON.stringify({
+          newEmail,
+          password
         })
       });
 
@@ -541,16 +572,16 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
     }
   }
 
-  // ========== DISPLAY NAME CHANGE MODAL FUNKTIONEN ==========
+  // ⭐ UPDATED: DISPLAY NAME CHANGE MODAL WITH TOKEN HANDLING
   function createDisplayNameModal() {
     const modalHTML = `
       <div id="display-name-modal" class="fixed inset-0 z-50 hidden">
         <div id="display-name-modal-backdrop" class="absolute inset-0 bg-black bg-opacity-50"></div>
         <div class="relative flex items-center justify-center min-h-screen p-4">
-          <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+          <div class="card-violet rounded-lg border shadow-xl max-w-md w-full p-6">
             <div class="flex justify-between items-center mb-4">
-              <h3 class="text-xl font-bold text-gray-800">✏️ Change Display Name</h3>
-              <button id="close-display-name-modal" class="text-gray-400 hover:text-gray-600">
+              <h3 class="text-xl text-gray-200">✏️ Change Display Name</h3>
+              <button id="close-display-name-modal" class="text-gray-300 hover:text-gray-100">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                 </svg>
@@ -562,7 +593,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
                 <input 
                   type="text" 
                   id="new-display-name" 
-                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  class="w-full px-3 py-2 input-violet rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-purple-600 outline-none"
                   placeholder="Enter new display name"
                   value="${userProfile.display_name || userProfile.username || ''}"
                   maxlength="50"
@@ -572,7 +603,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
               </div>
             </div>
             <div class="flex gap-3 mt-6">
-              <button id="cancel-display-name-btn" class="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 font-semibold transition-colors">
+              <button id="cancel-display-name-btn" class="flex-1 px-4 py-2 border rounded-lg font-normal transition-colors card-violet">
                 Cancel
               </button>
               <button id="save-display-name-btn" class="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors">
@@ -605,6 +636,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
     document.getElementById('display-name-modal')?.classList.add('hidden');
   }
 
+  // ⭐ UPDATED: Display name update with token handling
   async function updateDisplayName() {
     const displayNameInput = document.getElementById('new-display-name') as HTMLInputElement;
     const displayNameError = document.getElementById('display-name-error');
@@ -638,7 +670,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
           'Authorization': `Bearer ${token || ''}`
         },
         credentials: 'include',
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           displayName: newDisplayName
         })
       });
@@ -646,6 +678,9 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
       const data = await res.json();
 
       if (res.ok && data.success) {
+        // ⭐ Update session auth user and token
+        updateSessionAuthUser({ display_name: newDisplayName, displayName: newDisplayName, name: newDisplayName }, data.token);
+
         showMessage('Display name updated successfully!', 'success');
         userProfile.display_name = newDisplayName;
         renderUserInfo();
@@ -660,16 +695,16 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
     }
   }
 
-  // ========== USERNAME CHANGE MODAL FUNKTIONEN ==========
+  // ⭐ UPDATED: USERNAME CHANGE MODAL WITH TOKEN HANDLING
   function createUsernameModal() {
     const modalHTML = `
       <div id="username-modal" class="fixed inset-0 z-50 hidden">
         <div id="username-modal-backdrop" class="absolute inset-0 bg-black bg-opacity-50"></div>
         <div class="relative flex items-center justify-center min-h-screen p-4">
-          <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+          <div class="card-violet rounded-lg border shadow-xl max-w-md w-full p-6">
             <div class="flex justify-between items-center mb-4">
-              <h3 class="text-xl font-bold text-gray-800">👤 Change Username</h3>
-              <button id="close-username-modal" class="text-gray-400 hover:text-gray-600">
+              <h3 class="text-xl text-gray-200">👤 Change Username</h3>
+              <button id="close-username-modal" class="text-gray-300 hover:text-gray-100">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                 </svg>
@@ -681,7 +716,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
                 <input 
                   type="text" 
                   id="new-username" 
-                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  class="w-full px-3 py-2 input-violet rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-purple-600 outline-none"
                   placeholder="Enter new username"
                   value="${userProfile.username || ''}"
                   maxlength="20"
@@ -691,7 +726,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
               </div>
             </div>
             <div class="flex gap-3 mt-6">
-              <button id="cancel-username-btn" class="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 font-semibold transition-colors">
+              <button id="cancel-username-btn" class="flex-1 px-4 py-2 border rounded-lg font-normal transition-colors card-violet">
                 Cancel
               </button>
               <button id="save-username-btn" class="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors">
@@ -724,6 +759,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
     document.getElementById('username-modal')?.classList.add('hidden');
   }
 
+  // ⭐ UPDATED: Username update with token handling
   async function updateUsername() {
     const usernameInput = document.getElementById('new-username') as HTMLInputElement;
     const usernameError = document.getElementById('username-error');
@@ -765,7 +801,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
           'Authorization': `Bearer ${token || ''}`
         },
         credentials: 'include',
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           username: newUsername
         })
       });
@@ -773,6 +809,9 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
       const data = await res.json();
 
       if (res.ok && data.success) {
+        // ⭐ Update session auth user and token. Name falls back to username if no display name
+        updateSessionAuthUser({ username: newUsername, name: userProfile.display_name || userProfile.displayName || newUsername }, data.token);
+
         showMessage('Username updated successfully!', 'success');
         userProfile.username = newUsername;
         renderUserInfo();
@@ -797,7 +836,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
   // Load incoming friend requests
   async function loadFriendRequests() {
     if (!user) return;
-    
+
     try {
       const token = getToken();
       const res = await fetch(`${GATEWAY_BASE}/user-service/users/${userProfile.id}/friend-requests`, {
@@ -806,7 +845,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
         },
         credentials: 'include'
       });
-      
+
       if (res.ok) {
         const data = await res.json();
         friendRequests = data.requests || [];
@@ -831,7 +870,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
         credentials: 'include',
         body: JSON.stringify({ action })
       });
-      
+
       if (res.ok) {
         const data = await res.json();
         showMessage(data.message, 'success');
@@ -883,7 +922,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
         credentials: 'include',
         body: JSON.stringify({ friendUsername: username })
       });
-      
+
       if (res.ok) {
         showMessage('Friend request sent successfully!', 'success');
         await loadFriends();
@@ -909,11 +948,10 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
     }
   }
 
-  // DELETE ACCOUNT FUNCTION - NEU
+  // DELETE ACCOUNT FUNCTION
   async function deleteAccount() {
     if (!user) return;
-    
-    // Bestätigungs-Dialog
+
     const confirmed = confirm(
       '⚠️ Are you sure you want to delete your account?\n\n' +
       'This action will:\n' +
@@ -922,12 +960,12 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
       '• Log you out immediately\n\n' +
       'This action cannot be undone. Do you want to continue?'
     );
-    
+
     if (!confirmed) {
       showMessage('Account deletion cancelled', 'info');
       return;
     }
-    
+
     try {
       const token = getToken();
       const res = await fetch(`${GATEWAY_BASE}/user-service/auth/account`, {
@@ -937,12 +975,11 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
         },
         credentials: 'include'
       });
-      
+
       if (res.ok) {
         const result = await res.json();
         showMessage('Account successfully deleted. Logging out...', 'success');
-        
-        // Warte 2 Sekunden, damit der User die Nachricht sieht
+
         setTimeout(async () => {
           await signOut();
           navigate('/auth');
@@ -959,14 +996,13 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
 
   function showMessage(message: string, type: 'success' | 'error' | 'info') {
     const messageEl = document.createElement('div');
-    messageEl.className = `fixed top-4 right-4 px-6 py-3 rounded-lg font-semibold z-50 transition-all transform translate-x-0 ${
-      type === 'success' ? 'bg-green-500 text-white' :
-      type === 'error' ? 'bg-red-500 text-white' :
-      'bg-blue-500 text-white'
-    }`;
+    messageEl.className = `fixed top-4 right-4 px-6 py-3 rounded-lg font-semibold z-50 transition-all transform translate-x-0 ${type === 'success' ? 'bg-green-500 text-white' :
+        type === 'error' ? 'bg-red-500 text-white' :
+          'bg-blue-500 text-white'
+      }`;
     messageEl.textContent = message;
     document.body.appendChild(messageEl);
-    
+
     setTimeout(() => {
       messageEl.style.transform = 'translateX(100%)';
       setTimeout(() => messageEl.remove(), 300);
@@ -980,28 +1016,30 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
     requestsContainer.innerHTML = `
       <div class="space-y-3">
         ${friendRequests.length > 0 ? friendRequests.map(request => `
-          <div class="flex items-center justify-between p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+          <div class="flex items-center justify-between p-4 card-violet rounded-lg border">
             <div class="flex items-center gap-3">
               <div class="w-3 h-3 rounded-full bg-yellow-400 animate-pulse"></div>
               <div>
-                <span class="font-semibold text-yellow-800">${request.username}</span>
-                <div class="text-xs text-yellow-600">
+                <span class="font-semibold text-gray-200">${request.username}</span>
+                <div class="text-xs text-gray-400">
                   Sent: ${new Date(request.created_at).toLocaleDateString()}
                 </div>
               </div>
             </div>
             <div class="flex gap-2">
-              <button class="accept-request-btn px-3 py-1 rounded-lg bg-green-500 hover:bg-green-600 text-white text-sm font-semibold transition-all" data-requester-id="${request.id}">
-                ✅ Accept
+              <button class="accept-request-btn px-3 py-1 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-semibold transition-all" data-requester-id="${request.id}">
+                Accept
               </button>
-              <button class="reject-request-btn px-3 py-1 rounded-lg bg-red-500 hover:bg-red-600 text-white text-sm font-semibold transition-all" data-requester-id="${request.id}">
-                ❌ Reject
+              <button class="reject-request-btn px-3 py-1 rounded-lg bg-red-700 hover:bg-red-800 text-white text-sm font-semibold transition-all" data-requester-id="${request.id}">
+                Reject
               </button>
             </div>
           </div>
         `).join('') : `
-          <div class="text-center py-6 text-gray-500">
-            <div class="text-4xl mb-3 opacity-20">📨</div>
+          <div class="text-center py-6 text-gray-400">
+            <div class="mb-3 opacity-50 flex justify-center">
+              <img src="/icons/message.png" class="icon-px icon-px--violet" alt="No requests">
+            </div>
             <p class="font-semibold">No pending friend requests</p>
             <p class="text-sm">You're all caught up!</p>
           </div>
@@ -1031,29 +1069,31 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
     friendsContainer.innerHTML = `
       <div class="space-y-3">
         ${friends.length > 0 ? friends.map(friend => `
-          <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
+          <div class="flex items-center justify-between p-4 card-violet rounded-lg border">
             <div class="flex items-center gap-3">
-              <div class="w-3 h-3 rounded-full ${friend.status === 'accepted' ? 'bg-green-400' : friend.status === 'pending' ? 'bg-yellow-400' : 'bg-gray-400'}"></div>
+              <div class="w-3 h-3 rounded-full ${friend.status === 'accepted' ? 'bg-green-400' : friend.status === 'pending' ? 'bg-yellow-400' : 'bg-gray-500'}"></div>
               <div>
-                <span class="font-semibold">${friend.username || 'Unknown User'}</span>
-                <div class="text-xs text-gray-500">
+                <span class="font-semibold title-yellow">${friend.username || 'Unknown User'}</span>
+                <div class="text-xs text-gray-400">
                   Status: ${friend.status} • Added: ${new Date(friend.created_at).toLocaleDateString()}
                 </div>
               </div>
             </div>
             <div class="text-right">
               ${friend.status === 'accepted' ? `
-                <span class="text-xs text-green-600 font-semibold px-2 py-1 rounded-full bg-green-100">✅ Friends</span>
+                <span class="chip chip-green">Friends</span>
               ` : friend.status === 'pending' ? `
-                <span class="text-xs text-yellow-600 font-semibold px-2 py-1 rounded-full bg-yellow-100">⏳ Pending</span>
+                <span class="chip chip-yellow">Pending</span>
               ` : `
-                <span class="text-xs text-gray-400 px-2 py-1 rounded-full bg-gray-100">❌ ${friend.status}</span>
+                <span class="chip chip-red">${friend.status}</span>
               `}
             </div>
           </div>
         `).join('') : `
-          <div class="text-center py-8 text-gray-500">
-            <div class="text-6xl mb-3 opacity-20">👥</div>
+          <div class="text-center py-8 text-gray-400">
+            <div class="mb-3 opacity-50 flex justify-center">
+              <img src="/icons/people.png" class="icon-px icon-px--violet" alt="No friends">
+            </div>
             <p class="font-semibold text-lg">No friends yet</p>
             <p class="text-sm">Add some friends to play together!</p>
           </div>
@@ -1065,10 +1105,13 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
   root.innerHTML = `
     <section class="py-6 md:py-8 lg:py-10 space-y-6">
       <div class="flex items-center justify-between">
-        <h1 class="text-2xl sm:text-3xl lg:text-4xl font-bold">👤 Profile</h1>
+        <h1 class="text-2xl sm:text-3xl lg:text-4xl font-bold title-yellow flex items-center gap-2">
+          <img src="/icons/profile.png" class="icon-px icon-px--yellow" alt="Profile">
+          Profile
+        </h1>
         <div class="flex gap-2">
           <button id="delete-account-btn" class="px-4 py-2 rounded-lg bg-red-800 hover:bg-red-900 text-white font-semibold transition-colors">
-            🗑️ Delete Account
+            Delete Account
           </button>
           <button id="logout" class="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white font-semibold transition-colors">
             Sign Out
@@ -1077,17 +1120,20 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
       </div>
 
       <!-- User Info Section -->
-      <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
+      <div class="card-violet rounded-lg p-6 mb-8">
         <div id="user-info-container">
           <!-- User info will be loaded here -->
         </div>
       </div>
 
       <!-- Friend Requests Section -->
-      <div class="bg-white rounded-lg border border-gray-200 p-6 shadow-sm mb-6">
+      <div class="card-violet rounded-lg border p-6 shadow-sm mb-6">
         <div class="flex items-center justify-between mb-4">
-          <h2 class="text-xl font-bold text-gray-800">📨 Friend Requests</h2>
-          <span class="text-sm text-gray-500">${friendRequests.length} pending</span>
+          <h2 class="text-xl title-violet flex items-center gap-2">
+            <img src="/icons/message.png" class="icon-px icon-px--violet" alt="Friend Requests">
+            Friend Requests
+          </h2>
+          <span class="text-sm text-gray-300">${friendRequests.length} pending</span>
         </div>
         
         <div id="friend-requests-container" class="min-h-[80px]">
@@ -1098,55 +1144,53 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
       </div>
 
       <!-- Friends Management Section -->
-      <div class="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
+      <div class="card-violet rounded-lg border p-6 shadow-sm">
         <div class="flex items-center justify-between mb-4">
-          <h2 class="text-xl font-bold text-gray-800">👥 Friends Management</h2>
-          <button id="refresh-friends-btn" class="text-sm text-blue-600 hover:text-blue-800 font-semibold">
-            🔄 Refresh
+          <h2 class="text-xl title-violet flex items-center gap-2">
+            <img src="/icons/people.png" class="icon-px icon-px--violet" alt="Friends Management">
+            Friends Management
+          </h2>
+          <button id="refresh-friends-btn" class="text-sm link-violet">
+             Refresh
           </button>
         </div>
         
         <!-- Add Friend Form -->
-        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-          <h3 class="font-semibold mb-3 text-blue-800">➕ Add New Friend</h3>
+        <div class="card-violet rounded-lg p-4 mb-6 border">
+          <h3 class="mb-3"> Add New Friend</h3>
           <div class="flex gap-3">
             <input id="friend-username-input" type="text" 
-                   class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" 
+                   class="flex-1 px-3 py-2 input-violet rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-purple-600 outline-none" 
                    placeholder="Enter friend's username" />
-            <button id="add-friend-btn" class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors">
+            <button id="add-friend-btn" class="px-6 py-2 btn-retro rounded-lg transition-colors">
               Add Friend
             </button>
           </div>
-          <p class="text-xs text-gray-600 mt-2">
-            💡 Enter the exact username of the player you want to add as a friend.
+          <p class="text-xs text-gray-300 mt-2">
+             Enter the exact username of the player you want to add as a friend.
           </p>
         </div>
         
         <!-- Friends List -->
         <div>
-          <h3 class="font-semibold mb-3 text-gray-800">Your Friends (${friends.length})</h3>
+          <h3 class="mb-3 text-gray-200">Your Friends (${friends.length})</h3>
           <div id="friends-container" class="min-h-[100px]">
-            <div class="text-center py-4 text-gray-500">
+            <div class="text-center py-4 text-gray-400">
               Loading friends...
             </div>
           </div>
         </div>
       </div>
-
       <!-- Navigation Section -->
       <div class="flex flex-wrap gap-3">
-        <button id="dashboard-btn" class="px-6 py-3 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-semibold transition-colors">
-          📊 Dashboard
-        </button>
-        <a href="/" class="px-6 py-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold transition-colors">
-          🏠 Go to Lobby
+        <button id="dashboard-btn" class="btn-retro px-8 py-3 rounded-full text-white flex items-center gap-2"><img class="icon-px icon-px--violet" src="/icons/dashboard.png" alt="Dashboard" /> Dashboard</button>
+        <a href="/" class="btn-retro px-8 py-3 rounded-full text-white flex items-center gap-2"><img class="icon-px icon-px--violet" src="/icons/lobby.png" alt="Lobby" /> 
+          Go to Lobby
         </a>
-        <a href="/remote" class="px-6 py-3 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-semibold transition-colors">
-          🌐 Remote Play
+        <a href="/remote" class="btn-retro px-8 py-3 rounded-full text-white flex items-center gap-2"><img class="icon-px icon-px--violet" src="/icons/rocket.png" alt="Remote" /> 
+          Remote Play
         </a>
-        <button id="backBtn" class="px-6 py-3 rounded-lg bg-gray-500 hover:bg-gray-600 text-white font-semibold transition-colors">
-          🏆 Tournament Lobby
-        </button>
+        <button id="backBtn" class="btn-retro px-8 py-3 rounded-full text-white flex items-center gap-2"><img class="icon-px icon-px--violet" src="/icons/trophy.png" alt="Tournaments" /> Tournament Lobby</button>
       </div>
     </section>
   `;
@@ -1157,7 +1201,6 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
     navigate(`/auth?next=${encodeURIComponent(currentPath)}`);
   });
 
-    // DELETE ACCOUNT BUTTON EVENT LISTENER - NEU
   root.querySelector<HTMLButtonElement>("#delete-account-btn")?.addEventListener("click", async () => {
     await deleteAccount();
   });

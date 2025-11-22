@@ -41,6 +41,29 @@ export function getToken(): string | null {
 	return read()?.auth?.token ?? null;
 }
 
+// Attempt to refresh token if backend uses cookie-based refresh; returns true if token present or refreshed
+export async function refreshTokenIfNeeded(): Promise<boolean> {
+  try {
+    // If we already have a token, try to validate/keep it; if missing, try refresh endpoint
+    const current = getToken();
+    if (current) return true;
+
+    const res = await fetch('/api/user-service/auth/refresh', { method: 'POST', credentials: 'include' });
+    if (!res.ok) return false;
+    const data = await res.json();
+    if (!data?.token) return false;
+    const s = read();
+    if (!s.auth) s.auth = { user: null, token: null };
+    // Optionally fetch profile to populate user if missing
+    s.auth.token = data.token;
+    write(s);
+    dispatchEvent(new CustomEvent('auth:changed'));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 // Register new user
 export async function register(
   username: string,
