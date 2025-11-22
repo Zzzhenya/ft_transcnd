@@ -911,6 +911,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
 
   async function addFriend(username: string) {
     if (!user) return;
+    if (username === user.username) return;
     try {
       const token = getToken();
       const res = await fetch(`${GATEWAY_BASE}/user-service/users/${userProfile.id}/friends`, {
