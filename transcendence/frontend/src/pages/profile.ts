@@ -1086,6 +1086,61 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
     });
   }
 
+  function renderFriendsSection() {
+  const friendsContainer = root.querySelector('#friends-container');
+  if (!friendsContainer) return;
+
+  friendsContainer.innerHTML = `
+    <div class="space-y-3">
+      ${friends.length > 0 ? friends.map(friend => {
+        // Für accepted friends: zeige online/offline
+        // Für andere: zeige nur den Status
+        let badge = '';
+        let dotColor = 'bg-gray-400';
+        
+        if (friend.friends_status === 'accepted') {
+          if (friend.online) {
+            badge = `<span class="text-xs text-green-400 font-semibold px-2 py-1 rounded-full bg-green-900/30 border border-green-500/30">🟢 Online</span>`;
+            dotColor = 'bg-green-500 animate-pulse';
+          } else {
+            badge = `<span class="text-xs text-gray-400 font-semibold px-2 py-1 rounded-full bg-gray-800/50 border border-gray-600/30">⚫ Offline</span>`;
+            dotColor = 'bg-gray-400';
+          }
+        } else if (friend.friends_status === 'pending') {
+          badge = `<span class="text-xs text-yellow-400 font-semibold px-2 py-1 rounded-full bg-yellow-900/30 border border-yellow-500/30">⏳ Pending</span>`;
+          dotColor = 'bg-yellow-400';
+        } else {
+          badge = `<span class="text-xs text-gray-400 px-2 py-1 rounded-full bg-gray-800/50 border border-gray-600/30">❌ ${friend.friends_status}</span>`;
+        }
+        
+        return `
+          <div class="flex items-center justify-between p-4 card-violet rounded-lg border">
+            <div class="flex items-center gap-3">
+              <div class="w-3 h-3 rounded-full ${dotColor}"></div>
+              <div>
+                <span class="font-semibold text-gray-200">${friend.username || 'Unknown User'}</span>
+                <div class="text-xs text-gray-400">
+                  Status: ${friend.friends_status} • Added: ${new Date(friend.created_at).toLocaleDateString()}
+                </div>
+              </div>
+            </div>
+            <div class="text-right">
+              ${badge}
+            </div>
+          </div>
+        `;
+      }).join('') : `
+        <div class="text-center py-8 text-gray-400">
+          <div class="mb-3 opacity-50 flex justify-center">
+            <img src="/icons/people.png" class="icon-px icon-px--violet" alt="No friends" style="width: 64px; height: 64px;">
+          </div>
+          <p class="font-semibold text-lg text-gray-200">No friends yet</p>
+          <p class="text-sm">Add some friends to play together!</p>
+        </div>
+      `}
+    </div>
+  `;
+}
 
 // ================================================================= Checke ===============================
 async function loadFriends() {
@@ -1132,60 +1187,61 @@ async function loadFriends() {
 
 // ==================
 
+function renderFriendsSection() {
+  const friendsContainer = root.querySelector('#friends-container');
+  if (!friendsContainer) return;
 
-  function renderFriendsSection() {
-    const friendsContainer = root.querySelector('#friends-container');
-    if (!friendsContainer) return;
-
-    friendsContainer.innerHTML = `
-      <div class="space-y-3">
-
-          // Für accepted friends: zeige online/offline
-          // Für andere: zeige nur den Status
-          let badge = '';
-          let dotColor = 'bg-gray-400';
-          
-          if (friend.friends_status === 'accepted') {
-            if (friend.online) {
-              badge = '<span class="text-xs text-green-600 font-semibold px-2 py-1 rounded-full bg-green-100">🟢 Online</span>';
-              dotColor = 'bg-green-500 animate-pulse';
-            } else {
-              badge = '<span class="text-xs text-gray-600 font-semibold px-2 py-1 rounded-full bg-gray-100">⚫ Offline</span>';
-              dotColor = 'bg-gray-400';
-            }
-          } else if (friend.friends_status === 'pending') {
-            badge = '<span class="text-xs text-yellow-600 font-semibold px-2 py-1 rounded-full bg-yellow-100">⏳ Pending</span>';
-            dotColor = 'bg-yellow-400';
+  friendsContainer.innerHTML = `
+    <div class="space-y-3">
+      ${friends.length > 0 ? friends.map(friend => {
+        // Für accepted friends: zeige online/offline
+        // Für andere: zeige nur den Status
+        let badge = '';
+        let dotColor = 'bg-gray-400';
+        
+        if (friend.friends_status === 'accepted') {
+          if (friend.online) {
+            badge = `<span class="text-xs text-green-400 font-semibold px-2 py-1 rounded-full bg-green-900/30 border border-green-500/30">🟢 Online</span>`;
+            dotColor = 'bg-green-500 animate-pulse';
           } else {
-            badge = `<span class="text-xs text-gray-400 px-2 py-1 rounded-full bg-gray-100">❌ ${friend.friends_status}</span>`;
+            badge = `<span class="text-xs text-gray-400 font-semibold px-2 py-1 rounded-full bg-gray-800/50 border border-gray-600/30">⚫ Offline</span>`;
+            dotColor = 'bg-gray-400';
           }
-          
-          return `
-            <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
-              <div class="flex items-center gap-3">
-                <div class="w-3 h-3 rounded-full ${dotColor}"></div>
-                <div>
-                  <span class="font-semibold">${friend.username || 'Unknown User'}</span>
-                  <div class="text-xs text-gray-500">
-                    Status: ${friend.friends_status} • Added: ${new Date(friend.created_at).toLocaleDateString()}
-                  </div>
+        } else if (friend.friends_status === 'pending') {
+          badge = `<span class="text-xs text-yellow-400 font-semibold px-2 py-1 rounded-full bg-yellow-900/30 border border-yellow-500/30">⏳ Pending</span>`;
+          dotColor = 'bg-yellow-400';
+        } else {
+          badge = `<span class="text-xs text-gray-400 px-2 py-1 rounded-full bg-gray-800/50 border border-gray-600/30">❌ ${friend.friends_status}</span>`;
+        }
+        
+        return `
+          <div class="flex items-center justify-between p-4 card-violet rounded-lg border">
+            <div class="flex items-center gap-3">
+              <div class="w-3 h-3 rounded-full ${dotColor}"></div>
+              <div>
+                <span class="font-semibold text-gray-200">${friend.username || 'Unknown User'}</span>
+                <div class="text-xs text-gray-400">
+                  Status: ${friend.friends_status} • Added: ${new Date(friend.created_at).toLocaleDateString()}
                 </div>
               </div>
-              <div class="text-right">
-                ${badge}
-              </div>
             </div>
-          `;
-        }).join('') : `
-          <div class="text-center py-8 text-gray-500">
-            <div class="text-6xl mb-3 opacity-20">👥</div>
-            <p class="font-semibold text-lg">No friends yet</p>
-            <p class="text-sm">Add some friends to play together!</p>
+            <div class="text-right">
+              ${badge}
+            </div>
           </div>
-        `}
-      </div>
-    `;
-  }
+        `;
+      }).join('') : `
+        <div class="text-center py-8 text-gray-400">
+          <div class="mb-3 opacity-50 flex justify-center">
+            <img src="/icons/people.png" class="icon-px icon-px--violet" alt="No friends" style="width: 64px; height: 64px;">
+          </div>
+          <p class="font-semibold text-lg text-gray-200">No friends yet</p>
+          <p class="text-sm">Add some friends to play together!</p>
+        </div>
+      `}
+    </div>
+  `;
+}
 
   root.innerHTML = `
     <section class="py-6 md:py-8 lg:py-10 space-y-6">
