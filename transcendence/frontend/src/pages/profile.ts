@@ -1071,21 +1071,21 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
         ${friends.length > 0 ? friends.map(friend => `
           <div class="flex items-center justify-between p-4 card-violet rounded-lg border">
             <div class="flex items-center gap-3">
-              <div class="w-3 h-3 rounded-full ${friend.status === 'accepted' ? 'bg-green-400' : friend.status === 'pending' ? 'bg-yellow-400' : 'bg-gray-500'}"></div>
+              <div class="w-3 h-3 rounded-full ${friend.friends_status === 'accepted' ? 'bg-green-400' : friend.friends_status === 'pending' ? 'bg-yellow-400' : 'bg-gray-500'}"></div>
               <div>
                 <span class="font-semibold title-yellow">${friend.username || 'Unknown User'}</span>
                 <div class="text-xs text-gray-400">
-                  Status: ${friend.status} • Added: ${new Date(friend.created_at).toLocaleDateString()}
+                  Status: ${friend.friends_status} • Added: ${new Date(friend.created_at).toLocaleDateString()}
                 </div>
               </div>
             </div>
             <div class="text-right">
-              ${friend.status === 'accepted' ? `
+              ${friend.friends_status === 'accepted' ? `
                 <span class="chip chip-green">Friends</span>
-              ` : friend.status === 'pending' ? `
+              ` : friend.friends_status === 'pending' ? `
                 <span class="chip chip-yellow">Pending</span>
               ` : `
-                <span class="chip chip-red">${friend.status}</span>
+                <span class="chip chip-red">${friend.friends_status}</span>
               `}
             </div>
           </div>
