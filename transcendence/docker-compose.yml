@@ -349,19 +349,6 @@ services:
     # environment:
     #   - NODE_ENV=development
 
-  # sqlite-web:
-  #   image: ghcr.io/coleifer/sqlite-web:latest
-  #   container_name: sqlite-web
-  #   restart: unless-stopped
-  #   networks:
-  #     - transcendence-network
-  #   ports:
-  #     - "127.0.0.1:8080:8080"  # Bind to localhost only
-  #   volumes:
-  #     - shared-data:/shared
-  #   environment:
-  #     SQLITE_DATABASE: /shared/test-db/pong.sqlite
-
   sqlite-web:
     image: ghcr.io/coleifer/sqlite-web:latest
     container_name: sqlite-web
@@ -402,16 +389,6 @@ services:
       timeout: 5s
       retries: 3
       start_period: 30s
-
-  testdb:
-    build: ./services/testdb-service
-    networks:
-      - transcendence-network
-    # ports:
-    #   - "3010:"  # Docker internal port for testdb
-    volumes:
-      - shared-data:/app/shared/
- #     - transcendence-network
 
   health-checker:
     image: curlimages/curl
