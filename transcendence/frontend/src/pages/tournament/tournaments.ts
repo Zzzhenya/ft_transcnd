@@ -102,7 +102,7 @@ export default function (root: HTMLElement) {
 
                 <!-- Filter Tabs -->
                 <div class="flex justify-center gap-2 mb-4">
-                    <button class="filter-btn px-6 py-2 rounded-full text-sm font-bold transition-all ${filter === "all" ? "bg-white text-blue-900" : "bg-white/10 text-white hover:bg-white/20"}" data-filter="all">
+                    <button class="filter-btn px-6 py-2 rounded-full text-sm font-normal transition-all ${filter === "all" ? "btn-retro text-white" : "bg-black/30 text-white hover:bg-purple-900/20 border border-purple-600/40"}" data-filter="all">
                         ALL
                     </button>
                     <button class="filter-btn px-6 py-2 rounded-full text-sm font-bold transition-all ${filter === 4 ? "bg-gradient-to-r from-cyan-500 to-blue-600 text-white" : "bg-white/10 text-white hover:bg-white/20"}" data-filter="4">
@@ -124,7 +124,7 @@ export default function (root: HTMLElement) {
                                 const isFinished = t.status === 'finished';
                                 const isSpecialStatus = isInterrupted || isFinished;
                                 return `
-                                <div class="group relative bg-white/5 backdrop-blur-lg rounded-2xl p-4 border ${isInterrupted ? 'border-red-500/50' : isFinished ? 'border-green-500/50' : 'border-white/10 hover:border-white/30'} ${isSpecialStatus ? '' : 'hover:bg-white/10'} transition-all duration-300 ${isSpecialStatus ? 'opacity-70' : ''}">
+                                <div class="group relative card-violet rounded-2xl p-4 border ${isInterrupted ? 'border-red-500/50' : isFinished ? 'border-green-500/50' : 'border-purple-600/40'} ${isSpecialStatus ? '' : 'hover:bg-purple-900/20'} transition-all duration-300 ${isSpecialStatus ? 'opacity-70' : ''}">
                                     ${isInterrupted ? `
                                         <div class="absolute top-3 left-3 px-3 py-1 rounded-full bg-red-500/30 border border-red-500 backdrop-blur-sm">
                                             <span class="text-xs font-black text-red-200">⚠️ INTERRUPTED</span>
@@ -157,7 +157,7 @@ export default function (root: HTMLElement) {
                                             </div>
                                         ` : ''}
                                     </div>
-                                    <a href="/tournaments/waitingroom/${t.id}" data-tournament-size="${t.size}" data-tournament-id="${t.id}" class="join-btn block w-full py-3 rounded-xl font-black text-center transition-all ${isInterrupted ? 'bg-gray-600/50 text-gray-300 hover:bg-gray-600/70 cursor-pointer' : isFinished ? 'bg-green-600/50 text-green-200 hover:bg-green-600/70 cursor-pointer' : 'bg-white text-gray-900 hover:bg-gray-100 transform hover:scale-105'} ${(!signedIn && !isGuest) ? "opacity-30 pointer-events-none" : ""}">
+                                    <a href="/tournaments/waitingroom/${t.id}" data-tournament-size="${t.size}" data-tournament-id="${t.id}" class="join-btn block w-full py-3 rounded-xl font-normal text-center transition-all ${isInterrupted ? 'bg-gray-600/50 text-gray-300 hover:bg-gray-600/70 cursor-pointer' : isFinished ? 'bg-green-600/50 text-green-200 hover:bg-green-600/70 cursor-pointer' : 'btn-retro text-white'} ${(!signedIn && !isGuest) ? "opacity-30 pointer-events-none" : ""}">
                                         ${isInterrupted ? '👁️ VIEW DETAILS' : isFinished ? '🏆 VIEW RESULTS' : 'JOIN NOW →'}
                                     </a>
                                 </div>
@@ -187,7 +187,7 @@ export default function (root: HTMLElement) {
 
                 <!-- Back Button -->
                 <div class="flex justify-center">
-                    <button id="backBtnBottom" class="px-6 py-2 rounded-full bg-white/10 backdrop-blur-sm text-white text-sm font-bold hover:bg-white/20 transition-all">
+                    <button id="backBtnBottom" class="px-6 py-2 rounded-full bg-black/30 border border-purple-600/40 text-white text-sm font-normal hover:bg-purple-900/20 transition-all">
                         ← BACK
                     </button>
                 </div>

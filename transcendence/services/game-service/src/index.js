@@ -35,6 +35,62 @@ registerStatsRoutes(fastify, games);
 
 healthCheck(fastify);
 
+// Lightweight player status endpoint used by user-service to gate invites
+fastify.get('/api/players/status', async (request, reply) => {
+  try {
+    const userId = parseInt(request.query?.userId);
+    if (!userId) return reply.code(400).send({ error: 'Missing userId' });
+
+    // Check legacy games map
+    let inGame = false;
+    try {
+      for (const g of games.values()) {
+        if (g && g.status === 'active' && (g.player1_id === userId || g.player2_id === userId)) {
+          inGame = true; break;
+        }
+      }
+    } catch {}
+
+    // Check remote rooms
+    try {
+      // Resolve by direct player mapping if available
+      const byPlayer = roomManager.getRoomByPlayer?.(String(userId));
+      if (byPlayer) inGame = true;
+
+      // Additionally, compare by userId or username (fallback) across all rooms
+      // Fetch username for this userId from user-service/database if necessary
+      let username = null;
+      if (!inGame) {
+        try {
+          const res = await fetch('http://database-service:3006/internal/query', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-service-auth': 'super_secret_internal_token' },
+            body: JSON.stringify({ table: 'Users', columns: ['username'], filters: { id: userId }, limit: 1 })
+          });
+          if (res.ok) {
+            const j = await res.json();
+            username = j?.data?.[0]?.username || null;
+          }
+        } catch {}
+      }
+
+      if (!inGame) {
+        for (const [, room] of roomManager.rooms.entries()) {
+          const info = room.getInfo();
+          const players = Array.isArray(info.players) ? info.players : [];
+          const found = players.some(p => p?.userId === userId || (username && String(p?.username || '').toLowerCase() === String(username).toLowerCase()));
+          if (found) { inGame = true; break; }
+        }
+      }
+    } catch {}
+
+    return { userId, inGame };
+  } catch (e) {
+    request.log.error('players/status error', e);
+    return reply.code(500).send({ error: 'status check failed' });
+  }
+});
+
 // ========================================
 // NEW ROUTES: REMOTE PLAYERS
 // ========================================

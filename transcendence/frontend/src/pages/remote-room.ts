@@ -37,10 +37,14 @@ let sceneController: { update: (state: any) => void; dispose: () => void } | nul
 // Keep last server-render state to drive a steady RAF render loop
 let lastRenderState: any | null = null;
 let rafId: number | null = null;
+// Local gates
+let inputGateUntil: number = 0; // timestamp until which inputs are gated
+let ignoreStateUntil: number = 0; // timestamp until which gameState updates won't move paddles/ball
 
 // Global mount/connect guards to prevent duplicate WS connections on re-mounts
 let didMountRemoteRoom = false;
 let isConnectingRemoteRoom = false;
+let connectionCounter = 0; // monotonically increasing id for ws connections
 
 export default function (root: HTMLElement, ctx: { params?: { roomId?: string }; url: URL }) {
 	// Get roomId from router params (which includes query parameters)
@@ -118,6 +122,12 @@ export default function (root: HTMLElement, ctx: { params?: { roomId?: string };
             <p class="text-[11px] text-indigo-300/70 mt-2">Share this code with your friend</p>
           </div>
           
+          <!-- Game Info -->
+          <div class="p-3 rounded-lg border border-yellow-400/40 bg-yellow-900/10 mb-4">
+            <p class="text-xs text-yellow-200/80 mb-1">MATCH FORMAT</p>
+            <p class="text-sm text-yellow-100 font-bold">Best of 3 Rounds • First to 5 Points per Round</p>
+          </div>
+
           <h2 class="text-xl font-black neon mt-2">PLAYERS <span class="blink"></span></h2>
 
           <!-- Players List -->
@@ -133,48 +143,52 @@ export default function (root: HTMLElement, ctx: { params?: { roomId?: string };
         </div>
 
         <!-- Game Canvas -->
-        <div id="gameContainer" class="hidden space-y-4 mt-6">
-          <div class="flex justify-between items-center bg-gray-900/80 text-white p-4 rounded-lg border border-purple-500/30">
-            <div class="text-3xl font-mono font-bold">
+        <div id="gameContainer" class="hidden mt-6 relative">
+          <!-- Ping Display - Upper Right Corner -->
+          <div id="pingDisplay" class="absolute top-4 right-4 z-10 bg-black/70 text-white px-3 py-2 rounded-lg text-sm font-mono border border-purple-500/30">
+            Ping: -- ms
+          </div>
+          
+          <!-- Player Scores - Top Corners -->
+          <div class="absolute top-4 left-4 z-10 bg-black/70 text-white px-4 py-2 rounded-lg border border-blue-500/50">
+            <div class="text-2xl font-mono font-bold">
               <span class="text-blue-400">P1</span> <span id="scoreP1">0</span>
             </div>
-            <div class="flex items-center gap-4">
-              <div id="countdownDisplay" class="text-4xl font-bold text-yellow-400"></div>
-              <div id="pingDisplay" class="text-sm text-gray-300">Ping: -- ms</div>
-            </div>
-            <div id="diagBar" class="text-xs text-gray-400 mt-1">Focus: ? | WS: ? | Role: ? | Vis: ?</div>
-            <div class="text-3xl font-mono font-bold">
+          </div>
+          
+          <div class="absolute top-4 right-24 z-10 bg-black/70 text-white px-4 py-2 rounded-lg border border-red-500/50">
+            <div class="text-2xl font-mono font-bold">
               <span id="scoreP2">0</span> <span class="text-red-400">P2</span>
             </div>
           </div>
           
+          <!-- Countdown Display - Center -->
+          <div id="countdownDisplay" class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-20 text-6xl font-bold text-yellow-400"></div>
+          
+          <!-- HUD Text - Top Center (Round info) -->
+          <div id="hudText" class="absolute top-4 left-1/2 transform -translate-x-1/2 z-10 bg-black/70 text-white px-4 py-2 rounded-lg text-sm font-mono border border-purple-500/30"></div>
+          
+          <!-- Game Canvas -->
           <div class="mx-auto" style="width: 1000px; max-width: 100%;">
             <canvas id="gameCanvas" tabindex="0" width="1000" height="600" class="bg-black block w-full h-auto"></canvas>
-          </div>
-          
-          <div class="bg-gray-900/50 border border-purple-500/30 p-4 rounded-lg text-center">
-            <p class="text-sm text-indigo-200/90">
-              <kbd class="px-2 py-1 bg-black/60 border border-white/20 rounded">↑</kbd>
-              <kbd class="px-2 py-1 bg-black/60 border border-white/20 rounded">↓</kbd> or
-              <kbd class="px-2 py-1 bg-black/60 border border-white/20 rounded">W</kbd>
-              <kbd class="px-2 py-1 bg-black/60 border border-white/20 rounded">S</kbd>
-              to move | You are <span id="yourRole" class="font-bold"></span>
-            </p>
           </div>
         </div>
       </div>
     </section>
   `;
 
-	// Only connect once
+	// Only connect once - defer to avoid overlap with previous route teardown
 	if (!didMountRemoteRoom) {
-		connectToRoom(root, roomId, playerId, username);
+		setTimeout(() => {
+			connectToRoom(root, roomId, playerId, username);
+		}, 0);
 		didMountRemoteRoom = true;
 	}
 	setupRoomEventListeners(root);
 
 	// Listen for invite declined to automatically exit waiting room
 	const onInviteDeclined = (e: Event) => {
+		if (!gameState) return; // ignore if not active
 		const detail: any = (e as CustomEvent).detail || {};
 		console.log('🔔 Invite declined in remote-room:', detail);
 		updateStatus(root, `❌ ${detail?.from || 'Player'} declined your invitation`, 'error');
@@ -187,6 +201,7 @@ export default function (root: HTMLElement, ctx: { params?: { roomId?: string };
 
 	// Listen for player left to automatically exit waiting room
 	const onPlayerLeft = (e: Event) => {
+		if (!gameState) return; // ignore if not active
 		const detail: any = (e as CustomEvent).detail || {};
 		console.log('🔔 Player left in remote-room:', detail);
 		updateStatus(root, `👋 ${detail?.from || 'Player'} left the waiting room`, 'error');
@@ -260,7 +275,7 @@ function setupRoomEventListeners(root: HTMLElement) {
 		try {
 			if (ws && ws.readyState === WebSocket.OPEN) {
 				ws.send(JSON.stringify({ type: 'ready' }));
-				console.log('📨 Sent ready message (immediate)');
+				//console.log('📨 Sent ready message (immediate)');
 			} else {
 				// Fallback: slight delay, give ws a moment if reference swapped during init
 				const uname = (getAuth()?.name) || (getState().session.alias) || 'Anonymous';
@@ -347,10 +362,15 @@ async function httpFallbackReady(root: HTMLElement, uname: string) {
 	if (document.visibilityState === 'hidden') {
 	if (pingTimer) { clearInterval(pingTimer); pingTimer = null; }
 	} else if (document.visibilityState === 'visible') {
-	if (!pingTimer && gameState?.ws) {
+	if (!pingTimer && gameState?.ws && gameState.ws.readyState === WebSocket.OPEN) {
 	const ws = gameState.ws;
 	pingTimer = window.setInterval(() => {
-	try { lastPingTs = Date.now(); ws.send(JSON.stringify({ type: 'ping', ts: lastPingTs })); } catch {}
+	try { 
+		if (ws.readyState === WebSocket.OPEN) {
+			lastPingTs = Date.now(); 
+			ws.send(JSON.stringify({ type: 'ping', ts: lastPingTs })); 
+		}
+	} catch {}
 	}, 3000);
 	}
 	}
@@ -375,13 +395,18 @@ function connectToRoom(root: HTMLElement, roomId: string, playerId: string, user
 	updateStatus(root, '🔄 Connecting...', 'info');
 
 	const ws = new WebSocket(wsUrl);
-	if (gameState) { gameState.ws = ws; gameState.connected = false; }
+	const thisConnId = ++connectionCounter;
+	if (gameState) { gameState.ws = ws; (gameState as any).connectionId = thisConnId; gameState.connected = false; }
 	(document as any)._lastWS = ws;
 	isConnectingRemoteRoom = false;
 
 	ws.onopen = () => {
-		console.log('✅ Connected');
-		if (gameState) gameState.connected = true;
+		if (!gameState || (gameState as any).connectionId !== thisConnId) {
+			console.warn('⚠️ Stale connection onopen, ignoring');
+			return; // stale
+		}
+		console.log('✅ WebSocket OPEN - readyState:', ws.readyState);
+		gameState.connected = true;
 		(document as any)._lastWS = ws;
 		updateStatus(root, '✅ Connected to room!', 'success');
 		updateDiagnostics(root);
@@ -389,11 +414,12 @@ function connectToRoom(root: HTMLElement, roomId: string, playerId: string, user
 	};
 
 	ws.onmessage = async (event) => {
+		if (!gameState || (gameState as any).connectionId !== thisConnId) return; // stale
 		try {
 			let data = event.data;
 			if (data instanceof Blob) data = await data.text();
 			const message = JSON.parse(data);
-			if (gameState && gameState.ws !== ws) gameState.ws = ws;
+			if (gameState.ws !== ws) gameState.ws = ws;
 			(document as any)._lastWS = ws;
 			updateDiagnostics(root);
 			handleServerMessage(root, message);
@@ -402,12 +428,22 @@ function connectToRoom(root: HTMLElement, roomId: string, playerId: string, user
 		}
 	};
 
-	ws.onerror = () => {
+	ws.onerror = (error) => {
+		if (!gameState || (gameState as any).connectionId !== thisConnId) {
+			console.warn('⚠️ Stale connection onerror, ignoring');
+			return; // stale
+		}
+		console.error('❌ WebSocket ERROR:', error);
 		updateStatus(root, '❌ Connection error', 'error');
 	};
 
-	ws.onclose = () => {
-		if (gameState) gameState.connected = false;
+	ws.onclose = (event) => {
+		if (!gameState || (gameState as any).connectionId !== thisConnId) {
+			console.warn('⚠️ Stale connection onclose, ignoring');
+			return; // stale
+		}
+		console.log('❌ WebSocket CLOSED - code:', event.code, 'reason:', event.reason);
+		gameState.connected = false;
 		updateStatus(root, '⚠️ Disconnected', 'error');
 		updateDiagnostics(root);
 		try {
@@ -425,7 +461,10 @@ function connectToRoom(root: HTMLElement, roomId: string, playerId: string, user
 function handleServerMessage(root: HTMLElement, message: any) {
 	if (!gameState) return;
 
-	console.log('📨', message.type);
+	// Only log important message types, not the spammy ones
+	if (!['gameState', 'hud', 'pong'].includes(message.type)) {
+		console.log('📨', message.type);
+	}
 
 	switch (message.type) {
         case 'pong':
@@ -439,6 +478,10 @@ function handleServerMessage(root: HTMLElement, message: any) {
             } catch {}
             break;
 		case 'init':
+			console.log('📨 INIT message received:', message);
+			console.log('📨 Current gameState.connected:', gameState.connected);
+			console.log('📨 Current ws.readyState:', gameState.ws?.readyState);
+			
 			// Prefer server authoritative identity if provided
 			if (message.playerId && gameState.playerId !== message.playerId) {
 				console.log('🪪 Updating local playerId from server', { old: gameState.playerId, new: message.playerId });
@@ -506,15 +549,35 @@ function handleServerMessage(root: HTMLElement, message: any) {
 			break;
 
 		case 'countdown':
+			// Hide waiting room and show game container on first countdown
+			root.querySelector('#waitingRoom')?.classList.add('hidden');
+			root.querySelector('#gameContainer')?.classList.remove('hidden');
 			showCountdown(root, message.count);
+			// Show message if provided (for inter-round countdowns)
+			if (message.message) {
+				updateStatus(root, message.message, 'info');
+			}
+			break;
+
+		case 'roundStart':
+			// New round starting
+			if (message.message) {
+				updateStatus(root, message.message, 'success');
+			}
 			break;
 
 		case 'gameStart':
 			startGameUI(root, message.gameState);
+			// Add a small grace window to let players react after GO!
+			inputGateUntil = Date.now() + 500;
+			ignoreStateUntil = Date.now() + 300; // allow HUD and scene init, delay motion a bit
 			break;
 
 		case 'gameState':
 			updateGameState(root, message.state);
+			break;
+		case 'hud':
+			updateHud(root, message);
 			break;
 
 		case 'gameEnd':
@@ -557,20 +620,32 @@ function updatePlayersList(root: HTMLElement) {
 }
 
 function showCountdown(root: HTMLElement, count: number) {
-	const display = root.querySelector('#countdownDisplay')!;
+	const display = root.querySelector('#countdownDisplay') as HTMLElement | null;
+	if (!display) return;
 	display.textContent = count > 0 ? count.toString() : 'GO!';
-	if (count === 0) setTimeout(() => display.textContent = '', 1000);
+	if (count === 0) setTimeout(() => { const d = root.querySelector('#countdownDisplay') as HTMLElement | null; if (d) d.textContent = ''; }, 1000);
 }
 
 function refreshReadyButtonState(root: HTMLElement) {
 	if (!gameState) return;
 	const btn = root.querySelector<HTMLButtonElement>('#readyBtn');
 	if (!btn) return;
+	
+	const wsOpen = isWsOpen();
+	
+	// If WS is open but init hasn't arrived yet, show Syncing and retry shortly
+	if (wsOpen && !gameState.serverIdReady && (!gameState.players || gameState.players.length === 0)) {
+		updateStatus(root, '🔄 Syncing with server…', 'info');
+		setTimeout(() => refreshReadyButtonState(root), 150);
+		btn.disabled = true;
+		btn.textContent = '⏳ Waiting for opponent...';
+		return;
+	}
+	
 	// Opponent presence: exactly one P1 and one P2 assigned by role
 	const p1 = gameState.players.find(p => p.playerNumber === 1);
 	const p2 = gameState.players.find(p => p.playerNumber === 2);
 	const twoRolesAssigned = !!p1 && !!p2;
-	const wsOpen = isWsOpen();
 	// Identify self by server-authoritative playerId
 	const me = gameState.players.find(p => p.playerId === gameState.playerId) || null;
 	const meNotReady = me ? !me.ready : true; // if not in list yet, allow ready once connected
@@ -639,13 +714,27 @@ ctx = canvas.getContext('2d')!;
 
 // Start ping interval (client-side ping/pong) only when visible
 try {
-  if (gameState?.ws && document.visibilityState === 'visible') {
+  if (gameState?.ws && gameState.ws.readyState === WebSocket.OPEN && document.visibilityState === 'visible') {
     const ws = gameState.ws;
     pingTimer = window.setInterval(() => {
       try {
-        lastPingTs = Date.now();
-        ws.send(JSON.stringify({ type: 'ping', ts: lastPingTs }));
-      } catch {}
+        if (ws.readyState === WebSocket.OPEN) {
+          lastPingTs = Date.now();
+          ws.send(JSON.stringify({ type: 'ping', ts: lastPingTs }));
+        } else {
+          // WebSocket closed, clear the interval
+          if (pingTimer) {
+            clearInterval(pingTimer);
+            pingTimer = null;
+          }
+        }
+      } catch (e) {
+        // Error sending, clear the interval
+        if (pingTimer) {
+          clearInterval(pingTimer);
+          pingTimer = null;
+        }
+      }
     }, 3000);
   }
 } catch {}
@@ -660,15 +749,14 @@ updateStatus(root, '🎮 Game started!', 'success');
 }
 
 function updateDiagnostics(root: HTMLElement) {
-  try {
-    const el = root.querySelector('#diagBar');
-    if (!el) return;
-    const wsState = gameState?.ws?.readyState === 1 ? 'OPEN' : (gameState?.ws ? String(gameState.ws.readyState) : 'NO-WS');
-    const role = gameState?.playerNumber ?? 'null';
-    const vis = document.visibilityState;
-    const foc = document.hasFocus();
-    (el as HTMLElement).textContent = `Focus: ${foc} | WS: ${wsState} | Role: ${role} | Vis: ${vis}`;
-  } catch {}
+  // Diagnostics removed from UI - can be logged to console if needed for debugging
+  // Uncomment below for console debugging:
+  // console.log('[Diagnostics]', {
+  //   focus: document.hasFocus(),
+  //   ws: gameState?.ws?.readyState === 1 ? 'OPEN' : gameState?.ws?.readyState,
+  //   role: gameState?.playerNumber,
+  //   visibility: document.visibilityState
+  // });
 }
 
 function updateGameState(root: HTMLElement, state: any) {
@@ -679,14 +767,15 @@ updateScoreDisplay(root);
 // Map server state to Babylon GameRenderState and update scene
 if (sceneController && typeof sceneController.update === 'function') {
 try {
+// During grace period, freeze ball/paddle visually
+const effectiveBall = (Date.now() < ignoreStateUntil) ? { x: 0, y: 0 } : { x: state.ball?.x ?? 0, y: state.ball?.y ?? 0 };
+const effectiveP1 = (Date.now() < ignoreStateUntil) ? 0 : (state.paddles?.player1 ?? 0);
+const effectiveP2 = (Date.now() < ignoreStateUntil) ? 0 : (state.paddles?.player2 ?? 0);
 const renderState = {
-  ball: {
-    x: state.ball?.x ?? 0,
-    y: state.ball?.y ?? 0,
-  },
+  ball: effectiveBall,
   paddles: {
-    player1: state.paddles?.player1 ?? 0,
-    player2: state.paddles?.player2 ?? 0,
+    player1: effectiveP1,
+    player2: effectiveP2,
   },
   score: {
     player1: state.score?.player1 ?? 0,
@@ -703,11 +792,14 @@ lastRenderState = renderState;
 try { sceneController.update(renderState as any); } catch {}
 return;
 } catch (e) {
-console.warn('Babylon update failed, using 2D fallback', e);
+// Keep 3D active; do not switch to 2D mid-game
+console.warn('Babylon update error, keeping 3D active', e);
 }
 }
-// 2D fallback if Babylon scene unavailable
+// 2D fallback only if Babylon never initialized
+if (!sceneController) {
 drawGame(state);
+}
 }
 
 function drawGame(state: any) {
@@ -748,8 +840,10 @@ function drawGame(state: any) {
 }
 
 function handleKeyDown(e: KeyboardEvent) {
-  if (!gameState?.ws || gameState.ws.readyState !== WebSocket.OPEN) {
-    console.warn('Key ignored: WS not open');
+  if (!gameState?.ws) {
+    return;
+  }
+  if (gameState.ws.readyState !== WebSocket.OPEN) {
     return;
   }
   // Guard: only assigned players can send input (allow pre-start for testing responsiveness)
@@ -761,15 +855,22 @@ function handleKeyDown(e: KeyboardEvent) {
   const isUp = e.key === 'w' || e.key === 'W';
   const isDown = e.key === 's' || e.key === 'S';
 
+  // Input grace: if within gate, allow but don't spam
+  const now = Date.now();
+
   if (isUp && !keysPressed.has('up')) {
     keysPressed.add('up');
-    gameState.ws.send(JSON.stringify({ type: 'paddleMove', direction: 'up' }));
+    if (now >= inputGateUntil) {
+      gameState.ws.send(JSON.stringify({ type: 'paddleMove', direction: 'up' }));
+    }
     // No repeat timer: rely on server to keep moving until stop
     e.preventDefault();
     e.stopPropagation();
   } else if (isDown && !keysPressed.has('down')) {
     keysPressed.add('down');
-    gameState.ws.send(JSON.stringify({ type: 'paddleMove', direction: 'down' }));
+    if (now >= inputGateUntil) {
+      gameState.ws.send(JSON.stringify({ type: 'paddleMove', direction: 'down' }));
+    }
     // No repeat timer: rely on server to keep moving until stop
     e.preventDefault();
     e.stopPropagation();
@@ -778,12 +879,13 @@ function handleKeyDown(e: KeyboardEvent) {
 
 function handleKeyUp(e: KeyboardEvent) {
   if (!gameState?.ws) {
-    console.warn('KeyUp ignored: no ws');
+    return;
+  }
+  if (gameState.ws.readyState !== WebSocket.OPEN) {
     return;
   }
   // Guard: only assigned players can send input
   if (gameState.playerNumber !== 1 && gameState.playerNumber !== 2) {
-    console.warn('KeyUp ignored: no role');
     return;
   }
 
@@ -795,8 +897,12 @@ function handleKeyUp(e: KeyboardEvent) {
     if (wasDown) keysPressed.delete('down');
     if (!keysPressed.has('up') && !keysPressed.has('down')) {
       // No repeat to clear; just send stop once
-      if (gameState.ws.readyState === WebSocket.OPEN) {
-        gameState.ws.send(JSON.stringify({ type: 'paddleMove', direction: 'stop' }));
+      try {
+        if (gameState.ws.readyState === WebSocket.OPEN) {
+          gameState.ws.send(JSON.stringify({ type: 'paddleMove', direction: 'stop' }));
+        }
+      } catch (e) {
+        // WebSocket closed, ignore
       }
     }
     e.preventDefault();
@@ -810,6 +916,15 @@ function updateScoreDisplay(root: HTMLElement) {
 	root.querySelector('#scoreP2')!.textContent = gameState.score.player2.toString();
 }
 
+function updateHud(root: HTMLElement, hud: { currentRound: number; roundsWon: { player1: number; player2: number }; score: { player1: number; player2: number }; scoreLimit: number; status: string; }) {
+	try {
+		const hudEl = root.querySelector('#hudText') as HTMLElement | null;
+		if (hudEl) {
+			hudEl.textContent = `Round ${hud.currentRound}/3 | P1 ${hud.roundsWon.player1} - P2 ${hud.roundsWon.player2} | to ${hud.scoreLimit}`;
+		}
+	} catch {}
+}
+
 function endGame(root: HTMLElement, data: any) {
 	if (!gameState) return;
 
@@ -817,20 +932,30 @@ function endGame(root: HTMLElement, data: any) {
 	const winner = data.winner;
 	const isYouWinner = winner === gameState.playerNumber;
 
+	// Show winner message in center of screen like countdown
+	const display = root.querySelector('#countdownDisplay') as HTMLElement | null;
+	if (display) {
+		display.textContent = isYouWinner ? '🏆 YOU WON! 🏆' : `Player ${winner} Won!`;
+		display.style.display = 'block';
+		display.className = 'absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-20 text-5xl font-bold drop-shadow-lg ' + 
+			(isYouWinner ? 'text-green-400' : 'text-yellow-400');
+	}
+
 	updateStatus(root,
 		isYouWinner ? '🎉🏆 YOU WON! 🏆🎉' : `Player ${winner} won!`,
 		isYouWinner ? 'success' : 'info'
 	);
 
-	// Auto-return to remote page after short delay
+	// Auto-return to remote page after 3 seconds
 	setTimeout(() => {
 		navigate('/remote');
-	}, 1500);
+	}, 3000);
 }
 
 function updateStatus(root: HTMLElement, message: string, type: 'info' | 'success' | 'error') {
-	const box = root.querySelector('#statusBox')!;
-	const text = root.querySelector('#statusText')!;
+	const box = root.querySelector('#statusBox') as HTMLElement | null;
+	const text = root.querySelector('#statusText') as HTMLElement | null;
+	if (!box || !text) return; // avoid null errors if elements hidden/unmounted
 
 	box.className = `rounded border-2 p-4 ${type === 'success' ? 'bg-green-50 border-green-400' :
 			type === 'error' ? 'bg-red-50 border-red-400' :

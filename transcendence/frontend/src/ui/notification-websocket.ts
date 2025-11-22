@@ -85,7 +85,7 @@ export class NotificationWebSocket {
       };
 
       this.ws.onmessage = async (event) => {
-        console.log('🔔 📨 Raw WebSocket message received:', event.data);
+        //console.log('🔔 📨 Raw WebSocket message received:', event.data);
         try {
           let data = event.data;
           
@@ -95,7 +95,7 @@ export class NotificationWebSocket {
           }
           
           const message = JSON.parse(data);
-          console.log('🔔 📨 Parsed message:', message);
+          //console.log('🔔 📨 Parsed message:', message);
           this.handleMessage(message);
         } catch (error) {
           console.error('🔔 ❌ Failed to parse WebSocket message:', error, 'Raw data:', event.data);
