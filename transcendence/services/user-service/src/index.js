@@ -18,36 +18,33 @@ fastify.register(require('@fastify/cors'), {
 });
 
 // Global map to store active WebSocket connections for real-time notifications
-const userConnections = new Map(); // userId -> WebSocket
+// Support multiple tabs: store a Set<WebSocket> per user
+const userConnections = new Map(); // userId -> Set<WebSocket>
 
 // Helper function to send real-time notifications
 function sendLiveNotification(userId, notification) {
-  console.log(`📨 Attempting to send live notification to user ${userId}`);
-  console.log(`📨 Current connections: ${Array.from(userConnections.keys()).join(', ')}`);
-
-  const ws = userConnections.get(parseInt(userId));
-  console.log(`📨 WebSocket for user ${userId}:`, ws ? 'EXISTS' : 'NOT FOUND');
-
-  if (ws && typeof ws.send === 'function' && ws.readyState === 1) { // WebSocket.OPEN = 1
-    try {
-      ws.send(JSON.stringify({
-        type: 'live_notification',
-        data: notification
-      }));
-      console.log(`📨 ✅ Live notification sent to user ${userId}`);
-      logger.info(`Live notification sent to user ${userId}`, notification);
-      return true;
-    } catch (error) {
-      console.error(`📨 ❌ Error sending notification to user ${userId}:`, error);
-      // Remove broken connection
-      userConnections.delete(parseInt(userId));
-      return false;
+  const set = userConnections.get(parseInt(userId));
+  if (!set || set.size === 0) {
+    logger.info(`User ${userId} not connected; store-only notification`);
+    return false;
+  }
+  let delivered = 0;
+  for (const ws of set) {
+    if (ws && typeof ws.send === 'function' && ws.readyState === 1) {
+      try {
+        ws.send(JSON.stringify({ type: 'live_notification', data: notification }));
+        delivered++;
+      } catch (e) {
+        try { ws.close(); } catch {}
+        set.delete(ws);
+      }
+    } else {
+      set.delete(ws);
     }
   }
-
-  console.log(`📨 ❌ User ${userId} not connected or socket invalid (readyState: ${ws?.readyState})`);
-  logger.info(`User ${userId} not connected to WebSocket, notification stored in DB only`);
-  return false;
+  if (set.size === 0) userConnections.delete(parseInt(userId));
+  if (delivered > 0) logger.info(`Live notification sent to user ${userId} on ${delivered} tab(s)`);
+  return delivered > 0;
 }
 
 // Global hook to capture all PUT requests
@@ -400,9 +397,11 @@ fastify.get('/ws/notifications', { websocket: true }, (connection, req) => {
       console.log(`🔔 ✅ WebSocket authenticated: userId=${userId}, username=${username}`);
       logger.info(`WebSocket notification connection authenticated for user ${userId} (${username})`);
 
-      // Store the socket in userConnections
-      userConnections.set(userId, ws);
-      console.log(`🔔 ✅ Stored socket for user ${userId}. Total connections: ${userConnections.size}`);
+      // Store the socket in userConnections (multi-tab)
+      const set = userConnections.get(userId) || new Set();
+      set.add(ws);
+      userConnections.set(userId, set);
+      console.log(`🔔 ✅ Stored socket for user ${userId}. Total connections: ${userConnections.size}, tabs: ${set.size}`);
       console.log(`🔔 📊 Current connections map:`, Array.from(userConnections.keys()));
 
       // Send welcome message
@@ -463,9 +462,11 @@ fastify.get('/ws/notifications', { websocket: true }, (connection, req) => {
             console.log(`🔔 ✅ WebSocket authenticated via message: userId=${userId}, username=${username}`);
             logger.info(`WebSocket notification connection authenticated via message for user ${userId} (${username})`);
 
-            // Store the socket in userConnections
-            userConnections.set(userId, ws);
-            console.log(`🔔 ✅ Stored socket for user ${userId}. Total connections: ${userConnections.size}`);
+            // Store the socket in userConnections (multi-tab)
+            const set = userConnections.get(userId) || new Set();
+            set.add(ws);
+            userConnections.set(userId, set);
+            console.log(`🔔 ✅ Stored socket for user ${userId}. Total connections: ${userConnections.size}, tabs: ${set.size}`);
             console.log(`🔔 📊 Current connections map:`, Array.from(userConnections.keys()));
 
             // Send welcome message
@@ -526,9 +527,12 @@ fastify.get('/ws/notifications', { websocket: true }, (connection, req) => {
   // Handle connection close
   ws.on('close', () => {
     if (userId) {
-      userConnections.delete(userId);
-      console.log(`🔔 ❌ User ${userId} disconnected from notifications. Total connections: ${userConnections.size}`);
-      console.log(`🔔 📊 Remaining connections:`, Array.from(userConnections.keys()));
+      const set = userConnections.get(userId);
+      if (set) {
+        set.delete(ws);
+        if (set.size === 0) userConnections.delete(userId);
+      }
+      console.log(`🔔 ❌ User ${userId} tab disconnected. Total connections: ${userConnections.size}`);
       logger.info(`WebSocket notification disconnection for user ${userId}`);
     } else {
       console.log(`🔔 ❌ Unauthenticated connection closed`);
@@ -540,7 +544,11 @@ fastify.get('/ws/notifications', { websocket: true }, (connection, req) => {
     if (userId) {
       console.error(`🔔 WebSocket error for user ${userId}:`, error);
       logger.error(`WebSocket notification error for user ${userId}:`, error);
-      userConnections.delete(userId);
+      const set = userConnections.get(userId);
+      if (set) {
+        set.delete(ws);
+        if (set.size === 0) userConnections.delete(userId);
+      }
     }
   });
 });
@@ -727,21 +735,72 @@ fastify.post('/users/:userId/invite', {
     const { userId } = request.params;
     const { type, payload } = request.body || {};
     const actorId = request.user.userId;
+    const now = Date.now();
 
-    console.log(`📨 User ${actorId} inviting user ${userId}`);
+    // Basic rate limiting: max 5 invites per 10s per actor
+    const rlKey = `invite:${actorId}`;
+    global.__inviteRL = global.__inviteRL || new Map();
+    const rec = global.__inviteRL.get(rlKey) || { ts: now, cnt: 0 };
+    if (now - rec.ts > 10000) { rec.ts = now; rec.cnt = 0; }
+    rec.cnt++;
+    global.__inviteRL.set(rlKey, rec);
+    if (rec.cnt > 5) {
+      return reply.code(429).send({ error: 'Too many invites. Please wait.' });
+    }
+
+    // Prevent inviting someone already in a game (query game-service)
+    try {
+      const gs = await fetch('http://game-service:3002/api/players/status?userId=' + encodeURIComponent(userId));
+      if (gs.ok) {
+        const status = await gs.json();
+        if (status.inGame) {
+          return reply.code(409).send({ error: 'User is currently in a game' });
+        }
+      }
+    } catch {}
+
+    // Prevent multiple simultaneous pending invites for same recipient
+    const existingRes = await fetch('http://database-service:3006/internal/query', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-service-auth': 'super_secret_internal_token' },
+      body: JSON.stringify({
+        table: 'Notifications',
+        columns: ['id','payload','created_at'],
+        filters: { user_id: parseInt(userId), Noti_read: 0, Noti_type: type || 'game_invite' },
+        limit: 50
+      })
+    });
+    if (existingRes.ok) {
+      const existing = await existingRes.json();
+      // expire invites older than 2 minutes
+      const toDelete = [];
+      for (const n of existing.data || []) {
+        const age = now - new Date(n.created_at).getTime();
+        if (age > 2 * 60 * 1000) toDelete.push(n.id);
+      }
+      if (toDelete.length) {
+        await fetch('http://database-service:3006/internal/delete', {
+          method: 'POST', headers: { 'Content-Type': 'application/json', 'x-service-auth': 'super_secret_internal_token' },
+          body: JSON.stringify({ table: 'Notifications', filters: { id: toDelete } })
+        }).catch(()=>{});
+      }
+      // if still pending ones exist, block
+      if ((existing.data || []).some(n => !toDelete.includes(n.id))) {
+        return reply.code(409).send({ error: 'Recipient already has a pending invite' });
+      }
+    }
 
     // Generate a unique room code for this invitation
     const roomCode = Math.random().toString(36).substr(2, 6).toUpperCase();
-    console.log(`📨 Generated room code: ${roomCode}`);
 
-    // Create payload with room code
     const invitationPayload = {
-      roomCode: roomCode,
+      roomCode,
       inviterName: request.user.username || `User ${actorId}`,
+      expiresAt: new Date(now + 2 * 60 * 1000).toISOString(),
       ...(payload || {})
     };
 
-    // Insert notification row into Notifications table via database-service
+    // Store notification
     const writePayload = {
       table: 'Notifications',
       action: 'insert',
@@ -753,52 +812,30 @@ fastify.post('/users/:userId/invite', {
         Noti_read: 0
       }
     };
-
-    console.log('📨 Writing to database:', JSON.stringify(writePayload, null, 2));
-
     const writeRes = await fetch('http://database-service:3006/internal/users', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-service-auth': 'super_secret_internal_token'
-      },
+      headers: { 'Content-Type': 'application/json', 'x-service-auth': 'super_secret_internal_token' },
       body: JSON.stringify(writePayload)
     });
-
-    console.log('📨 Database write response status:', writeRes.status);
-
     if (!writeRes.ok) {
       const errorText = await writeRes.text();
-      console.error('📨 Failed to write notification:', writeRes.status, errorText);
       logger.error('Failed to write notification:', writeRes.status, errorText);
       return reply.code(500).send({ error: 'Failed to create notification', details: errorText });
     }
-
     const writeResult = await writeRes.json();
-    console.log('📨 Database write result:', JSON.stringify(writeResult, null, 2));
 
-    // 🔥 NEW: Send real-time notification if user is connected
     const liveNotification = {
-      id: writeResult.id || Date.now(), // Use DB ID if available, fallback to timestamp
+      id: writeResult.id || Date.now(),
       type: type || 'game_invite',
       from: request.user.username || `User ${actorId}`,
       fromId: actorId,
-      roomCode: roomCode,
+      roomCode,
       payload: invitationPayload,
       timestamp: new Date().toISOString()
     };
-
     const sentLive = sendLiveNotification(userId, liveNotification);
-    console.log(`📨 Live notification ${sentLive ? 'sent successfully' : 'queued for DB only'}`);
 
-    // Success - return created with room code
-    console.log('📨 Invitation created successfully');
-    return {
-      success: true,
-      message: 'Invitation created',
-      roomCode: roomCode,
-      sentLive: sentLive // Include info about live delivery
-    };
+    return { success: true, message: 'Invitation created', roomCode, sentLive };
   } catch (error) {
     logger.error('Error creating invitation:', error);
     return reply.code(500).send({ error: 'Internal server error' });
@@ -834,7 +871,7 @@ fastify.get('/users/:userId/notifications', {
       body: JSON.stringify(queryPayload)
     });
 
-    console.log('📨 Database response status:', response.status);
+    //console.log('📨 Database response status:', response.status);
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -903,11 +940,13 @@ fastify.get('/notifications/unread', {
 
     // Format notifications with proper data
     const formattedNotifications = (result.data || []).map(notification => {
-      let payload = null;
+      let payload = {};
       try {
-        payload = JSON.parse(notification.payload || '{}');
+        const raw = notification.payload;
+        if (typeof raw === 'string') payload = JSON.parse(raw);
+        else if (raw && typeof raw === 'object') payload = raw;
       } catch (e) {
-        payload = {};
+        payload = { invalid: true };
       }
 
       // Determine the 'from' field based on notification type
@@ -959,85 +998,90 @@ fastify.post('/notifications/:notificationId/accept', {
     const { notificationId } = request.params;
     const userId = request.user.userId;
 
-    console.log(`✅ User ${userId} accepting notification ${notificationId}`);
+    // Re-check if user is already in a game
+    try {
+      const gs = await fetch('http://game-service:3002/api/players/status?userId=' + encodeURIComponent(userId));
+      if (gs.ok) {
+        const status = await gs.json();
+        if (status.inGame) return reply.code(409).send({ error: 'You are already in a game' });
+      }
+    } catch {}
 
-    // First, verify the notification exists and belongs to the user
+    // Verify notification
     const queryPayload = {
       table: 'Notifications',
-      columns: ['id', 'user_id', 'actor_id', 'Noti_type', 'payload'],
-      filters: {
-        id: parseInt(notificationId),
-        user_id: userId
-      }
+      columns: ['id', 'user_id', 'actor_id', 'Noti_type', 'payload', 'created_at'],
+      filters: { id: parseInt(notificationId), user_id: userId }
     };
-
     const queryRes = await fetch('http://database-service:3006/internal/query', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-service-auth': 'super_secret_internal_token'
-      },
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'x-service-auth': 'super_secret_internal_token' },
       body: JSON.stringify(queryPayload)
     });
-
-    if (!queryRes.ok) {
-      console.error('✅ Failed to query notification:', queryRes.status);
-      return reply.code(500).send({ error: 'Failed to verify notification' });
-    }
-
+    if (!queryRes.ok) return reply.code(500).send({ error: 'Failed to verify notification' });
     const queryResult = await queryRes.json();
-    console.log('✅ Query result:', JSON.stringify(queryResult, null, 2));
-
-    if (!queryResult.data || queryResult.data.length === 0) {
-      console.log('✅ Notification not found or not owned by user');
-      return reply.code(404).send({ error: 'Notification not found' });
-    }
-
+    if (!queryResult.data || queryResult.data.length === 0) return reply.code(404).send({ error: 'Notification not found' });
     const notification = queryResult.data[0];
-    console.log('✅ Found notification:', notification);
 
-    // Parse payload to get room code and inviter info
-    let roomCode = null;
-    let originalInviterId = null;
-    if (notification.payload) {
-      try {
-        const payloadData = JSON.parse(notification.payload);
-        roomCode = payloadData.roomCode;
-        originalInviterId = notification.actor_id; // The user who sent the invitation
-        console.log('✅ Parsed payload:', payloadData);
-        console.log('✅ Extracted room code:', roomCode);
-        console.log('✅ Original inviter ID:', originalInviterId);
-      } catch (error) {
-        console.error('✅ Failed to parse notification payload:', error);
-        console.error('✅ Raw payload was:', notification.payload);
-      }
-    } else {
-      console.log('✅ No payload found in notification');
+    // Parse
+    let roomCode = null; let originalInviterId = notification.actor_id; let expiresAt = null;
+    try {
+      const payloadData = JSON.parse(notification.payload || '{}');
+      roomCode = payloadData.roomCode;
+      expiresAt = payloadData.expiresAt;
+    } catch {}
+
+    // Expire invites older than 2 minutes or with past expiresAt
+    const ageOk = notification.created_at && (Date.now() - new Date(notification.created_at).getTime() <= 2*60*1000);
+    const notExpired = expiresAt ? (Date.now() <= new Date(expiresAt).getTime()) : ageOk;
+    if (!notExpired) {
+      // delete stale invite
+      await fetch('http://database-service:3006/internal/delete', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'x-service-auth': 'super_secret_internal_token' },
+        body: JSON.stringify({ table: 'Notifications', filters: { id: parseInt(notificationId), user_id: userId } })
+      }).catch(()=>{});
+      return reply.code(410).send({ error: 'Invitation expired' });
     }
 
-    // Mark notification as read and delete it (accepted)
-    const deletePayload = {
-      table: 'Notifications',
-      filters: {
-        id: parseInt(notificationId),
-        user_id: userId
+    // Validate room exists and inviter presence before proceeding
+    if (!roomCode || !originalInviterId) {
+      return reply.code(410).send({ error: 'Invalid invitation' });
+    }
+    try {
+      const roomRes = await fetch(`http://game-service:3002/api/rooms/${encodeURIComponent(roomCode)}`);
+      if (!roomRes.ok) {
+        // room missing → cleanup this invite and return expired
+        await fetch('http://database-service:3006/internal/delete', {
+          method: 'POST', headers: { 'Content-Type': 'application/json', 'x-service-auth': 'super_secret_internal_token' },
+          body: JSON.stringify({ table: 'Notifications', filters: { id: parseInt(notificationId), user_id: userId } })
+        }).catch(()=>{});
+        return reply.code(410).send({ error: 'Invitation expired (room closed)' });
       }
-    };
+      const room = await roomRes.json();
+      const players = Array.isArray(room?.room?.players) ? room.room.players : [];
+      const inviterPresent = players.some(p => (
+        p?.userId === originalInviterId ||
+        (inviterUsername && String(p?.username || '').toLowerCase() === inviterUsername)
+      ));
+      if (!inviterPresent) {
+        await fetch('http://database-service:3006/internal/delete', {
+          method: 'POST', headers: { 'Content-Type': 'application/json', 'x-service-auth': 'super_secret_internal_token' },
+          body: JSON.stringify({ table: 'Notifications', filters: { id: parseInt(notificationId), user_id: userId } })
+        }).catch(()=>{});
+        return reply.code(410).send({ error: 'Invitation expired (inviter left)' });
+      }
+    } catch {}
 
-    const deleteRes = await fetch('http://database-service:3006/internal/delete', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-service-auth': 'super_secret_internal_token'
-      },
-      body: JSON.stringify(deletePayload)
+    // Delete ALL other pending invites to avoid double-join
+    await fetch('http://database-service:3006/internal/delete', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'x-service-auth': 'super_secret_internal_token' },
+      body: JSON.stringify({ table: 'Notifications', filters: { user_id: userId, Noti_read: 0, Noti_type: 'game_invite' } })
+    }).catch(()=>{});
+
+    // Delete this notification
+    await fetch('http://database-service:3006/internal/delete', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'x-service-auth': 'super_secret_internal_token' },
+      body: JSON.stringify({ table: 'Notifications', filters: { id: parseInt(notificationId), user_id: userId } })
     });
-
-    if (!deleteRes.ok) {
-      const errorText = await deleteRes.text();
-      console.error('✅ Failed to delete notification:', deleteRes.status, errorText);
-      return reply.code(500).send({ error: 'Failed to accept invitation' });
-    }
 
     // 🔥 NEW: Send notification to original inviter that invitation was accepted
     if (originalInviterId && roomCode) {
@@ -2239,6 +2283,43 @@ fastify.delete('/auth/account', {
       message: 'Internal server error',
       error: error.message
     });
+  }
+});
+
+// Internal endpoint for game-service to notify room closed → cleanup invites by roomCode
+fastify.post('/internal/invites/room-closed', async (request, reply) => {
+  try {
+    const { roomCode } = request.body || {};
+    if (!roomCode) return reply.code(400).send({ error: 'Missing roomCode' });
+
+    // Fetch unread game_invite notifications and delete those with matching roomCode in payload
+    const q = await fetch('http://database-service:3006/internal/query', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'x-service-auth': 'super_secret_internal_token' },
+      body: JSON.stringify({
+        table: 'Notifications',
+        columns: ['id','payload','Noti_read','Noti_type'],
+        filters: { Noti_read: 0, Noti_type: 'game_invite' },
+        limit: 200
+      })
+    });
+    if (!q.ok) return reply.code(500).send({ error: 'Query failed' });
+    const data = await q.json();
+    const toDelete = [];
+    for (const n of data.data || []) {
+      try {
+        const p = JSON.parse(n.payload || '{}');
+        if (p.roomCode === roomCode) toDelete.push(n.id);
+      } catch {}
+    }
+    if (toDelete.length) {
+      await fetch('http://database-service:3006/internal/delete', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'x-service-auth': 'super_secret_internal_token' },
+        body: JSON.stringify({ table: 'Notifications', filters: { id: toDelete } })
+      }).catch(()=>{});
+    }
+    return reply.send({ success: true, removed: toDelete.length });
+  } catch (e) {
+    return reply.code(500).send({ error: 'cleanup failed' });
   }
 });
 
