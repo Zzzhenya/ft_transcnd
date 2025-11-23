@@ -1651,8 +1651,28 @@ fastify.post('/users/:userId/online-status', {
       logger.error('Database update failed:', response.status);
       return reply.code(500).send({ error: 'Failed to update status' });
     }
-
-    return { success: true, message: 'Status updated' };
+      const lastSeenResponse = await fetch('http://database-service:3006/internal/write', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-service-auth': DB_SERVICE_TOKEN
+      },
+      body: JSON.stringify({
+        table: 'Users',
+        id: parseInt(userId),
+        column: 'last_seen',
+        value: new Date().toISOString() // ISO format für SQLite
+      })
+    });
+    
+    if (!lastSeenResponse.ok) {
+      logger.warn('Failed to update last_seen, but is_online was updated');
+    }
+    
+    console.log(`✅ Updated is_online=${is_online} and last_seen for user ${userId}`);
+    logger.info(`✅ Updated is_online=${is_online} and last_seen for user ${userId}`);
+    
+    return { success: true, message: 'Status and last_seen updated' };
 
   } catch (error) {
     logger.error('Error updating status:', error);
@@ -2390,6 +2410,65 @@ const start = async () => {
     process.exit(1);
   }
 };
+
+// Cleanup stale online users every 2 minutes
+setInterval(async () => {
+  try {
+    console.log('🧹 Running cleanup for stale online users...');
+    
+    // Get all online users
+    const response = await fetch('http://database-service:3006/internal/query', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-service-auth': DB_SERVICE_TOKEN
+      },
+      body: JSON.stringify({
+        table: 'Users',
+        columns: ['id', 'last_seen'],
+        filters: { is_online: 1 },
+        limit: 1000
+      })
+    });
+    
+    if (response.ok) {
+      const result = await response.json();
+      const users = result.data || [];
+      const now = new Date();
+      let staleCount = 0;
+      
+      for (const user of users) {
+        const lastSeen = new Date(user.last_seen);
+        const timeDiff = (now - lastSeen) / 1000; // in seconds
+        
+        // If last seen more than 2 minutes ago, mark offline
+        if (timeDiff > 120) {
+          await fetch('http://database-service:3006/internal/write', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-service-auth': DB_SERVICE_TOKEN
+            },
+            body: JSON.stringify({
+              table: 'Users',
+              id: user.id,
+              column: 'is_online',
+              value: 0
+            })
+          });
+          staleCount++;
+          console.log(`🔴 Marked user ${user.id} as offline (last seen ${Math.round(timeDiff)}s ago)`);
+        }
+      }
+      
+      if (staleCount > 0) {
+        console.log(`🧹 Cleanup complete: ${staleCount} stale users marked offline`);
+      }
+    }
+  } catch (error) {
+    console.error('❌ Cleanup error:', error);
+  }
+}, 120000); // Every 2 minutes
 
 start();
 

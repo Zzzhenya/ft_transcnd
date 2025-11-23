@@ -185,17 +185,98 @@ class EfficientOnlineManager {
     });
   }
 
+  // private startHeartbeat() {
+  //   // Send heartbeat every 30 seconds to keep user online
+  //   this.heartbeatInterval = window.setInterval(() => {
+  //     this.registerTab(); // Update tab timestamp
+      
+  //     const user = getAuth();
+  //     if (user) {
+  //       // Update last heartbeat timestamp per user
+  //       const heartbeatKey = `${EfficientOnlineManager.LAST_HEARTBEAT_KEY}_user_${user.id}`;
+  //       localStorage.setItem(heartbeatKey, Date.now().toString());
+  //       console.log('💓 Heartbeat sent for user:', user.username);
+  //     }
+  //   }, EfficientOnlineManager.HEARTBEAT_INTERVAL);
+  // }
+
+  private async sendHeartbeatToBackend() {
+    const user = getAuth();
+    const token = getToken();
+    
+    if (!user || !token) return;
+    
+    try {
+      // WICHTIG: Nutze /online-status statt /status!
+      const response = await fetch(`/api/user-service/users/${user.id}/online-status`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ is_online: 1 })
+      });
+      
+      if (response.ok) {
+        console.log(`💓 Heartbeat sent to backend for user ${user.username} - last_seen updated`);
+      } else {
+        console.warn(`⚠️ Failed to send heartbeat: ${response.status}`);
+      }
+    } catch (error) {
+      console.error('❌ Error sending heartbeat to backend:', error);
+    }
+  }
+
+
   private startHeartbeat() {
+    console.log('🔄 Starting heartbeat interval (30 seconds)');
+    
+    // Initial heartbeat
+    this.sendHeartbeatToBackend();
+    
     // Send heartbeat every 30 seconds to keep user online
-    this.heartbeatInterval = window.setInterval(() => {
-      this.registerTab(); // Update tab timestamp
+    this.heartbeatInterval = window.setInterval(async () => {
+      this.registerTab(); // Update tab timestamp in localStorage
       
       const user = getAuth();
-      if (user) {
-        // Update last heartbeat timestamp per user
+      const token = getToken();
+      
+      if (user && token) {
+        // Update localStorage heartbeat timestamp
         const heartbeatKey = `${EfficientOnlineManager.LAST_HEARTBEAT_KEY}_user_${user.id}`;
         localStorage.setItem(heartbeatKey, Date.now().toString());
-        console.log('💓 Heartbeat sent for user:', user.username);
+        
+        // Send heartbeat to backend to update last_seen in database
+        try {
+          // WICHTIG: /online-status nutzen!
+          const response = await fetch(`/api/user-service/users/${user.id}/online-status`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ is_online: 1 })
+          });
+          
+          if (response.ok) {
+            console.log(`💓 Heartbeat ${new Date().toLocaleTimeString()}: User ${user.username} - last_seen updated`);
+          } else {
+            console.warn(`⚠️ Heartbeat failed: ${response.status}`);
+            
+            // If unauthorized, user might be logged out
+            if (response.status === 401 || response.status === 403) {
+              console.log('🔒 User no longer authenticated, stopping heartbeat');
+              clearInterval(this.heartbeatInterval);
+              this.heartbeatInterval = null;
+            }
+          }
+        } catch (error) {
+          console.error('❌ Heartbeat error:', error);
+        }
+      } else {
+        console.log('⚠️ No user/token, stopping heartbeat');
+        clearInterval(this.heartbeatInterval);
+        this.heartbeatInterval = null;
       }
     }, EfficientOnlineManager.HEARTBEAT_INTERVAL);
   }
@@ -207,7 +288,7 @@ class EfficientOnlineManager {
     if (!user || !token) return;
 
     try {
-      const response = await fetch(`/api/user-service/users/${user.id}/status`, {
+      const response = await fetch(`/api/user-service/users/${user.id}/online-status`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -238,7 +319,7 @@ class EfficientOnlineManager {
       formData.append('is_online', '0');
       formData.append('token', token);
       
-      const beaconUrl = `/api/user-service/users/${user.id}/status`;
+      const beaconUrl = `/api/user-service/users/${user.id}/online-status`;
       const sent = navigator.sendBeacon(beaconUrl, formData);
       
       if (sent) {
@@ -249,7 +330,7 @@ class EfficientOnlineManager {
       // Method 2: Fallback to synchronous XHR
       console.warn('⚠️ Beacon failed, trying XHR');
       const xhr = new XMLHttpRequest();
-      xhr.open('POST', `/api/user-service/users/${user.id}/status`, false);
+      xhr.open('POST', `/api/user-service/users/${user.id}/online-status`, false);
       xhr.setRequestHeader('Content-Type', 'application/json');
       xhr.setRequestHeader('Authorization', `Bearer ${token}`);
       xhr.send(JSON.stringify({ is_online: 0 }));
@@ -382,7 +463,7 @@ export async function reportOnlineOnce(): Promise<void> {
     const token = getToken();
     if (!user || !token) return;
 
-    await fetch(`${GATEWAY_BASE}/user-service/users/${user.id}/status`, {
+    await fetch(`${GATEWAY_BASE}/user-service/users/${user.id}/online-status`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -405,7 +486,7 @@ export async function reportOffline(): Promise<void> {
 
     // Use synchronous XHR for logout to ensure it completes
     const xhr = new XMLHttpRequest();
-    xhr.open('POST', `${GATEWAY_BASE}/user-service/users/${user.id}/status`, false);
+    xhr.open('POST', `${GATEWAY_BASE}/user-service/users/${user.id}/online-status`, false);
     xhr.setRequestHeader('Content-Type', 'application/json');
     xhr.setRequestHeader('Authorization', `Bearer ${token}`);
     xhr.send(JSON.stringify({ is_online: 0 }));
