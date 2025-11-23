@@ -1,4 +1,17 @@
+x-base: &base
+  restart: unless-stopped
+  networks:
+    - transcendence-network
+
 services:
+
+  base:
+    build:
+      context: ./services
+      dockerfile: Dockerfile.base
+    image: mybase/node18:latest
+    entrypoint: ["/bin/true"]
+
   nginx:
     build:
       context: ..
@@ -60,6 +73,7 @@ services:
       start_period: 30s
 
   user-service:
+    <<: *base
     build: ./services/user-service
     # Port NOT exposed - only accessible via gateway
     env_file:
@@ -70,6 +84,7 @@ services:
       - JWT_SECRET=${JWT_SECRET:-your-secret-key-change-in-production}
       - LOG_SERVICE_URL=${LOG_SERVICE_URL:-http://log-service:3003}
     depends_on:
+      - base
       - database
     volumes:
       # - shared-data:/app/shared/database/
@@ -85,6 +100,7 @@ services:
       start_period: 20s
 
   game-service:
+    <<: *base
     build: ./services/game-service
     # Port NOT exposed - only accessible via gateway
     env_file:
@@ -97,6 +113,7 @@ services:
       - GAME_SERVICE_HOST=${GAME_SERVICE_HOST:-localhost}
       - GAME_SERVICE_PORT=${GAME_SERVICE_PORT:-3002}
     depends_on:
+      - base
       - database
     volumes:
       - shared-data:/app/shared/
@@ -110,6 +127,7 @@ services:
       start_period: 20s
 
   log-service:
+    <<: *base
     build: ./services/log-service
     env_file:
       - .env
@@ -117,6 +135,7 @@ services:
       - NODE_ENV=${NODE_ENV:-development}
       - LOGSTASH_URL=${LOGSTASH_URL:-http://logstash:5000}
     depends_on:
+      - base
       - database
     volumes:
       - shared-data:/app/shared/
@@ -278,6 +297,7 @@ services:
     restart: "no"
 
   tournament-service:
+    <<: *base
     build: ./services/tournament-service
     # Port NOT exposed - only accessible via gateway
     env_file:
@@ -291,6 +311,7 @@ services:
       - GAME_SERVICE_HOST=${GAME_SERVICE_HOST:-localhost}
       - GAME_SERVICE_PORT=${GAME_SERVICE_PORT:-3002}
     depends_on:
+      - base
       - database
     volumes:
       - shared-data:/app/shared/

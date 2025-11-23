@@ -1,10 +1,11 @@
 # Base stage with common dependencies
-FROM node:18-alpine AS base
+#FROM node:18-alpine AS base
+FROM mybase/node18:latest AS base
 
 WORKDIR /app
 
 # Install build dependencies for native modules and curl for health checks
-RUN apk add --no-cache python3 make g++ curl wget
+#RUN apk add --no-cache python3 make g++ curl wget
 
 # Copy package files
 COPY package*.json ./

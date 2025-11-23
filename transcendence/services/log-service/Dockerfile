@@ -1,10 +1,11 @@
 # Development stage
-FROM node:18-alpine AS development
+#FROM node:18-alpine AS development
+FROM mybase/node18:latest AS development
 
 WORKDIR /app
 
 # Install wget for health checks
-RUN apk add --no-cache wget
+#RUN apk add --no-cache wget
 
 # Copy package files
 COPY package*.json ./

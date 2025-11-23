@@ -1,0 +1,6 @@
+FROM node:18-alpine AS base
+
+# Shared tools for all Node microservices
+RUN apk add --no-cache python3 make g++ curl wget
+
+WORKDIR /app
