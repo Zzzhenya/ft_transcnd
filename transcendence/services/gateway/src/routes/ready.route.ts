@@ -10,6 +10,7 @@ interface ReadyParams {
 
 export default async function readyRoute(fastify: FastifyInstance) {
   // Accept empty JSON bodies for this route to avoid FST_ERR_CTP_EMPTY_JSON_BODY
+  logger.info(`readyRoute: `)
   const tolerantJson = (req: any, body: string, done: any) => {
     try {
       if (!body || (typeof body === 'string' && body.trim() === '')) return done(null, {});
@@ -23,11 +24,11 @@ export default async function readyRoute(fastify: FastifyInstance) {
 
   fastify.post<{
     Params: ReadyParams
-  }>('/rooms/:roomId/players/:playerId/ready', async (req: FastifyRequest<{ Params: ReadyParams }>, reply: FastifyReply) => {
+  }>('/rooms/:roomId/players/:playerId/ready', { preHandler: fastify.mustAuth }, async (req: FastifyRequest<{ Params: ReadyParams }>, reply: FastifyReply) => {
     const { roomId, playerId } = req.params;
     const upstream = `${GAME_SERVICE_URL}/rooms/${encodeURIComponent(roomId)}/players/${encodeURIComponent(playerId)}/ready`;
     try {
-      logger.info('[[Gateway]] proxy ready -> game-service', { upstream, roomId, playerId });
+      logger.info('readyRoute: proxy ready -> game-service', { upstream, roomId, playerId });
       const res = await fetch(upstream, {
         method: 'POST'
       });
@@ -42,7 +43,7 @@ export default async function readyRoute(fastify: FastifyInstance) {
         return reply.send(text);
       }
     } catch (err: any) {
-      logger.error('[[Gateway]] proxy ready failed', { error: err?.message, upstream });
+      logger.error('readyRoute: proxy ready failed', { error: err?.message, upstream });
       return reply.code(502).send({ error: 'Bad Gateway', detail: 'Failed to contact game-service' });
     }
   });

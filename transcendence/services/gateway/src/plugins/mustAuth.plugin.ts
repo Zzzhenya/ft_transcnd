@@ -5,24 +5,35 @@ import type { User } from "../types/user.d.js";
 import type { preHandlerHookHandler } from 'fastify';
 
 const mustAuthHandler: preHandlerHookHandler = async (request: FastifyRequest , reply: FastifyReply) => {
-  console.log(`⚡ mustAuth started...`)
+  logger.info(`mustAuth started...`)
   const user = request.user as User | undefined;
 
   if (!user || !user.authState) {
+    logger.info(`no user or no user authState`)
     return reply.code(401).send({ error: "Unauthorized", reason: "missing-user-context" });
   }
 
+  logger.info(`check user authState`)
   switch (user.authState) {
     case "valid":
-      if (user.role === "registered") return;
+      logger.info(`valid user`)
+      if (user.role === "registered") {
+        logger.info(`valid user && registered`)
+        return;
+      }
+      logger.info(`valid user && NOT registered`)
       return reply.code(401).send({ error: "Unauthorized", reason: "guest-not-allowed" });
     case "expired":
+      logger.info(`expired token`)
       return reply.code(401).send({ error: "Unauthorized", reason: "token-expired" });
     case "invalid":
+      logger.info(`invalid token`)
       return reply.code(401).send({ error: "Unauthorized", reason: "token-invalid" });
     case "missing":
+      logger.info(`missing token`)
       return reply.code(401).send({ error: "Unauthorized", reason: "token-missing" });
     default:
+      logger.info(`exceptional case`)
       return reply.code(401).send({ error: "Unauthorized", reason: "auth-state-unknown" });
   }
 };

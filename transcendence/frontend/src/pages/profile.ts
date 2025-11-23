@@ -911,6 +911,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
 
   async function addFriend(username: string) {
     if (!user) return;
+    if (username === user.username) return;
     try {
       const token = getToken();
       const res = await fetch(`${GATEWAY_BASE}/user-service/users/${userProfile.id}/friends`, {
@@ -1071,21 +1072,21 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
         ${friends.length > 0 ? friends.map(friend => `
           <div class="flex items-center justify-between p-4 card-violet rounded-lg border">
             <div class="flex items-center gap-3">
-              <div class="w-3 h-3 rounded-full ${friend.status === 'accepted' ? 'bg-green-400' : friend.status === 'pending' ? 'bg-yellow-400' : 'bg-gray-500'}"></div>
+              <div class="w-3 h-3 rounded-full ${friend.friends_status === 'accepted' ? 'bg-green-400' : friend.friends_status === 'pending' ? 'bg-yellow-400' : 'bg-gray-500'}"></div>
               <div>
                 <span class="font-semibold title-yellow">${friend.username || 'Unknown User'}</span>
                 <div class="text-xs text-gray-400">
-                  Status: ${friend.status} • Added: ${new Date(friend.created_at).toLocaleDateString()}
+                  Status: ${friend.friends_status} • Added: ${new Date(friend.created_at).toLocaleDateString()}
                 </div>
               </div>
             </div>
             <div class="text-right">
-              ${friend.status === 'accepted' ? `
+              ${friend.friends_status === 'accepted' ? `
                 <span class="chip chip-green">Friends</span>
-              ` : friend.status === 'pending' ? `
+              ` : friend.friends_status === 'pending' ? `
                 <span class="chip chip-yellow">Pending</span>
               ` : `
-                <span class="chip chip-red">${friend.status}</span>
+                <span class="chip chip-red">${friend.friends_status}</span>
               `}
             </div>
           </div>
@@ -1134,6 +1135,9 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
             Friend Requests
           </h2>
           <span class="text-sm text-gray-300">${friendRequests.length} pending</span>
+          <button id="refresh-requests-btn" class="text-sm link-violet">
+            Refresh
+          </button>
         </div>
         
         <div id="friend-requests-container" class="min-h-[80px]">
@@ -1231,6 +1235,11 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
       root.querySelector<HTMLButtonElement>("#add-friend-btn")?.click();
     }
   });
+
+  root.querySelector<HTMLButtonElement>("#refresh-requests-btn")?.addEventListener("click", () => {
+    loadFriendRequests();
+  });
+
 
   root.querySelector<HTMLButtonElement>("#refresh-friends-btn")?.addEventListener("click", () => {
     loadFriends();
