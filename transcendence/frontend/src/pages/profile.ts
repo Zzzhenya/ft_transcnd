@@ -12,6 +12,28 @@ function readAuthState(): any {
 }
 function writeAuthState(s: any) { sessionStorage.setItem(STORAGE_KEY, JSON.stringify(s)); }
 
+// function updateSessionAuthUser(partialUser: Partial<{ id: string; username: string; email: string; name: string; displayName?: string; alias?: string; role?: string }>, newToken?: string) {
+//   const s = readAuthState();
+//   if (!s.auth) s.auth = { user: null, token: null };
+//   const prev = s.auth.user || {};
+//   const updated = { ...prev, ...partialUser } as any;
+//   // Keep name consistent with display preference
+//   if (updated.display_name && !updated.displayName) {
+//     updated.displayName = updated.display_name;
+//   }
+//   // Prefer display name, then username, as name field used across UI
+//   if (!updated.name) {
+//     updated.name = updated.displayName || updated.display_name || updated.username || prev.name;
+//   } else {
+//     // If name exists but we changed display fields, refresh it
+//     updated.name = updated.displayName || updated.display_name || updated.username || updated.name;
+//   }
+//   s.auth.user = updated;
+//   if (newToken) s.auth.token = newToken;
+//   writeAuthState(s);
+//   window.dispatchEvent(new CustomEvent('auth:changed'));
+// }
+
 function updateSessionAuthUser(partialUser: Partial<{ id: string; username: string; email: string; name: string; displayName?: string; alias?: string; role?: string }>, newToken?: string) {
   const s = readAuthState();
   if (!s.auth) s.auth = { user: null, token: null };
@@ -31,7 +53,11 @@ function updateSessionAuthUser(partialUser: Partial<{ id: string; username: stri
   s.auth.user = updated;
   if (newToken) s.auth.token = newToken;
   writeAuthState(s);
-  window.dispatchEvent(new CustomEvent('auth:changed'));
+  
+  // NUR bei echtem Token-Wechsel (Login/Logout/Token-Refresh)
+  if (newToken) {
+    window.dispatchEvent(new CustomEvent('auth:changed'));
+  }
 }
 
 export default function (root: HTMLElement, ctx?: { url?: URL }) {
