@@ -1158,13 +1158,13 @@ async function loadFriends() {
 
 // ==================
 
-function renderFriendsSection() {
-  const friendsContainer = root.querySelector('#friends-container');
-  if (!friendsContainer) return;
+  function renderFriendsSection() {
+    const friendsContainer = root.querySelector('#friends-container');
+    if (!friendsContainer) return;
 
-  friendsContainer.innerHTML = `
-    <div class="space-y-3">
-      ${friends.length > 0 ? friends.map(friend => {
+    friendsContainer.innerHTML = `
+      <div class="space-y-3">
+        ${friends.length > 0 ? friends.map(friend => {
         // Für accepted friends: zeige online/offline
         // Für andere: zeige nur den Status
         let badge = '';
@@ -1202,25 +1202,28 @@ function renderFriendsSection() {
           </div>
         `;
       }).join('') : `
-        <div class="text-center py-8 text-gray-400">
-          <div class="mb-3 opacity-50 flex justify-center">
-            <img src="/icons/people.png" class="icon-px icon-px--violet" alt="No friends" style="width: 64px; height: 64px;">
+          <div class="text-center py-8 text-gray-400">
+            <div class="mb-3 opacity-50 flex justify-center">
+              <img src="/icons/people.png" class="icon-px icon-px--violet" alt="No friends">
+            </div>
+            <p class="font-semibold text-lg">No friends yet</p>
+            <p class="text-sm">Add some friends to play together!</p>
           </div>
-          <p class="font-semibold text-lg text-gray-200">No friends yet</p>
-          <p class="text-sm">Add some friends to play together!</p>
-        </div>
-      `}
-    </div>
-  `;
-}
+        `}
+      </div>
+    `;
+  }
 
   root.innerHTML = `
     <section class="py-6 md:py-8 lg:py-10 space-y-6">
       <div class="flex items-center justify-between">
-        <h1 class="text-2xl sm:text-3xl lg:text-4xl font-bold">👤 Profile</h1>
+        <h1 class="text-2xl sm:text-3xl lg:text-4xl font-bold title-yellow flex items-center gap-2">
+          <img src="/icons/profile.png" class="icon-px icon-px--yellow" alt="Profile">
+          Profile
+        </h1>
         <div class="flex gap-2">
           <button id="delete-account-btn" class="px-4 py-2 rounded-lg bg-red-800 hover:bg-red-900 text-white font-semibold transition-colors">
-            🗑️ Delete Account
+            Delete Account
           </button>
           <button id="logout" class="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white font-semibold transition-colors">
             Sign Out
@@ -1229,16 +1232,15 @@ function renderFriendsSection() {
       </div>
 
       <!-- User Info Section -->
-      <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
+      <div class="card-violet rounded-lg p-6 mb-8">
         <div id="user-info-container">
           <!-- User info will be loaded here -->
         </div>
       </div>
 
       <!-- Friend Requests Section -->
-      <div class="bg-white rounded-lg border border-gray-200 p-6 shadow-sm mb-6">
+      <div class="card-violet rounded-lg border p-6 shadow-sm mb-6">
         <div class="flex items-center justify-between mb-4">
-
           <h2 class="text-xl title-violet flex items-center gap-2">
             <img src="/icons/message.png" class="icon-px icon-px--violet" alt="Friend Requests">
             Friend Requests
@@ -1247,7 +1249,6 @@ function renderFriendsSection() {
           <button id="refresh-requests-btn" class="text-sm link-violet">
             Refresh
           </button>
-
         </div>
         
         <div id="friend-requests-container" class="min-h-[80px]">
@@ -1258,55 +1259,53 @@ function renderFriendsSection() {
       </div>
 
       <!-- Friends Management Section -->
-      <div class="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
+      <div class="card-violet rounded-lg border p-6 shadow-sm">
         <div class="flex items-center justify-between mb-4">
-          <h2 class="text-xl font-bold text-gray-800">👥 Friends Management</h2>
-          <button id="refresh-friends-btn" class="text-sm text-blue-600 hover:text-blue-800 font-semibold">
-            🔄 Refresh
+          <h2 class="text-xl title-violet flex items-center gap-2">
+            <img src="/icons/people.png" class="icon-px icon-px--violet" alt="Friends Management">
+            Friends Management
+          </h2>
+          <button id="refresh-friends-btn" class="text-sm link-violet">
+             Refresh
           </button>
         </div>
         
         <!-- Add Friend Form -->
-        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-          <h3 class="font-semibold mb-3 text-blue-800">➕ Add New Friend</h3>
+        <div class="card-violet rounded-lg p-4 mb-6 border">
+          <h3 class="mb-3"> Add New Friend</h3>
           <div class="flex gap-3">
             <input id="friend-username-input" type="text" 
-                   class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" 
+                   class="flex-1 px-3 py-2 input-violet rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-purple-600 outline-none" 
                    placeholder="Enter friend's username" />
-            <button id="add-friend-btn" class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors">
+            <button id="add-friend-btn" class="px-6 py-2 btn-retro rounded-lg transition-colors">
               Add Friend
             </button>
           </div>
-          <p class="text-xs text-gray-600 mt-2">
-            💡 Enter the exact username of the player you want to add as a friend.
+          <p class="text-xs text-gray-300 mt-2">
+             Enter the exact username of the player you want to add as a friend.
           </p>
         </div>
         
         <!-- Friends List -->
         <div>
-          <h3 class="font-semibold mb-3 text-gray-800">Your Friends (${friends.length})</h3>
+          <h3 class="mb-3 text-gray-200">Your Friends (${friends.length})</h3>
           <div id="friends-container" class="min-h-[100px]">
-            <div class="text-center py-4 text-gray-500">
+            <div class="text-center py-4 text-gray-400">
               Loading friends...
             </div>
           </div>
         </div>
       </div>
-
       <!-- Navigation Section -->
       <div class="flex flex-wrap gap-3">
-        <button id="dashboard-btn" class="px-6 py-3 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-semibold transition-colors">
-          📊 Dashboard
-        </button>
-        <a href="/" class="px-6 py-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold transition-colors">
-          🏠 Go to Lobby
+        <button id="dashboard-btn" class="btn-retro px-8 py-3 rounded-full text-white flex items-center gap-2"><img class="icon-px icon-px--violet" src="/icons/dashboard.png" alt="Dashboard" /> Dashboard</button>
+        <a href="/" class="btn-retro px-8 py-3 rounded-full text-white flex items-center gap-2"><img class="icon-px icon-px--violet" src="/icons/lobby.png" alt="Lobby" /> 
+          Go to Lobby
         </a>
-        <a href="/remote" class="px-6 py-3 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-semibold transition-colors">
-          🌐 Remote Play
+        <a href="/remote" class="btn-retro px-8 py-3 rounded-full text-white flex items-center gap-2"><img class="icon-px icon-px--violet" src="/icons/rocket.png" alt="Remote" /> 
+          Remote Play
         </a>
-        <button id="backBtn" class="px-6 py-3 rounded-lg bg-gray-500 hover:bg-gray-600 text-white font-semibold transition-colors">
-          🏆 Tournament Lobby
-        </button>
+        <button id="backBtn" class="btn-retro px-8 py-3 rounded-full text-white flex items-center gap-2"><img class="icon-px icon-px--violet" src="/icons/trophy.png" alt="Tournaments" /> Tournament Lobby</button>
       </div>
     </section>
   `;

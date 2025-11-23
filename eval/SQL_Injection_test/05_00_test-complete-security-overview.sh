@@ -56,7 +56,7 @@ test_endpoint "/auth/logout"
 test_endpoint "/user"
 test_endpoint "/users/me"
 test_endpoint "/game/create"
-# test_endpoint "/tournament"
+test_endpoint "/tournament"
 
 
 echo ""
@@ -70,7 +70,7 @@ echo "────────────────────────�
 test_endpoint "/api/auth/login"
 test_endpoint "/api/auth/register"
 test_endpoint "/api/auth/logout"
-# test_endpoint "/api/tournaments"
+test_endpoint "/api/tournaments"
 test_endpoint "/api/stats"
 test_endpoint "/api/users"
 test_endpoint "/api/users/1"
@@ -105,9 +105,9 @@ analyze_json() {
     if echo "$response" | grep -qi "token.*:.*\"ey"; then
       echo -e "${YELLOW}⚠️  Enthält Tokens${NC}"
     fi
-    # if echo "$response" | grep -q "^\[\]$\|\"tournaments\":\[\]\|\"users\":\[\]"; then
-    #   echo -e "${GREEN}✅ Leere Liste (OK)${NC}"
-    # fi
+    if echo "$response" | grep -q "^\[\]$\|\"tournaments\":\[\]\|\"users\":\[\]"; then
+      echo -e "${GREEN}✅ Leere Liste (OK)${NC}"
+    fi
     if echo "$response" | grep -qi "success.*true\|stats"; then
       echo -e "${GREEN}✅ Nur Statistiken (OK)${NC}"
     fi
