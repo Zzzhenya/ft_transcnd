@@ -48,8 +48,10 @@ export function broadcastState(gameId, games) {
     config: GAME_CONFIG, // Include game configuration (paddle size, ball speed, etc.)
     winner_id: game.winner_id || null,
     final_score: game.final_score || null,
-    player1_totalScore: game.state.totalScore.player1 || 0,
-    player2_totalScore: game.state.totalScore.player2 || 0,
+    // player1_totalScore: game.state.totalScore.player1 || 0,
+    // player2_totalScore: game.state.totalScore.player2 || 0,
+    player1_totalScore: game.state.score.player1 || 0,
+    player2_totalScore: game.state.score.player2 || 0,
     // Provide timestamps (camelCase) from the game object
     createdAt: game.createdAt || null,
     startedAt: game.startedAt || null,
