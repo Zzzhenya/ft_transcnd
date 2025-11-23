@@ -163,8 +163,23 @@ fastify.post('/auth/register', async (request, reply) => {
       token: result.token
     });
 
-  } catch (error) {
+} catch (error) {
     console.error('Registration error:', error);
+    
+    // Validierungsfehler → 400 Bad Request
+    if (error.message && (
+        error.message.includes('Username must be') ||
+        error.message.includes('Username can only contain') ||
+        error.message.includes('Invalid email format') ||
+        error.message.includes('contains invalid characters')
+    )) {
+      return reply.code(400).send({
+        success: false,
+        message: error.message
+      });
+    }
+    
+    // Already exists → 409 Conflict
     if (error.message.includes('already')) {
       logger.warn('User already exists:', request.body.username);
       return reply.code(409).send({
@@ -1841,7 +1856,8 @@ fastify.get('/tournaments/:tournamentId/matches', {
         table: 'Tournament_Matches',
         columns: [
           'id', 'tournament_id', 'round', 'match_number',
-          'player1_id', 'player2_id', 'winner_id', 'loser_id',
+          'player1_id', 'player2_id', 'winner_id', 
+          'player1_alias', 'player2_alias',
           'player1_score', 'player2_score', 'matches_status',
           'started_at', 'finished_at'
         ],

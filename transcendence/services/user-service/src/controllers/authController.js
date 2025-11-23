@@ -60,11 +60,23 @@ const register = async (req, res) => {
     });
   } catch (error) {
     console.error('Registration error:', error);
-    if (error.message === 'Benutzername wird bereits verwendet' || 
-        error.message === 'E-Mail wird bereits verwendet') {
+    if (error.message && (
+        error.message.includes('Username must be') ||
+        error.message.includes('Username can only contain') ||
+        error.message.includes('Invalid email format') ||
+        error.message.includes('contains invalid characters')
+    )) {
+      return res.status(400).json({ message: error.message });
+    }
+    
+    // Email/Username existiert schon → 409 Conflict
+    if (error.message === 'Email already registered' || 
+        error.message === 'Username already taken') {
       return res.status(409).json({ message: error.message });
     }
-    res.status(500).json({ message: 'Serverfehler', error: error.message });
+    
+    // Alles andere → 500
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
 
