@@ -1,7 +1,5 @@
-/**
- * WebSocket Module - Handles real-time game communication
- * Supports game types: normal, tournament
- */
+
+// transcendence/services/game-service/src/websocket/websocket.js
 
 import { movePaddle, restartGame, startGame, startGameLoop, moveBall } from '../pong/gameLogic.js';
 import logger from '../utils/logger.js';
@@ -12,14 +10,8 @@ import logger from '../utils/logger.js';
  * @param {Map} games - Games storage map
  * @param {Function} broadcastState - Function to broadcast game state
  */
-
-
 export function registerWebSocketRoutes(fastify, games, broadcastState) {
-  
-  /**
-   * WebSocket route per game - handles all game types
-   * GET /ws/pong/game-ws/:gameId (WebSocket upgrade)
-   */
+
   fastify.get('/ws/pong/game-ws/:gameId', { websocket: true }, (connection, request) => {
     const gameId = parseInt(request.params.gameId, 10);
     const game = games.get(gameId);
@@ -33,85 +25,70 @@ export function registerWebSocketRoutes(fastify, games, broadcastState) {
     }
 
     const ws = connection.socket;
-
     const gameState = game.state;
     const clients = game.clients;
     clients.add(ws);
-    logger.info(`[WS] Client added to WebSocket connection for game ${gameId}`);
-    // Determine game type for logging
-    let gameTypeLabel = 'NORMAL';
-    if (game.gameType === 'tournament') {
-      gameTypeLabel = 'TOURNAMENT';
-    }
 
-    logger.info(
-      `[WS] Client connected to ${gameTypeLabel} game ${gameId} (${game.player1_name} vs ${game.player2_name}). Total clients: ${clients.size}`
-    );
+    logger.info(`[WS] Client connected to game ${gameId} (${game.player1_name} vs ${game.player2_name}). Total clients: ${clients.size}`);
 
-    // Send initial state to the new client
+    // Send initial state
     ws.send(createInitialStateMessage(game, gameId));
 
-    ws.on('message', (rawMessage) => {
-  try {
-    const message = JSON.parse(rawMessage.toString());
+    const remoteAddress = request?.socket?.remoteAddress || 'unknown';
 
-    // === QUICK PING HANDLER ===
-    if (message && message.type === 'ping') {
-      // Only reply if socket is open
-      if (ws.readyState === 1) {
+    ws.on('message', (rawMessage) => {
+      try {
+        // quick log (not too verbose)
+        logger.debug && logger.debug(`[WS] Raw message from ${remoteAddress} game ${gameId}: ${rawMessage.toString()}`);
+
+        const message = JSON.parse(rawMessage.toString());
+
+        // === QUICK PING HANDLER ===
+        if (message && message.type === 'ping') {
+          // reply with pong (echo ts if provided)
+          if (ws.readyState === 1) {
+            try {
+              ws.send(JSON.stringify({
+                type: 'pong',
+                ts: typeof message.ts !== 'undefined' ? message.ts : Date.now(),
+                serverTime: Date.now()
+              }));
+            } catch (err) {
+              logger.debug && logger.debug(`[WS] Failed to send pong for game ${gameId}: ${err && err.message}`);
+            }
+          }
+          return;
+        }
+        // ==========================
+
+        // Delegate other message types
+        handleWebSocketMessage(message, gameState, gameId, broadcastState, games, ws);
+      } catch (error) {
+        logger.error(`[WS] Message parse error in game ${gameId}:`, { error: error.message, stack: error.stack });
         try {
-          // If client provided ts, echo it back; include serverTime for debugging/clock info
-          ws.send(JSON.stringify({
-            type: 'pong',
-            ts: typeof message.ts !== 'undefined' ? message.ts : Date.now(),
-            serverTime: Date.now()
-          }));
-        } catch (err) {
-          // log but don't crash; avoid super-verbose logging for every ping
-          logger.debug && logger.debug(`[WS] Failed to send pong for game ${gameId}: ${err && err.message}`);
+          if (ws.readyState === 1) {
+            ws.send(JSON.stringify({
+              type: 'ERROR',
+              message: 'Invalid message format'
+            }));
+          }
+        } catch (e) {
+          logger.debug && logger.debug(`[WS] Failed to send error message in game ${gameId}: ${e && e.message}`);
         }
       }
-      // We handled it — no need to pass to the main message handler
-      return;
-    }
-    // ==========================
+    });
 
-    // Delegate other message types to the main handler
-    handleWebSocketMessage(message, gameState, gameId, broadcastState, games);
-
-  } catch (error) {
-    logger.error(`[WS] Message parse error in game ${gameId}:`, { error: error.message, stack: error.stack });
-    // reply with an error to the sender if socket still open
-    try {
-      if (ws.readyState === 1) {
-        ws.send(JSON.stringify({
-          type: 'ERROR',
-          message: 'Invalid message format'
-        }));
-      }
-    } catch (e) {
-      logger.debug && logger.debug(`[WS] Failed to send error message in game ${gameId}: ${e && e.message}`);
-    }
-  }
-});
-
-
-    // Handle client disconnection
     ws.on('close', (code, reason) => {
       clients.delete(ws);
-      logger.info(
-        `[WS] Client disconnected from ${gameTypeLabel} game ${gameId}. Remaining: ${clients.size}. Code: ${code}, Reason: ${reason}`
-      );
-      
-      // Game continues running even if no clients are connected
+      logger.info(`[WS] Client disconnected from game ${gameId}. Remaining: ${clients.size}. Code: ${code}, Reason: ${reason}`);
+
       if (clients.size === 0) {
         logger.info(`[WS] No clients remaining in game ${gameId}, game continues running`);
       }
     });
 
-    // Handle WebSocket errors
     ws.on('error', (error) => {
-      logger.error(`[WS] Socket error in ${gameTypeLabel} game ${gameId}:`, { error: error.message, stack: error.stack });
+      logger.error(`[WS] Socket error in game ${gameId}:`, { error: error.message, stack: error.stack });
       clients.delete(ws);
     });
   });
@@ -119,12 +96,8 @@ export function registerWebSocketRoutes(fastify, games, broadcastState) {
 
 /**
  * Creates the initial state message for new WebSocket connections
- * @param {Object} game - The game object
- * @param {number} gameId - The game ID
- * @returns {string} JSON string of the initial state
  */
 function createInitialStateMessage(game, gameId) {
-  // Create a clean game state without circular references (intervals)
   const cleanGameState = {
     score: game.state.score,
     ball: game.state.ball,
@@ -140,12 +113,8 @@ function createInitialStateMessage(game, gameId) {
       lastPointWinner: game.state.tournament.lastPointWinner,
       nextRoundCountdown: game.state.tournament.nextRoundCountdown,
       nextRoundNumber: game.state.tournament.nextRoundNumber
-      // Exclude countdownInterval - it's not serializable
     }
-    // Exclude gameLoopInterval - it's not serializable
   };
-
-  logger.debug(`[WS] Initial state for game ${gameId}:`, cleanGameState);
 
   return JSON.stringify({
     type: 'STATE_UPDATE',
@@ -163,7 +132,6 @@ function createInitialStateMessage(game, gameId) {
     round: game.round || null,
     matchNumber: game.matchNumber || null,
     gameState: cleanGameState,
-    // timestamps
     createdAt: game.createdAt || null,
     startedAt: game.startedAt || null,
     completedAt: game.completedAt || null
@@ -171,14 +139,9 @@ function createInitialStateMessage(game, gameId) {
 }
 
 /**
- * Handles WebSocket messages based on message type
- * @param {Object} message - Parsed WebSocket message
- * @param {Object} gameState - Current game state
- * @param {number} gameId - Game ID for broadcasting
- * @param {Function} broadcastState - Function to broadcast state
- * @param {Map} games - Games storage map
+ * Main message dispatcher for a game websocket
  */
-function handleWebSocketMessage(message, gameState, gameId, broadcastState, games) {
+function handleWebSocketMessage(message, gameState, gameId, broadcastState, games, ws) {
   const game = games.get(gameId);
 
   switch (message.type) {
@@ -187,12 +150,14 @@ function handleWebSocketMessage(message, gameState, gameId, broadcastState, game
         movePaddle(gameState, message.player, message.direction);
         broadcastState(gameId);
       } else {
-        console.warn(`[WS] Invalid MOVE_PADDLE message in game ${gameId}:`, message);
+        logger.warn(`[WS] Invalid MOVE_PADDLE message in game ${gameId}:`, message);
       }
       break;
 
     case 'PLAYER_READY':
+      // call handler and *log using message fields* (no undefined variables)
       handlePlayerReady(message, game, gameId, broadcastState);
+      logger.info(`[WS] PLAYER_READY handled for game ${gameId}: player=${message.player ?? null}, player_id=${message.player_id ?? null}, status=${game?.status ?? 'N/A'}`);
       break;
 
     case 'RESTART_GAME':
@@ -202,109 +167,53 @@ function handleWebSocketMessage(message, gameState, gameId, broadcastState, game
       break;
 
     case 'START_GAME':
-       if (gameState.tournament.gameStatus !== 'playing') {
-          startGame(gameState);
+      if (gameState.tournament.gameStatus !== 'playing') {
+        startGame(gameState);
       }
 
-      //startGame(gameState);
-
-      // Restart game loop if it was cleared (e.g., after restart)
       if (game && !gameState.gameLoopInterval) {
         logger.info(`[WS] Restarting game loop for game ${gameId}`);
         const getClientCount = () => game.clients.size;
         const newLoop = startGameLoop(gameState, () => broadcastState(gameId), moveBall, getClientCount);
         gameState.gameLoopInterval = newLoop;
-        game.loop = newLoop; // Also update the game object
+        game.loop = newLoop;
       }
-      
+
       broadcastState(gameId);
       logger.info(`[WS] Game ${gameId} started`);
       break;
-    
+
     case 'health_check':
-      // Respond to health check messages
       logger.debug(`[WS] Health check received in game ${gameId}`);
       break;
 
     case 'stats':
       broadcastState(gameId);
-      // I don't know what to do here but there is no function named getStats()
-      // getStats(gameState);
       break;
 
-    case 'ping':
-    // Echo back a pong with same timestamp for client RTT calc
-      client.send(JSON.stringify({ type: 'pong', ts: message.ts ?? Date.now() }));
-    break;
-
-
     default:
-      console.warn(`[WS] Unknown message type in game ${gameId}: ${message.type}`);
+      // server-side quick ping fallback
+      if (message && message.type === 'ping') {
+        try {
+          ws.send(JSON.stringify({ type: 'pong', ts: message.ts ?? Date.now() }));
+        } catch (e) { /* ignore */ }
+        break;
+      }
+      logger.warn(`[WS] Unknown message type in game ${gameId}: ${message.type}`);
   }
 }
 
 /**
- * Handle player ready messages for multiplayer lobby system
- * @param {Object} message - The PLAYER_READY message
- * @param {Object} game - The game object
- * @param {number} gameId - Game ID
- * @param {Function} broadcastState - Broadcast function
-//  */
-// function handlePlayerReady(message, game, gameId, broadcastState) {
-//   const { player_id } = message;
-
-//   if (!game || game.isDemo) {
-//     console.warn(`[WS] PLAYER_READY message ignored for demo game ${gameId}`);
-//     return;
-//   }
-
-//   if (game.status !== 'ready') {
-//     console.warn(`[WS] PLAYER_READY message ignored, game ${gameId} status: ${game.status}`);
-//     broadcastToGame(game, {
-//       type: 'ERROR',
-//       message: `Game is not ready for players to ready up. Status: ${game.status}`
-//     });
-//     return;
-//   }
-
-//   // Check if this player belongs to the game
-//   let playerSlot = null;
-//   if (game.player1_id === parseInt(player_id)) {
-//     playerSlot = 'player1';
-//   } else if (game.player2_id === parseInt(player_id)) {
-//     playerSlot = 'player2';
-//   } else {
-//     console.warn(`[WS] PLAYER_READY from unknown player ${player_id} in game ${gameId}`);
-//     return;
-//   }
-
-//   // Mark player as ready
-//   game.playersReady[playerSlot] = true;
-//   logger.info(`[WS] Player ${playerSlot} (${player_id}) is ready in game ${gameId}`);
-
-//   // Broadcast player ready status
-//   broadcastToGame(game, {
-//     type: 'PLAYER_READY_UPDATE',
-//     gameId,
-//     playerSlot,
-//     playersReady: game.playersReady,
-//     message: `${game[playerSlot + '_name']} is ready!`
-//   });
-
-//   // Check if both players are ready
-//   if (game.playersReady.player1 && game.playersReady.player2) {
-//     logger.info(`[WS] Both players ready in game ${gameId}, starting countdown`);
-//     game.status = 'starting';
-    
-//     // Start countdown
-//     startGameCountdown(game, gameId, broadcastState);
-//   }
-// }
+ * Handle PLAYER_READY messages
+ * Supports:
+ *   - { player: "player1" } / { player: "player2" }  (remote clients)
+ *   - { player_id: 123 } (legacy clients)
+ */
 function handlePlayerReady(message, game, gameId, broadcastState) {
-  const { player_id, player } = message; // player is expected to be "player1" or "player2"
+  const { player_id, player } = message;
 
   if (!game || game.isDemo) {
-    console.warn(`[WS] PLAYER_READY message ignored for demo game ${gameId}`);
+    logger.warn(`[WS] PLAYER_READY ignored for demo/invalid game ${gameId}`);
     return;
   }
 
@@ -313,7 +222,7 @@ function handlePlayerReady(message, game, gameId, broadcastState) {
   }
 
   if (game.status !== 'ready') {
-    console.warn(`[WS] PLAYER_READY message ignored, game ${gameId} status: ${game.status}`);
+    logger.warn(`[WS] PLAYER_READY ignored, game ${gameId} status: ${game.status}`);
     broadcastToGame(game, {
       type: 'ERROR',
       message: `Game is not ready for players to ready up. Status: ${game.status}`
@@ -321,66 +230,52 @@ function handlePlayerReady(message, game, gameId, broadcastState) {
     return;
   }
 
-  // Decide which slot this message belongs to
+  // find slot
   let playerSlot = null;
 
-  // 1) Prefer explicit slot from client (remote mode)
   if (player === 'player1' || player === 'player2') {
     playerSlot = player;
-  } else if (player_id != null) {
-    // 2) Fallback: map numeric player_id (for existing single-game clients)
+  } else if (typeof player_id !== 'undefined') {
     const pid = parseInt(player_id, 10);
-    if (Number.isNaN(pid)) {
-      console.warn(`[WS] PLAYER_READY with invalid player_id "${player_id}" in game ${gameId}`);
-      return;
+    if (!Number.isNaN(pid)) {
+      if (game.player1_id === pid) playerSlot = 'player1';
+      else if (game.player2_id === pid) playerSlot = 'player2';
     }
+  }
 
-    if (game.player1_id === pid) {
-      playerSlot = 'player1';
-    } else if (game.player2_id === pid) {
-      playerSlot = 'player2';
-    } else {
-      console.warn(`[WS] PLAYER_READY from unknown player_id ${player_id} in game ${gameId}`);
-      return;
-    }
-  } else {
-    console.warn(`[WS] PLAYER_READY without player or player_id in game ${gameId}`);
+  if (!playerSlot) {
+    logger.warn(`[WS] PLAYER_READY with unknown player info in game ${gameId}`, { player, player_id });
     return;
   }
 
-  // Mark player as ready
+  // mark ready
   game.playersReady[playerSlot] = true;
-  logger.info(`[WS] Player ${playerSlot} (${player_id ?? 'no-id'}) is ready in game ${gameId}`);
 
-  // Broadcast player ready status
+  logger.info(`[WS] Player ${playerSlot} marked ready in game ${gameId}. playersReady=${JSON.stringify(game.playersReady)}`);
+
   broadcastToGame(game, {
     type: 'PLAYER_READY_UPDATE',
     gameId,
     playerSlot,
     playersReady: game.playersReady,
-    message: `${game[playerSlot + '_name']} is ready!`
+    // be defensive with name — stringify to avoid "2 is ready!"
+    message: `${String(game[`${playerSlot}_name`] ?? playerSlot)} is ready!`
   });
 
-  // Check if both players are ready
+  // both ready → start countdown
   if (game.playersReady.player1 && game.playersReady.player2) {
     logger.info(`[WS] Both players ready in game ${gameId}, starting countdown`);
     game.status = 'starting';
-
-    // Start countdown (existing logic)
     startGameCountdown(game, gameId, broadcastState);
   }
 }
 
 /**
  * Start a countdown before the game begins
- * @param {Object} game - The game object
- * @param {number} gameId - Game ID
- * @param {Function} broadcastState - Broadcast function
  */
 function startGameCountdown(game, gameId, broadcastState) {
   let countdown = 3;
-  
-  // Broadcast countdown start
+
   broadcastToGame(game, {
     type: 'GAME_START_COUNTDOWN',
     gameId,
@@ -390,7 +285,7 @@ function startGameCountdown(game, gameId, broadcastState) {
 
   const countdownInterval = setInterval(() => {
     countdown--;
-    
+
     if (countdown > 0) {
       broadcastToGame(game, {
         type: 'GAME_START_COUNTDOWN',
@@ -399,42 +294,40 @@ function startGameCountdown(game, gameId, broadcastState) {
         message: `Game starting in ${countdown}...`
       });
     } else {
-      // Start the game
       clearInterval(countdownInterval);
       game.status = 'active';
       game.startedAt = new Date();
-      
-      // Reset game state
+
+      // Reset game state and start engine
       startGame(game.state);
-      
-      // Broadcast game start
+
+      // Broadcast game started
       broadcastToGame(game, {
         type: 'GAME_STARTED',
         gameId,
         message: 'Game has started! Good luck!'
       });
-      
-      // Broadcast initial game state
+
+      // Broadcast initial state
       broadcastState(gameId);
-      
+
       logger.info(`[WS] Game ${gameId} started!`);
     }
   }, 1000);
 
-  // Store interval for cleanup
   game.countdownInterval = countdownInterval;
 }
 
 /**
- * Broadcast a message to all clients in a game
- * @param {Object} game - The game object
- * @param {Object} message - Message to broadcast
+ * Helper — broadcast a plain object to every client
  */
 function broadcastToGame(game, message) {
   const messageStr = JSON.stringify(message);
   for (const client of game.clients) {
-    if (client.readyState === 1) { // WebSocket.OPEN
-      client.send(messageStr);
+    try {
+      if (client.readyState === 1) client.send(messageStr);
+    } catch (err) {
+      logger.warn(`[WS] Error sending to client in game: ${err && err.message}`);
     }
   }
 }
