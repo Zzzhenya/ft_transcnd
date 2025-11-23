@@ -109,6 +109,14 @@ const gameRoute: FastifyPluginAsync = async (fastify) => {
   //     return reply.code(500).send({ success: false, error: 'Failed to get stats' })
   //   }
   // })
+
+  // inside src/routes/game.route.ts (add near other routes)
+fastify.post('/remote/match/finish', async (request, reply) => {
+  return proxyRequest(fastify, request, reply, `${GAME_SERVICE_URL}/remote/match/finish`, 'POST');
+});
+
 }
+
+
 
 export default gameRoute
