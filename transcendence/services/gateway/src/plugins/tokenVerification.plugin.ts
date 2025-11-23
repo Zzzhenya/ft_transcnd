@@ -5,36 +5,39 @@ import type { FastifyPluginAsync, FastifyReply, FastifyRequest, preHandlerHookHa
 import logger from '../utils/logger.js'; // log-service
 import type { User } from '../types/user.d.js';
 
-// interface User {
-//   id: string | number | null;
-//   username: string | null;
-//   role: 'registered' | 'guest';
-//   isGuest?: boolean;
-//   jwt: string | null;
-//   authState: 'valid' | 'expired' | 'missing' | 'invalid';
-// }
+/* note: for the shape of User object
+interface User {
+  id: string | number | null;
+  username: string | null;
+  role: 'registered' | 'guest';
+  isGuest?: boolean;
+  jwt: string | null;
+  authState: 'valid' | 'expired' | 'missing' | 'invalid';
+}
+
+This decorator decorates the request with user object -> it does not throw errors 
+but it tags errors in the user object in order for the mustAuth prehandler in
+strictly authorized routes to pick up.
+
+*/
 
 const tokenVerificationPlugin: FastifyPluginAsync = async (fastify) => {
   fastify.decorate('verifyAuth', async (request: FastifyRequest & { user?: User }, reply: FastifyReply) => {
-//   const verifyAuth: preHandlerHookHandler = async function (
-//   request: FastifyRequest & { user?: User },
-//   reply: FastifyReply
-// ) {
     try {
-      console.log(`🐞 Verify auth started...`);
-      logger.info(`1. Extract x-token`);
+      fastify.log.info(`verifyAuth: Vefify auth started...`)
+      logger.info(`verifyAuth: Vefify auth started...`);
+      logger.info(`verifyAuth: 1. Extract x-token`);
       const jwtToken = request.headers['x-token'] as string | undefined;
 
       if (jwtToken && jwtToken.trim() !== '') {
-        console.log(`🐞 token exists`);
-        logger.info(`2. Verifying jwtToken`);
+        logger.info(`verifyAuth: 2. Verifying jwtToken`);
         const decoded = await request.jwtVerify<{ userId: string; username: string; isGuest?: boolean }>();
-        logger.info(`3. Verification successful.`);
-        console.log(`USER:🐞🐞🐞 ${decoded}`)
+        logger.info(`verifyAuth: 3. Verification successful.`);
 
         // Determine if this is a guest or registered user from token
         if (decoded.isGuest) {
           // Returning Guest Valid
+          logger.info(`verifyAuth: Registed valid user - Guest user`);
           request.user = {
             id: decoded.userId,
             username: `guest_${decoded.userId}`,
@@ -45,6 +48,7 @@ const tokenVerificationPlugin: FastifyPluginAsync = async (fastify) => {
           };
         } else {
           // Registered Valid
+          logger.info(`verifyAuth: Registed valid user - Auth user`);
           request.user = {
             id: decoded.userId,
             username: decoded.username,
@@ -54,8 +58,6 @@ const tokenVerificationPlugin: FastifyPluginAsync = async (fastify) => {
             authState: 'valid'
           };
         }
-
-        console.log(`🌟Profile: ${request.user.id}, ${request.user.username}, ${request.user.role}, ${request.user.isGuest}, ${request.user.jwt}`);
         return;
       }
 
@@ -63,6 +65,7 @@ const tokenVerificationPlugin: FastifyPluginAsync = async (fastify) => {
       const sessionId = request.headers['x-session-id'] as string | undefined;
       if (sessionId && sessionId.trim() !== '') {
         // New Guest (temporary)
+        logger.info(`verifyAuth: sessionId id exists - Guest`);
         request.user = {
           id: sessionId,
           username: null,
@@ -71,12 +74,11 @@ const tokenVerificationPlugin: FastifyPluginAsync = async (fastify) => {
           jwt: null,
           authState: 'valid'
         };
-        console.log(`🌟Profile (new guest): ${request.user.id}, ${request.user.username}, ${request.user.role}, ${request.user.isGuest}, ${request.user.jwt}`);
         return;
       }
 
       // No token or sessionId → Registered Missing
-      console.log(`Token and sessionId are missing`);
+      logger.info(`verifyAuth: Token and sessionId are missing - Something went wrong/ anAuthorized user`);
       request.user = {
         id: null,
         username: null,
@@ -88,12 +90,13 @@ const tokenVerificationPlugin: FastifyPluginAsync = async (fastify) => {
       return;
 
     } catch (error: any) {
-      logger.error(`An error occurred while verifying token: ${error}`);
+      logger.error(`verifyAuth: An error occurred while verifying token: ${error}`);
 
       const expired = error.name === 'TokenExpiredError' || error.code === 'FST_JWT_AUTHORIZATION_TOKEN_EXPIRED';
 
       if (expired) {
         // Expired token
+        logger.info(`verifyAuth: Expired token`);
         request.user = {
           id: null,
           username: null,
@@ -104,6 +107,7 @@ const tokenVerificationPlugin: FastifyPluginAsync = async (fastify) => {
         };
       } else {
         // Invalid token
+        logger.info(`verifyAuth: Invalid token`);
         request.user = {
           id: null,
           username: null,

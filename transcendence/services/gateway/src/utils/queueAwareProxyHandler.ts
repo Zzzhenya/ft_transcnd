@@ -45,7 +45,7 @@ async function getQueueStatus(fastify: FastifyInstance): Promise<QueueStatus | n
       return lastQueueStatus;
     }
   } catch (error) {
-    logger.warn('[[Gateway]] Failed to get queue status:', error);
+    logger.warn('Gateway failed to get queue status:', error);
   }
 
   return null;
@@ -67,7 +67,7 @@ function calculateDynamicTimeout(queueStatus: QueueStatus | null): number {
   // Cap at maximum timeout
   const finalTimeout = Math.min(calculatedTimeout, MAX_TIMEOUT);
   
-  logger.info(`[[Gateway]] Dynamic timeout calculated: ${finalTimeout}ms (base: ${BASE_TIMEOUT}ms, queue: ${queue.size}/${queue.maxSize}, utilization: ${queue.utilization.toFixed(1)}%)`);
+  logger.info(`Dynamic timeout calculated: ${finalTimeout}ms (base: ${BASE_TIMEOUT}ms, queue: ${queue.size}/${queue.maxSize}, utilization: ${queue.utilization.toFixed(1)}%)`);
   
   return finalTimeout;
 }
@@ -95,7 +95,7 @@ export async function queueAwareProxyRequest(
 
       // If queue is too full, reject early
       if (queueStatus && queueStatus.queue.utilization > 90) {
-        logger.warn(`[[Gateway]] Queue utilization too high: ${queueStatus.queue.utilization}%, rejecting request`);
+        logger.warn(`Queue utilization too high: ${queueStatus.queue.utilization}%, rejecting request`);
         return reply.code(503).send({ 
           error: 'Service Unavailable',
           message: 'Database service is currently overloaded. Please try again later.' 
@@ -103,7 +103,7 @@ export async function queueAwareProxyRequest(
       }
     }
 
-    logger.info(`[[Gateway]] Gateway received ${method} request for ${upstreamUrl} (timeout: ${dynamicTimeout}ms)`);
+    logger.info(`Gateway received ${method} request for ${upstreamUrl} (timeout: ${dynamicTimeout}ms)`);
     fastify.log.info(`Gateway received ${method} request for ${upstreamUrl} (timeout: ${dynamicTimeout}ms)`);
 
     const response = await request.customFetch(
@@ -122,19 +122,19 @@ export async function queueAwareProxyRequest(
     );
 
     if (!response.ok) {
-      fastify.log.warn(`[[Gateway]] Upstream returned non-OK response`);
-      logger.warn(`[[Gateway]] Upstream returned non-OK response`);
+      fastify.log.warn(`Upstream returned non-OK response`);
+      logger.warn(`Upstream returned non-OK response`);
       
       const body = await response.text().catch(() => '');
 
       if (response.status >= 400 && response.status < 500) {
-        logger.warn(`[[Gateway]] ${upstreamUrl || ''} error : ${response.status} :  ${body}`);
+        logger.warn(`${upstreamUrl || ''} error : ${response.status} :  ${body}`);
         return reply.code(response.status).send({
           error: 'Upstream Error',
           message: `Upstream ${upstreamUrl || ''} error: ${body}`
         });
       } else if (response.status >= 500) {
-        logger.warn(`[[Gateway]] ${upstreamUrl || ''} error : ${response.status} :  ${body}`);
+        logger.warn(`${upstreamUrl || ''} error : ${response.status} :  ${body}`);
         return reply.code(502).send({
           error: 'Bad Gateway',
           message: `Upstream ${upstreamUrl || ''} service error`
@@ -147,11 +147,11 @@ export async function queueAwareProxyRequest(
 
   } catch (error: any) {
     fastify.log.error(error);
-    logger.error(`[[Gateway]] ${method} request for ${upstreamUrl} failed`, error);
+    logger.error(`Gateway ${method} request for ${upstreamUrl} failed`, error);
     
     if (error instanceof Error && error.name === 'AbortError') {
-      fastify.log.error('[[Gateway]] Upstream request timed out');
-      logger.error(`[[Gateway]] Upstream request to ${upstreamUrl || ''} timed out after ${dynamicTimeout}ms`);
+      fastify.log.error('Upstream request timed out');
+      logger.error(`Upstream request to ${upstreamUrl || ''} timed out after ${dynamicTimeout}ms`);
       
       // Include queue status in timeout error for debugging
       const timeoutDetails = queueStatus ? 
@@ -165,7 +165,7 @@ export async function queueAwareProxyRequest(
     }
     
     if (error.cause?.code === 'ECONNREFUSED'){
-      logger.error(`[[Gateway]] Upstream request to ${upstreamUrl || ''} failed, ${error} : ${error.cause?.code}`);
+      logger.error(`Upstream request to ${upstreamUrl || ''} failed, ${error} : ${error.cause?.code}`);
       return reply.code(503).send({
         error: 'Service Unavailable',
         message: `The upstream service ${upstreamUrl || ''} is currently unavailable.`
@@ -173,7 +173,7 @@ export async function queueAwareProxyRequest(
     }
     
     if (error.statusCode >= 400 && error.statusCode < 500){
-      logger.error(`[[Gateway]] ${error}`);
+      logger.error(`Gateway ${error}`);
       return reply.code(error.statusCode).send({
         error: 'Client Error',
         message: error.message

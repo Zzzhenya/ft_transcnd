@@ -12,6 +12,8 @@ interface GameParams {
 
 const pongGameRoute: FastifyPluginAsync = async (fastify) => {
 
+  logger.info(`pongGameRoute: `)
+
   fastify.post('/', async (request, reply) => {
     return proxyRequest(fastify, request, reply, `${GAME_SERVICE_URL}/pong/game`, 'POST');
   });
@@ -26,11 +28,11 @@ const pongGameRoute: FastifyPluginAsync = async (fastify) => {
     {
       var gameIdStr = request.params.gameId;
       gameId = parseInt(gameIdStr.replace(/[^0-9]/g, ''),10); 
-      logger.info(`[[Gateway]] Gateway received GET request for /pong/game/${gameId}`)
-      fastify.log.info(`[[Gateway]] Gateway received GET request for /pong/game/${gameId}`)
+      logger.info(`pongGameRoute: Gateway received GET request for /pong/game/${gameId}`)
+      fastify.log.info(`pongGameRoute: Gateway received GET request for /pong/game/${gameId}`)
     } else {
-      logger.info(`[[Gateway]] 400 :Bad Request at /pong/game/:gameId :Required request parameter is missing`)
-      fastify.log.info(`[[Gateway]] 400 :Bad Request at /pong/game/:gameId :Required request parameter is missing`)
+      logger.info(`pongGameRoute: 400 :Bad Request at /pong/game/:gameId :Required request parameter is missing`)
+      fastify.log.info(`4pongGameRoute: 400 :Bad Request at /pong/game/:gameId :Required request parameter is missing`)
       // throw 400 Bad Request
       throw fastify.httpErrors.badRequest('Missing required parameter: id');
     }
@@ -43,11 +45,11 @@ const pongGameRoute: FastifyPluginAsync = async (fastify) => {
     {
       var gameIdStr = request.params.gameId;
       gameId = parseInt(gameIdStr.replace(/[^0-9]/g, ''),10); 
-      logger.info(`[[Gateway]] Gateway received POST request for /pong/game/${gameId}/join`)
-      fastify.log.info(`[[Gateway]] Gateway received POST request for /pong/game/${gameId}/join`)
+      logger.info(`pongGameRoute: Gateway received POST request for /pong/game/${gameId}/join`)
+      fastify.log.info(`pongGameRoute: Gateway received POST request for /pong/game/${gameId}/join`)
     } else {
-      logger.info(`[[Gateway]] 400 :Bad Request at /pong/game/:gameId/join :Required request parameter is missing`)
-      fastify.log.info(`[[Gateway]] 400 :Bad Request at /pong/game/:gameId/join :Required request parameter is missing`)
+      logger.info(`pongGameRoute: 400 :Bad Request at /pong/game/:gameId/join :Required request parameter is missing`)
+      fastify.log.info(`pongGameRoute: 400 :Bad Request at /pong/game/:gameId/join :Required request parameter is missing`)
       // throw 400 Bad Request
       throw fastify.httpErrors.badRequest('Missing required parameter: id');
     }
@@ -61,11 +63,11 @@ const pongGameRoute: FastifyPluginAsync = async (fastify) => {
     {
       var gameIdStr = request.params.gameId;
       gameId = parseInt(gameIdStr.replace(/[^0-9]/g, ''),10); 
-      logger.info(`[[Gateway]] Gateway received POST request for /pong/game/${gameId}/move`)
-      fastify.log.info(`[[Gateway]] Gateway received POST request for /pong/game/${gameId}/move`)
+      logger.info(`pongGameRoute: Gateway received POST request for /pong/game/${gameId}/move`)
+      fastify.log.info(`pongGameRoute: Gateway received POST request for /pong/game/${gameId}/move`)
     } else {
-      logger.info(`[[Gateway]] 400 :Bad Request at /pong/game/:gameId/move :Required request parameter is missing`)
-      fastify.log.info(`[[Gateway]] 400 :Bad Request at /pong/game/:gameId/move :Required request parameter is missing`)
+      logger.info(`pongGameRoute: 400 :Bad Request at /pong/game/:gameId/move :Required request parameter is missing`)
+      fastify.log.info(`pongGameRoute: 400 :Bad Request at /pong/game/:gameId/move :Required request parameter is missing`)
       // throw 400 Bad Request
       throw fastify.httpErrors.badRequest('Missing required parameter: id');
     }
@@ -79,11 +81,11 @@ const pongGameRoute: FastifyPluginAsync = async (fastify) => {
     {
       var gameIdStr = request.params.gameId;
       gameId = parseInt(gameIdStr.replace(/[^0-9]/g, ''),10); 
-      logger.info(`[[Gateway]] Gateway received PUT request for /pong/game/${gameId}/result`)
-      fastify.log.info(`[[Gateway]] Gateway received PUT request for /pong/game/${gameId}/result`)
+      logger.info(`pongGameRoute: Gateway received PUT request for /pong/game/${gameId}/result`)
+      fastify.log.info(`pongGameRoute: Gateway received PUT request for /pong/game/${gameId}/result`)
     } else {
-      logger.info(`[[Gateway]] 400 :Bad Request at /pong/game/:gameId/result :Required request parameter is missing`)
-      fastify.log.info(`[[Gateway]] 400 :Bad Request at /pong/game/:gameId/result :Required request parameter is missing`)
+      logger.info(`pongGameRoute: 400 :Bad Request at /pong/game/:gameId/result :Required request parameter is missing`)
+      fastify.log.info(`pongGameRoute: 400 :Bad Request at /pong/game/:gameId/result :Required request parameter is missing`)
       // throw 400 Bad Request
       throw fastify.httpErrors.badRequest('Missing required parameter: id');
     }

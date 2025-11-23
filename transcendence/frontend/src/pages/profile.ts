@@ -961,6 +961,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
 
   async function addFriend(username: string) {
     if (!user) return;
+    if (username === user.username) return;
     try {
       const token = getToken();
       const res = await fetch(`${GATEWAY_BASE}/user-service/users/${userProfile.id}/friends`, {
@@ -1237,8 +1238,16 @@ function renderFriendsSection() {
       <!-- Friend Requests Section -->
       <div class="bg-white rounded-lg border border-gray-200 p-6 shadow-sm mb-6">
         <div class="flex items-center justify-between mb-4">
-          <h2 class="text-xl font-bold text-gray-800">📨 Friend Requests</h2>
-          <span class="text-sm text-gray-500">${friendRequests.length} pending</span>
+
+          <h2 class="text-xl title-violet flex items-center gap-2">
+            <img src="/icons/message.png" class="icon-px icon-px--violet" alt="Friend Requests">
+            Friend Requests
+          </h2>
+          <span class="text-sm text-gray-300">${friendRequests.length} pending</span>
+          <button id="refresh-requests-btn" class="text-sm link-violet">
+            Refresh
+          </button>
+
         </div>
         
         <div id="friend-requests-container" class="min-h-[80px]">
@@ -1338,6 +1347,11 @@ function renderFriendsSection() {
       root.querySelector<HTMLButtonElement>("#add-friend-btn")?.click();
     }
   });
+
+  root.querySelector<HTMLButtonElement>("#refresh-requests-btn")?.addEventListener("click", () => {
+    loadFriendRequests();
+  });
+
 
   root.querySelector<HTMLButtonElement>("#refresh-friends-btn")?.addEventListener("click", () => {
     loadFriends();

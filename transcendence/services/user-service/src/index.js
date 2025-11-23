@@ -7,6 +7,7 @@ const logger = require('./utils/logger');
 const PORT = parseInt(process.env.USER_SERVICE_PORT || process.env.PORT || '3001');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-this';
+const DB_SERVICE_TOKEN = process.env.DB_SERVICE_TOKEN || 'super_secret_internal_token';
 const fs = require('fs').promises;
 const path = require('path');
 
@@ -580,7 +581,7 @@ fastify.get('/users/online', async (request, reply) => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-service-auth': 'super_secret_internal_token'
+        'x-service-auth': DB_SERVICE_TOKEN
       },
       body: JSON.stringify({
         table: 'Users',
@@ -617,7 +618,7 @@ fastify.get('/users/:userId', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-service-auth': 'super_secret_internal_token'
+        'x-service-auth': DB_SERVICE_TOKEN
       },
       body: JSON.stringify({
         table: 'Users',
@@ -667,7 +668,7 @@ fastify.get('/users/:userId/friends', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-service-auth': 'super_secret_internal_token'
+        'x-service-auth': DB_SERVICE_TOKEN
       },
       body: JSON.stringify({
         table: 'Friends',
@@ -696,7 +697,7 @@ fastify.get('/users/:userId/friends', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'x-service-auth': 'super_secret_internal_token'
+            'x-service-auth': DB_SERVICE_TOKEN
           },
           body: JSON.stringify({
             table: 'Users',
@@ -777,7 +778,7 @@ fastify.post('/users/:userId/invite', {
     // Prevent multiple simultaneous pending invites for same recipient
     const existingRes = await fetch('http://database-service:3006/internal/query', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-service-auth': 'super_secret_internal_token' },
+      headers: { 'Content-Type': 'application/json', 'x-service-auth': DB_SERVICE_TOKEN },
       body: JSON.stringify({
         table: 'Notifications',
         columns: ['id','payload','created_at'],
@@ -795,7 +796,7 @@ fastify.post('/users/:userId/invite', {
       }
       if (toDelete.length) {
         await fetch('http://database-service:3006/internal/delete', {
-          method: 'POST', headers: { 'Content-Type': 'application/json', 'x-service-auth': 'super_secret_internal_token' },
+          method: 'POST', headers: { 'Content-Type': 'application/json', 'x-service-auth': DB_SERVICE_TOKEN },
           body: JSON.stringify({ table: 'Notifications', filters: { id: toDelete } })
         }).catch(()=>{});
       }
@@ -829,7 +830,10 @@ fastify.post('/users/:userId/invite', {
     };
     const writeRes = await fetch('http://database-service:3006/internal/users', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-service-auth': 'super_secret_internal_token' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-service-auth': DB_SERVICE_TOKEN
+      },
       body: JSON.stringify(writePayload)
     });
     if (!writeRes.ok) {
@@ -881,7 +885,7 @@ fastify.get('/users/:userId/notifications', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-service-auth': 'super_secret_internal_token'
+        'x-service-auth': DB_SERVICE_TOKEN
       },
       body: JSON.stringify(queryPayload)
     });
@@ -936,7 +940,7 @@ fastify.get('/notifications/unread', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-service-auth': 'super_secret_internal_token'
+        'x-service-auth': DB_SERVICE_TOKEN
       },
       body: JSON.stringify(queryPayload)
     });
@@ -1029,7 +1033,7 @@ fastify.post('/notifications/:notificationId/accept', {
       filters: { id: parseInt(notificationId), user_id: userId }
     };
     const queryRes = await fetch('http://database-service:3006/internal/query', {
-      method: 'POST', headers: { 'Content-Type': 'application/json', 'x-service-auth': 'super_secret_internal_token' },
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'x-service-auth': DB_SERVICE_TOKEN },
       body: JSON.stringify(queryPayload)
     });
     if (!queryRes.ok) return reply.code(500).send({ error: 'Failed to verify notification' });
@@ -1051,7 +1055,7 @@ fastify.post('/notifications/:notificationId/accept', {
     if (!notExpired) {
       // delete stale invite
       await fetch('http://database-service:3006/internal/delete', {
-        method: 'POST', headers: { 'Content-Type': 'application/json', 'x-service-auth': 'super_secret_internal_token' },
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'x-service-auth': DB_SERVICE_TOKEN },
         body: JSON.stringify({ table: 'Notifications', filters: { id: parseInt(notificationId), user_id: userId } })
       }).catch(()=>{});
       return reply.code(410).send({ error: 'Invitation expired' });
@@ -1066,7 +1070,7 @@ fastify.post('/notifications/:notificationId/accept', {
       if (!roomRes.ok) {
         // room missing → cleanup this invite and return expired
         await fetch('http://database-service:3006/internal/delete', {
-          method: 'POST', headers: { 'Content-Type': 'application/json', 'x-service-auth': 'super_secret_internal_token' },
+          method: 'POST', headers: { 'Content-Type': 'application/json', 'x-service-auth': DB_SERVICE_TOKEN },
           body: JSON.stringify({ table: 'Notifications', filters: { id: parseInt(notificationId), user_id: userId } })
         }).catch(()=>{});
         return reply.code(410).send({ error: 'Invitation expired (room closed)' });
@@ -1079,7 +1083,7 @@ fastify.post('/notifications/:notificationId/accept', {
       ));
       if (!inviterPresent) {
         await fetch('http://database-service:3006/internal/delete', {
-          method: 'POST', headers: { 'Content-Type': 'application/json', 'x-service-auth': 'super_secret_internal_token' },
+          method: 'POST', headers: { 'Content-Type': 'application/json', 'x-service-auth': DB_SERVICE_TOKEN },
           body: JSON.stringify({ table: 'Notifications', filters: { id: parseInt(notificationId), user_id: userId } })
         }).catch(()=>{});
         return reply.code(410).send({ error: 'Invitation expired (inviter left)' });
@@ -1088,13 +1092,13 @@ fastify.post('/notifications/:notificationId/accept', {
 
     // Delete ALL other pending invites to avoid double-join
     await fetch('http://database-service:3006/internal/delete', {
-      method: 'POST', headers: { 'Content-Type': 'application/json', 'x-service-auth': 'super_secret_internal_token' },
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'x-service-auth': DB_SERVICE_TOKEN },
       body: JSON.stringify({ table: 'Notifications', filters: { user_id: userId, Noti_read: 0, Noti_type: 'game_invite' } })
     }).catch(()=>{});
 
     // Delete this notification
     await fetch('http://database-service:3006/internal/delete', {
-      method: 'POST', headers: { 'Content-Type': 'application/json', 'x-service-auth': 'super_secret_internal_token' },
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'x-service-auth': DB_SERVICE_TOKEN },
       body: JSON.stringify({ table: 'Notifications', filters: { id: parseInt(notificationId), user_id: userId } })
     });
 
@@ -1130,7 +1134,7 @@ fastify.post('/notifications/:notificationId/accept', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-service-auth': 'super_secret_internal_token'
+          'x-service-auth': DB_SERVICE_TOKEN
         },
         body: JSON.stringify(writePayload)
       });
@@ -1193,7 +1197,7 @@ fastify.post('/notifications/:notificationId/decline', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-service-auth': 'super_secret_internal_token'
+        'x-service-auth': DB_SERVICE_TOKEN
       },
       body: JSON.stringify(queryPayload)
     });
@@ -1239,7 +1243,7 @@ fastify.post('/notifications/:notificationId/decline', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-service-auth': 'super_secret_internal_token'
+        'x-service-auth': DB_SERVICE_TOKEN
       },
       body: JSON.stringify(deletePayload)
     });
@@ -1283,7 +1287,7 @@ fastify.post('/notifications/:notificationId/decline', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-service-auth': 'super_secret_internal_token'
+          'x-service-auth': DB_SERVICE_TOKEN
         },
         body: JSON.stringify(writePayload)
       });
@@ -1360,7 +1364,7 @@ fastify.get('/users/:userId/friend-requests', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-service-auth': 'super_secret_internal_token'
+        'x-service-auth': DB_SERVICE_TOKEN
       },
       body: JSON.stringify({
         table: 'Friends',
@@ -1439,7 +1443,7 @@ fastify.post('/users/:userId/friends', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-service-auth': 'super_secret_internal_token'
+        'x-service-auth': DB_SERVICE_TOKEN
       },
       body: JSON.stringify({
         table: 'Friends',
@@ -1504,7 +1508,7 @@ fastify.put('/users/:userId/friend-requests/:requesterId', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-service-auth': 'super_secret_internal_token'
+        'x-service-auth': DB_SERVICE_TOKEN
       },
       body: JSON.stringify({
         table: 'Friends',
@@ -1533,7 +1537,7 @@ fastify.put('/users/:userId/friend-requests/:requesterId', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-service-auth': 'super_secret_internal_token'
+        'x-service-auth': DB_SERVICE_TOKEN
       },
       body: JSON.stringify({
         table: 'Friends',
@@ -1561,7 +1565,7 @@ fastify.put('/users/:userId/friend-requests/:requesterId', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-service-auth': 'super_secret_internal_token'
+          'x-service-auth': DB_SERVICE_TOKEN
         },
         body: JSON.stringify({
           table: 'Friends',
@@ -1633,7 +1637,7 @@ fastify.post('/users/:userId/online-status', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-service-auth': 'super_secret_internal_token'
+        'x-service-auth': DB_SERVICE_TOKEN
       },
       body: JSON.stringify({
         table: 'Users',
@@ -1693,7 +1697,7 @@ fastify.get('/users/:userId/remote-matches', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-service-auth': 'super_secret_internal_token'
+        'x-service-auth': DB_SERVICE_TOKEN
       },
       body: JSON.stringify({
         table: 'Remote_Match',
@@ -1780,7 +1784,7 @@ fastify.get('/users/:userId/tournaments', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-service-auth': 'super_secret_internal_token'
+        'x-service-auth': DB_SERVICE_TOKEN
       },
       body: JSON.stringify({
         table: 'Tournament_Players',
@@ -1831,7 +1835,7 @@ fastify.get('/tournaments/:tournamentId/matches', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-service-auth': 'super_secret_internal_token'
+        'x-service-auth': DB_SERVICE_TOKEN
       },
       body: JSON.stringify({
         table: 'Tournament_Matches',
@@ -1956,7 +1960,7 @@ fastify.put('/users/:userId/update-email', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-service-auth': 'super_secret_internal_token'
+        'x-service-auth': DB_SERVICE_TOKEN
       },
       body: JSON.stringify({
         table: 'Users',
@@ -2009,7 +2013,7 @@ fastify.put('/users/:userId/display-name', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-service-auth': 'super_secret_internal_token'
+        'x-service-auth': DB_SERVICE_TOKEN
       },
       body: JSON.stringify({
         table: 'Users',
@@ -2085,7 +2089,7 @@ fastify.put('/users/:userId/username', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-service-auth': 'super_secret_internal_token'
+        'x-service-auth': DB_SERVICE_TOKEN
       },
       body: JSON.stringify({
         table: 'Users',
@@ -2165,7 +2169,7 @@ fastify.post('/users/:userId/avatar', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-service-auth': 'super_secret_internal_token'
+        'x-service-auth': DB_SERVICE_TOKEN
       },
       body: JSON.stringify({
         table: 'Users',
@@ -2254,7 +2258,7 @@ fastify.delete('/auth/account', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-service-auth': 'super_secret_internal_token'
+        'x-service-auth': DB_SERVICE_TOKEN
       },
       body: JSON.stringify({
         table: 'Users',
@@ -2277,7 +2281,7 @@ fastify.delete('/auth/account', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-service-auth': 'super_secret_internal_token'
+        'x-service-auth': DB_SERVICE_TOKEN
       },
       body: JSON.stringify({
         table: 'Users',
@@ -2300,7 +2304,7 @@ fastify.delete('/auth/account', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-service-auth': 'super_secret_internal_token'
+        'x-service-auth': DB_SERVICE_TOKEN
       },
       body: JSON.stringify({
         table: 'Users',
@@ -2351,7 +2355,7 @@ fastify.post('/internal/invites/room-closed', async (request, reply) => {
 
     // Fetch unread game_invite notifications and delete those with matching roomCode in payload
     const q = await fetch('http://database-service:3006/internal/query', {
-      method: 'POST', headers: { 'Content-Type': 'application/json', 'x-service-auth': 'super_secret_internal_token' },
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'x-service-auth': DB_SERVICE_TOKEN },
       body: JSON.stringify({
         table: 'Notifications',
         columns: ['id','payload','Noti_read','Noti_type'],
@@ -2370,7 +2374,7 @@ fastify.post('/internal/invites/room-closed', async (request, reply) => {
     }
     if (toDelete.length) {
       await fetch('http://database-service:3006/internal/delete', {
-        method: 'POST', headers: { 'Content-Type': 'application/json', 'x-service-auth': 'super_secret_internal_token' },
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'x-service-auth': DB_SERVICE_TOKEN },
         body: JSON.stringify({ table: 'Notifications', filters: { id: toDelete } })
       }).catch(()=>{});
     }

@@ -15,11 +15,6 @@ declare module 'fastify' {
       request: FastifyRequest,
       reply: any): Promise<void>;
     
-    // mustAuth(
-    //   request: FastifyRequest & { user?: User },
-    //   reply: FastifyReply
-    // ): Promise<void>;
-    // verifyAuth: preHandlerHookHandler;
     mustAuth: preHandlerHookHandler;
     
   };

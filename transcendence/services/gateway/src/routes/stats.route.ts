@@ -7,7 +7,8 @@ const GAME_SERVICE_URL = process.env.GAME_SERVICE_URL || 'http://game-service:30
 
 const statsRoutes: FastifyPluginAsync = async (fastify) => {
 
-	fastify.get('/user-service/stats', async (request, reply) => {
+	logger.info(`statsRoutes: `)
+	fastify.get('/user-service/stats', { preHandler: fastify.mustAuth }, async (request, reply) => {
 		return proxyRequest(fastify, request, reply, `${GAME_SERVICE_URL}/stats`, 'GET');
 	});
 

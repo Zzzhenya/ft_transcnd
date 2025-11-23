@@ -19,7 +19,6 @@ export function createBackendSocket(url: string): Promise<WebSocket> {
   return new Promise((resolve, reject) => {
     const ws = new WebSocket(url)
 
-    console.log(ws)
     ws.onopen = () =>
     {
       console.log('WebSocket Open')
@@ -34,23 +33,17 @@ export function createBackendSocket(url: string): Promise<WebSocket> {
 }
 
 export function forwardMessages (
-  clientSocket: WebSocket, // why make it any type
+  clientSocket: WebSocket, 
   backendSocket: WebSocket
   ) {
 
   console.log('Setting up message forwarding...');
-  // fastify.log.info('Client socket type:', typeof clientSocket);
-  // fastify.log.info('Client socket keys:', Object.keys(clientSocket || {}));
-
-
   // Forward from client -> backend
   clientSocket.on('message', (msg) => {
     if (backendSocket.readyState === WebSocket.OPEN) {
       try {
         const parsed = JSON.parse(msg.toString()); // Ensure text
         backendSocket.send(JSON.stringify(parsed)); // Force stringified JSON
-        // backendSocket.send(JSON.stringify(msg)); // Force stringified JSON
-        // console.log(msg)
       } catch (err) {
         console.error('Invalid JSON from client:', err);
       }
@@ -64,10 +57,6 @@ export function forwardMessages (
         // not necessary to parse but doing all the same
         const parsed = JSON.parse(msg.toString()); // Ensure text
         clientSocket.send(JSON.stringify(parsed)); // Force stringified JSON
-        // clientSocket.send(JSON.stringify(msg)); // Force stringified JSON
-        // console.log(msg)
-        // console.log(msg)
-        // clientSocket.send(msg)
       } catch (err) {
         console.error('Invalid JSON from game-service:', msg);
       }
