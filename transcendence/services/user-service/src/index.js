@@ -1854,13 +1854,9 @@ fastify.get('/tournaments/:tournamentId/matches', {
       },
       body: JSON.stringify({
         table: 'Tournament_Matches',
-        columns: [
-          'id', 'tournament_id', 'round', 'match_number',
-          'player1_id', 'player2_id', 'winner_id', 
-          'player1_alias', 'player2_alias',
-          'player1_score', 'player2_score', 'matches_status',
-          'started_at', 'finished_at'
-        ],
+        columns: ["id","tournament_id","round","match_number","player1_id","player2_id",
+          "winner_id","player1_alias","player2_alias","player1_score","player2_score",
+          "matches_status","created_at","finished_at"],
         filters: { tournament_id: parseInt(tournamentId) },
         orderBy: { column: 'round', direction: 'ASC' },
         limit: 100
@@ -1878,38 +1874,74 @@ fastify.get('/tournaments/:tournamentId/matches', {
     console.log(`✅ Found ${matches.length} matches for tournament ${tournamentId}`);
 
     // Enrich matches with player usernames
-    const enrichedMatches = await Promise.all(
-      matches.map(async (match) => {
-        const player1 = await User.findById(match.player1_id);
-        const player2 = await User.findById(match.player2_id);
-        const winner = match.winner_id ? await User.findById(match.winner_id) : null;
+    // const enrichedMatches = await Promise.all(
+    //   matches.map(async (match) => {
+    //     const player1 = await User.findById(match.player1_id);
+    //     const player2 = await User.findById(match.player2_id);
+    //     const winner = match.winner_id ? await User.findById(match.winner_id) : null;
 
-        return {
-          id: match.id,
-          round: match.round,
-          matchNumber: match.match_number,
-          player1: {
-            id: match.player1_id,
-            name: player1?.display_name || player1?.username || 'Unknown'
-          },
-          player2: {
-            id: match.player2_id,
-            name: player2?.display_name || player2?.username || 'Unknown'
-          },
-          winner: winner ? {
-            id: match.winner_id,
-            name: winner.display_name || winner.username
-          } : null,
-          score: {
-            player1: match.player1_score,
-            player2: match.player2_score
-          },
-          status: match.matches_status,
-          startedAt: match.started_at,
-          finishedAt: match.finished_at
-        };
-      })
-    );
+    //     return {
+    //       id: match.id,
+    //       round: match.round,
+    //       matchNumber: match.match_number,
+    //       player1: {
+    //         id: match.player1_id,
+    //         name: player1?.display_name || player1?.username || 'Unknown'
+    //       },
+    //       player2: {
+    //         id: match.player2_id,
+    //         name: player2?.display_name || player2?.username || 'Unknown'
+    //       },
+    //       winner: winner ? {
+    //         id: match.winner_id,
+    //         name: winner.display_name || winner.username
+    //       } : null,
+    //       score: {
+    //         player1: match.player1_score,
+    //         player2: match.player2_score
+    //       },
+    //       status: match.matches_status,
+    //       startedAt: match.started_at,
+    //       finishedAt: match.finished_at
+    //     };
+    //   })
+    // );
+
+    const enrichedMatches = matches.map((match) => {
+      let winnerAlias = null;
+      if (match.winner_id) {
+        if (match.winner_id === match.player1_id) {
+          winnerAlias = match.player1_alias;
+        } else if (match.winner_id === match.player2_id) {
+          winnerAlias = match.player2_alias;
+        }
+      }
+
+      return {
+        id: match.id,
+        round: match.round,
+        matchNumber: match.match_number,
+        player1: {
+          id: match.player1_id,
+          alias: match.player1_alias
+        },
+        player2: {
+          id: match.player2_id,
+          alias: match.player2_alias
+        },
+        winner: match.winner_id ? {
+          id: match.winner_id,
+          alias: winnerAlias
+        } : null,
+        score: {
+          player1: match.player1_score,
+          player2: match.player2_score
+        },
+        status: match.matches_status,
+        createdAt: match.created_at,
+        finishedAt: match.finished_at
+      };
+    });
 
     return {
       success: true,
