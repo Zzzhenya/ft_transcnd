@@ -1655,7 +1655,7 @@ fastify.post('/users/:userId/online-status', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-service-auth': 'super_secret_internal_token'
+        'x-service-auth': DB_SERVICE_TOKEN
       },
       body: JSON.stringify({
         table: 'Users',
@@ -2421,7 +2421,7 @@ setInterval(async () => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-service-auth': 'super_secret_internal_token'
+        'x-service-auth': DB_SERVICE_TOKEN
       },
       body: JSON.stringify({
         table: 'Users',
@@ -2447,7 +2447,7 @@ setInterval(async () => {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              'x-service-auth': 'super_secret_internal_token'
+              'x-service-auth': DB_SERVICE_TOKEN
             },
             body: JSON.stringify({
               table: 'Users',

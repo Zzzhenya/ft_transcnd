@@ -15,6 +15,6 @@ export function sanitizeInput(input: string): string {
   if (!input) return '';
   // Remove any HTML tags
   const stripped = input.replace(/<[^>]*>/g, '');
-  // Escape remaining special characters
+ // Escape remaining special characters
   return escapeHtml(stripped);
 }
