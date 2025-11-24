@@ -58,11 +58,11 @@ export default function (root: HTMLElement) {
 
 	  <div id="hudCtrlP1"
         class="pointer-events-none fixed left-5 bottom-6 text-sm text-gray-400 z-10">
-        Player 1 (W/S)
+        Player 1 (A/D)
       </div>
       <div id="hudCtrlP2"
         class="pointer-events-none fixed right-5 bottom-6 text-sm text-gray-400 z-10 text-right">
-        Player 2 (↑/↓)
+        Player 2 (←/→)
       </div>
 
       <div class="pointer-events-auto fixed bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-3">
