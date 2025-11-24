@@ -10,7 +10,8 @@
  * - Per-user tab tracking (supports multiple users in different tabs)
  */
 
-import { getAuth, getToken } from '../app/auth';
+// import { getAuth, getToken } from '../app/auth';
+import { getAuth } from '../app/auth';
 import type { PublicUser } from '../../../shared/types';
 
 interface CachedFriendStatus {
@@ -202,16 +203,17 @@ class EfficientOnlineManager {
 
   private async setUserOnline(isOnline: boolean) {
     const user = getAuth();
-    const token = getToken();
+    // const token = getToken();
     
-    if (!user || !token) return;
+    // if (!user || !token) return;
+    if (!user) return;
 
     try {
       const response = await fetch(`/api/user-service/users/${user.id}/status`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          // 'Authorization': `Bearer ${token}`
         },
         credentials: 'include',
         body: JSON.stringify({ is_online: isOnline ? 1 : 0 })
@@ -229,9 +231,10 @@ class EfficientOnlineManager {
 
   private setUserOfflineSync() {
     const user = getAuth();
-    const token = getToken();
+    // const token = getToken();
     
-    if (!user || !token) return;
+    // if (!user || !token) return;
+    if (!user) return;
 
     try {
       // Method 1: Try sendBeacon with FormData (most reliable)
@@ -252,7 +255,7 @@ class EfficientOnlineManager {
       const xhr = new XMLHttpRequest();
       xhr.open('POST', `/api/user-service/users/${user.id}/status`, false);
       xhr.setRequestHeader('Content-Type', 'application/json');
-      xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+      // xhr.setRequestHeader('Authorization', `Bearer ${token}`);
       xhr.withCredentials = true;
       xhr.send(JSON.stringify({ is_online: 0 }));
       
@@ -267,9 +270,10 @@ class EfficientOnlineManager {
   // SMART FRIENDS STATUS WITH CACHING
   async getFriendsStatus(forceRefresh = false): Promise<any[]> {
     const user = getAuth();
-    const token = getToken();
+    // const token = getToken();
     
-    if (!user || !token) return [];
+    // if (!user || !token) return [];
+    if (!user) return [];
 
     // Try cache first (unless force refresh)
     if (!forceRefresh) {
@@ -284,7 +288,8 @@ class EfficientOnlineManager {
     console.log('🌐 Fetching fresh friend status');
     try {
       const response = await fetch(`/api/user-service/users/${user.id}/friends`, {
-        headers: { 'Authorization': `Bearer ${token}` }, credentials: 'include',
+        // headers: { 'Authorization': `Bearer ${token}` }, 
+        credentials: 'include',
       });
 
       if (!response.ok) return [];
@@ -381,14 +386,15 @@ export async function reportOnlineOnce(): Promise<void> {
   try {
     if (didReportOnline) return;
     const user = getAuth();
-    const token = getToken();
-    if (!user || !token) return;
+    // const token = getToken();
+    // if (!user || !token) return;
+    if (!user) return;
 
     await fetch(`${GATEWAY_BASE}/user-service/users/${user.id}/status`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
+        // 'Authorization': `Bearer ${token}`
       },
       credentials: 'include',
       body: JSON.stringify({ is_online: 1 })
@@ -403,14 +409,15 @@ export async function reportOnlineOnce(): Promise<void> {
 export async function reportOffline(): Promise<void> {
   try {
     const user = getAuth();
-    const token = getToken();
-    if (!user || !token) return;
+    // const token = getToken();
+    // if (!user || !token) return;
+    if (!user ) return;
 
     // Use synchronous XHR for logout to ensure it completes
     const xhr = new XMLHttpRequest();
     xhr.open('POST', `${GATEWAY_BASE}/user-service/users/${user.id}/status`, false);
     xhr.setRequestHeader('Content-Type', 'application/json');
-    xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+    // xhr.setRequestHeader('Authorization', `Bearer ${token}`);
     xhr.withCredentials = true;
     xhr.send(JSON.stringify({ is_online: 0 }));
     

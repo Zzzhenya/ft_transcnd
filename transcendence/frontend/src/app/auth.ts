@@ -49,7 +49,7 @@ export function getAuth(): AuthUser | null {
 // }
 
 // Helper to populate user state from profile
-async function loadUserProfile(): Promise<boolean> {
+export async function loadUserProfile(): Promise<boolean> {
   const profile = await getProfile();
   if (!profile.success || !profile.user) return false;
 
