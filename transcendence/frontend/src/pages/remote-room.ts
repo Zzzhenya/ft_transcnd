@@ -289,7 +289,7 @@ function setupRoomEventListeners(root: HTMLElement) {
 
 	document.addEventListener('keyup', (e: KeyboardEvent) => {
 		const k = e.key;
-		if (k === 'w' || k === 'W' || k === 's' || k === 'S') {
+		if (k === 'a' || k === 'A' || k === 'd' || k === 'D') {
 			e.preventDefault();
 			e.stopPropagation();
 			handleKeyUp(e);
@@ -728,24 +728,57 @@ function endGame(root: HTMLElement, data: any) {
 	gameState.gameStarted = false;
 	const winner = data.winner;
 	const isYouWinner = winner === gameState.playerNumber;
+	const finalScores = data.finalScores || gameState.score;
+	const roundsWon = data.roundsWon || { player1: 0, player2: 0 };
 
+	// Show prominent winner message
 	const display = root.querySelector('#countdownDisplay') as HTMLElement | null;
 	if (display) {
-		display.textContent = isYouWinner ? '🏆 YOU WON! 🏆' : `Player ${winner} Won!`;
-		display.style.display = 'block';  // ← ADD THIS
-		display.style.fontSize = '5rem';   // ← ADD THIS
-		display.style.color = isYouWinner ? '#4ade80' : '#facc15'; // ← ADD THIS
+		const winnerText = isYouWinner ? '🏆 YOU WON! 🏆' : `Player ${winner} Won!`;
+		const scoreText = `Final Score: ${finalScores.player1} - ${finalScores.player2}`;
+		const roundsText = `Rounds: ${roundsWon.player1} - ${roundsWon.player2}`;
+		
+		display.innerHTML = `
+			<div style="text-align: center;">
+				<div style="font-size: 4rem; font-weight: bold; color: ${isYouWinner ? '#4ade80' : '#facc15'}; margin-bottom: 1rem;">
+					${winnerText}
+				</div>
+				<div style="font-size: 2rem; color: white; margin-bottom: 0.5rem;">
+					${scoreText}
+				</div>
+				<div style="font-size: 1.5rem; color: #a78bfa;">
+					${roundsText}
+				</div>
+				<div style="font-size: 1rem; color: #94a3b8; margin-top: 1rem;">
+					Returning to lobby...
+				</div>
+			</div>
+		`;
+		display.style.display = 'block';
 	}
 
+	// Update status bar
 	updateStatus(root,
-		isYouWinner ? '🎉🏆 YOU WON THE MATCH! 🏆🎉' : `Player ${winner} won the match!`,
+		isYouWinner 
+			? `🎉🏆 YOU WON THE MATCH! Score: ${finalScores.player1}-${finalScores.player2} | Rounds: ${roundsWon.player1}-${roundsWon.player2}` 
+			: `Player ${winner} won! Score: ${finalScores.player1}-${finalScores.player2} | Rounds: ${roundsWon.player1}-${roundsWon.player2}`,
 		isYouWinner ? 'success' : 'info'
 	);
 
+	// Log match result (server already saved to DB)
+	console.log('🏁 Match ended:', {
+		winner,
+		isYouWinner,
+		finalScores,
+		roundsWon,
+		matchDuration: data.matchDuration
+	});
+
+	// Return to lobby after 4 seconds
 	setTimeout(() => {
-		console.log('🔙 Navigating back to /remote'); // ← ADD THIS
+		console.log('🔙 Navigating back to /remote');
 		navigate('/remote');
-	}, 3000);
+	}, 4000);
 }
 
 function updateStatus(root: HTMLElement, message: string, type: 'info' | 'success' | 'error') {

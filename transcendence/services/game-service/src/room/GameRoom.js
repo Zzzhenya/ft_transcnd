@@ -345,15 +345,16 @@ export class GameRoom {
 		if (this.gameState.tournament.gameStatus === 'playing') {
 			moveRemoteBall(this.gameState);
 
-			// FIXED: Check for game end AFTER round end
+			// Check if round ended after ball movement
 			if (this.gameState.tournament.gameStatus === 'roundEnd') {
-				if (this.gameState.tournament.gameStatus === 'gameEnd') {
-					// Match ended
+				// Check if match is over (someone won 2 rounds)
+				if (this.gameState.tournament.winner) {
+					// Match ended - determine winner number
 					const winnerNum = this.gameState.tournament.winner === 'player1' ? 1 : 2;
 					this.endGame(winnerNum);
 					return;
 				} else {
-					// Start next round
+					// Round ended but match continues - start next round
 					this.startInterRoundCountdown();
 					return;
 				}

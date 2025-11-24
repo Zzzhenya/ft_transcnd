@@ -37,14 +37,13 @@ export function createRemoteScene(canvas: HTMLCanvasElement, playerNumber: 1 | 2
 	scene.clearColor = BABYLON.Color4.FromHexString("#0A0015FF");
 	engine.resize();
 
-	// ---------- Camera - Player-specific perspective! ----------
+	// ---------- Single camera for player's perspective ----------
 	let currentPlayerNumber = playerNumber;
 
-	// Player 1 looks from LEFT side (bottom)
-	// Player 2 looks from RIGHT side (top)
+	// Single camera - will be positioned based on player number
 	const camera = new BABYLON.ArcRotateCamera(
 		"camera",
-		BABYLON.Tools.ToRadians(playerNumber === 1 ? 0 : 180),  // Face opponent
+		BABYLON.Tools.ToRadians(playerNumber === 1 ? 0 : 180),
 		BABYLON.Tools.ToRadians(70),
 		18,
 		new BABYLON.Vector3(0, 1, 0),
@@ -59,7 +58,7 @@ export function createRemoteScene(canvas: HTMLCanvasElement, playerNumber: 1 | 2
 	camera.maxZ = 1000;
 	camera.lowerRadiusLimit = 12;
 	camera.upperRadiusLimit = 24;
-	camera.fov = 0.3;
+	camera.fov = 0.35;
 	camera.lowerBetaLimit = BABYLON.Tools.ToRadians(60);
 	camera.upperBetaLimit = BABYLON.Tools.ToRadians(100);
 
@@ -109,13 +108,13 @@ export function createRemoteScene(canvas: HTMLCanvasElement, playerNumber: 1 | 2
 
 	function setPlayerNumber(pn: 1 | 2) {
 		currentPlayerNumber = pn;
-		// Update camera to face from player's perspective
+		// Update camera angle based on player number
 		camera.alpha = BABYLON.Tools.ToRadians(pn === 1 ? 0 : 180);
 		camera.target = new BABYLON.Vector3(tableCenterX, 1, tableCenterZ);
 		console.log(`[RemoteScene] Camera set for Player ${pn}`);
 	}
 
-	// Court
+	// Court (hidden until 3D model loads)
 	const courtWidth = (LOGIC_X_MAX - LOGIC_X_MIN) * WORLD_X_SCALE;
 	const courtHeight = (LOGIC_Z_MAX - LOGIC_Z_MIN) * WORLD_Z_SCALE;
 
@@ -128,8 +127,9 @@ export function createRemoteScene(canvas: HTMLCanvasElement, playerNumber: 1 | 2
 	courtMat.diffuseColor = BABYLON.Color3.FromHexString("#5E2DD4");
 	courtMat.specularColor = BABYLON.Color3.Black();
 	court.material = courtMat;
+	court.isVisible = false; // Hide until model loads
 
-	// Center line
+	// Center line (hidden until 3D model loads)
 	const centerLine = BABYLON.MeshBuilder.CreateBox(
 		"centerLine",
 		{ width: 0.2, height: 0.02, depth: courtHeight * 0.96 },
@@ -140,8 +140,9 @@ export function createRemoteScene(canvas: HTMLCanvasElement, playerNumber: 1 | 2
 	centerMat.diffuseColor = BABYLON.Color3.FromHexString("#FFFFFF");
 	centerMat.emissiveColor = BABYLON.Color3.FromHexString("#FFFFFF");
 	centerLine.material = centerMat;
+	centerLine.isVisible = false; // Hide until model loads
 
-	// Paddles
+	// Paddles (hidden until 3D model loads)
 	const paddleThickness = 0.5;
 	const paddleHeightWorld = 40 * WORLD_Z_SCALE;
 
@@ -162,8 +163,10 @@ export function createRemoteScene(canvas: HTMLCanvasElement, playerNumber: 1 | 2
 
 	leftPaddle.position = new BABYLON.Vector3(leftX, paddleThickness, 0);
 	rightPaddle.position = new BABYLON.Vector3(rightX, paddleThickness, 0);
+	leftPaddle.isVisible = false; // Hide until model loads
+	rightPaddle.isVisible = false; // Hide until model loads
 
-	// Ball
+	// Ball (hidden until 3D model loads)
 	let ball: BABYLON.AbstractMesh = BABYLON.MeshBuilder.CreateSphere(
 		"ball",
 		{ diameter: 0.5, segments: 16 },
@@ -174,6 +177,7 @@ export function createRemoteScene(canvas: HTMLCanvasElement, playerNumber: 1 | 2
 	ballMat.emissiveColor = BABYLON.Color3.FromHexString("#FACC15");
 	ballMat.specularColor = BABYLON.Color3.Black();
 	ball.material = ballMat;
+	ball.isVisible = false; // Hide until model loads
 
 	// Arc configuration - SMOOTHER for remote
 	const BALL_FLOOR_OFFSET = -0.6;

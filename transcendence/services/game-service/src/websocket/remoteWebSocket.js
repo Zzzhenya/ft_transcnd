@@ -11,111 +11,146 @@ export function setupRemoteWebSocket(fastify) {
 	fastify.get('/ws/remote', { websocket: true }, (connection, req) => {
 		const { socket } = connection;
 
-		// Extraer parámetros de la URL
-		const url = new URL(req.url, `http://${req.headers.host}`);
-		const roomId = url.searchParams.get('roomId');
-		const playerId = url.searchParams.get('playerId');
-		const username = url.searchParams.get('username') || 'Anonymous';
-
-		logger.info(`[RemoteWS] Connection attempt - Room: ${roomId}, Player: ${playerId}`);
-
-		// ========================================
-		// VALIDACIONES
-		// ========================================
-
-		if (!roomId) {
-			socket.send(JSON.stringify({
-				type: 'error',
-				message: 'Room ID is required'
-			}));
-			socket.close();
-			return;
-		}
-
-		if (!playerId) {
-			socket.send(JSON.stringify({
-				type: 'error',
-				message: 'Player ID is required'
-			}));
-			socket.close();
-			return;
-		}
-
-		// ========================================
-		// UNIR JUGADOR A LA ROOM
-		// ========================================
-
-		// Pass userId in playerInfo for database persistence
-		// playerId format is "userId_timestamp_random", extract the userId part
-		const userIdMatch = playerId.match(/^(\d+)_/);
-		const userId = userIdMatch ? parseInt(userIdMatch[1]) : null;
-		
-		logger.debug(`[RemoteWS] Extracted userId: ${userId} from playerId: ${playerId}`);
-		
-		const room = roomManager.joinRoom(roomId, playerId, socket, { 
-			username,
-			userId: userId
-		});
-
-		if (!room) {
-			socket.send(JSON.stringify({
-				type: 'error',
-				message: 'Unable to join room. Room may be full or invalid.'
-			}));
-			socket.close();
-			return;
-		}
-
-		const playerNumber = room.getPlayerNumber(playerId);
-
-		logger.info(`[RemoteWS] Player ${playerId} joined room ${roomId} as P${playerNumber}`);
-
-		// ========================================
-		// ENVIAR MENSAJE DE INICIALIZACIÓN
-		// ========================================
-
-		socket.send(JSON.stringify({
-			type: 'init',
-			roomId,
-			playerId,
-			playerNumber,
-			roomInfo: room.getInfo()
-		}));
-		// Optional: explicitly inform others about this join to speed up UI, if GameRoom didn't already
 		try {
-			room.broadcast({
-				type: 'playerJoined',
+			// Extraer parámetros de la URL
+			const url = new URL(req.url, `http://${req.headers.host}`);
+			const roomId = url.searchParams.get('roomId');
+			const playerId = url.searchParams.get('playerId');
+			const username = url.searchParams.get('username') || 'Anonymous';
+
+			logger.info(`[RemoteWS] Connection attempt - Room: ${roomId}, Player: ${playerId}, Username: ${username}`);
+
+			// ========================================
+			// VALIDACIONES
+			// ========================================
+
+			if (!roomId) {
+				logger.error(`[RemoteWS] Missing roomId`);
+				socket.send(JSON.stringify({
+					type: 'error',
+					message: 'Room ID is required'
+				}));
+				socket.close();
+				return;
+			}
+
+			if (!playerId) {
+				logger.error(`[RemoteWS] Missing playerId`);
+				socket.send(JSON.stringify({
+					type: 'error',
+					message: 'Player ID is required'
+				}));
+				socket.close();
+				return;
+			}
+
+			// ========================================
+			// UNIR JUGADOR A LA ROOM
+			// ========================================
+
+			// Pass userId in playerInfo for database persistence
+			// playerId format is "userId_timestamp_random", extract the userId part
+			const userIdMatch = playerId.match(/^(\d+)_/);
+			const userId = userIdMatch ? parseInt(userIdMatch[1]) : null;
+			
+			logger.info(`[RemoteWS] Extracted userId: ${userId} from playerId: ${playerId}`);
+			
+			const room = roomManager.joinRoom(roomId, playerId, socket, { 
+				username,
+				userId: userId
+			});
+
+			if (!room) {
+				logger.error(`[RemoteWS] Failed to join room ${roomId} - room full or invalid`);
+				socket.send(JSON.stringify({
+					type: 'error',
+					message: 'Unable to join room. Room may be full or invalid.'
+				}));
+				socket.close();
+				return;
+			}
+
+			const playerNumber = room.getPlayerNumber(playerId);
+
+			logger.info(`[RemoteWS] ✅ Player ${playerId} (${username}) joined room ${roomId} as P${playerNumber}`);
+
+			// ========================================
+			// ENVIAR MENSAJE DE INICIALIZACIÓN
+			// ========================================
+
+			const initMessage = {
+				type: 'init',
+				roomId,
 				playerId,
 				playerNumber,
-				playerInfo: { username },
-				totalPlayers: room.players?.size ?? 0
-			}, playerId);
-		} catch {}
+				roomInfo: room.getInfo()
+			};
 
-		// ========================================
-		// EVENT LISTENERS
-		// ========================================
+			logger.info(`[RemoteWS] Sending init message to ${playerId}`);
 
-		// Recibir mensajes del cliente
-		socket.on('message', (data) => {
+			// Send init message with error handling
 			try {
-				const message = JSON.parse(data.toString());
-				handleClientMessage(room, playerId, message);
-			} catch (error) {
-				logger.error(`[RemoteWS] Error parsing message from ${playerId}:`, error);
+				socket.send(JSON.stringify(initMessage));
+				logger.info(`[RemoteWS] Init message sent successfully to ${playerId}`);
+			} catch (e) {
+				logger.error(`[RemoteWS] Error sending init message:`, e);
+				socket.close();
+				return;
 			}
-		});
 
-		// Manejar desconexión
-		socket.on('close', () => {
-			logger.info(`[RemoteWS] Player ${playerId} disconnected from room ${roomId}`);
-			roomManager.leaveRoom(roomId, playerId);
-		});
+			// Optional: explicitly inform others about this join to speed up UI, if GameRoom didn't already
+			try {
+				room.broadcast({
+					type: 'playerJoined',
+					playerId,
+					playerNumber,
+					playerInfo: { username },
+					totalPlayers: room.players?.size ?? 0
+				}, playerId);
+			} catch (e) {
+				logger.error(`[RemoteWS] Error broadcasting playerJoined:`, e);
+			}
 
-		// Manejar errores
-		socket.on('error', (error) => {
-			logger.error(`[RemoteWS] Socket error for player ${playerId}:`, error);
-		});
+			// Keep connection alive
+			logger.info(`[RemoteWS] WebSocket connection established and ready for ${playerId}`);
+
+			// ========================================
+			// EVENT LISTENERS
+			// ========================================
+
+			// Recibir mensajes del cliente
+			socket.on('message', (data) => {
+				try {
+					const message = JSON.parse(data.toString());
+					handleClientMessage(room, playerId, message);
+				} catch (error) {
+					logger.error(`[RemoteWS] Error parsing message from ${playerId}:`, error);
+				}
+			});
+
+			// Manejar desconexión
+			socket.on('close', () => {
+				logger.info(`[RemoteWS] Player ${playerId} disconnected from room ${roomId}`);
+				roomManager.leaveRoom(roomId, playerId);
+			});
+
+			// Manejar errores
+			socket.on('error', (error) => {
+				logger.error(`[RemoteWS] Socket error for player ${playerId}:`, error);
+			});
+
+		} catch (error) {
+			logger.error(`[RemoteWS] Fatal error in WebSocket handler:`, error);
+			try {
+				socket.send(JSON.stringify({
+					type: 'error',
+					message: 'Internal server error'
+				}));
+				socket.close();
+			} catch (e) {
+				logger.error(`[RemoteWS] Error sending error message:`, e);
+			}
+		}
 	});
 }
 
