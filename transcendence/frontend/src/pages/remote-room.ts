@@ -747,23 +747,27 @@ function endGame(root: HTMLElement, data: any) {
 	const finalScores = data.finalScores || gameState.score;
 	const roundsWon = data.roundsWon || { player1: 0, player2: 0 };
 
+	// Calculate total points across all rounds (each round is first to 5)
+	const totalPointsP1 = (roundsWon.player1 * 5) + (roundsWon.player2 > 0 ? finalScores.player1 : 0);
+	const totalPointsP2 = (roundsWon.player2 * 5) + (roundsWon.player1 > 0 ? finalScores.player2 : 0);
+
 	// Show prominent winner message
 	const display = root.querySelector('#countdownDisplay') as HTMLElement | null;
 	if (display) {
-		const winnerText = isYouWinner ? '🏆 YOU WON! 🏆' : `Player ${winner} Won!`;
-		const scoreText = `Final Score: ${finalScores.player1} - ${finalScores.player2}`;
-		const roundsText = `Rounds: ${roundsWon.player1} - ${roundsWon.player2}`;
+		const winnerText = isYouWinner ? 'YOU WON!' : `Player ${winner} Won!`;
+		const iconColor = isYouWinner ? '#a78bfa' : '#facc15';
 		
 		display.innerHTML = `
 			<div style="text-align: center;">
+				<img src="/icons/peace_sign.png" alt="Victory" style="width: 120px; height: 120px; filter: drop-shadow(0 0 20px ${iconColor}); margin-bottom: 1rem;" />
 				<div style="font-size: 4rem; font-weight: bold; color: ${isYouWinner ? '#4ade80' : '#facc15'}; margin-bottom: 1rem;">
 					${winnerText}
 				</div>
 				<div style="font-size: 2rem; color: white; margin-bottom: 0.5rem;">
-					${scoreText}
+					Total Score: ${totalPointsP1} - ${totalPointsP2}
 				</div>
 				<div style="font-size: 1.5rem; color: #a78bfa;">
-					${roundsText}
+					Rounds Won: ${roundsWon.player1} - ${roundsWon.player2}
 				</div>
 				<div style="font-size: 1rem; color: #94a3b8; margin-top: 1rem;">
 					Returning to lobby...
@@ -776,8 +780,8 @@ function endGame(root: HTMLElement, data: any) {
 	// Update status bar
 	updateStatus(root,
 		isYouWinner 
-			? `🎉🏆 YOU WON THE MATCH! Score: ${finalScores.player1}-${finalScores.player2} | Rounds: ${roundsWon.player1}-${roundsWon.player2}` 
-			: `Player ${winner} won! Score: ${finalScores.player1}-${finalScores.player2} | Rounds: ${roundsWon.player1}-${roundsWon.player2}`,
+			? `🎉 YOU WON THE MATCH! Total Score: ${totalPointsP1}-${totalPointsP2} | Rounds: ${roundsWon.player1}-${roundsWon.player2}` 
+			: `Player ${winner} won! Total Score: ${totalPointsP1}-${totalPointsP2} | Rounds: ${roundsWon.player1}-${roundsWon.player2}`,
 		isYouWinner ? 'success' : 'info'
 	);
 
@@ -787,6 +791,7 @@ function endGame(root: HTMLElement, data: any) {
 		isYouWinner,
 		finalScores,
 		roundsWon,
+		totalPoints: { player1: totalPointsP1, player2: totalPointsP2 },
 		matchDuration: data.matchDuration
 	});
 
