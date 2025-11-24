@@ -101,6 +101,29 @@ export default function (root: HTMLElement, ctx: { url: URL }) {
     const password = (root.querySelector<HTMLInputElement>("#register-password")?.value || "").trim();
     
     if (!username || !email || !password) return alert("Please fill in all fields");
+
+    // username validation
+    if (username.length < 3 || username.length > 20) {
+      return alert('Username must be between 3 and 20 characters');
+    }
+
+    if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+      return alert('Username can only contain letters, numbers, and underscores');
+    }
+
+    const emailRegex = /^[a-zA-Z0-9.!#$%&'*+\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
+    if (!emailRegex.test(email)) {
+      return alert('Please enter a valid email address');
+    }
+
+    const dangerousChars = ['<', '>', '"', "'", '&', '(', ')', '{', '}', '[', ']', '`', '$'];
+    if (dangerousChars.some(char => email.includes(char))) {
+      return alert('Email contains invalid characters');
+    }
+
+    // const emailLower = email.trim().toLowerCase();
+    // const usernameLower = username.trim().toLowerCase();
+
     
     const result = await register(username, email, password);
     if (result.success) {
