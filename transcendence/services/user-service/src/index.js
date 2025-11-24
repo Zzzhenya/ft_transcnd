@@ -108,16 +108,21 @@ fastify.decorate('authenticate', async function (request, reply) {
       return;
     }
     console.log(request.user);
-    request.user = {
-      userId: payload.userId,
-      username: payload.username
-    };
-    request.userDetails = user;
+    if (!user.isGuest)
+    {
+      request.user = {
+        userId: payload.userId,
+        username: payload.username
+      };
+      request.userDetails = user;
+    }
+    // request.userDetails = user;
     console.log('AUTHENTICATE MIDDLEWARE - Success, proceeding to endpoint');
   } catch (err) {
     console.log('AUTHENTICATE MIDDLEWARE - Error:', err.message);
     logger.error('Authentication error:', err.message);
-    reply.code(403).send({ message: 'Token ungültig oder abgelaufen' });
+    reply.code(403).send({ message: 'Token invalid or expired: Please login' });
+    // reply.code(403).send({ message: 'Token ungültig oder abgelaufen' });
     return;
   }
 });
@@ -1490,6 +1495,7 @@ console.log('ABOUT TO REGISTER PUT ENDPOINT');
 
 // Accept or reject friend request
 console.log('REGISTERING PUT ENDPOINT: /users/:userId/friend-requests/:requesterId');
+
 fastify.put('/users/:userId/friend-requests/:requesterId', {
   preHandler: fastify.authenticate
 }, async (request, reply) => {
