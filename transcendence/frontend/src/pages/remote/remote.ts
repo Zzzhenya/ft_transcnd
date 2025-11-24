@@ -15,7 +15,7 @@ export default function (root: HTMLElement) {
 	sessionStorage.removeItem("tournamentPlayerTypes");
 
 	async function fetchTournaments() {
-		const res = await fetch(`${API_BASE}/tournaments`);
+		const res = await fetch(`${API_BASE}/tournaments`, {credentials: 'include'});
 		const data = await res.json();
 		tournaments = data.tournaments || [];
 	}

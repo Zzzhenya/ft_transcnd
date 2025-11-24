@@ -107,7 +107,7 @@ export default function (root: HTMLElement, ctx: any) {
     if (!tid) return;
     
     try {
-      const response = await fetch(`${API_BASE}/tournaments`);
+      const response = await fetch(`${API_BASE}/tournaments`, {credentials: 'include'});
       if (response.ok) {
         const data = await response.json();
         const tournament = data.tournaments?.find((t: any) => t.id === Number(tid));
@@ -128,7 +128,7 @@ export default function (root: HTMLElement, ctx: any) {
     if (!tid) return;
     
     try {
-      const response = await fetch(`${API_BASE}/tournaments/${tid}/bracket`);
+      const response = await fetch(`${API_BASE}/tournaments/${tid}/bracket`, {credentials: 'include'});
       if (response.ok) {
         const data = await response.json();
         bracket = data.bracket; // Extract the bracket object from the response

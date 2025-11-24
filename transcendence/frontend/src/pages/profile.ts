@@ -840,10 +840,10 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
     try {
       const token = getToken();
       const res = await fetch(`${GATEWAY_BASE}/user-service/users/${userProfile.id}/friend-requests`, {
+        credentials: 'include',
         headers: {
           'Authorization': `Bearer ${token || ''}`
         },
-        credentials: 'include'
       });
 
       if (res.ok) {
@@ -862,12 +862,12 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
     try {
       const token = getToken();
       const res = await fetch(`${GATEWAY_BASE}/user-service/users/${userProfile.id}/friend-requests/${requesterId}`, {
+        credentials: 'include',
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token || ''}`
         },
-        credentials: 'include',
         body: JSON.stringify({ action })
       });
 
@@ -939,7 +939,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
 
   async function loadOnlineUsers() {
     try {
-      const res = await fetch(`/api/user-service/users/online`);
+      const res = await fetch(`/api/user-service/users/online`, {credentials: 'include'});
       if (res.ok) {
         const data = await res.json();
         onlineUsers = data.users || [];

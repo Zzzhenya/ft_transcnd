@@ -213,6 +213,7 @@ class EfficientOnlineManager {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
+        credentials: 'include',
         body: JSON.stringify({ is_online: isOnline ? 1 : 0 })
       });
 
@@ -252,6 +253,7 @@ class EfficientOnlineManager {
       xhr.open('POST', `/api/user-service/users/${user.id}/status`, false);
       xhr.setRequestHeader('Content-Type', 'application/json');
       xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+      xhr.withCredentials = true;
       xhr.send(JSON.stringify({ is_online: 0 }));
       
       if (xhr.status === 200) {
@@ -282,7 +284,7 @@ class EfficientOnlineManager {
     console.log('🌐 Fetching fresh friend status');
     try {
       const response = await fetch(`/api/user-service/users/${user.id}/friends`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${token}` }, credentials: 'include',
       });
 
       if (!response.ok) return [];
@@ -388,6 +390,7 @@ export async function reportOnlineOnce(): Promise<void> {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
       },
+      credentials: 'include',
       body: JSON.stringify({ is_online: 1 })
     });
     didReportOnline = true;
@@ -408,6 +411,7 @@ export async function reportOffline(): Promise<void> {
     xhr.open('POST', `${GATEWAY_BASE}/user-service/users/${user.id}/status`, false);
     xhr.setRequestHeader('Content-Type', 'application/json');
     xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+    xhr.withCredentials = true;
     xhr.send(JSON.stringify({ is_online: 0 }));
     
     if (xhr.status === 200) {

@@ -37,7 +37,7 @@ export class SimpleNotificationPoller {
     this.isPolling = true;
     this.pollInterval = window.setInterval(() => {
       this.checkNotifications();
-    }, 500); // Poll every 500ms for faster response
+    }, 50000); // Poll every 500ms for faster response
   }
 
   stop() {
@@ -61,7 +61,7 @@ export class SimpleNotificationPoller {
       }
 
       let response = await fetch(`${GATEWAY_BASE}/user-service/notifications/unread`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${token}` }, credentials: 'include'
       });
 
       if (response.status === 401 || response.status === 403) {
@@ -70,7 +70,7 @@ export class SimpleNotificationPoller {
           token = getToken();
           if (token) {
             response = await fetch(`${GATEWAY_BASE}/user-service/notifications/unread`, {
-              headers: { 'Authorization': `Bearer ${token}` }
+              headers: { 'Authorization': `Bearer ${token}` }, credentials: 'include'
             });
           }
         }
@@ -245,6 +245,7 @@ export class SimpleNotificationPoller {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
+        credentials: 'include',
         body: JSON.stringify({})
       });
       if (response.status === 401 || response.status === 403) {
@@ -255,6 +256,7 @@ export class SimpleNotificationPoller {
           response = await fetch(`${GATEWAY_BASE}/user-service/notifications/${notificationId}/accept`, {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            credentials: 'include',
             body: JSON.stringify({})
           });
         }
@@ -294,6 +296,7 @@ export class SimpleNotificationPoller {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
+        credentials: 'include',
         body: JSON.stringify({})
       });
       if (response.status === 401 || response.status === 403) {
@@ -302,7 +305,7 @@ export class SimpleNotificationPoller {
           token = getToken();
           response = await fetch(`${GATEWAY_BASE}/user-service/notifications/${notificationId}/decline`, {
             method: 'POST',
-            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },credentials: 'include',
             body: JSON.stringify({})
           });
         }
@@ -490,7 +493,7 @@ export class SimpleNotificationPoller {
       fetch(`${GATEWAY_BASE}/user-service/notifications/unread`, {
         headers: {
           'Authorization': `Bearer ${getToken()}`
-        }
+        }, credentials: 'include'
       }).then(res => res.json()).then(data => {
         const notifications = data.notifications || [];
         notifications.forEach((notification: SimpleNotification) => {

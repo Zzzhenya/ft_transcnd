@@ -110,7 +110,7 @@ export default function (root: HTMLElement) {
 	// Load online users for matchmaking
 	async function loadOnlineUsers() {
 		try {
-			const res = await fetch(`/api/user-service/users/online`);
+			const res = await fetch(`/api/user-service/users/online`, {credentials:'include'});
 			if (res.ok) {
 				const data = await res.json();
 				onlineUsers = data.users || [];

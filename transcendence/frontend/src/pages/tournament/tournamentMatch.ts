@@ -352,6 +352,7 @@ async function reportWinner(winnerName: string) {
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           matchId: matchId,
           winner: winnerName,
