@@ -179,32 +179,46 @@ export class GameRoom {
 
 		await this.createDatabaseMatch();
 
-		let count = 3;
-
+		// Send gameStart FIRST to initialize the scene
 		this.broadcast({
-			type: 'countdown',
-			count
+			type: 'gameStart',
+			gameState: {
+				score: this.gameState.score,
+				ball: this.gameState.ball,
+				paddles: this.gameState.paddles,
+				tournament: this.gameState.tournament
+			}
 		});
 
-		this.countdownInterval = setInterval(() => {
-			count--;
+		// Wait a bit for scene to start loading, then begin countdown
+		setTimeout(() => {
+			let count = 3;
 
-			if (count > 0) {
-				this.broadcast({
-					type: 'countdown',
-					count
-				});
-			} else {
-				this.broadcast({
-					type: 'countdown',
-					count: 0
-				});
-				clearInterval(this.countdownInterval);
-				this.countdownInterval = null;
+			this.broadcast({
+				type: 'countdown',
+				count
+			});
 
-				setTimeout(() => this.startGame(), 300);
-			}
-		}, 1000);
+			this.countdownInterval = setInterval(() => {
+				count--;
+
+				if (count > 0) {
+					this.broadcast({
+						type: 'countdown',
+						count
+					});
+				} else {
+					this.broadcast({
+						type: 'countdown',
+						count: 0
+					});
+					clearInterval(this.countdownInterval);
+					this.countdownInterval = null;
+
+					setTimeout(() => this.startGame(), 300);
+				}
+			}, 1000);
+		}, 500); // Give 500ms for scene to start loading
 	}
 
 	async createDatabaseMatch() {
@@ -252,16 +266,7 @@ export class GameRoom {
 		this.isPlaying = true;
 		this.isPaused = false;
 
-		this.broadcast({
-			type: 'gameStart',
-			gameState: {
-				score: this.gameState.score,
-				ball: this.gameState.ball,
-				paddles: this.gameState.paddles,
-				tournament: this.gameState.tournament
-			}
-		});
-
+		// gameStart was already sent in startCountdown, so just start the game loop
 		// Start at 60 FPS
 		this.gameLoopInterval = setInterval(() => {
 			this.tick();
@@ -444,6 +449,17 @@ export class GameRoom {
 			this.gameState.tournament.winner = `player${winner}`;
 		}
 
+		// Calculate total scores across all rounds
+		// Each won round = 5 points, plus any points from the final round
+		const roundsWon = this.gameState.tournament.roundsWon;
+		const finalRoundScore = this.gameState.score;
+		
+		// Total score = (rounds won × 5) + final round score
+		const totalScoreP1 = (roundsWon.player1 * 5) + (roundsWon.player2 > 0 ? finalRoundScore.player1 : 0);
+		const totalScoreP2 = (roundsWon.player2 * 5) + (roundsWon.player1 > 0 ? finalRoundScore.player2 : 0);
+
+		logger.info(`[GameRoom] Total scores: P1=${totalScoreP1}, P2=${totalScoreP2}`);
+
 		if (this.matchId && this.gameState) {
 			const playersArray = Array.from(this.players.values());
 			const winnerUserId = playersArray[winner - 1]?.info.userId;
@@ -452,8 +468,8 @@ export class GameRoom {
 				await finishRemoteMatch(
 					this.matchId,
 					winnerUserId,
-					this.gameState.score.player1,
-					this.gameState.score.player2
+					totalScoreP1,
+					totalScoreP2
 				);
 			}
 		}

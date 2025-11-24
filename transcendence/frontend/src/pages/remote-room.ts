@@ -458,8 +458,7 @@ function handleServerMessage(root: HTMLElement, message: any) {
 			break;
 
 		case 'countdown':
-			root.querySelector('#waitingRoom')?.classList.add('hidden');
-			root.querySelector('#gameContainer')?.classList.remove('hidden');
+			// Only show countdown, don't initialize game yet
 			showCountdown(root, message.count);
 			if (message.message) {
 				updateStatus(root, message.message, 'info');
@@ -473,6 +472,7 @@ function handleServerMessage(root: HTMLElement, message: any) {
 			break;
 
 		case 'gameStart':
+			// Initialize game UI and scene FIRST
 			startGameUI(root, message.gameState);
 			inputGateUntil = Date.now() + 500;
 			ignoreStateUntil = Date.now() + 300;
