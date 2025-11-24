@@ -74,9 +74,16 @@ fastify.addHook('preHandler', async (request, reply) => {
 
 // JWT verification decorator
 fastify.decorate('authenticate', async function (request, reply) {
+  // const tempHeader = request.headers['x-token'];
+  // if (tempHeader) {
+  //   console.log(`⭐⭐⭐⭐⭐⭐⭐token: ${tempHeader}`)
+  // } else {
+  //   console.log(`⭐⭐⭐⭐⭐⭐⭐token: NONE`)
+  // }
   console.log('AUTHENTICATE MIDDLEWARE - Starting for URL:', request.url);
   try {
-    const authHeader = request.headers.authorization;
+    // const authHeader = request.headers.authorization;
+    const authHeader = request.headers['x-token'];
     console.log('AUTHENTICATE MIDDLEWARE - Auth header:', authHeader ? 'Present' : 'Missing');
 
     if (!authHeader) {
@@ -86,9 +93,10 @@ fastify.decorate('authenticate', async function (request, reply) {
       return;
     }
 
-    const token = authHeader.split(' ')[1];
-    console.log('AUTHENTICATE MIDDLEWARE - Token extracted, length:', token ? token.length : 'null');
-    const payload = jwt.verify(token, JWT_SECRET);
+    // const token = authHeader.split(' ')[1];
+    // console.log('AUTHENTICATE MIDDLEWARE - Token extracted, length:', token ? token.length : 'null');
+    // const payload = jwt.verify(token, JWT_SECRET);
+    const payload = jwt.verify(authHeader, JWT_SECRET);
     console.log('AUTHENTICATE MIDDLEWARE - JWT verified, userId:', payload.userId);
 
     const user = await User.findById(payload.userId);
@@ -99,7 +107,7 @@ fastify.decorate('authenticate', async function (request, reply) {
       reply.code(404).send({ message: 'Benutzer nicht gefunden' });
       return;
     }
-
+    console.log(request.user);
     request.user = {
       userId: payload.userId,
       username: payload.username
@@ -922,6 +930,7 @@ fastify.get('/notifications/unread', {
   console.log('🚀 UNREAD NOTIFICATIONS ENDPOINT HIT!');
   try {
     const userId = request.user.userId; // From JWT
+    // const userId = request.user.userId? ||request.headers['x-user-id'];
 
     console.log('📨 Getting unread notifications for user:', userId);
 
