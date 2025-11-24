@@ -251,45 +251,36 @@ export default function (root: HTMLElement, ctx: any) {
         </div>
 
         ${!tournamentStarted ? `
-          <div class="bg-white/5 backdrop-blur-lg rounded-3xl p-8 border border-white/10 mb-8">
-            <ul class="grid grid-cols-2 gap-4 mb-8">${playerListHtml}</ul>
+  <div class="bg-white/5 backdrop-blur-lg rounded-3xl p-8 border border-white/10 mb-8">
+    <ul class="grid grid-cols-2 gap-4 mb-8">${playerListHtml}</ul>
 
-            <div class="flex justify-center gap-4 pt-6 border-t border-white/10">
-              <button
-                class="px-8 py-4 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-black transition-all transform hover:scale-105 shadow-xl disabled:opacity-30 disabled:cursor-not-allowed disabled:transform-none"
-                id="inviteBtn"
-                ${isGuest ? "disabled" : ""}
-              >
-                <div class="flex items-center gap-2">
-                  <span class="text-xl">📧</span>
-                  <span>INVITE</span>
-                </div>
-              </button>
-              <button
-                class="px-8 py-4 rounded-2xl bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-400 hover:to-indigo-500 text-white font-black transition-all transform hover:scale-105 shadow-xl disabled:opacity-30 disabled:cursor-not-allowed disabled:transform-none"
-                id="addGuestBtn"
-                ${players.length >= maxPlayers ? "disabled" : ""}
-              >
-                <div class="flex items-center gap-2">
-                  <span class="text-xl">➕</span>
-                  <span>ADD GUEST</span>
-                </div>
-              </button>
-              <button
-                class="px-8 py-4 rounded-2xl font-black text-lg transition-all transform shadow-xl ${players.length < maxPlayers
-                  ? 'bg-white/10 text-white/30 cursor-not-allowed'
-                  : 'bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-400 hover:to-pink-500 text-white hover:scale-105'}"
-                id="startTournamentBtn"
-                ${players.length < maxPlayers ? "disabled" : ""}
-              >
-                <div class="flex items-center gap-2">
-                  <span class="text-xl">🚀</span>
-                  <span>START</span>
-                </div>
-              </button>
-            </div>
-          </div>
-        ` : ''}
+    <div class="flex justify-center gap-4 pt-6 border-t border-white/10">
+      <button
+        class="px-8 py-4 rounded-2xl bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-400 hover:to-indigo-500 text-white font-black transition-all transform hover:scale-105 shadow-xl disabled:opacity-30 disabled:cursor-not-allowed disabled:transform-none"
+        id="addGuestBtn"
+        ${players.length >= maxPlayers ? "disabled" : ""}
+      >
+        <div class="flex items-center gap-2">
+          <span class="text-xl">➕</span>
+          <span>ADD GUEST</span>
+        </div>
+      </button>
+      <button
+        class="px-8 py-4 rounded-2xl font-black text-lg transition-all transform shadow-xl ${players.length < maxPlayers
+          ? 'bg-white/10 text-white/30 cursor-not-allowed'
+          : 'bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-400 hover:to-pink-500 text-white hover:scale-105'}"
+        id="startTournamentBtn"
+        ${players.length < maxPlayers ? "disabled" : ""}
+      >
+        <div class="flex items-center gap-2">
+          <span class="text-xl">🚀</span>
+          <span>START</span>
+        </div>
+      </button>
+    </div>
+  </div>
+` : ''}
+
 
         ${tournamentStarted ? `
         <div class="bg-white/5 backdrop-blur-lg rounded-3xl p-8 border border-white/10">
