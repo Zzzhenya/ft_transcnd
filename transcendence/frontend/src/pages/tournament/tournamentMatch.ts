@@ -772,7 +772,7 @@ function showWinnerDialog(winner: string) {
   });
 }
 */
->>>>>>> auth-from-cookies-prev
+
   function handleBackendMessage(data: any) {
     if (data.type === "STATE_UPDATE" && data.gameState) {
       const incoming = data.gameState;
