@@ -9,7 +9,7 @@ on:
       - db-service-api
       - tournament_new
       - microservices-refactor
-      - user-authentication-002
+      - auth-from-cookies-prev
       #- fix-gateway-timeout-queue
 
     # No paths restriction for push - always run when pushing to these branches
