@@ -1,18 +1,17 @@
 // transcendence/services/game-service/src/room/GameRoom.js
+// FIXED: Player disconnect handling + proper match end
 
-import { initialGameState, moveBall, movePaddle, checkRoundEnd, endRound, startNextRound } from '../pong/gameLogic.js';
+import {
+	initialRemoteGameState,
+	moveRemoteBall,
+	moveRemotePaddle,
+	endRemoteRound,
+	startRemoteNextRound,
+	startRemoteGame,
+	REMOTE_GAME_CONFIG
+} from '../pong/remoteGameLogic.js';
 import logger from '../utils/logger.js';
-import { createRemoteMatch, startRemoteMatch, finishRemoteMatch, cancelRemoteMatch } from '../utils/remoteMatchDB.js';
-
-function safePaddleSet(gameState, player, value, source) {
-	if (isNaN(value)) {
-		logger.error(`[GameRoom] ⚠️ Attempted to set ${player} to NaN from ${source}!`);
-		gameState.paddles[player] = 0; // Force to 0 if NaN
-	} else {
-		gameState.paddles[player] = value;
-	}
-}
-
+import { createRemoteMatch, startRemoteMatch, finishRemoteMatch } from '../utils/remoteMatchDB.js';
 
 export class GameRoom {
 	constructor(roomId, options = {}) {
@@ -26,31 +25,17 @@ export class GameRoom {
 		this.isPaused = false;
 		this.createdAt = Date.now();
 		this.lastActivity = Date.now();
-		this.matchId = null; // Database match ID
-		this.matchStarted = false; // Track if match has been marked as started in DB
-		this.gameType = options.gameType || 'remote'; // 'remote' or 'tournament'
-		this.tournamentId = options.tournamentId || null; // Tournament ID if applicable
+		this.matchId = null;
+		this.matchStarted = false;
+		this.gameType = options.gameType || 'remote';
+		this.tournamentId = options.tournamentId || null;
 
 		logger.info(`[GameRoom] Room ${roomId} created (type: ${this.gameType})`);
 	}
 
 	createInitialGameState() {
-		const state = initialGameState();
-
-		state.paddles.player1 = 0;
-		state.paddles.player2 = 0;
-
-		// Configure best of 3 rounds, 5 points each round
-		state.tournament.maxRounds = 3;
-		state.tournament.scoreLimit = 5;
-		state.tournament.gameStatus = 'waiting';
-
-		logger.info(`[GameRoom] Created initial game state:`, {
-			paddle1: state.paddles.player1,
-			paddle2: state.paddles.player2,
-			ball: state.ball
-		});
-
+		const state = initialRemoteGameState();
+		logger.info(`[GameRoom] Created initial remote game state`);
 		return state;
 	}
 
@@ -61,18 +46,17 @@ export class GameRoom {
 		}
 
 		if (this.players.has(playerId)) {
-			// Reconnect logic: replace old socket with the new one for the same playerId
 			const existing = this.players.get(playerId);
-			logger.warn(`[GameRoom] Player ${playerId} already in room ${this.roomId} - performing reconnect`);
+			logger.warn(`[GameRoom] Player ${playerId} reconnecting`);
+
 			try {
-				if (existing.socket && (existing.socket.readyState === 0 || existing.socket.readyState === 1)) { // CONNECTING or OPEN
+				if (existing.socket && (existing.socket.readyState === 0 || existing.socket.readyState === 1)) {
 					existing.socket.close(1012, 'Replaced by new connection');
 				}
 			} catch (e) {
-				logger.warn(`[GameRoom] Error closing previous socket for player ${playerId}:`, e);
+				logger.warn(`[GameRoom] Error closing previous socket:`, e);
 			}
 
-			// Keep playerNumber and ready state; swap socket and info
 			existing.socket = socket;
 			existing.info = {
 				username: playerInfo.username || existing.info?.username || `Player ${existing.playerNumber}`,
@@ -82,14 +66,13 @@ export class GameRoom {
 			this.players.set(playerId, existing);
 			this.lastActivity = Date.now();
 
-			// Notify only the reconnected player (optional)
 			this.sendToPlayer(playerId, {
 				type: 'playerReconnected',
 				playerId,
 				playerNumber: existing.playerNumber
 			});
 
-			logger.info(`[GameRoom] Player ${playerId} reconnected in room ${this.roomId} as P${existing.playerNumber}`);
+			logger.info(`[GameRoom] Player ${playerId} reconnected as P${existing.playerNumber}`);
 			return true;
 		}
 
@@ -108,7 +91,7 @@ export class GameRoom {
 
 		this.lastActivity = Date.now();
 
-		logger.info(`[GameRoom] Player ${playerId} (P${playerNumber}) joined room ${this.roomId}`);
+		logger.info(`[GameRoom] Player ${playerId} (P${playerNumber}) joined`);
 
 		this.broadcast({
 			type: 'playerJoined',
@@ -118,7 +101,6 @@ export class GameRoom {
 			totalPlayers: this.players.size
 		}, playerId);
 
-		// Note: Match creation happens on countdown start, not on join
 		return true;
 	}
 
@@ -133,14 +115,25 @@ export class GameRoom {
 
 		this.players.delete(playerId);
 
+		// FIXED: If game is playing, end it and notify
 		if (this.isPlaying && !this.isPaused) {
-			this.pauseGame();
+			this.stopGame();
 
+			// Notify remaining player
 			this.broadcast({
 				type: 'playerDisconnected',
 				playerId,
-				reason: 'left'
+				reason: 'left',
+				message: 'Opponent disconnected. Returning to lobby...'
 			});
+
+			// Close room after 2 seconds
+			setTimeout(() => {
+				this.broadcast({
+					type: 'forceReturnLobby',
+					reason: 'opponent_left'
+				});
+			}, 2000);
 		}
 
 		this.lastActivity = Date.now();
@@ -150,14 +143,14 @@ export class GameRoom {
 		const player = this.players.get(playerId);
 
 		if (!player) {
-			logger.warn(`[GameRoom] Player ${playerId} not found in room ${this.roomId}`);
+			logger.warn(`[GameRoom] Player ${playerId} not found`);
 			return;
 		}
 
 		player.ready = true;
 		this.lastActivity = Date.now();
 
-		logger.info(`[GameRoom] Player ${playerId} is ready in room ${this.roomId}`);
+		logger.info(`[GameRoom] Player ${playerId} is ready`);
 
 		this.broadcast({
 			type: 'playerReady',
@@ -165,17 +158,9 @@ export class GameRoom {
 			playerNumber: player.playerNumber
 		});
 
-		logger.info(`[GameRoom] Checking if all players ready... (${this.players.size}/${this.maxPlayers})`);
-
-		this.players.forEach((p, id) => {
-			logger.info(`  - Player ${id}: ready=${p.ready}`);
-		});
-
 		if (this.allPlayersReady()) {
 			logger.info(`[GameRoom] ✅ All players ready! Starting countdown...`);
 			this.startCountdown();
-		} else {
-			logger.info(`[GameRoom] ⏳ Waiting for all players to be ready...`);
 		}
 	}
 
@@ -185,100 +170,16 @@ export class GameRoom {
 			this.countdownInterval = null;
 		}
 
-		logger.info(`[GameRoom] 🕐 Starting countdown in room ${this.roomId}`);
+		logger.info(`[GameRoom] 🕐 Starting countdown`);
 
-		// Ensure gameState exists and is in countdown status to prevent early physics
-		if (!this.gameState) this.gameState = this.createInitialGameState();
+		if (!this.gameState) {
+			this.gameState = this.createInitialGameState();
+		}
 		this.gameState.tournament.gameStatus = 'roundCountdown';
 
-		// 🎮 DATABASE: Create match when both players are ready
 		await this.createDatabaseMatch();
 
-		let count = 3;
-
-		this.broadcast({
-			type: 'countdown',
-			count
-		});
-
-		this.countdownInterval = setInterval(() => {
-			count--;
-
-			if (count > 0) {
-				this.broadcast({
-					type: 'countdown',
-					count
-				});
-				logger.info(`[GameRoom] Countdown: ${count}`);
-			} else {
-				// Send GO!
-				this.broadcast({
-					type: 'countdown',
-					count: 0
-				});
-				clearInterval(this.countdownInterval);
-				this.countdownInterval = null;
-				logger.info(`[GameRoom] 🎮 Countdown finished! Starting game...`);
-				// Small grace so 'GO!' can render before physics
-				setTimeout(() => this.startGame(), 300);
-			}
-		}, 1000);
-	}
-
-	async createDatabaseMatch() {
-		// Only create Remote_Match records for remote games, not tournaments
-		if (this.gameType !== 'remote') {
-			logger.info(`[GameRoom] Skipping Remote_Match creation for ${this.gameType} game`);
-			return;
-		}
-
-		// Get player user IDs from playerInfo (must be set when players connect)
-		const playersArray = Array.from(this.players.values());
-		
-		if (playersArray.length !== 2) {
-			logger.warn(`[GameRoom] Cannot create DB match: need 2 players, have ${playersArray.length}`);
-			return;
-		}
-
-		const player1UserId = playersArray[0].info.userId;
-		const player2UserId = playersArray[1].info.userId;
-
-		if (!player1UserId || !player2UserId) {
-			logger.warn(`[GameRoom] Cannot create DB match: missing user IDs (P1=${player1UserId}, P2=${player2UserId})`);
-			return;
-		}
-
-		this.matchId = await createRemoteMatch(player1UserId, player2UserId);
-		
-		if (this.matchId) {
-			logger.info(`[GameRoom] ✅ Remote_Match created: ID=${this.matchId}`);
-		}
-	}
-
-	async startGame() {
-		if (this.isPlaying) {
-			logger.warn(`[GameRoom] Game already started in room ${this.roomId}`);
-			return;
-		}
-
-		logger.info(`[GameRoom] 🚀 Starting game in room ${this.roomId}`);
-
-		// 🎮 DATABASE: Mark match as started
-		if (this.matchId) {
-			await startRemoteMatch(this.matchId);
-		}
-
-		// Initialize state once; if countdown created it already, reuse
-		if (!this.gameState) this.gameState = this.createInitialGameState();
-
-		
-		safePaddleSet(this.gameState, 'player1', 0, 'startGame-init');
-		safePaddleSet(this.gameState, 'player2', 0, 'startGame-init');
-
-		this.gameState.tournament.gameStatus = 'playing';
-		this.isPlaying = true;
-		this.isPaused = false;
-
+		// Send gameStart FIRST to initialize the scene
 		this.broadcast({
 			type: 'gameStart',
 			gameState: {
@@ -289,20 +190,95 @@ export class GameRoom {
 			}
 		});
 
-		logger.info(`[GameRoom] ✅ Game started, starting game loop...`);
+		// Wait a bit for scene to start loading, then begin countdown
+		setTimeout(() => {
+			let count = 3;
 
+			this.broadcast({
+				type: 'countdown',
+				count
+			});
+
+			this.countdownInterval = setInterval(() => {
+				count--;
+
+				if (count > 0) {
+					this.broadcast({
+						type: 'countdown',
+						count
+					});
+				} else {
+					this.broadcast({
+						type: 'countdown',
+						count: 0
+					});
+					clearInterval(this.countdownInterval);
+					this.countdownInterval = null;
+
+					setTimeout(() => this.startGame(), 300);
+				}
+			}, 1000);
+		}, 500); // Give 500ms for scene to start loading
+	}
+
+	async createDatabaseMatch() {
+		if (this.gameType !== 'remote') {
+			return;
+		}
+
+		const playersArray = Array.from(this.players.values());
+
+		if (playersArray.length !== 2) {
+			return;
+		}
+
+		const player1UserId = playersArray[0].info.userId;
+		const player2UserId = playersArray[1].info.userId;
+
+		if (!player1UserId || !player2UserId) {
+			return;
+		}
+
+		this.matchId = await createRemoteMatch(player1UserId, player2UserId);
+
+		if (this.matchId) {
+			logger.info(`[GameRoom] ✅ Match created: ID=${this.matchId}`);
+		}
+	}
+
+	async startGame() {
+		if (this.isPlaying) {
+			return;
+		}
+
+		logger.info(`[GameRoom] 🚀 Starting game`);
+
+		if (this.matchId) {
+			await startRemoteMatch(this.matchId);
+		}
+
+		if (!this.gameState) {
+			this.gameState = this.createInitialGameState();
+		}
+
+		startRemoteGame(this.gameState);
+
+		this.isPlaying = true;
+		this.isPaused = false;
+
+		// gameStart was already sent in startCountdown, so just start the game loop
+		// Start at 60 FPS
 		this.gameLoopInterval = setInterval(() => {
 			this.tick();
-		}, 1000 / 60); // 60 FPS for smoother gameplay
+		}, 1000 / 60);
 
 		this.lastActivity = Date.now();
 	}
+
 	pauseGame() {
 		if (!this.isPlaying || this.isPaused) {
 			return;
 		}
-
-		logger.info(`[GameRoom] Pausing game in room ${this.roomId}`);
 
 		this.isPaused = true;
 
@@ -319,8 +295,6 @@ export class GameRoom {
 		if (!this.isPlaying || !this.isPaused) {
 			return;
 		}
-
-		logger.info(`[GameRoom] Resuming game in room ${this.roomId}`);
 
 		this.isPaused = false;
 
@@ -353,7 +327,7 @@ export class GameRoom {
 		this.isPlaying = false;
 		this.isPaused = false;
 
-		logger.info(`[GameRoom] Game stopped in room ${this.roomId}`);
+		logger.info(`[GameRoom] Game stopped`);
 	}
 
 	tick() {
@@ -361,9 +335,7 @@ export class GameRoom {
 			return;
 		}
 
-		// Handle inter-round countdown
 		if (this.gameState.tournament.gameStatus === 'roundCountdown') {
-			// Countdown is managed by the countdown interval; just broadcast HUD
 			this.broadcast({
 				type: 'hud',
 				currentRound: this.gameState.tournament.currentRound,
@@ -375,35 +347,23 @@ export class GameRoom {
 			return;
 		}
 
-		if (this.gameState.tournament.gameStatus !== 'playing') {
-			return;
-		}
+		if (this.gameState.tournament.gameStatus === 'playing') {
+			moveRemoteBall(this.gameState);
 
-		this.gameState = moveBall(this.gameState);
-
-		// Use tournament engine: check if this round reached score limit
-		const scoreLimit = this.gameState.tournament.scoreLimit;
-		if (this.gameState.score.player1 >= scoreLimit || this.gameState.score.player2 >= scoreLimit) {
-			const roundWinner = this.gameState.score.player1 >= scoreLimit ? 'player1' : 'player2';
-			
-			// Increment rounds won for the winner
-			this.gameState.tournament.roundsWon[roundWinner]++;
-			logger.info(`[GameRoom] Round ${this.gameState.tournament.currentRound} won by ${roundWinner}! Rounds won: P1=${this.gameState.tournament.roundsWon.player1}, P2=${this.gameState.tournament.roundsWon.player2}`);
-			
-			// Call endRound to set status (but it no longer increments roundsWon)
-			endRound(this.gameState, roundWinner);
-			
-			// Check if match is over (best of 3: need 2 rounds to win)
-			const roundsToWin = Math.ceil(this.gameState.tournament.maxRounds / 2);
-			if (this.gameState.tournament.roundsWon[roundWinner] >= roundsToWin) {
-				// Match over
-				this.gameState.tournament.gameStatus = 'gameEnd';
-				const winnerNum = roundWinner === 'player1' ? 1 : 2;
-				logger.info(`[GameRoom] Match over! ${roundWinner} wins ${this.gameState.tournament.roundsWon[roundWinner]}-${this.gameState.tournament.roundsWon[roundWinner === 'player1' ? 'player2' : 'player1']}`);
+			// Check if match ended (gameEnd status set by game logic)
+			if (this.gameState.tournament.gameStatus === 'gameEnd') {
+				logger.info(`[GameRoom] GAME END detected! Winner: ${this.gameState.tournament.winner}, Rounds: P1=${this.gameState.tournament.roundsWon.player1}, P2=${this.gameState.tournament.roundsWon.player2}`);
+				const winnerNum = this.gameState.tournament.winner === 'player1' ? 1 : 2;
+				logger.info(`[GameRoom] Calling endGame with winner: ${winnerNum}`);
 				this.endGame(winnerNum);
 				return;
-			} else {
-				// Start inter-round countdown
+			}
+
+			// Check if round ended after ball movement
+			if (this.gameState.tournament.gameStatus === 'roundEnd') {
+				logger.info(`[GameRoom] Round ended. Rounds: P1=${this.gameState.tournament.roundsWon.player1}, P2=${this.gameState.tournament.roundsWon.player2}`);
+				// Round ended but match continues - start next round
+				logger.info(`[GameRoom] Match continues, starting next round`);
 				this.startInterRoundCountdown();
 				return;
 			}
@@ -419,8 +379,7 @@ export class GameRoom {
 			},
 			timestamp: Date.now()
 		});
-		
-		// Broadcast HUD update for round/points
+
 		this.broadcast({
 			type: 'hud',
 			currentRound: this.gameState.tournament.currentRound,
@@ -439,10 +398,12 @@ export class GameRoom {
 			this.countdownInterval = null;
 		}
 
-		logger.info(`[GameRoom] Starting inter-round countdown in room ${this.roomId}`);
-		
+		logger.info(`[GameRoom] 📊 Round ${this.gameState.tournament.currentRound} complete!`);
+
+		this.gameState.tournament.gameStatus = 'roundCountdown';
+
 		let count = 3;
-		
+
 		this.broadcast({
 			type: 'countdown',
 			count,
@@ -458,19 +419,15 @@ export class GameRoom {
 					count
 				});
 			} else {
-				// Send GO!
 				this.broadcast({
 					type: 'countdown',
 					count: 0
 				});
 				clearInterval(this.countdownInterval);
 				this.countdownInterval = null;
-				logger.info(`[GameRoom] Inter-round countdown finished, starting next round`);
-				
-				// Start next round
-				startNextRound(this.gameState);
-				this.gameState.tournament.gameStatus = 'playing';
-				
+
+				startRemoteNextRound(this.gameState);
+
 				this.broadcast({
 					type: 'roundStart',
 					currentRound: this.gameState.tournament.currentRound,
@@ -481,11 +438,9 @@ export class GameRoom {
 		}, 1000);
 	}
 
-	// Deprecated per-round win check. Tournament engine handles multi-round progression.
-	checkWinCondition() { return null; }
-
 	async endGame(winner) {
-		logger.info(`[GameRoom] 🏆 Game ended in room ${this.roomId}, winner: P${winner}`);
+		logger.info(`[GameRoom] 🏆 Match ended! Winner: P${winner}`);
+		logger.info(`[GameRoom] Final: P1=${this.gameState.tournament.roundsWon.player1}, P2=${this.gameState.tournament.roundsWon.player2}`);
 
 		this.stopGame();
 
@@ -494,17 +449,27 @@ export class GameRoom {
 			this.gameState.tournament.winner = `player${winner}`;
 		}
 
-		// 🎮 DATABASE: Save match result with rounds and points summary
+		// Calculate total scores across all rounds
+		// Each won round = 5 points, plus any points from the final round
+		const roundsWon = this.gameState.tournament.roundsWon;
+		const finalRoundScore = this.gameState.score;
+		
+		// Total score = (rounds won × 5) + final round score
+		const totalScoreP1 = (roundsWon.player1 * 5) + (roundsWon.player2 > 0 ? finalRoundScore.player1 : 0);
+		const totalScoreP2 = (roundsWon.player2 * 5) + (roundsWon.player1 > 0 ? finalRoundScore.player2 : 0);
+
+		logger.info(`[GameRoom] Total scores: P1=${totalScoreP1}, P2=${totalScoreP2}`);
+
 		if (this.matchId && this.gameState) {
 			const playersArray = Array.from(this.players.values());
 			const winnerUserId = playersArray[winner - 1]?.info.userId;
-			
+
 			if (winnerUserId) {
 				await finishRemoteMatch(
 					this.matchId,
 					winnerUserId,
-					this.gameState.score.player1,
-					this.gameState.score.player2
+					totalScoreP1,
+					totalScoreP2
 				);
 			}
 		}
@@ -523,60 +488,18 @@ export class GameRoom {
 	async updatePaddle(playerId, direction) {
 		const player = this.players.get(playerId);
 
-		if (!player) {
-			logger.warn(`[GameRoom] updatePaddle: player ${playerId} not found`);
-			return;
-		}
-
-		if (!this.gameState) {
-			logger.warn(`[GameRoom] updatePaddle: no gameState`);
-			return;
-		}
-
-		if (!this.isPlaying) {
-			logger.warn(`[GameRoom] updatePaddle: game not playing`);
-			return;
-		}
-
-		if (this.isPaused) {
-			logger.warn(`[GameRoom] updatePaddle: game paused`);
+		if (!player || !this.gameState || !this.isPlaying || this.isPaused) {
 			return;
 		}
 
 		if (this.gameState.tournament.gameStatus !== 'playing') {
-			logger.warn(`[GameRoom] updatePaddle: tournament status is ${this.gameState.tournament.gameStatus}`);
 			return;
 		}
 
-		// Note: Match is already started in startGame(), no need to start again here
 		const playerKey = `player${player.playerNumber}`;
-
-		const paddleSpeed = 15;
-		const topBoundary = -70;
-		const bottomBoundary = 70;
-
-		let currentPos = this.gameState.paddles[playerKey];
-
-		if (isNaN(currentPos)) {
-			logger.error(`[GameRoom] ⚠️ Paddle was NaN before move! Resetting to 0`);
-			currentPos = 0;
-		}
-
-		let newPos = currentPos;
-
-		if (direction === 'up') {
-			newPos = currentPos + paddleSpeed;
-		} else if (direction === 'down') {
-			newPos = currentPos - paddleSpeed;
-		} else if (direction === 'stop') {
-			// Keep current position, no movement
-			newPos = currentPos;
-		}
-
-		newPos = Math.max(topBoundary, Math.min(bottomBoundary, newPos));
-
-		safePaddleSet(this.gameState, playerKey, newPos, 'updatePaddle');
+		moveRemotePaddle(this.gameState, playerKey, direction);
 	}
+
 	broadcast(message, excludePlayerId = null) {
 		const messageStr = JSON.stringify(message);
 
@@ -619,13 +542,11 @@ export class GameRoom {
 
 	allPlayersReady() {
 		if (this.players.size < this.maxPlayers) {
-			logger.info(`[GameRoom] Not enough players: ${this.players.size}/${this.maxPlayers}`);
 			return false;
 		}
 
 		for (const [playerId, player] of this.players.entries()) {
 			if (!player.ready) {
-				logger.info(`[GameRoom] Player ${playerId} not ready yet`);
 				return false;
 			}
 		}
