@@ -1,5 +1,6 @@
 # Development stage
 FROM node:18-alpine AS development
+#FROM mybase/node18:latest AS development
 
 WORKDIR /app
 

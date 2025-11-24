@@ -227,6 +227,7 @@ export default function (root: HTMLElement) {
       const response = await fetch(`${GATEWAY_BASE}/pong/game`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           player1_id: 1, player1_name: "Player 1",
           player2_id: 2, player2_name: "Player 2"

@@ -1,5 +1,6 @@
 // frontend/src/pages/profile.ts
-import { getAuth, signOut, getToken } from "@/app/auth";
+// import { getAuth, signOut, getToken } from "@/app/auth";
+import { getAuth, signOut } from "@/app/auth";
 import { navigate } from "@/app/router";
 import { escapeHtml, sanitizeInput } from '@/utils/security';
 const GATEWAY_BASE = import.meta.env.VITE_GATEWAY_BASE || '/api';
@@ -11,6 +12,7 @@ function readAuthState(): any {
   try { return JSON.parse(sessionStorage.getItem(STORAGE_KEY) || "{}"); } catch { return {}; }
 }
 function writeAuthState(s: any) { sessionStorage.setItem(STORAGE_KEY, JSON.stringify(s)); }
+
 
 // function updateSessionAuthUser(partialUser: Partial<{ id: string; username: string; email: string; name: string; displayName?: string; alias?: string; role?: string }>, newToken?: string) {
 //   const s = readAuthState();
@@ -33,10 +35,14 @@ function writeAuthState(s: any) { sessionStorage.setItem(STORAGE_KEY, JSON.strin
 //   writeAuthState(s);
 //   window.dispatchEvent(new CustomEvent('auth:changed'));
 // }
+//function updateSessionAuthUser(partialUser: Partial<{ id: string; username: string; email: string; name: string; displayName?: string; alias?: string; role?: string }>, newToken?: string) {
 
-function updateSessionAuthUser(partialUser: Partial<{ id: string; username: string; email: string; name: string; displayName?: string; alias?: string; role?: string }>, newToken?: string) {
+// do we need to change logic to update session from userProfile?
+// function updateSessionAuthUser(partialUser: Partial<{ id: string; username: string; email: string; name: string; displayName?: string; alias?: string; role?: string }>, newToken?: string) {
+function updateSessionAuthUser(partialUser: Partial<{ id: string; username: string; email: string; name: string; displayName?: string; alias?: string; role?: string }>) {
   const s = readAuthState();
-  if (!s.auth) s.auth = { user: null, token: null };
+  // if (!s.auth) s.auth = { user: null, token: null };
+  if (!s.auth) s.auth = { user: null};
   const prev = s.auth.user || {};
   const updated = { ...prev, ...partialUser } as any;
   // Keep name consistent with display preference
@@ -51,13 +57,13 @@ function updateSessionAuthUser(partialUser: Partial<{ id: string; username: stri
     updated.name = updated.displayName || updated.display_name || updated.username || updated.name;
   }
   s.auth.user = updated;
-  if (newToken) s.auth.token = newToken;
+  // if (newToken) s.auth.token = newToken;
   writeAuthState(s);
   
   // NUR bei echtem Token-Wechsel (Login/Logout/Token-Refresh)
-  if (newToken) {
-    window.dispatchEvent(new CustomEvent('auth:changed'));
-  }
+  // if (newToken) {
+  //   window.dispatchEvent(new CustomEvent('auth:changed'));
+  // }
 }
 
 export default function (root: HTMLElement, ctx?: { url?: URL }) {
@@ -75,19 +81,19 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
   let selectedAvatarFile: File | null = null;
 
   // ⭐ Replace: Update token and user in session storage used by the app
-  function updateStoredToken(newToken: string) {
-    updateSessionAuthUser({}, newToken);
-    console.log('✅ Token updated in session storage');
-  }
+  // function updateStoredToken(newToken: string) {
+  //   updateSessionAuthUser({}, newToken);
+  //   console.log('✅ Token updated in session storage');
+  // }
 
   // Load complete user profile from database
   async function loadUserProfile() {
     if (!user) return;
     try {
-      const token = getToken();
+      // const token = getToken();
       const res = await fetch(`/api/user-service/auth/profile`, {
         headers: {
-          'Authorization': `Bearer ${token || ''}`
+          // 'Authorization': `Bearer ${token || ''}`
         },
         credentials: 'include'
       });
@@ -400,12 +406,12 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
       reader.onload = async (e) => {
         const base64 = e.target?.result as string;
 
-        const token = getToken();
+        // const token = getToken();
         const res = await fetch(`${GATEWAY_BASE}/user-service/users/${currentUser.id}/avatar`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token || ''}`
+            // 'Authorization': `Bearer ${token || ''}`
           },
           credentials: 'include',
           body: JSON.stringify({
@@ -566,12 +572,12 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
     }
 
     try {
-      const token = getToken();
+      // const token = getToken();
       const res = await fetch(`${GATEWAY_BASE}/user-service/users/${userProfile.id}/update-email`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token || ''}`
+          // 'Authorization': `Bearer ${token || ''}`
         },
         credentials: 'include',
         body: JSON.stringify({
@@ -712,12 +718,12 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
     }
 
     try {
-      const token = getToken();
+      // const token = getToken();
       const res = await fetch(`${GATEWAY_BASE}/user-service/users/${userProfile.id}/display-name`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token || ''}`
+          // 'Authorization': `Bearer ${token || ''}`
         },
         credentials: 'include',
         body: JSON.stringify({
@@ -729,7 +735,8 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
 
       if (res.ok && data.success) {
         // ⭐ Update session auth user and token
-        updateSessionAuthUser({ display_name: newDisplayName, displayName: newDisplayName, name: newDisplayName }, data.token);
+        // updateSessionAuthUser({ display_name: newDisplayName, displayName: newDisplayName, name: newDisplayName }, data.token);
+        updateSessionAuthUser({ display_name: newDisplayName, displayName: newDisplayName, name: newDisplayName });
 
         showMessage('Display name updated successfully!', 'success');
         userProfile.display_name = newDisplayName;
@@ -843,12 +850,12 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
     }
 
     try {
-      const token = getToken();
+      // const token = getToken();
       const res = await fetch(`${GATEWAY_BASE}/user-service/users/${userProfile.id}/username`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token || ''}`
+          // 'Authorization': `Bearer ${token || ''}`
         },
         credentials: 'include',
         body: JSON.stringify({
@@ -860,8 +867,8 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
 
       if (res.ok && data.success) {
         // ⭐ Update session auth user and token. Name falls back to username if no display name
-        updateSessionAuthUser({ username: newUsername, name: userProfile.display_name || userProfile.displayName || newUsername }, data.token);
-
+        // updateSessionAuthUser({ username: newUsername, name: userProfile.display_name || userProfile.displayName || newUsername }, data.token);
+        updateSessionAuthUser({ username: newUsername, name: userProfile.display_name || userProfile.displayName || newUsername });
         showMessage('Username updated successfully!', 'success');
         userProfile.username = newUsername;
         renderUserInfo();
@@ -888,12 +895,12 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
     if (!user) return;
 
     try {
-      const token = getToken();
+      // const token = getToken();
       const res = await fetch(`${GATEWAY_BASE}/user-service/users/${userProfile.id}/friend-requests`, {
+        credentials: 'include',
         headers: {
-          'Authorization': `Bearer ${token || ''}`
+          // 'Authorization': `Bearer ${token || ''}`
         },
-        credentials: 'include'
       });
 
       if (res.ok) {
@@ -910,14 +917,14 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
   async function respondToFriendRequest(requesterId: number, action: 'accept' | 'reject') {
     if (!user) return;
     try {
-      const token = getToken();
+      // const token = getToken();
       const res = await fetch(`${GATEWAY_BASE}/user-service/users/${userProfile.id}/friend-requests/${requesterId}`, {
+        credentials: 'include',
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token || ''}`
+          // 'Authorization': `Bearer ${token || ''}`
         },
-        credentials: 'include',
         body: JSON.stringify({ action })
       });
 
@@ -938,14 +945,15 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
     }
   }
 
+
   // // Friends management functions
   // async function loadFriends() {
   //   if (!user) return;
   //   try {
-  //     const token = getToken();
+  //     // const token = getToken();
   //     const res = await fetch(`${GATEWAY_BASE}/user-service/users/${userProfile.id}/friends`, {
   //       headers: {
-  //         'Authorization': `Bearer ${token || ''}`
+  //         // 'Authorization': `Bearer ${token || ''}`
   //       },
   //       credentials: 'include'
   //     });
@@ -959,16 +967,17 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
   //   }
   // }
 
+
   async function addFriend(username: string) {
     if (!user) return;
     if (username === user.username) return;
     try {
-      const token = getToken();
+      // const token = getToken();
       const res = await fetch(`${GATEWAY_BASE}/user-service/users/${userProfile.id}/friends`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token || ''}`
+          // 'Authorization': `Bearer ${token || ''}`
         },
         credentials: 'include',
         body: JSON.stringify({ friendUsername: username })
@@ -989,7 +998,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
 
   async function loadOnlineUsers() {
     try {
-      const res = await fetch(`/api/user-service/users/online`);
+      const res = await fetch(`/api/user-service/users/online`, {credentials: 'include'});
       if (res.ok) {
         const data = await res.json();
         onlineUsers = data.users || [];
@@ -1018,11 +1027,11 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
     }
 
     try {
-      const token = getToken();
+      // const token = getToken();
       const res = await fetch(`${GATEWAY_BASE}/user-service/auth/account`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${token || ''}`
+          // 'Authorization': `Bearer ${token || ''}`
         },
         credentials: 'include'
       });

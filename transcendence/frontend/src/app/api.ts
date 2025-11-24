@@ -2,12 +2,12 @@ import { API_BASE } from "./config";
 import { getToken } from "./auth";
 
 export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const token = getToken();
+  // const token = getToken();
   const res = await fetch(`${API_BASE}${ensureSlash(path)}`, {
     ...init,
     headers: {
       "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      // ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(init.headers || {}),
     },
     credentials: 'include',

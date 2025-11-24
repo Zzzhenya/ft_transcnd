@@ -425,6 +425,7 @@ export class NotificationWebSocket {
       const token = getToken();
       const response = await fetch(`${GATEWAY_BASE}/api/user-service/notifications/${notificationId}/accept`, {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -465,6 +466,7 @@ export class NotificationWebSocket {
       const token = getToken();
       const response = await fetch(`${GATEWAY_BASE}/api/user-service/notifications/${notificationId}/decline`, {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'

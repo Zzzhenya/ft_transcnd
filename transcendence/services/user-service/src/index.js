@@ -74,9 +74,16 @@ fastify.addHook('preHandler', async (request, reply) => {
 
 // JWT verification decorator
 fastify.decorate('authenticate', async function (request, reply) {
+  // const tempHeader = request.headers['x-token'];
+  // if (tempHeader) {
+  //   console.log(`⭐⭐⭐⭐⭐⭐⭐token: ${tempHeader}`)
+  // } else {
+  //   console.log(`⭐⭐⭐⭐⭐⭐⭐token: NONE`)
+  // }
   console.log('AUTHENTICATE MIDDLEWARE - Starting for URL:', request.url);
   try {
-    const authHeader = request.headers.authorization;
+    // const authHeader = request.headers.authorization;
+    const authHeader = request.headers['x-token'];
     console.log('AUTHENTICATE MIDDLEWARE - Auth header:', authHeader ? 'Present' : 'Missing');
 
     if (!authHeader) {
@@ -86,9 +93,10 @@ fastify.decorate('authenticate', async function (request, reply) {
       return;
     }
 
-    const token = authHeader.split(' ')[1];
-    console.log('AUTHENTICATE MIDDLEWARE - Token extracted, length:', token ? token.length : 'null');
-    const payload = jwt.verify(token, JWT_SECRET);
+    // const token = authHeader.split(' ')[1];
+    // console.log('AUTHENTICATE MIDDLEWARE - Token extracted, length:', token ? token.length : 'null');
+    // const payload = jwt.verify(token, JWT_SECRET);
+    const payload = jwt.verify(authHeader, JWT_SECRET);
     console.log('AUTHENTICATE MIDDLEWARE - JWT verified, userId:', payload.userId);
 
     const user = await User.findById(payload.userId);
@@ -99,17 +107,22 @@ fastify.decorate('authenticate', async function (request, reply) {
       reply.code(404).send({ message: 'Benutzer nicht gefunden' });
       return;
     }
-
-    request.user = {
-      userId: payload.userId,
-      username: payload.username
-    };
-    request.userDetails = user;
+    console.log(request.user);
+    if (!user.isGuest)
+    {
+      request.user = {
+        userId: payload.userId,
+        username: payload.username
+      };
+      request.userDetails = user;
+    }
+    // request.userDetails = user;
     console.log('AUTHENTICATE MIDDLEWARE - Success, proceeding to endpoint');
   } catch (err) {
     console.log('AUTHENTICATE MIDDLEWARE - Error:', err.message);
     logger.error('Authentication error:', err.message);
-    reply.code(403).send({ message: 'Token ungültig oder abgelaufen' });
+    reply.code(403).send({ message: 'Token invalid or expired: Please login' });
+    // reply.code(403).send({ message: 'Token ungültig oder abgelaufen' });
     return;
   }
 });
@@ -937,6 +950,7 @@ fastify.get('/notifications/unread', {
   console.log('🚀 UNREAD NOTIFICATIONS ENDPOINT HIT!');
   try {
     const userId = request.user.userId; // From JWT
+    // const userId = request.user.userId? ||request.headers['x-user-id'];
 
     console.log('📨 Getting unread notifications for user:', userId);
 
@@ -1496,6 +1510,7 @@ console.log('ABOUT TO REGISTER PUT ENDPOINT');
 
 // Accept or reject friend request
 console.log('REGISTERING PUT ENDPOINT: /users/:userId/friend-requests/:requesterId');
+
 fastify.put('/users/:userId/friend-requests/:requesterId', {
   preHandler: fastify.authenticate
 }, async (request, reply) => {
