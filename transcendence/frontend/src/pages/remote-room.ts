@@ -581,6 +581,17 @@ function startGameUI(root: HTMLElement, initialState: any) {
 		console.log('🎥 Initializing Remote Babylon Scene');
 		sceneController = createRemoteScene(canvas, gameState.playerNumber || 1) as any;
 
+		// Wait for scene to be ready before starting game
+		if ((sceneController as any).ready) {
+			(sceneController as any).ready.then(() => {
+				console.log('✅ 3D Scene loaded and ready');
+				// Notify server that client is ready to start
+				if (gameState?.ws && gameState.ws.readyState === WebSocket.OPEN) {
+					gameState.ws.send(JSON.stringify({ type: 'sceneReady' }));
+				}
+			});
+		}
+
 		// Start RAF loop
 		const tick = () => {
 			if (!sceneController) return;
@@ -668,15 +679,20 @@ function handleKeyDown(e: KeyboardEvent) {
 	const isDown = e.key === 'd' || e.key === 'D';
 	const now = Date.now();
 
-	if (isUp && !keysPressed.has('up')) {
-		keysPressed.add('up');
+	// Allow key repeat for continuous movement
+	if (isUp) {
+		if (!keysPressed.has('up')) {
+			keysPressed.add('up');
+		}
 		if (now >= inputGateUntil) {
 			gameState.ws.send(JSON.stringify({ type: 'paddleMove', direction: 'up' }));
 		}
 		e.preventDefault();
 		e.stopPropagation();
-	} else if (isDown && !keysPressed.has('down')) {
-		keysPressed.add('down');
+	} else if (isDown) {
+		if (!keysPressed.has('down')) {
+			keysPressed.add('down');
+		}
 		if (now >= inputGateUntil) {
 			gameState.ws.send(JSON.stringify({ type: 'paddleMove', direction: 'down' }));
 		}

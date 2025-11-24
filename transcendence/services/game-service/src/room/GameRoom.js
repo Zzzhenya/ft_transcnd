@@ -345,19 +345,22 @@ export class GameRoom {
 		if (this.gameState.tournament.gameStatus === 'playing') {
 			moveRemoteBall(this.gameState);
 
+			// Check if match ended (gameEnd status set by game logic)
+			if (this.gameState.tournament.gameStatus === 'gameEnd') {
+				logger.info(`[GameRoom] GAME END detected! Winner: ${this.gameState.tournament.winner}, Rounds: P1=${this.gameState.tournament.roundsWon.player1}, P2=${this.gameState.tournament.roundsWon.player2}`);
+				const winnerNum = this.gameState.tournament.winner === 'player1' ? 1 : 2;
+				logger.info(`[GameRoom] Calling endGame with winner: ${winnerNum}`);
+				this.endGame(winnerNum);
+				return;
+			}
+
 			// Check if round ended after ball movement
 			if (this.gameState.tournament.gameStatus === 'roundEnd') {
-				// Check if match is over (someone won 2 rounds)
-				if (this.gameState.tournament.winner) {
-					// Match ended - determine winner number
-					const winnerNum = this.gameState.tournament.winner === 'player1' ? 1 : 2;
-					this.endGame(winnerNum);
-					return;
-				} else {
-					// Round ended but match continues - start next round
-					this.startInterRoundCountdown();
-					return;
-				}
+				logger.info(`[GameRoom] Round ended. Rounds: P1=${this.gameState.tournament.roundsWon.player1}, P2=${this.gameState.tournament.roundsWon.player2}`);
+				// Round ended but match continues - start next round
+				logger.info(`[GameRoom] Match continues, starting next round`);
+				this.startInterRoundCountdown();
+				return;
 			}
 		}
 

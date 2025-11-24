@@ -349,25 +349,25 @@ export class SimpleNotificationPoller {
     // `;
     //  ${notification.roomCode ? `<div class="text-xs mt-1 opacity-75">Room Code: <strong>${notification.roomCode}</strong></div>` : ''}
     
-    document.body.appendChild(toast);
+    // document.body.appendChild(toast);
     
-    // Remove toast after 10 seconds
-    setTimeout(() => {
-      if (document.body.contains(toast)) {
-        document.body.removeChild(toast);
-      }
-    }, 10000);
+    // // Remove toast after 10 seconds
+    // setTimeout(() => {
+    //   if (document.body.contains(toast)) {
+    //     document.body.removeChild(toast);
+    //   }
+    // }, 10000);
   }
 
   private showPlayerLeftRoom(notification: SimpleNotification) {
-    console.log('🔔 LEFT: Attempting to show notification', notification.id);
+    //console.log('🔔 LEFT: Attempting to show notification', notification.id);
     // Check if we already showed this notification
     const shownKey = `left_shown_${notification.id}`;
     if (sessionStorage.getItem(shownKey)) {
-      console.log('🔔 LEFT: Already shown, skipping', notification.id);
+      //console.log('🔔 LEFT: Already shown, skipping', notification.id);
       return; // Already shown, don't show again
     }
-    console.log('🔔 LEFT: Showing toast for', notification.id);
+    //console.log('🔔 LEFT: Showing toast for', notification.id);
     sessionStorage.setItem(shownKey, 'true');
     
     // Remove any existing left toasts first
@@ -393,14 +393,14 @@ export class SimpleNotificationPoller {
     //            ${notification.roomCode ? `<div class="text-xs mt-1 opacity-75">Room Code: <strong>${notification.roomCode}</strong></div>` : ''}
 
     
-    document.body.appendChild(toast);
+    // document.body.appendChild(toast);
     
-    // Remove toast after 10 seconds
-    setTimeout(() => {
-      if (document.body.contains(toast)) {
-        document.body.removeChild(toast);
-      }
-    }, 10000);
+    // // Remove toast after 10 seconds
+    // setTimeout(() => {
+    //   if (document.body.contains(toast)) {
+    //     document.body.removeChild(toast);
+    //   }
+    // }, 10000);
   }
 
   showInvitationCountdown(friendName: string, roomCode: string, timeoutMs: number = 10000) {

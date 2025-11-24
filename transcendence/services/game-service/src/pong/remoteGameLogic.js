@@ -7,12 +7,12 @@ export const REMOTE_GAME_CONFIG = {
 	paddle: {
 		width: 2,
 		height: 40,
-		speed: 15
+		speed: 20  // Increased from 15 to 20
 	},
 	ball: {
 		radius: 2,
-		speed: 0.8,        // EVEN SLOWER: was 1.2, now 0.8 (60% slower than original!)
-		bounceSpeed: 1.2   // EVEN SLOWER: was 1.8, now 1.2 (60% slower than original!)
+		speed: 0.95,       // Slightly slower: was 1.1, now 0.95
+		bounceSpeed: 1.4   // Slightly slower: was 1.6, now 1.4
 	},
 	court: {
 		width: 100,
@@ -160,33 +160,43 @@ function resetRemoteBall(gameState, direction = null) {
 function checkRemoteRoundEnd(gameState) {
 	const scoreLimit = gameState.tournament.scoreLimit;
 
+	logger.info(`[RemoteGame] checkRemoteRoundEnd - P1: ${gameState.score.player1}/${scoreLimit}, P2: ${gameState.score.player2}/${scoreLimit}`);
+
 	if (gameState.score.player1 >= scoreLimit) {
 		gameState.tournament.roundsWon.player1++;
 		logger.info(`[RemoteGame] 🏆 Player 1 wins Round ${gameState.tournament.currentRound}! (Rounds: P1=${gameState.tournament.roundsWon.player1}, P2=${gameState.tournament.roundsWon.player2})`);
-		return endRemoteRound(gameState, 'player1');
+		const matchOver = endRemoteRound(gameState, 'player1');
+		logger.info(`[RemoteGame] endRemoteRound returned: ${matchOver}, gameStatus is now: ${gameState.tournament.gameStatus}`);
+		return matchOver;
 	} else if (gameState.score.player2 >= scoreLimit) {
 		gameState.tournament.roundsWon.player2++;
 		logger.info(`[RemoteGame] 🏆 Player 2 wins Round ${gameState.tournament.currentRound}! (Rounds: P1=${gameState.tournament.roundsWon.player1}, P2=${gameState.tournament.roundsWon.player2})`);
-		return endRemoteRound(gameState, 'player2');
+		const matchOver = endRemoteRound(gameState, 'player2');
+		logger.info(`[RemoteGame] endRemoteRound returned: ${matchOver}, gameStatus is now: ${gameState.tournament.gameStatus}`);
+		return matchOver;
 	}
 
 	return false;
 }
 
 export function endRemoteRound(gameState, roundWinner) {
-	gameState.tournament.gameStatus = 'roundEnd';
-
 	const roundsToWin = REMOTE_GAME_CONFIG.rounds.roundsToWin;
+	
+	logger.info(`[RemoteGame] endRemoteRound called - roundWinner: ${roundWinner}, roundsWon: P1=${gameState.tournament.roundsWon.player1}, P2=${gameState.tournament.roundsWon.player2}, roundsToWin: ${roundsToWin}`);
 
+	// Check if match is over FIRST
 	if (gameState.tournament.roundsWon[roundWinner] >= roundsToWin) {
 		gameState.tournament.gameStatus = 'gameEnd';
 		gameState.tournament.winner = roundWinner;
 
 		logger.info(`[RemoteGame] 🎉 MATCH OVER! ${roundWinner} wins ${gameState.tournament.roundsWon[roundWinner]}-${gameState.tournament.roundsWon[roundWinner === 'player1' ? 'player2' : 'player1']}!`);
+		logger.info(`[RemoteGame] gameStatus set to: ${gameState.tournament.gameStatus}, winner set to: ${gameState.tournament.winner}`);
 
 		return true;
 	} else {
-		logger.info(`[RemoteGame] Round ${gameState.tournament.currentRound} complete. Starting next round countdown...`);
+		// Round ended but match continues
+		gameState.tournament.gameStatus = 'roundEnd';
+		logger.info(`[RemoteGame] Round ${gameState.tournament.currentRound} complete. Match continues. gameStatus: ${gameState.tournament.gameStatus}`);
 		return false;
 	}
 }
