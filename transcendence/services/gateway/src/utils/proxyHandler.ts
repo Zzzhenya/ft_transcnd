@@ -51,7 +51,10 @@ export async function proxyRequest(
 
     var extractedToken = null;
     // var extractedId = null;
-    if (upstreamUrl.startsWith(`${USER_SERVICE_URL}/auth`)){
+    if (upstreamUrl.startsWith(`${USER_SERVICE_URL}/auth`) 
+      || upstreamUrl.startsWith(`${USER_SERVICE_URL}/users`) 
+      || upstreamUrl.startsWith(`${USER_SERVICE_URL}/notifications`)
+      || upstreamUrl.startsWith(`${USER_SERVICE_URL}/tournaments`)){
       const user = request.user as User | undefined;
       if (user){
         if (user.jwt){
