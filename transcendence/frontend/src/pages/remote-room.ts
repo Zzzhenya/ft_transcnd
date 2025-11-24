@@ -280,7 +280,7 @@ function setupRoomEventListeners(root: HTMLElement) {
 
 	document.addEventListener('keydown', (e: KeyboardEvent) => {
 		const k = e.key;
-		if (k === 'w' || k === 'W' || k === 's' || k === 'S') {
+		if (k === 'a' || k === 'A' || k === 'd' || k === 'D') {
 			e.preventDefault();
 			e.stopPropagation();
 			handleKeyDown(e);
@@ -579,7 +579,7 @@ function startGameUI(root: HTMLElement, initialState: any) {
 	// Initialize remote-specific Babylon scene
 	try {
 		console.log('🎥 Initializing Remote Babylon Scene');
-		sceneController = createRemoteScene(canvas) as any;
+		sceneController = createRemoteScene(canvas, gameState.playerNumber || 1) as any;
 
 		// Start RAF loop
 		const tick = () => {
@@ -664,8 +664,8 @@ function handleKeyDown(e: KeyboardEvent) {
 	if (!gameState?.ws || gameState.ws.readyState !== WebSocket.OPEN) return;
 	if (gameState.playerNumber !== 1 && gameState.playerNumber !== 2) return;
 
-	const isUp = e.key === 'w' || e.key === 'W';
-	const isDown = e.key === 's' || e.key === 'S';
+	const isUp = e.key === 'a' || e.key === 'A';
+	const isDown = e.key === 'd' || e.key === 'D';
 	const now = Date.now();
 
 	if (isUp && !keysPressed.has('up')) {
@@ -689,7 +689,7 @@ function handleKeyUp(e: KeyboardEvent) {
 	if (!gameState?.ws || gameState.ws.readyState !== WebSocket.OPEN) return;
 	if (gameState.playerNumber !== 1 && gameState.playerNumber !== 2) return;
 
-	const isHandled = e.key === 'w' || e.key === 'W' || e.key === 's' || e.key === 'S';
+	const isHandled = e.key === 'a' || e.key === 'A' || e.key === 'd' || e.key === 'D';
 	if (isHandled) {
 		const wasUp = keysPressed.has('up');
 		const wasDown = keysPressed.has('down');
@@ -732,9 +732,9 @@ function endGame(root: HTMLElement, data: any) {
 	const display = root.querySelector('#countdownDisplay') as HTMLElement | null;
 	if (display) {
 		display.textContent = isYouWinner ? '🏆 YOU WON! 🏆' : `Player ${winner} Won!`;
-		display.style.display = 'block';
-		display.className = 'absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-20 text-5xl font-bold drop-shadow-lg ' +
-			(isYouWinner ? 'text-green-400' : 'text-yellow-400');
+		display.style.display = 'block';  // ← ADD THIS
+		display.style.fontSize = '5rem';   // ← ADD THIS
+		display.style.color = isYouWinner ? '#4ade80' : '#facc15'; // ← ADD THIS
 	}
 
 	updateStatus(root,
@@ -742,7 +742,10 @@ function endGame(root: HTMLElement, data: any) {
 		isYouWinner ? 'success' : 'info'
 	);
 
-	setTimeout(() => navigate('/remote'), 3000);
+	setTimeout(() => {
+		console.log('🔙 Navigating back to /remote'); // ← ADD THIS
+		navigate('/remote');
+	}, 3000);
 }
 
 function updateStatus(root: HTMLElement, message: string, type: 'info' | 'success' | 'error') {

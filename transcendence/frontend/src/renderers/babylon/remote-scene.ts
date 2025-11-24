@@ -1,5 +1,5 @@
 // frontend/src/renderers/babylon/remote-scene.ts
-// Remote-specific scene configuration with FIXED rendering and ball speed
+// COMPLETE FIX: Split-screen perspective view for each player
 
 import * as BABYLON from "@babylonjs/core";
 import "@babylonjs/loaders/glTF";
@@ -20,10 +20,12 @@ export type GameRenderState = {
 export type RemoteSceneController = {
 	update: (state: GameRenderState) => void;
 	dispose: () => void;
+	setPlayerNumber: (playerNumber: 1 | 2) => void; // Set which player's perspective
 	ready: Promise<void>;
 };
 
-export function createRemoteScene(canvas: HTMLCanvasElement): RemoteSceneController {
+export function createRemoteScene(canvas: HTMLCanvasElement, playerNumber: 1 | 2 = 1): RemoteSceneController {
+	// ---------- Engine / Scene ----------
 	const engine = new BABYLON.Engine(canvas, true, {
 		preserveDrawingBuffer: true,
 		stencil: true,
@@ -35,13 +37,17 @@ export function createRemoteScene(canvas: HTMLCanvasElement): RemoteSceneControl
 	scene.clearColor = BABYLON.Color4.FromHexString("#0A0015FF");
 	engine.resize();
 
-	// Camera optimized for remote
+	// ---------- Camera - Player-specific perspective! ----------
+	let currentPlayerNumber = playerNumber;
+
+	// Player 1 looks from LEFT side (bottom)
+	// Player 2 looks from RIGHT side (top)
 	const camera = new BABYLON.ArcRotateCamera(
-		"remoteCamera",
-		BABYLON.Tools.ToRadians(-270),
+		"camera",
+		BABYLON.Tools.ToRadians(playerNumber === 1 ? 0 : 180),  // Face opponent
 		BABYLON.Tools.ToRadians(70),
-		20,
-		new BABYLON.Vector3(0, 0, 0),
+		18,
+		new BABYLON.Vector3(0, 1, 0),
 		scene
 	);
 
@@ -51,22 +57,28 @@ export function createRemoteScene(canvas: HTMLCanvasElement): RemoteSceneControl
 	camera.panningSensibility = 0;
 	camera.minZ = 0.1;
 	camera.maxZ = 1000;
-	camera.lowerRadiusLimit = 16;
-	camera.upperRadiusLimit = 28;
-	camera.fov = 0.42;
-	camera.viewport = new BABYLON.Viewport(0, 0, 1, 1);
+	camera.lowerRadiusLimit = 12;
+	camera.upperRadiusLimit = 24;
+	camera.fov = 0.3;
 	camera.lowerBetaLimit = BABYLON.Tools.ToRadians(60);
-	camera.upperBetaLimit = BABYLON.Tools.ToRadians(85);
+	camera.upperBetaLimit = BABYLON.Tools.ToRadians(100);
 
 	scene.activeCamera = camera;
-	scene.activeCameras = [camera];
 
-	// Lights
-	const hemiLight = new BABYLON.HemisphericLight("hemiLight", new BABYLON.Vector3(0, 1, 0), scene);
-	hemiLight.intensity = 0.9;
+	// ---------- Lights ----------
+	const hemiLight = new BABYLON.HemisphericLight(
+		"hemiLight",
+		new BABYLON.Vector3(0, 1, 0),
+		scene
+	);
+	hemiLight.intensity = 0.8;
 
-	const dirLight = new BABYLON.DirectionalLight("dirLight", new BABYLON.Vector3(-0.5, -1, 0.3), scene);
-	dirLight.intensity = 0.7;
+	const dirLight = new BABYLON.DirectionalLight(
+		"dirLight",
+		new BABYLON.Vector3(-0.5, -1, 0.3),
+		scene
+	);
+	dirLight.intensity = 0.6;
 
 	// Coordinate system
 	const LOGIC_X_MIN = -50;
@@ -76,8 +88,10 @@ export function createRemoteScene(canvas: HTMLCanvasElement): RemoteSceneControl
 
 	let WORLD_X_SCALE = 0.08;
 	let WORLD_Z_SCALE = 0.04;
+
 	let tableWidthWorld = (LOGIC_X_MAX - LOGIC_X_MIN) * WORLD_X_SCALE;
 	let tableDepthWorld = (LOGIC_Z_MAX - LOGIC_Z_MIN) * WORLD_Z_SCALE;
+
 	let tableCenterX = 0;
 	let tableCenterZ = 0;
 
@@ -93,7 +107,15 @@ export function createRemoteScene(canvas: HTMLCanvasElement): RemoteSceneControl
 		return tableCenterZ + z * WORLD_Z_SCALE;
 	}
 
-	// Court / Table
+	function setPlayerNumber(pn: 1 | 2) {
+		currentPlayerNumber = pn;
+		// Update camera to face from player's perspective
+		camera.alpha = BABYLON.Tools.ToRadians(pn === 1 ? 0 : 180);
+		camera.target = new BABYLON.Vector3(tableCenterX, 1, tableCenterZ);
+		console.log(`[RemoteScene] Camera set for Player ${pn}`);
+	}
+
+	// Court
 	const courtWidth = (LOGIC_X_MAX - LOGIC_X_MIN) * WORLD_X_SCALE;
 	const courtHeight = (LOGIC_Z_MAX - LOGIC_Z_MIN) * WORLD_Z_SCALE;
 
@@ -106,6 +128,18 @@ export function createRemoteScene(canvas: HTMLCanvasElement): RemoteSceneControl
 	courtMat.diffuseColor = BABYLON.Color3.FromHexString("#5E2DD4");
 	courtMat.specularColor = BABYLON.Color3.Black();
 	court.material = courtMat;
+
+	// Center line
+	const centerLine = BABYLON.MeshBuilder.CreateBox(
+		"centerLine",
+		{ width: 0.2, height: 0.02, depth: courtHeight * 0.96 },
+		scene
+	);
+	centerLine.position = new BABYLON.Vector3(0, 0.02, 0);
+	const centerMat = new BABYLON.StandardMaterial("centerMat", scene);
+	centerMat.diffuseColor = BABYLON.Color3.FromHexString("#FFFFFF");
+	centerMat.emissiveColor = BABYLON.Color3.FromHexString("#FFFFFF");
+	centerLine.material = centerMat;
 
 	// Paddles
 	const paddleThickness = 0.5;
@@ -122,8 +156,6 @@ export function createRemoteScene(canvas: HTMLCanvasElement): RemoteSceneControl
 	paddleMat.diffuseColor = BABYLON.Color3.FromHexString("#FFFFFF");
 	paddleMat.emissiveColor = BABYLON.Color3.FromHexString("#FFFFFF");
 	paddleMat.specularColor = BABYLON.Color3.Black();
-	leftPaddle.material = null;
-	rightPaddle.material = null;
 
 	let leftX = logicToWorldX(LOGIC_X_MIN);
 	let rightX = logicToWorldX(LOGIC_X_MAX - 1.5);
@@ -143,16 +175,15 @@ export function createRemoteScene(canvas: HTMLCanvasElement): RemoteSceneControl
 	ballMat.specularColor = BABYLON.Color3.Black();
 	ball.material = ballMat;
 
-	// Ball arc animation - REDUCED for slower ball
+	// Arc configuration - SMOOTHER for remote
 	const BALL_FLOOR_OFFSET = -0.6;
-	const BASE_ARC_HEIGHT_RATIO = 0.15;  // REDUCED from 0.3
-	const BASE_ARC_RANDOM_RANGE = 0.1;   // REDUCED from 0.3
-	const BOUNCE_HEIGHT_RATIO = 0.5;     // REDUCED from 0.7
+	const BASE_ARC_HEIGHT_RATIO = 0.15;  // Lower arc
+	const BASE_ARC_RANDOM_RANGE = 0.1;   // Less variation
+	const BOUNCE_HEIGHT_RATIO = 0.5;      // Lower bounce
 
 	let arcMaxHeightCurrent = tableDepthWorld * BASE_ARC_HEIGHT_RATIO;
 	let BOUNCE_PEAK = arcMaxHeightCurrent * BOUNCE_HEIGHT_RATIO;
-
-	let arcSharpnessCurrent = 2.0;  // INCREASED for sharper arc
+	let arcSharpnessCurrent = 2.0;  // Sharper arc
 	let floorY = 0.1;
 	let arcStartHeight = floorY;
 
@@ -170,8 +201,7 @@ export function createRemoteScene(canvas: HTMLCanvasElement): RemoteSceneControl
 
 		const ratio = BASE_ARC_HEIGHT_RATIO + (Math.random() - 0.5) * BASE_ARC_RANDOM_RANGE;
 		arcMaxHeightCurrent = tableDepthWorld * Math.max(ratio, 0.01);
-		arcSharpnessCurrent = 1.5 + Math.random() * 1.0;  // More variation
-
+		arcSharpnessCurrent = 1.8 + Math.random() * 0.4;
 		BOUNCE_PEAK = arcMaxHeightCurrent * BOUNCE_HEIGHT_RATIO;
 		arcStartHeight = floorY;
 	}
@@ -181,14 +211,14 @@ export function createRemoteScene(canvas: HTMLCanvasElement): RemoteSceneControl
 		resolveReady = res;
 	});
 
-	// Load GLB model
+	// Load GLB Models
 	BABYLON.SceneLoader.ImportMesh(
 		"",
 		"/models/",
 		"game3d.glb",
 		scene,
 		(meshes) => {
-			console.log("[RemoteScene] ✅ game3d.glb loaded");
+			console.log("[RemoteScene] ✅ game3d.glb loaded!");
 
 			const allMeshes: BABYLON.AbstractMesh[] = [];
 			meshes.forEach((m) => {
@@ -203,7 +233,7 @@ export function createRemoteScene(canvas: HTMLCanvasElement): RemoteSceneControl
 				if (m.name) byName[m.name] = m;
 			});
 
-			// Replace table
+			// 1) Table
 			if (byName["table"]) {
 				court.dispose();
 				court = byName["table"];
@@ -211,9 +241,9 @@ export function createRemoteScene(canvas: HTMLCanvasElement): RemoteSceneControl
 
 				court.computeWorldMatrix(true);
 				const bbox = court.getBoundingInfo().boundingBox;
+
 				const min = bbox.minimumWorld;
 				const max = bbox.maximumWorld;
-
 				tableCenterX = (min.x + max.x) / 2;
 				tableCenterZ = (min.z + max.z) / 2;
 				const extentX = max.x - min.x;
@@ -223,16 +253,8 @@ export function createRemoteScene(canvas: HTMLCanvasElement): RemoteSceneControl
 				const logicDepth = LOGIC_Z_MAX - LOGIC_Z_MIN;
 				const SAFE_EPS = 0.0001;
 
-				let worldWidth: number;
-				let worldDepth: number;
-
-				if (Math.abs(extentX) >= Math.abs(extentZ)) {
-					worldWidth = extentX;
-					worldDepth = extentZ;
-				} else {
-					worldWidth = extentZ;
-					worldDepth = extentX;
-				}
+				let worldWidth = Math.abs(extentX) >= Math.abs(extentZ) ? extentX : extentZ;
+				let worldDepth = Math.abs(extentX) >= Math.abs(extentZ) ? extentZ : extentX;
 
 				WORLD_X_SCALE = (Math.abs(worldWidth) > SAFE_EPS ? worldWidth : SAFE_EPS) / logicWidth;
 				WORLD_Z_SCALE = (Math.abs(worldDepth) > SAFE_EPS ? worldDepth : SAFE_EPS) / logicDepth;
@@ -244,7 +266,7 @@ export function createRemoteScene(canvas: HTMLCanvasElement): RemoteSceneControl
 				floorY = tableTopGuess + BALL_FLOOR_OFFSET;
 				arcStartHeight = floorY;
 				arcMaxHeightCurrent = tableDepthWorld * BASE_ARC_HEIGHT_RATIO;
-				BOUNCE_PEAK = tableDepthWorld * 0.015;  // REDUCED
+				BOUNCE_PEAK = tableDepthWorld * 0.025;
 
 				leftPaddle.position.y = floorY + 0.02;
 				rightPaddle.position.y = floorY + 0.02;
@@ -258,12 +280,15 @@ export function createRemoteScene(canvas: HTMLCanvasElement): RemoteSceneControl
 				leftPaddle.position.z = logicToWorldZ(0);
 				rightPaddle.position.z = logicToWorldZ(0);
 
-				camera.setTarget(new BABYLON.Vector3(tableCenterX, 0, tableCenterZ));
+				// Update camera target
+				camera.target = new BABYLON.Vector3(tableCenterX, 1, tableCenterZ);
 			}
 
-			// Stadium
+			// 2) Stadium
 			if (byName["stadium"]) {
 				const stadium = byName["stadium"] as BABYLON.AbstractMesh;
+				stadium.name = "stadium";
+
 				stadium.computeWorldMatrix(true);
 				const sBox = stadium.getBoundingInfo().boundingBox;
 				const sMin = sBox.minimumWorld;
@@ -278,7 +303,7 @@ export function createRemoteScene(canvas: HTMLCanvasElement): RemoteSceneControl
 				stadium.position.addInPlace(offset);
 			}
 
-			// Scoreboard
+			// 3) Scoreboard
 			const scorePanel = allMeshes.find((m) =>
 				(m.name ?? "").toLowerCase().startsWith("scoreboard_")
 			);
@@ -292,9 +317,10 @@ export function createRemoteScene(canvas: HTMLCanvasElement): RemoteSceneControl
 				scoreText.outlineWidth = 1;
 				uiTex.addControl(scoreText);
 				scoreText.linkWithMesh(scorePanel);
+				scoreText.linkOffsetY = 0;
 			}
 
-			// Paddles from GLB
+			// 4) Paddles
 			const leftPaddleParts = allMeshes.filter((m) => {
 				const name = (m.name ?? "").toLowerCase();
 				return name.includes("l_paddle");
@@ -308,7 +334,6 @@ export function createRemoteScene(canvas: HTMLCanvasElement): RemoteSceneControl
 			if (leftPaddleParts.length && rightPaddleParts.length) {
 				leftPaddle.dispose();
 				rightPaddle.dispose();
-
 				const leftRoot = new BABYLON.TransformNode("leftPaddleRoot", scene);
 				const rightRoot = new BABYLON.TransformNode("rightPaddleRoot", scene);
 				leftPaddle = leftRoot as unknown as BABYLON.AbstractMesh;
@@ -321,7 +346,7 @@ export function createRemoteScene(canvas: HTMLCanvasElement): RemoteSceneControl
 				rightRoot.position = new BABYLON.Vector3(rightX - 1.5, floorY + 0.3, logicToWorldZ(0));
 			}
 
-			// Ball from GLB
+			// 5) Ball
 			if (byName["ball"]) {
 				ball.dispose();
 				ball = byName["ball"];
@@ -373,16 +398,18 @@ export function createRemoteScene(canvas: HTMLCanvasElement): RemoteSceneControl
 		scene.render();
 	});
 
+	// Resize
 	function onResize() {
 		engine.resize();
 	}
 	window.addEventListener("resize", onResize);
 
+	// Update
 	function update(state: GameRenderState) {
 		const prev = lastState;
 		lastState = state;
 
-		// Update paddles
+		// Paddle position
 		if (state.paddles) {
 			const lp = state.paddles.player1 ?? 0;
 			const rp = state.paddles.player2 ?? 0;
@@ -390,7 +417,7 @@ export function createRemoteScene(canvas: HTMLCanvasElement): RemoteSceneControl
 			rightPaddle.position.z = logicToWorldZ(rp);
 		}
 
-		// Update ball
+		// Ball position
 		if (state.ball) {
 			let bx = state.ball.x ?? 0;
 			let by = state.ball.y ?? 0;
@@ -401,8 +428,8 @@ export function createRemoteScene(canvas: HTMLCanvasElement): RemoteSceneControl
 			}
 
 			let newDir: 1 | -1 = currentDir;
-			if (bx > lastBallX + 0.2) { newDir = 1; }
-			else if (bx < lastBallX - 0.2) { newDir = -1; }
+			if (bx > lastBallX + 0.2) newDir = 1;
+			else if (bx < lastBallX - 0.2) newDir = -1;
 
 			if (newDir !== currentDir) {
 				setupArcSegment(bx, newDir);
@@ -414,26 +441,26 @@ export function createRemoteScene(canvas: HTMLCanvasElement): RemoteSceneControl
 			ball.position.z = logicToWorldZ(by);
 		}
 
-		// Update game status effects
+		// Game status
 		if (state.gameStatus === "gameEnd") {
 			ballMat.emissiveColor = new BABYLON.Color3(1, 1, 0.3);
 		} else {
 			ballMat.emissiveColor = BABYLON.Color3.FromHexString("#FACC15");
 		}
 
-		// Update score
+		// Score
 		const p1 = state.score?.player1 ?? 0;
 		const p2 = state.score?.player2 ?? 0;
 		if (p1 !== lastScoreP1 || p2 !== lastScoreP2) {
 			lastScoreP1 = p1;
 			lastScoreP2 = p2;
-
 			if (scoreText) {
 				scoreText.text = `${p1} - ${p2}`;
 			}
 		}
 	}
 
+	// Cleanup
 	function dispose() {
 		window.removeEventListener("resize", onResize);
 		scene.dispose();
@@ -455,5 +482,5 @@ export function createRemoteScene(canvas: HTMLCanvasElement): RemoteSceneControl
 		});
 	}
 
-	return { update, dispose, ready };
+	return { update, dispose, setPlayerNumber, ready };
 }

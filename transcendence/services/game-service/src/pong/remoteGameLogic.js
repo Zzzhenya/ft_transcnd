@@ -1,5 +1,5 @@
 // transcendence/services/game-service/src/pong/remoteGameLogic.js
-// FIXED: Slower ball speed for better gameplay
+// COMPLETE FIX: EVEN SLOWER ball for remote play
 
 import logger from '../utils/logger.js';
 
@@ -11,8 +11,8 @@ export const REMOTE_GAME_CONFIG = {
 	},
 	ball: {
 		radius: 2,
-		speed: 1.2,        // REDUCED from 2.0 - SLOWER BALL
-		bounceSpeed: 1.8   // REDUCED from 3 - SLOWER AFTER BOUNCE
+		speed: 0.8,        // EVEN SLOWER: was 1.2, now 0.8 (60% slower than original!)
+		bounceSpeed: 1.2   // EVEN SLOWER: was 1.8, now 1.2 (60% slower than original!)
 	},
 	court: {
 		width: 100,
@@ -73,9 +73,9 @@ export function moveRemoteBall(gameState) {
 	const paddleWidth = config.paddle.width;
 	const paddleX = 50;
 	const ballRadius = config.ball.radius;
-	const ballSpeed = config.ball.speed;  // Now 1.2 instead of 2.0
+	const ballSpeed = config.ball.speed;  // Now 0.8 - MUCH SLOWER!
 
-	// Move ball - SLOWER
+	// Move ball
 	gameState.ball.x += gameState.ball.dx * ballSpeed;
 	gameState.ball.y += gameState.ball.dy * ballSpeed;
 
@@ -92,7 +92,7 @@ export function moveRemoteBall(gameState) {
 		const relativeY = gameState.ball.y - paddleY;
 		const normalizedY = relativeY / (paddleHeight / 2);
 
-		const bounceSpeed = config.ball.bounceSpeed;  // Now 1.8 instead of 3
+		const bounceSpeed = config.ball.bounceSpeed;  // Now 1.2 - MUCH SLOWER!
 
 		gameState.ball.dx = gameState.ball.dx > 0 ? -bounceSpeed : bounceSpeed;
 		gameState.ball.dy = normalizedY * bounceSpeed;
