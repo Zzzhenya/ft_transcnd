@@ -170,21 +170,6 @@ export async function guestLogin(alias?: string): Promise<{ success: boolean; er
 		// }
 
 		// Save guest user data to sessionStorage
-		// const s = read();
-		// if (!s.auth) s.auth = { user: null, token: null };
-		// s.auth.user = {
-		// 	id: data.user.id,
-		// 	username: data.user.username,
-		// 	email: data.user.email,
-		// 	name: data.user.username,
-		// 	role: "user"
-		// };
-		// s.auth.token = data.token;
-		// write(s);
-		// dispatchEvent(new CustomEvent("auth:changed"));
-		// // Mark user online once on successful guest login
-		// await reportOnlineOnce();
-		// return { success: true };
     const ok = await loadUserProfile();
     if (!ok) return { success: false, error: "Failed to fetch user profile" };
 
@@ -236,7 +221,6 @@ export async function getProfile(): Promise<{
 export async function setOnlineStatus(isOnline: boolean): Promise<{ success: boolean; error?: string }> {
   try {
     const user = getAuth();
-    // const token = getToken();
     if (!user) {
       return { success: false, error: 'User not authenticated' };
     }
@@ -246,21 +230,8 @@ export async function setOnlineStatus(isOnline: boolean): Promise<{ success: boo
     await api(`/users/${user.id}/status`, {
       method: "POST",
       body: JSON.stringify({ is_online: isOnline ? 1 : 0 }),
+      credentials: 'include',
     });
-
-    // const response = await fetch(`/api/user-/users/${user.id}/status`, {
-    //   method: 'POST',
-    //   headers: {
-    //     'Content-Type': 'application/json',
-    //     'Authorization': `Bearer ${token || ''}`
-    //   },
-    //   credentials: 'include',
-    //   body: JSON.stringify({ is_online: isOnline ? 1 : 0 }),
-    // });
-
-    // if (!response.ok) {
-    //   throw new Error(`HTTP ${response.status}: ${await response.text()}`);
-    // }
 
     console.log(`✅ Online status updated successfully`);
     return { success: true };
