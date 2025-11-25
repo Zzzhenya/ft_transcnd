@@ -107,7 +107,7 @@ export async function signIn(
 	password: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-	// const data = await api<{ token: string; user: any }>(
+
   	const data = await api(
 	  "/auth/login",
 	  { method: "POST", body: JSON.stringify({ email, password }), credentials: 'include' }
@@ -132,7 +132,7 @@ export async function signIn(
 
 // Sign out
 export async function signOut() {
-	// const data = await api<{ token: string; user: any }>(
+
 	try	{
 		console.log('🎮 User logout: set user offline');
 		await reportOffline();
@@ -143,9 +143,6 @@ export async function signOut() {
   	// ignore errors
   }
   const s = read();
-  // if (!s.auth) s.auth = { user: null, token: null };
-  // s.auth.user = null;
-  // s.auth.token = null;
   s.auth = {user: null}
   write(s);
   dispatchEvent(new CustomEvent("auth:changed"));
@@ -230,7 +227,6 @@ export async function setOnlineStatus(isOnline: boolean): Promise<{ success: boo
     await api(`/users/${user.id}/status`, {
       method: "POST",
       body: JSON.stringify({ is_online: isOnline ? 1 : 0 }),
-      credentials: 'include',
     });
 
     console.log(`✅ Online status updated successfully`);
