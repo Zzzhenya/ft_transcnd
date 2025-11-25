@@ -74,9 +74,16 @@ fastify.addHook('preHandler', async (request, reply) => {
 
 // JWT verification decorator
 fastify.decorate('authenticate', async function (request, reply) {
+  // const tempHeader = request.headers['x-token'];
+  // if (tempHeader) {
+  //   console.log(`⭐⭐⭐⭐⭐⭐⭐token: ${tempHeader}`)
+  // } else {
+  //   console.log(`⭐⭐⭐⭐⭐⭐⭐token: NONE`)
+  // }
   console.log('AUTHENTICATE MIDDLEWARE - Starting for URL:', request.url);
   try {
-    const authHeader = request.headers.authorization;
+    // const authHeader = request.headers.authorization;
+    const authHeader = request.headers['x-token'];
     console.log('AUTHENTICATE MIDDLEWARE - Auth header:', authHeader ? 'Present' : 'Missing');
 
     if (!authHeader) {
@@ -86,9 +93,10 @@ fastify.decorate('authenticate', async function (request, reply) {
       return;
     }
 
-    const token = authHeader.split(' ')[1];
-    console.log('AUTHENTICATE MIDDLEWARE - Token extracted, length:', token ? token.length : 'null');
-    const payload = jwt.verify(token, JWT_SECRET);
+    // const token = authHeader.split(' ')[1];
+    // console.log('AUTHENTICATE MIDDLEWARE - Token extracted, length:', token ? token.length : 'null');
+    // const payload = jwt.verify(token, JWT_SECRET);
+    const payload = jwt.verify(authHeader, JWT_SECRET);
     console.log('AUTHENTICATE MIDDLEWARE - JWT verified, userId:', payload.userId);
 
     const user = await User.findById(payload.userId);
@@ -99,17 +107,22 @@ fastify.decorate('authenticate', async function (request, reply) {
       reply.code(404).send({ message: 'Benutzer nicht gefunden' });
       return;
     }
-
-    request.user = {
-      userId: payload.userId,
-      username: payload.username
-    };
-    request.userDetails = user;
+    console.log(request.user);
+    if (!user.isGuest)
+    {
+      request.user = {
+        userId: payload.userId,
+        username: payload.username
+      };
+      request.userDetails = user;
+    }
+    // request.userDetails = user;
     console.log('AUTHENTICATE MIDDLEWARE - Success, proceeding to endpoint');
   } catch (err) {
     console.log('AUTHENTICATE MIDDLEWARE - Error:', err.message);
     logger.error('Authentication error:', err.message);
-    reply.code(403).send({ message: 'Token ungültig oder abgelaufen' });
+    reply.code(403).send({ message: 'Token invalid or expired: Please login' });
+    // reply.code(403).send({ message: 'Token ungültig oder abgelaufen' });
     return;
   }
 });
@@ -129,32 +142,36 @@ fastify.post('/auth/register', async (request, reply) => {
       });
     }
 
+    const usernameL = username.trim().toLowerCase();
+    const emailL = email.trim().toLowerCase();
+
+
     // Check if username already exists
-    const existingUsername = await User.findByUsername(username);
+    const existingUsername = await User.findByUsername(usernameL);
     if (existingUsername) {
-      logger.warn('Username already taken:', username);
+      logger.warn('Username already taken:', usernameL);
       return reply.code(409).send({
         success: false,
-        message: `Username "${username}" is already taken. Please choose another.`,
+        message: `Username "${usernameL}" is already taken. Please choose another.`,
         error: 'Username already exists'
       });
     }
 
     // Check if email already exists
-    const existingEmail = await User.findByEmail(email);
+    const existingEmail = await User.findByEmail(emailL);
     if (existingEmail) {
-      logger.warn('Email already registered:', email);
+      logger.warn('Email already registered:', emailL);
       return reply.code(409).send({
         success: false,
-        message: `Email "${email}" is already registered. Please use another email or login.`,
+        message: `Email "${emailL}" is already registered. Please use another email or login.`,
         error: 'Email already exists'
       });
     }
 
     // Register user mit display_name = username
-    const result = await AuthService.register(username, email, password, username);
+    const result = await AuthService.register(usernameL, emailL, password, usernameL);
 
-    logger.info('User registered:', { userId: result.user.id, username });
+    logger.info('User registered:', { userId: result.user.id, usernameL });
 
     return reply.code(201).send({
       success: true,
@@ -211,7 +228,9 @@ fastify.post('/auth/login', async (request, reply) => {
       });
     }
 
-    const result = await AuthService.login(email, password);
+    const emailL = email.trim().toLowerCase();
+
+    const result = await AuthService.login(emailL, password);
 
     logger.info('Login successful:', { userId: result.user.id });
 
@@ -937,6 +956,7 @@ fastify.get('/notifications/unread', {
   console.log('🚀 UNREAD NOTIFICATIONS ENDPOINT HIT!');
   try {
     const userId = request.user.userId; // From JWT
+    // const userId = request.user.userId? ||request.headers['x-user-id'];
 
     console.log('📨 Getting unread notifications for user:', userId);
 
@@ -1496,6 +1516,7 @@ console.log('ABOUT TO REGISTER PUT ENDPOINT');
 
 // Accept or reject friend request
 console.log('REGISTERING PUT ENDPOINT: /users/:userId/friend-requests/:requesterId');
+
 fastify.put('/users/:userId/friend-requests/:requesterId', {
   preHandler: fastify.authenticate
 }, async (request, reply) => {
@@ -1978,8 +1999,11 @@ fastify.put('/users/:userId/update-email', {
       });
     }
 
+    const emailL = newEmail.trim().toLowerCase();
+
+
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(newEmail)) {
+    if (!emailRegex.test(emailL)) {
       return reply.code(400).send({
         error: 'Invalid email format'
       });
@@ -1997,7 +2021,7 @@ fastify.put('/users/:userId/update-email', {
       });
     }
 
-    const existingEmail = await User.findByEmail(newEmail);
+    const existingEmail = await User.findByEmail(emailL);
     if (existingEmail && existingEmail.id !== userId) {
       return reply.code(409).send({
         error: 'Email already in use by another account'
@@ -2014,7 +2038,7 @@ fastify.put('/users/:userId/update-email', {
         table: 'Users',
         id: parseInt(userId),
         column: 'email',
-        value: newEmail
+        value: emailL
       })
     });
 
@@ -2057,6 +2081,8 @@ fastify.put('/users/:userId/display-name', {
       return reply.code(400).send({ error: 'Display name must be 50 characters or less' });
     }
 
+    const lowerName = displayName.trim().toLowerCase();
+
     const response = await fetch('http://database-service:3006/internal/write', {
       method: 'POST',
       headers: {
@@ -2067,7 +2093,7 @@ fastify.put('/users/:userId/display-name', {
         table: 'Users',
         id: parseInt(userId),
         column: 'display_name',
-        value: displayName.trim()
+        value: lowerName
       })
     });
 
@@ -2119,16 +2145,19 @@ fastify.put('/users/:userId/username', {
       return reply.code(400).send({ error: 'Username cannot be empty' });
     }
 
-    if (username.length < 3 || username.length > 20) {
+    const usernameL = username.trim().toLowerCase();
+
+    if (usernameL.length < 3 || usernameL.length > 20) {
       return reply.code(400).send({ error: 'Username must be between 3 and 20 characters' });
     }
 
-    if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+    if (!/^[a-zA-Z0-9_]+$/.test(usernameL)) {
       return reply.code(400).send({ error: 'Username can only contain letters, numbers, and underscores' });
     }
 
+
     // Check if username already exists
-    const existingUser = await User.findByUsername(username.trim());
+    const existingUser = await User.findByUsername(usernameL.trim());
     if (existingUser && existingUser.id !== parseInt(userId)) {
       return reply.code(409).send({ error: 'Username already taken' });
     }
@@ -2143,7 +2172,7 @@ fastify.put('/users/:userId/username', {
         table: 'Users',
         id: parseInt(userId),
         column: 'username',
-        value: username.trim()
+        value: usernameL.trim()
       })
     });
 

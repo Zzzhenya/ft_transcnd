@@ -1,5 +1,6 @@
 // Simple polling-based notification system as fallback
-import { getAuth, getToken, refreshTokenIfNeeded } from '../app/auth';
+// import { getAuth, getToken, refreshTokenIfNeeded } from '../app/auth';
+import { getAuth, loadUserProfile } from '../app/auth';
 import { GATEWAY_BASE } from '../app/config';
 
 interface SimpleNotification {
@@ -37,7 +38,7 @@ export class SimpleNotificationPoller {
     this.isPolling = true;
     this.pollInterval = window.setInterval(() => {
       this.checkNotifications();
-    }, 500); // Poll every 500ms for faster response
+    }, 50000); // Poll every 500ms for faster response
   }
 
   stop() {
@@ -51,30 +52,45 @@ export class SimpleNotificationPoller {
   private async checkNotifications() {
     try {
       const user = getAuth();
-      if (!user) { this.stop(); return; }
-
-      let token = getToken();
-      if (!token) {
-        const refreshed = await (refreshTokenIfNeeded && refreshTokenIfNeeded());
-        token = getToken();
-        if (!refreshed || !token) { this.stop(); return; }
+      if (!user) {
+        const refreshed = await (loadUserProfile && loadUserProfile())
+        if (!refreshed)
+          throw new Error({success: false, error: "Failed to fetch profile"});
+        // this.stop(); 
+        // return; 
       }
 
+      // Ask what this section does
+      // let token = getToken();
+      // if (!token) {
+      //   const refreshed = await (refreshTokenIfNeeded && refreshTokenIfNeeded());
+      //   token = getToken();
+      //   if (!refreshed || !token) { this.stop(); return; }
+      // }
+
       let response = await fetch(`${GATEWAY_BASE}/user-service/notifications/unread`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        // headers: { 'Authorization': `Bearer ${token}` }, 
+        credentials: 'include'
       });
 
       if (response.status === 401 || response.status === 403) {
-        const refreshed = await (refreshTokenIfNeeded && refreshTokenIfNeeded());
-        if (refreshed) {
-          token = getToken();
-          if (token) {
-            response = await fetch(`${GATEWAY_BASE}/user-service/notifications/unread`, {
-              headers: { 'Authorization': `Bearer ${token}` }
-            });
-          }
+        // const refreshed = await (loadUserProfile && loadUserProfile())
+        // // const refreshed = await (refreshTokenIfNeeded && refreshTokenIfNeeded());
+        // if (refreshed) {
+        //   const user = getAuth()
+        //   // token = getToken();
+        //   // if (token) {
+        //   if (user) {
+        //     response = await fetch(`${GATEWAY_BASE}/user-service/notifications/unread`, {
+        //       // headers: { 'Authorization': `Bearer ${token}` },
+        //       credentials: 'include',
+        //     });
+        //   }
+
+        // Maybe ask to login?
+        this.stop(); 
+        return; 
         }
-      }
 
       if (response.ok) {
         const data = await response.json();
@@ -233,31 +249,34 @@ export class SimpleNotificationPoller {
 
   async acceptInvitation(notificationId: number, roomCode: string) {
     try {
-      let token = getToken();
-      if (!token) {
-        const refreshed = await (refreshTokenIfNeeded && refreshTokenIfNeeded());
-        token = getToken();
-        if (!refreshed || !token) return;
-      }
+      // let token = getToken();
+      // if (!token) {
+      //   const refreshed = await (refreshTokenIfNeeded && refreshTokenIfNeeded());
+      //   token = getToken();
+      //   if (!refreshed || !token) return;
+      // }
+
       let response = await fetch(`${GATEWAY_BASE}/user-service/notifications/${notificationId}/accept`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`,
+          // 'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
+        credentials: 'include',
         body: JSON.stringify({})
       });
       if (response.status === 401 || response.status === 403) {
-        const refreshed = await (refreshTokenIfNeeded && refreshTokenIfNeeded());
-        if (refreshed) {
-          token = getToken();
-          if (!token) return;
-          response = await fetch(`${GATEWAY_BASE}/user-service/notifications/${notificationId}/accept`, {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({})
-          });
-        }
+        // const refreshed = await (refreshTokenIfNeeded && refreshTokenIfNeeded());
+        // if (refreshed) {
+        //   token = getToken();
+        //   if (!token) return;
+        //   response = await fetch(`${GATEWAY_BASE}/user-service/notifications/${notificationId}/accept`, {
+        //     method: 'POST',
+        //     headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        //     credentials: 'include',
+        //     body: JSON.stringify({})
+        //   });
+        // }
       }
 
       if (response.ok) {
@@ -282,30 +301,37 @@ export class SimpleNotificationPoller {
 
   async declineInvitation(notificationId: number) {
     try {
-      let token = getToken();
-      if (!token) {
-        const refreshed = await (refreshTokenIfNeeded && refreshTokenIfNeeded());
-        token = getToken();
-        if (!refreshed || !token) throw new Error('not authenticated');
+      const user = getAuth();
+      if (!user) {
+        const refreshed = await (loadUserProfile && loadUserProfile())
+        if (!refreshed)
+          throw new Error({success: false, error: "Failed to fetch profile"});
       }
+      // let token = getToken();
+      // if (!token) {
+      //   const refreshed = await (refreshTokenIfNeeded && refreshTokenIfNeeded());
+      //   token = getToken();
+      //   if (!refreshed || !token) throw new Error('not authenticated');
+      // }
       let response = await fetch(`${GATEWAY_BASE}/user-service/notifications/${notificationId}/decline`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`,
+          // 'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
+        credentials: 'include',
         body: JSON.stringify({})
       });
       if (response.status === 401 || response.status === 403) {
-        const refreshed = await (refreshTokenIfNeeded && refreshTokenIfNeeded());
-        if (refreshed) {
-          token = getToken();
-          response = await fetch(`${GATEWAY_BASE}/user-service/notifications/${notificationId}/decline`, {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({})
-          });
-        }
+        // const refreshed = await (refreshTokenIfNeeded && refreshTokenIfNeeded());
+        // if (refreshed) {
+        //   token = getToken();
+        //   response = await fetch(`${GATEWAY_BASE}/user-service/notifications/${notificationId}/decline`, {
+        //     method: 'POST',
+        //     headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },credentials: 'include',
+        //     body: JSON.stringify({})
+        //   });
+        // }
       }
     } catch (error) {
       // Silent fail
@@ -489,8 +515,8 @@ export class SimpleNotificationPoller {
       // Override the filtering temporarily
       fetch(`${GATEWAY_BASE}/user-service/notifications/unread`, {
         headers: {
-          'Authorization': `Bearer ${getToken()}`
-        }
+          // 'Authorization': `Bearer ${getToken()}`
+        }, credentials: 'include'
       }).then(res => res.json()).then(data => {
         const notifications = data.notifications || [];
         notifications.forEach((notification: SimpleNotification) => {

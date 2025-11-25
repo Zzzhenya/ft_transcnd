@@ -2,7 +2,7 @@ name: Gateway Timeout Fix Tests
 
 on:
   push:
-    branches: [ main, fix-gateway-timeout-queue, user-authentication-002 ]
+    branches: [ main, fix-gateway-timeout-queue, auth-from-cookies-prev ]
   pull_request:
     branches: [ main ]
     paths:

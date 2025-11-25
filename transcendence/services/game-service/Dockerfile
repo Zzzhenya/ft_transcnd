@@ -1,4 +1,5 @@
 FROM node:18-alpine AS base
+#FROM mybase/node18:latest AS base
 WORKDIR /app
 RUN apk add --no-cache curl wget python3 make g++
 COPY package*.json ./

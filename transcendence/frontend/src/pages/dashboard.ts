@@ -1,5 +1,6 @@
 // frontend/src/pages/dashboard.ts
-import { getAuth, getToken } from "@/app/auth";
+// import { getAuth, getToken } from "@/app/auth";
+import { getAuth} from "@/app/auth";
 import { navigate } from "@/app/router";
 
 interface RemoteMatch {
@@ -47,11 +48,11 @@ function formatDate(dateString: string | null): string {
 }
 
 async function fetchWithAuth(url: string) {
-  const token = getToken();
-  if (!token) throw new Error('Not authenticated');
+  // const token = getToken();
+  // if (!token) throw new Error('Not authenticated');
   
   const response = await fetch(url, {
-    headers: { 'Authorization': `Bearer ${token}` },
+    // headers: { 'Authorization': `Bearer ${token}` },
     credentials: 'include'
   });
   
