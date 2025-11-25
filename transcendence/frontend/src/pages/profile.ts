@@ -1,74 +1,43 @@
 // frontend/src/pages/profile.ts
-// import { getAuth, signOut, getToken } from "@/app/auth";
 import { getAuth, signOut } from "@/app/auth";
 import { navigate } from "@/app/router";
-import { escapeHtml, sanitizeInput } from '@/utils/security';
-const GATEWAY_BASE = import.meta.env.VITE_GATEWAY_BASE || '/api';
+import { escapeHtml } from '@/utils/security';
 
-// Keep in sync with app/auth.ts
+const GATEWAY_BASE = import.meta.env.VITE_GATEWAY_BASE || '/api';
 const STORAGE_KEY = "ft_transcendence_version1";
 
 function readAuthState(): any {
   try { return JSON.parse(sessionStorage.getItem(STORAGE_KEY) || "{}"); } catch { return {}; }
 }
-function writeAuthState(s: any) { sessionStorage.setItem(STORAGE_KEY, JSON.stringify(s)); }
 
+function writeAuthState(s: any) {
+  sessionStorage.setItem(STORAGE_KEY, JSON.stringify(s));
+}
 
-// function updateSessionAuthUser(partialUser: Partial<{ id: string; username: string; email: string; name: string; displayName?: string; alias?: string; role?: string }>, newToken?: string) {
-//   const s = readAuthState();
-//   if (!s.auth) s.auth = { user: null, token: null };
-//   const prev = s.auth.user || {};
-//   const updated = { ...prev, ...partialUser } as any;
-//   // Keep name consistent with display preference
-//   if (updated.display_name && !updated.displayName) {
-//     updated.displayName = updated.display_name;
-//   }
-//   // Prefer display name, then username, as name field used across UI
-//   if (!updated.name) {
-//     updated.name = updated.displayName || updated.display_name || updated.username || prev.name;
-//   } else {
-//     // If name exists but we changed display fields, refresh it
-//     updated.name = updated.displayName || updated.display_name || updated.username || updated.name;
-//   }
-//   s.auth.user = updated;
-//   if (newToken) s.auth.token = newToken;
-//   writeAuthState(s);
-//   window.dispatchEvent(new CustomEvent('auth:changed'));
-// }
-//function updateSessionAuthUser(partialUser: Partial<{ id: string; username: string; email: string; name: string; displayName?: string; alias?: string; role?: string }>, newToken?: string) {
-
-// do we need to change logic to update session from userProfile?
-// function updateSessionAuthUser(partialUser: Partial<{ id: string; username: string; email: string; name: string; displayName?: string; alias?: string; role?: string }>, newToken?: string) {
 function updateSessionAuthUser(partialUser: Partial<{ id: string; username: string; email: string; name: string; displayName?: string; alias?: string; role?: string }>) {
   const s = readAuthState();
-  // if (!s.auth) s.auth = { user: null, token: null };
-  if (!s.auth) s.auth = { user: null};
+  if (!s.auth) s.auth = { user: null };
   const prev = s.auth.user || {};
   const updated = { ...prev, ...partialUser } as any;
-  // Keep name consistent with display preference
+
   if (updated.display_name && !updated.displayName) {
     updated.displayName = updated.display_name;
   }
-  // Prefer display name, then username, as name field used across UI
+
   if (!updated.name) {
     updated.name = updated.displayName || updated.display_name || updated.username || prev.name;
   } else {
-    // If name exists but we changed display fields, refresh it
     updated.name = updated.displayName || updated.display_name || updated.username || updated.name;
   }
+
   s.auth.user = updated;
-  // if (newToken) s.auth.token = newToken;
   writeAuthState(s);
-  
-  // NUR bei echtem Token-Wechsel (Login/Logout/Token-Refresh)
-  // if (newToken) {
-  //   window.dispatchEvent(new CustomEvent('auth:changed'));
-  // }
 }
 
 export default function (root: HTMLElement, ctx?: { url?: URL }) {
   const user = getAuth();
   const currentPath = ctx?.url?.pathname || "/profile";
+
   if (!user) {
     navigate(`/auth?next=${encodeURIComponent(currentPath)}`);
     return;
@@ -80,26 +49,15 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
   let friendRequests: any[] = [];
   let selectedAvatarFile: File | null = null;
 
-  // ⭐ Replace: Update token and user in session storage used by the app
-  // function updateStoredToken(newToken: string) {
-  //   updateSessionAuthUser({}, newToken);
-  //   console.log('✅ Token updated in session storage');
-  // }
-
-  // Load complete user profile from database
+  // ==================== LOAD USER PROFILE ====================
   async function loadUserProfile() {
     if (!user) return;
     try {
-      // const token = getToken();
       const res = await fetch(`/api/user-service/auth/profile`, {
-        headers: {
-          // 'Authorization': `Bearer ${token || ''}`
-        },
         credentials: 'include'
       });
       if (res.ok) {
         userProfile = await res.json();
-        // Keep session auth in sync with latest profile
         updateSessionAuthUser({
           id: userProfile.id,
           username: userProfile.username,
@@ -115,7 +73,6 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
       userProfile = user;
     }
   }
-
 
   function updateAvatarDisplay() {
     const timestamp = Date.now();
@@ -137,19 +94,16 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
     }
   }
 
-
   function renderUserInfo() {
     const userInfoContainer = root.querySelector('#user-info-container');
     if (!userInfoContainer) return;
 
-    // Safe UserData
     const safeUsername = escapeHtml(userProfile.username || 'N/A');
     const safeDisplayName = escapeHtml(userProfile.display_name || userProfile.username || userProfile.name || 'Unknown');
     const safeEmail = escapeHtml(userProfile.email || 'N/A');
 
     userInfoContainer.innerHTML = `
       <div class="flex items-center gap-6 mb-6">
-        <!-- Avatar mit Change Button -->
         <div class="relative group">
           <img id="main-avatar"
                src="${userProfile.avatar ? `${GATEWAY_BASE}/user-service${userProfile.avatar}` : `${GATEWAY_BASE}/user-service/avatars/${userProfile.id}.jpg`}" 
@@ -167,7 +121,6 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
           ` : ''}
         </div>
         
-        <!-- User Info Grid -->
         <div class="flex-1">
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
@@ -218,18 +171,15 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
           </div>
         </div>
       </div>
-
-      </div>
     `;
 
-    // Add event listeners
     document.getElementById('change-avatar-btn')?.addEventListener('click', showAvatarModal);
     document.getElementById('change-email-btn')?.addEventListener('click', showEmailModal);
     document.getElementById('change-display-name-btn')?.addEventListener('click', showDisplayNameModal);
     document.getElementById('change-username-btn')?.addEventListener('click', showUsernameModal);
   }
 
-  // ========== AVATAR CHANGE MODAL FUNKTIONEN ==========
+  // ==================== AVATAR MODAL ====================
   function createAvatarModal() {
     const currentUser = getAuth();
     if (!currentUser) return;
@@ -251,7 +201,6 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
             </div>
             
             <div class="space-y-4">
-              <!-- Preview -->
               <div class="flex justify-center">
                 <div class="relative">
                   <img id="avatar-preview" 
@@ -270,7 +219,6 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
                 </div>
               </div>
               
-              <!-- Hidden file input -->
               <input type="file" 
                     id="avatar-input" 
                     accept="image/jpeg,image/jpg,image/png,image/gif" 
@@ -302,7 +250,6 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
     container.innerHTML = modalHTML;
     document.body.appendChild(container);
 
-    // Event listeners
     document.getElementById('avatar-input')?.addEventListener('change', handleAvatarSelect);
     document.getElementById('close-avatar-modal')?.addEventListener('click', hideAvatarModal);
     document.getElementById('avatar-modal-backdrop')?.addEventListener('click', hideAvatarModal);
@@ -315,13 +262,10 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
     if (existingModal) {
       existingModal.remove();
     }
-    if (!document.getElementById('avatar-modal')) {
-      createAvatarModal();
-    }
+    createAvatarModal();
     document.getElementById('avatar-modal')?.classList.remove('hidden');
     selectedAvatarFile = null;
 
-    // Reset save button
     const saveBtn = document.getElementById('save-avatar-btn') as HTMLButtonElement;
     if (saveBtn) {
       saveBtn.disabled = true;
@@ -342,7 +286,6 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
     const errorEl = document.getElementById('avatar-error');
     errorEl?.classList.add('hidden');
 
-    // Validate file size (2MB max)
     if (file.size > 2 * 1024 * 1024) {
       if (errorEl) {
         errorEl.textContent = 'File size must be less than 2MB';
@@ -351,7 +294,6 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
       return;
     }
 
-    // Validate file type
     if (!['image/jpeg', 'image/jpg', 'image/png', 'image/gif'].includes(file.type)) {
       if (errorEl) {
         errorEl.textContent = 'Please select a JPG, PNG or GIF image';
@@ -362,7 +304,6 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
 
     selectedAvatarFile = file;
 
-    // Preview
     const reader = new FileReader();
     reader.onload = (e) => {
       const preview = document.getElementById('avatar-preview') as HTMLImageElement;
@@ -372,7 +313,6 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
     };
     reader.readAsDataURL(file);
 
-    // Enable save button
     const saveBtn = document.getElementById('save-avatar-btn') as HTMLButtonElement;
     if (saveBtn) {
       saveBtn.disabled = false;
@@ -406,12 +346,10 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
       reader.onload = async (e) => {
         const base64 = e.target?.result as string;
 
-        // const token = getToken();
         const res = await fetch(`${GATEWAY_BASE}/user-service/users/${currentUser.id}/avatar`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            // 'Authorization': `Bearer ${token || ''}`
           },
           credentials: 'include',
           body: JSON.stringify({
@@ -452,13 +390,11 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
     }
   }
 
-  // ========== EMAIL CHANGE MODAL FUNKTIONEN ==========
+  // ==================== EMAIL MODAL ====================
   function createEmailModal() {
     const modalHTML = `
       <div id="email-modal" class="fixed inset-0 z-50 hidden">
-        <!-- Backdrop -->
         <div id="email-modal-backdrop" class="absolute inset-0 bg-black bg-opacity-50"></div>
-        <!-- Modal -->
         <div class="relative flex items-center justify-center min-h-screen p-4">
           <div class="card-violet rounded-lg border shadow-xl max-w-md w-full p-6">
             <div class="flex justify-between items-center mb-4">
@@ -545,7 +481,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
       return;
     }
 
-    const emailRegex = /^[a-zA-Z0-9.!#$%&'*+\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]+$/;
     if (!emailRegex.test(newEmail)) {
       if (emailError) {
         emailError.textContent = 'Please enter a valid email address';
@@ -554,7 +490,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
       return;
     }
 
-    const dangerousChars = ['<', '>', '"', "'", '&', '(', ')', '{', '}', '[', ']', '`', '$'];
+    const dangerousChars = ['<', '>', '"', "'", '&', '(', ')', '{', '}', '[', ']', '`', '\\'];
     if (dangerousChars.some(char => newEmail.includes(char))) {
       if (emailError) {
         emailError.textContent = 'Email contains invalid characters';
@@ -572,12 +508,10 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
     }
 
     try {
-      // const token = getToken();
       const res = await fetch(`${GATEWAY_BASE}/user-service/users/${userProfile.id}/update-email`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          // 'Authorization': `Bearer ${token || ''}`
         },
         credentials: 'include',
         body: JSON.stringify({
@@ -619,7 +553,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
     }
   }
 
-  // ⭐ UPDATED: DISPLAY NAME CHANGE MODAL WITH TOKEN HANDLING
+  // ==================== DISPLAY NAME MODAL ====================
   function createDisplayNameModal() {
     const modalHTML = `
       <div id="display-name-modal" class="fixed inset-0 z-50 hidden">
@@ -683,7 +617,6 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
     document.getElementById('display-name-modal')?.classList.add('hidden');
   }
 
-  // ⭐ UPDATED: Display name update with token handling
   async function updateDisplayName() {
     const displayNameInput = document.getElementById('new-display-name') as HTMLInputElement;
     const displayNameError = document.getElementById('display-name-error');
@@ -694,16 +627,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
 
     if (!newDisplayName) {
       if (displayNameError) {
-        displayNameError.textContent = 'Please enter a new display name';
-        displayNameError.classList.remove('hidden');
-      }
-      return;
-    }
-
-    const displayNameRegex = /^[a-zA-Z0-9 _\-\.]+$/;
-    if (!displayNameRegex.test(newDisplayName)) {
-      if (displayNameError) {
-        displayNameError.textContent = 'Display name can only contain letters, numbers, spaces, and basic punctuation';
+        displayNameError.textContent = 'Display name cannot be empty';
         displayNameError.classList.remove('hidden');
       }
       return;
@@ -718,12 +642,10 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
     }
 
     try {
-      // const token = getToken();
       const res = await fetch(`${GATEWAY_BASE}/user-service/users/${userProfile.id}/display-name`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          // 'Authorization': `Bearer ${token || ''}`
         },
         credentials: 'include',
         body: JSON.stringify({
@@ -734,9 +656,11 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
       const data = await res.json();
 
       if (res.ok && data.success) {
-        // ⭐ Update session auth user and token
-        // updateSessionAuthUser({ display_name: newDisplayName, displayName: newDisplayName, name: newDisplayName }, data.token);
-        updateSessionAuthUser({ display_name: newDisplayName, displayName: newDisplayName, name: newDisplayName });
+        updateSessionAuthUser({
+          display_name: newDisplayName,
+          displayName: newDisplayName,
+          name: newDisplayName
+        });
 
         showMessage('Display name updated successfully!', 'success');
         userProfile.display_name = newDisplayName;
@@ -752,7 +676,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
     }
   }
 
-  // ⭐ UPDATED: USERNAME CHANGE MODAL WITH TOKEN HANDLING
+  // ==================== USERNAME MODAL ====================
   function createUsernameModal() {
     const modalHTML = `
       <div id="username-modal" class="fixed inset-0 z-50 hidden">
@@ -778,7 +702,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
                   value="${userProfile.username || ''}"
                   maxlength="20"
                 />
-                <p class="text-xs text-gray-500 mt-1">3-20 characters, only letters, numbers, and underscores</p>
+                <p class="text-xs text-gray-500 mt-1">3-20 characters, only letters, numbers, hyphens and underscores</p>
                 <p id="username-error" class="text-red-500 text-sm mt-1 hidden"></p>
               </div>
             </div>
@@ -816,7 +740,6 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
     document.getElementById('username-modal')?.classList.add('hidden');
   }
 
-  // ⭐ UPDATED: Username update with token handling
   async function updateUsername() {
     const usernameInput = document.getElementById('new-username') as HTMLInputElement;
     const usernameError = document.getElementById('username-error');
@@ -841,21 +764,19 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
       return;
     }
 
-    if (!/^[a-zA-Z0-9_]+$/.test(newUsername)) {
+    if (!/^[a-zA-Z0-9_-]+$/.test(newUsername)) {
       if (usernameError) {
-        usernameError.textContent = 'Username can only contain letters, numbers, and underscores';
+        usernameError.textContent = 'Username can only contain letters, numbers, underscores, and hyphens';
         usernameError.classList.remove('hidden');
       }
       return;
     }
 
     try {
-      // const token = getToken();
       const res = await fetch(`${GATEWAY_BASE}/user-service/users/${userProfile.id}/username`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          // 'Authorization': `Bearer ${token || ''}`
         },
         credentials: 'include',
         body: JSON.stringify({
@@ -866,9 +787,11 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
       const data = await res.json();
 
       if (res.ok && data.success) {
-        // ⭐ Update session auth user and token. Name falls back to username if no display name
-        // updateSessionAuthUser({ username: newUsername, name: userProfile.display_name || userProfile.displayName || newUsername }, data.token);
-        updateSessionAuthUser({ username: newUsername, name: userProfile.display_name || userProfile.displayName || newUsername });
+        updateSessionAuthUser({
+          username: newUsername,
+          name: userProfile.display_name || userProfile.displayName || newUsername
+        });
+
         showMessage('Username updated successfully!', 'success');
         userProfile.username = newUsername;
         renderUserInfo();
@@ -890,17 +813,13 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
     }
   }
 
-  // Load incoming friend requests
+  // ==================== FRIENDS MANAGEMENT ====================
   async function loadFriendRequests() {
     if (!user) return;
 
     try {
-      // const token = getToken();
       const res = await fetch(`${GATEWAY_BASE}/user-service/users/${userProfile.id}/friend-requests`, {
         credentials: 'include',
-        headers: {
-          // 'Authorization': `Bearer ${token || ''}`
-        },
       });
 
       if (res.ok) {
@@ -913,17 +832,14 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
     }
   }
 
-  // Accept or reject friend request
   async function respondToFriendRequest(requesterId: number, action: 'accept' | 'reject') {
     if (!user) return;
     try {
-      // const token = getToken();
       const res = await fetch(`${GATEWAY_BASE}/user-service/users/${userProfile.id}/friend-requests/${requesterId}`, {
         credentials: 'include',
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          // 'Authorization': `Bearer ${token || ''}`
         },
         body: JSON.stringify({ action })
       });
@@ -945,39 +861,33 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
     }
   }
 
+  async function loadFriends() {
+    if (!user) return;
 
-  // // Friends management functions
-  // async function loadFriends() {
-  //   if (!user) return;
-  //   try {
-  //     // const token = getToken();
-  //     const res = await fetch(`${GATEWAY_BASE}/user-service/users/${userProfile.id}/friends`, {
-  //       headers: {
-  //         // 'Authorization': `Bearer ${token || ''}`
-  //       },
-  //       credentials: 'include'
-  //     });
-  //     if (res.ok) {
-  //       const data = await res.json();
-  //       friends = data.friends || [];
-  //       renderFriendsSection();
-  //     }
-  //   } catch (error) {
-  //     console.log('Could not load friends:', error);
-  //   }
-  // }
+    try {
+      const res = await fetch(`${GATEWAY_BASE}/user-service/users/${userProfile.id}/friends`, {
+        credentials: 'include'
+      });
 
+      if (res.ok) {
+        const data = await res.json();
+        friends = data.friends || [];
+        renderFriendsSection();
+      }
+    } catch (error) {
+      console.error('❌ loadFriends exception:', error);
+    }
+  }
 
   async function addFriend(username: string) {
     if (!user) return;
     if (username === user.username) return;
+
     try {
-      // const token = getToken();
       const res = await fetch(`${GATEWAY_BASE}/user-service/users/${userProfile.id}/friends`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          // 'Authorization': `Bearer ${token || ''}`
         },
         credentials: 'include',
         body: JSON.stringify({ friendUsername: username })
@@ -998,7 +908,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
 
   async function loadOnlineUsers() {
     try {
-      const res = await fetch(`/api/user-service/users/online`, {credentials: 'include'});
+      const res = await fetch(`/api/user-service/users/online`, { credentials: 'include' });
       if (res.ok) {
         const data = await res.json();
         onlineUsers = data.users || [];
@@ -1008,16 +918,11 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
     }
   }
 
-  // DELETE ACCOUNT FUNCTION
   async function deleteAccount() {
     if (!user) return;
 
     const confirmed = confirm(
       '⚠️ Are you sure you want to delete your account?\n\n' +
-      // 'This action will:\n' +
-      // '• Mark your account as deleted\n' +
-      // '• Add "deleted_" prefix to your username\n' +
-      // '• Log you out immediately\n\n' +
       'This action cannot be undone. Do you want to continue?'
     );
 
@@ -1027,17 +932,12 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
     }
 
     try {
-      // const token = getToken();
       const res = await fetch(`${GATEWAY_BASE}/user-service/auth/account`, {
         method: 'DELETE',
-        headers: {
-          // 'Authorization': `Bearer ${token || ''}`
-        },
         credentials: 'include'
       });
 
       if (res.ok) {
-        const result = await res.json();
         showMessage('Account successfully deleted. Logging out...', 'success');
 
         setTimeout(async () => {
@@ -1122,51 +1022,6 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
     });
   }
 
-// ================================================================= Checke ===============================
-async function loadFriends() {
-  if (!user) {
-    console.log('❌ loadFriends: No user!');
-    return;
-  }
-  
-  console.log('🔄 loadFriends: Starting...', { userId: userProfile.id });
-  
-  try {
-    const token = getToken();
-    console.log('🔑 Token:', token ? `${token.substring(0, 20)}...` : 'NO TOKEN');
-    
-    const url = `${GATEWAY_BASE}/user-service/users/${userProfile.id}/friends`;
-    console.log('🌐 Fetching:', url);
-    
-    const res = await fetch(url, {
-      headers: {
-        'Authorization': `Bearer ${token || ''}`
-      },
-      credentials: 'include'
-    });
-    
-    console.log('📡 Response status:', res.status, res.ok ? '✅' : '❌');
-    
-    if (res.ok) {
-      const data = await res.json();
-      console.log('📦 Raw API response:', data);
-      
-      friends = data.friends || [];
-      console.log('👥 Friends array:', friends);
-      console.log('👥 First friend:', friends[0]);
-      
-      renderFriendsSection();
-    } else {
-      const errorText = await res.text();
-      console.error('❌ API error:', res.status, errorText);
-    }
-  } catch (error) {
-    console.error('❌ loadFriends exception:', error);
-  }
-}
-
-// ==================
-
   function renderFriendsSection() {
     const friendsContainer = root.querySelector('#friends-container');
     if (!friendsContainer) return;
@@ -1174,43 +1029,41 @@ async function loadFriends() {
     friendsContainer.innerHTML = `
       <div class="space-y-3">
         ${friends.length > 0 ? friends.map(friend => {
-        // Für accepted friends: zeige online/offline
-        // Für andere: zeige nur den Status
-        let badge = '';
-        let dotColor = 'bg-gray-400';
-        
-        if (friend.friends_status === 'accepted') {
-          if (friend.online) {
-            badge = `<span class="text-xs text-green-400 font-semibold px-2 py-1 rounded-full bg-green-900/30 border border-green-500/30">🟢 Online</span>`;
-            dotColor = 'bg-green-500 animate-pulse';
-          } else {
-            badge = `<span class="text-xs text-gray-400 font-semibold px-2 py-1 rounded-full bg-gray-800/50 border border-gray-600/30">⚫ Offline</span>`;
-            dotColor = 'bg-gray-400';
-          }
-        } else if (friend.friends_status === 'pending') {
-          badge = `<span class="text-xs text-yellow-400 font-semibold px-2 py-1 rounded-full bg-yellow-900/30 border border-yellow-500/30">⏳ Pending</span>`;
-          dotColor = 'bg-yellow-400';
+      let badge = '';
+      let dotColor = 'bg-gray-400';
+
+      if (friend.friends_status === 'accepted') {
+        if (friend.online) {
+          badge = `<span class="text-xs text-green-400 font-semibold px-2 py-1 rounded-full bg-green-900/30 border border-green-500/30">🟢 Online</span>`;
+          dotColor = 'bg-green-500 animate-pulse';
         } else {
-          badge = `<span class="text-xs text-gray-400 px-2 py-1 rounded-full bg-gray-800/50 border border-gray-600/30">❌ ${friend.friends_status}</span>`;
+          badge = `<span class="text-xs text-gray-400 font-semibold px-2 py-1 rounded-full bg-gray-800/50 border border-gray-600/30">⚫ Offline</span>`;
+          dotColor = 'bg-gray-400';
         }
-        
-        return `
-          <div class="flex items-center justify-between p-4 card-violet rounded-lg border">
-            <div class="flex items-center gap-3">
-              <div class="w-3 h-3 rounded-full ${dotColor}"></div>
-              <div>
-                <span class="font-semibold text-gray-200">${friend.username || 'Unknown User'}</span>
-                <div class="text-xs text-gray-400">
-                  Status: ${friend.friends_status} • Added: ${new Date(friend.created_at).toLocaleDateString()}
+      } else if (friend.friends_status === 'pending') {
+        badge = `<span class="text-xs text-yellow-400 font-semibold px-2 py-1 rounded-full bg-yellow-900/30 border border-yellow-500/30">⏳ Pending</span>`;
+        dotColor = 'bg-yellow-400';
+      } else {
+        badge = `<span class="text-xs text-gray-400 px-2 py-1 rounded-full bg-gray-800/50 border border-gray-600/30">❌ ${friend.friends_status}</span>`;
+      }
+
+      return `
+            <div class="flex items-center justify-between p-4 card-violet rounded-lg border">
+              <div class="flex items-center gap-3">
+                <div class="w-3 h-3 rounded-full ${dotColor}"></div>
+                <div>
+                  <span class="font-semibold text-gray-200">${friend.username || 'Unknown User'}</span>
+                  <div class="text-xs text-gray-400">
+                    Status: ${friend.friends_status} • Added: ${new Date(friend.created_at).toLocaleDateString()}
+                  </div>
                 </div>
               </div>
+              <div class="text-right">
+                ${badge}
+              </div>
             </div>
-            <div class="text-right">
-              ${badge}
-            </div>
-          </div>
-        `;
-      }).join('') : `
+          `;
+    }).join('') : `
           <div class="text-center py-8 text-gray-400">
             <div class="mb-3 opacity-50 flex justify-center">
               <img src="/icons/people.png" class="icon-px icon-px--violet" alt="No friends">
@@ -1223,6 +1076,7 @@ async function loadFriends() {
     `;
   }
 
+  // ==================== MAIN RENDER ====================
   root.innerHTML = `
     <section class="py-6 md:py-8 lg:py-10 space-y-6">
       <div class="flex items-center justify-between">
@@ -1305,21 +1159,26 @@ async function loadFriends() {
           </div>
         </div>
       </div>
+
       <!-- Navigation Section -->
       <div class="flex flex-wrap gap-3">
-        <button id="dashboard-btn" class="btn-retro px-8 py-3 rounded-full text-white flex items-center gap-2"><img class="icon-px icon-px--violet" src="/icons/dashboard.png" alt="Dashboard" /> Dashboard</button>
-        <a href="/" class="btn-retro px-8 py-3 rounded-full text-white flex items-center gap-2"><img class="icon-px icon-px--violet" src="/icons/lobby.png" alt="Lobby" /> 
-          Go to Lobby
+        <button id="dashboard-btn" class="btn-retro px-8 py-3 rounded-full text-white flex items-center gap-2">
+          <img class="icon-px icon-px--violet" src="/icons/dashboard.png" alt="Dashboard" /> Dashboard
+        </button>
+        <a href="/" class="btn-retro px-8 py-3 rounded-full text-white flex items-center gap-2">
+          <img class="icon-px icon-px--violet" src="/icons/lobby.png" alt="Lobby" /> Go to Lobby
         </a>
-        <a href="/remote" class="btn-retro px-8 py-3 rounded-full text-white flex items-center gap-2"><img class="icon-px icon-px--violet" src="/icons/rocket.png" alt="Remote" /> 
-          Remote Play
+        <a href="/remote" class="btn-retro px-8 py-3 rounded-full text-white flex items-center gap-2">
+          <img class="icon-px icon-px--violet" src="/icons/rocket.png" alt="Remote" /> Remote Play
         </a>
-        <button id="backBtn" class="btn-retro px-8 py-3 rounded-full text-white flex items-center gap-2"><img class="icon-px icon-px--violet" src="/icons/trophy.png" alt="Tournaments" /> Tournament Lobby</button>
+        <button id="backBtn" class="btn-retro px-8 py-3 rounded-full text-white flex items-center gap-2">
+          <img class="icon-px icon-px--violet" src="/icons/trophy.png" alt="Tournaments" /> Tournament Lobby
+        </button>
       </div>
     </section>
   `;
 
-  // Event Listeners
+  // ==================== EVENT LISTENERS ====================
   root.querySelector<HTMLButtonElement>("#logout")?.addEventListener("click", async () => {
     await signOut();
     navigate(`/auth?next=${encodeURIComponent(currentPath)}`);
@@ -1360,12 +1219,11 @@ async function loadFriends() {
     loadFriendRequests();
   });
 
-
   root.querySelector<HTMLButtonElement>("#refresh-friends-btn")?.addEventListener("click", () => {
     loadFriends();
   });
 
-  // Load data on page load
+  // ==================== LOAD DATA ====================
   try {
     loadUserProfile();
     loadFriendRequests();

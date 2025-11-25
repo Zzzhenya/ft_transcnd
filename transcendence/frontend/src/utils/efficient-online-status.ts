@@ -203,9 +203,9 @@ class EfficientOnlineManager {
 
   private async sendHeartbeatToBackend() {
     const user = getAuth();
-    const token = getToken();
+    //const token = getToken();
     
-    if (!user || !token) return;
+    if (!user) return;
     
     try {
       // WICHTIG: Nutze /online-status statt /status!
@@ -213,7 +213,7 @@ class EfficientOnlineManager {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+
         },
         body: JSON.stringify({ is_online: 1 })
       });
@@ -240,9 +240,9 @@ class EfficientOnlineManager {
       this.registerTab(); // Update tab timestamp in localStorage
       
       const user = getAuth();
-      const token = getToken();
+      //const token = getToken();
       
-      if (user && token) {
+      if (user) {
         // Update localStorage heartbeat timestamp
         const heartbeatKey = `${EfficientOnlineManager.LAST_HEARTBEAT_KEY}_user_${user.id}`;
         localStorage.setItem(heartbeatKey, Date.now().toString());
@@ -254,7 +254,6 @@ class EfficientOnlineManager {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
             },
             body: JSON.stringify({ is_online: 1 })
           });
@@ -321,7 +320,6 @@ class EfficientOnlineManager {
       // Method 1: Try sendBeacon with FormData (most reliable)
       const formData = new FormData();
       formData.append('is_online', '0');
-      formData.append('token', token);
       
       const beaconUrl = `/api/user-service/users/${user.id}/online-status`;
       const sent = navigator.sendBeacon(beaconUrl, formData);

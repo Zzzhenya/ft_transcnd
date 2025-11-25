@@ -1,5 +1,4 @@
 import { WS_BASE } from "../app/config";
-import { getToken } from "../app/auth";
 
 export class MatchWS {
   private ws?: WebSocket;
@@ -8,8 +7,7 @@ export class MatchWS {
   constructor(private matchId: string) {}
 
   connect(onMsg: (m: any) => void) {
-    const token = getToken();
-    const qs = token ? `?token=${encodeURIComponent(token)}` : "";
+    const qs = "";
     this.ws = new WebSocket(`${WS_BASE}/ws/matches/${this.matchId}${qs}`);
 
     this.ws.addEventListener("open", () => {

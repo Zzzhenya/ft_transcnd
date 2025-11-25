@@ -42,8 +42,8 @@ class AuthService {
       throw new Error('Invalid email format');
     }
     
-    // Email-spezifische Regex (erlaubt @ und .)
-    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    // Email-spezifische Regex (erlaubt @ und .) - allows a@a.a format
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]+$/;
     if (!emailRegex.test(email)) {
       throw new Error('Invalid email format');
     }

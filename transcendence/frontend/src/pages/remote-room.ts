@@ -675,32 +675,32 @@ function handleKeyDown(e: KeyboardEvent) {
 	if (!gameState?.ws || gameState.ws.readyState !== WebSocket.OPEN) return;
 	if (gameState.playerNumber !== 1 && gameState.playerNumber !== 2) return;
 
-	const isUp = e.key === 'a' || e.key === 'A';
-	const isDown = e.key === 'd' || e.key === 'D';
+	const isLeft = e.key === 'a' || e.key === 'A';
+	const isRight = e.key === 'd' || e.key === 'D';
 	const now = Date.now();
-
-	// For Player 2, the camera is rotated 180°, so we need to invert the controls
-	const shouldInvert = gameState.playerNumber === 2;
+	
+	// Player 2's camera is rotated 180°, so we need to invert their controls
+	const isPlayer2 = gameState.playerNumber === 2;
 	
 	// Allow key repeat for continuous movement
-	if (isUp) {
-		if (!keysPressed.has('up')) {
-			keysPressed.add('up');
+	if (isLeft) {
+		if (!keysPressed.has('left')) {
+			keysPressed.add('left');
 		}
 		if (now >= inputGateUntil) {
-			// Invert direction for Player 2
-			const direction = shouldInvert ? 'down' : 'up';
+			// A key: left for P1 (down), inverted to left for P2 (up)
+			const direction = isPlayer2 ? 'up' : 'down';
 			gameState.ws.send(JSON.stringify({ type: 'paddleMove', direction }));
 		}
 		e.preventDefault();
 		e.stopPropagation();
-	} else if (isDown) {
-		if (!keysPressed.has('down')) {
-			keysPressed.add('down');
+	} else if (isRight) {
+		if (!keysPressed.has('right')) {
+			keysPressed.add('right');
 		}
 		if (now >= inputGateUntil) {
-			// Invert direction for Player 2
-			const direction = shouldInvert ? 'up' : 'down';
+			// D key: right for P1 (up), inverted to right for P2 (down)
+			const direction = isPlayer2 ? 'down' : 'up';
 			gameState.ws.send(JSON.stringify({ type: 'paddleMove', direction }));
 		}
 		e.preventDefault();
@@ -714,11 +714,11 @@ function handleKeyUp(e: KeyboardEvent) {
 
 	const isHandled = e.key === 'a' || e.key === 'A' || e.key === 'd' || e.key === 'D';
 	if (isHandled) {
-		const wasUp = keysPressed.has('up');
-		const wasDown = keysPressed.has('down');
-		if (wasUp) keysPressed.delete('up');
-		if (wasDown) keysPressed.delete('down');
-		if (!keysPressed.has('up') && !keysPressed.has('down')) {
+		const wasLeft = keysPressed.has('left');
+		const wasRight = keysPressed.has('right');
+		if (wasLeft) keysPressed.delete('left');
+		if (wasRight) keysPressed.delete('right');
+		if (!keysPressed.has('left') && !keysPressed.has('right')) {
 			try {
 				if (gameState.ws.readyState === WebSocket.OPEN) {
 					gameState.ws.send(JSON.stringify({ type: 'paddleMove', direction: 'stop' }));
