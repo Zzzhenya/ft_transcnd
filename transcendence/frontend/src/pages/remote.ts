@@ -1,7 +1,6 @@
 // frontend/src/pages/remote-new.ts
 
 import { navigate } from "@/app/router";
-// import { getAuth, getToken } from "@/app/auth";
 import { getAuth } from "@/app/auth";
 import { getState } from "@/app/store";
 import { onlineManager } from '../utils/efficient-online-status';

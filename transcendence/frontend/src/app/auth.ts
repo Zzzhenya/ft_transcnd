@@ -13,14 +13,6 @@ export type AuthUser = {
 	role?: "user" | "admin";
 };
 
-// type RootState = {
-// 	auth?: {
-// 		user: AuthUser | null;
-// 		token: string | null;
-// 	};
-// 	[k: string]: any;
-// };
-
 type RootState = {
   auth?: {
     user: AuthUser | null;
@@ -43,10 +35,6 @@ function write(s: RootState) {
 export function getAuth(): AuthUser | null {
 	return read()?.auth?.user ?? null;
 }
-
-// export function getToken(): string | null {
-// 	return read()?.auth?.token ?? null;
-// }
 
 // Helper to populate user state from profile
 export async function loadUserProfile(): Promise<boolean> {
@@ -95,24 +83,6 @@ export async function register(
 			"/auth/register",
 			{ method: "POST", body: JSON.stringify({ username, email, password }) }
 		);
-
-		// if (data?.token) {
-		// 	const s = read();
-		// 	if (!s.auth) s.auth = { user: null, token: null };
-		// 	s.auth.user = {
-		// 		id: data.user.id,
-		// 		username: data.user.username,
-		// 		email: data.user.email,
-		// 		name: data.user.username,
-		// 		role: "user",
-		// 	};
-		// 	s.auth.token = data.token;
-		// 	write(s);
-		// 	dispatchEvent(new CustomEvent("auth:changed"));
-		// 	// Mark online immediately after a successful register (session is established)
-		// 	await reportOnlineOnce();
-		// 	return { success: true };
-		// }
 		
 		// fetch profile
 		const ok = await loadUserProfile();
@@ -147,18 +117,6 @@ export async function signIn(
   	const ok = await loadUserProfile();
   	if (!ok) return { success: false, error: "Failed to fetch user profile" };
 
-	// const s = read();
-	// if (!s.auth) s.auth = { user: null, token: null };
-	// s.auth.user = {
-	//   id: data.user.id,
-	//   username: data.user.username,
-	//   email: data.user.email,
-	//   name: data.user.username,
-	//   role: "user",
-	// };
-	// s.auth.token = data.token;
-	// write(s);
-	// dispatchEvent(new CustomEvent("auth:changed"));
 	// Mark user online once on successful login (no multi-tab interference)
 		await reportOnlineOnce();
 	
@@ -176,10 +134,11 @@ export async function signIn(
 export async function signOut() {
 	// const data = await api<{ token: string; user: any }>(
 	try	{
+		console.log('🎮 User logout: set user offline');
+		await reportOffline();
 		console.log('🎮 User logout');
 		const data = await api("/auth/logout", { method: "POST", credentials: 'include', body: JSON.stringify({}) });
   	// Report offline first (centralized here so all callers inherit it)
-  	await reportOffline();
   } catch {
   	// ignore errors
   }

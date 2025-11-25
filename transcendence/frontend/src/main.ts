@@ -3,7 +3,6 @@ import "./styles.css";
 
 // Router setup: History API (f / b) + link interception.
 import { initRouter } from "./app/router";
-// import { getAuth, getToken } from "./app/auth";
 import { getAuth } from "./app/auth";
 import { notificationWS } from "./ui/notification-websocket";
 import { simpleNotificationPoller } from "./ui/simple-notification-polling";
@@ -11,7 +10,6 @@ import { onlineManager } from "./utils/efficient-online-status";
 
 // Make auth functions available globally for debugging
 (window as any).getAuth = getAuth;
-// (window as any).getToken = getToken;
 
 // Get app's root (main: "app"), start router, render current URL(= home)
 const root = document.querySelector<HTMLElement>("main#app")!;
