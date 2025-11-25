@@ -679,14 +679,18 @@ function handleKeyDown(e: KeyboardEvent) {
 	const isRight = e.key === 'd' || e.key === 'D';
 	const now = Date.now();
 	
+	// Player 2's camera is rotated 180°, so we need to invert their controls
+	const isPlayer2 = gameState.playerNumber === 2;
+	
 	// Allow key repeat for continuous movement
 	if (isLeft) {
 		if (!keysPressed.has('left')) {
 			keysPressed.add('left');
 		}
 		if (now >= inputGateUntil) {
-			// A key = paddle moves left for both players
-			gameState.ws.send(JSON.stringify({ type: 'paddleMove', direction: 'up' }));
+			// A key: left for P1 (down), inverted to left for P2 (up)
+			const direction = isPlayer2 ? 'up' : 'down';
+			gameState.ws.send(JSON.stringify({ type: 'paddleMove', direction }));
 		}
 		e.preventDefault();
 		e.stopPropagation();
@@ -695,8 +699,9 @@ function handleKeyDown(e: KeyboardEvent) {
 			keysPressed.add('right');
 		}
 		if (now >= inputGateUntil) {
-			// D key = paddle moves right for both players
-			gameState.ws.send(JSON.stringify({ type: 'paddleMove', direction: 'down' }));
+			// D key: right for P1 (up), inverted to right for P2 (down)
+			const direction = isPlayer2 ? 'down' : 'up';
+			gameState.ws.send(JSON.stringify({ type: 'paddleMove', direction }));
 		}
 		e.preventDefault();
 		e.stopPropagation();
