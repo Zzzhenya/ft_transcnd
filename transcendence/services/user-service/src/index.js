@@ -1899,40 +1899,6 @@ fastify.get('/tournaments/:tournamentId/matches', {
 
     console.log(`✅ Found ${matches.length} matches for tournament ${tournamentId}`);
 
-    // Enrich matches with player usernames
-    // const enrichedMatches = await Promise.all(
-    //   matches.map(async (match) => {
-    //     const player1 = await User.findById(match.player1_id);
-    //     const player2 = await User.findById(match.player2_id);
-    //     const winner = match.winner_id ? await User.findById(match.winner_id) : null;
-
-    //     return {
-    //       id: match.id,
-    //       round: match.round,
-    //       matchNumber: match.match_number,
-    //       player1: {
-    //         id: match.player1_id,
-    //         name: player1?.display_name || player1?.username || 'Unknown'
-    //       },
-    //       player2: {
-    //         id: match.player2_id,
-    //         name: player2?.display_name || player2?.username || 'Unknown'
-    //       },
-    //       winner: winner ? {
-    //         id: match.winner_id,
-    //         name: winner.display_name || winner.username
-    //       } : null,
-    //       score: {
-    //         player1: match.player1_score,
-    //         player2: match.player2_score
-    //       },
-    //       status: match.matches_status,
-    //       startedAt: match.started_at,
-    //       finishedAt: match.finished_at
-    //     };
-    //   })
-    // );
-
     const enrichedMatches = matches.map((match) => {
       let winnerAlias = null;
       if (match.winner_id) {

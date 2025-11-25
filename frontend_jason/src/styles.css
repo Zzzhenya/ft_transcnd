@@ -1,9 +1,0 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-/* 선택: 전역 커스텀 */
-:root {
-  --app-bg: #0b1020;
-}
-body { background: var(--app-bg); }

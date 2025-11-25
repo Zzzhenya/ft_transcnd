@@ -1,7 +1,7 @@
 // frontend/src/pages/auth.ts
-import { signIn, signOut, getAuth, register, guestLogin } from "@/app/auth";
+import { signIn, signOut, getAuth, register } from "@/app/auth";
 import { navigate } from "@/app/router";
-import { setAlias, clearAlias} from "@/app/store";
+import { clearAlias} from "@/app/store";
 
 export default function (root: HTMLElement, ctx: { url: URL }) {
   const next = ctx.url.searchParams.get("next") || "/profile";
