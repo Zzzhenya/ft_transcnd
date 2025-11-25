@@ -1,5 +1,5 @@
 // Real-time notification WebSocket client
-import { getAuth, getToken } from '../app/auth';
+import { getAuth } from '../app/auth';
 import { GATEWAY_BASE } from '../app/config';
 import { navigate } from '../app/router';
 
@@ -27,17 +27,14 @@ export class NotificationWebSocket {
 
   connect(): Promise<boolean> {
     return new Promise((resolve) => {
-      const token = getToken();
       const user = getAuth();
       
       console.log('🔔 🚀 CONNECT CALLED - Starting WebSocket connection process');
-      console.log('🔔 🔍 Token exists:', !!token, 'length:', token?.length || 0);
       console.log('🔔 🔍 User exists:', !!user, 'user id:', user?.id || 'none');
       console.log('🔔 🔍 GATEWAY_BASE:', GATEWAY_BASE);
       
-      if (!token || !user) {
-        console.log('🔔 ❌ Cannot connect: no token or user');
-        console.log('🔔 ❌ Token:', !!token, 'User:', !!user);
+      if (!user) {
+        console.log('🔔 ❌ Cannot connect: no user');
         resolve(false);
         return;
       }
@@ -57,26 +54,17 @@ export class NotificationWebSocket {
       
       console.log('🔔 🔍 wsProtocol:', wsProtocol, 'host:', host);
       
-      // Use same-origin URL through nginx proxy
-      const wsUrl = `${wsProtocol}//${host}/api/user-service/ws/notifications?token=${encodeURIComponent(token)}`;
+      // Use same-origin URL through nginx proxy (no token in URL, using cookies)
+      const wsUrl = `${wsProtocol}//${host}/api/user-service/ws/notifications`;
       console.log('🔔 🎯 Final WebSocket URL:', wsUrl);
       console.log('🔔 🎯 About to create WebSocket with URL above...');
       
-      console.log('🔔 🎯 About to create WebSocket with URL above...');
       this.ws = new WebSocket(wsUrl);
       this.isIntentionalClose = false;
       console.log('🔔 ✅ WebSocket object created, waiting for events...');
 
       this.ws.onopen = () => {
         console.log('🔔 ✅ 🎉 Connected to notification WebSocket');
-        
-        // Send authentication message in case URL token extraction fails
-        console.log('🔔 📤 Sending auth message as fallback...');
-        this.ws!.send(JSON.stringify({
-          type: 'auth',
-          token: token
-        }));
-        console.log('🔔 📤 Auth message sent');
         
         this.reconnectAttempts = 0;
         this.reconnectDelay = 1000;
@@ -422,12 +410,10 @@ export class NotificationWebSocket {
     console.log('🔔 ✅ Accepting invitation:', notificationId, roomCode);
     
     try {
-      const token = getToken();
       const response = await fetch(`${GATEWAY_BASE}/api/user-service/notifications/${notificationId}/accept`, {
         method: 'POST',
         credentials: 'include',
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });
@@ -463,12 +449,10 @@ export class NotificationWebSocket {
     console.log('🔔 ❌ Declining invitation:', notificationId);
     
     try {
-      const token = getToken();
       const response = await fetch(`${GATEWAY_BASE}/api/user-service/notifications/${notificationId}/decline`, {
         method: 'POST',
         credentials: 'include',
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });

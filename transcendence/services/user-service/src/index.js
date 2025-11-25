@@ -1469,6 +1469,11 @@ fastify.post('/users/:userId/friends', {
       console.log('🚀 Missing required parameters');
       return reply.code(400).send({ error: 'Either friend_id or friendUsername is required' });
     }
+    // Prevent self-friend requests
+    if (parseInt(userId) === parseInt(finalFriendId)) {
+      console.log('🚀 Attempted self-friend request blocked');
+      return reply.code(400).send({ error: 'You cannot send a friend request to yourself' });
+    }
 
     console.log('🚀 About to create friend request:', { from: userId, to: finalFriendId });
     logger.info(`Creating friend request from ${userId} to ${finalFriendId}`);

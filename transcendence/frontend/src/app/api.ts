@@ -1,8 +1,6 @@
 import { API_BASE } from "./config";
-import { getToken } from "./auth";
 
 export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
-  // const token = getToken();
   const res = await fetch(`${API_BASE}${ensureSlash(path)}`, {
     ...init,
     headers: {
@@ -16,8 +14,24 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   if (res.status === 401) {
 	/* TODO: Handle expired token */
   }
-  if (!res.ok)
-	throw new Error(await safeText(res));
+  if (!res.ok) {
+	const errorText = await safeText(res);
+	// Try to parse JSON error response
+	try {
+	  const errorJson = JSON.parse(errorText);
+	  // If it has a message field, use that
+	  if (errorJson.message) {
+		throw new Error(errorJson.message);
+	  }
+	  // If it has an error field, use that
+	  if (errorJson.error) {
+		throw new Error(errorJson.error);
+	  }
+	} catch (parseError) {
+	  // If JSON parsing fails, use the raw text
+	}
+	throw new Error(errorText);
+  }
 
   const isJson = res.headers.get("content-type")?.includes("application/json");
   if (res.status === 204 || !isJson)

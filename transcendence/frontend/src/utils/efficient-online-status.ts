@@ -203,7 +203,7 @@ class EfficientOnlineManager {
 
   private async sendHeartbeatToBackend() {
     const user = getAuth();
-    const token = getToken();
+    //const token = getToken();
     
     if (!user || !token) return;
     
@@ -240,7 +240,7 @@ class EfficientOnlineManager {
       this.registerTab(); // Update tab timestamp in localStorage
       
       const user = getAuth();
-      const token = getToken();
+      //const token = getToken();
       
       if (user && token) {
         // Update localStorage heartbeat timestamp
@@ -254,7 +254,6 @@ class EfficientOnlineManager {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
             },
             body: JSON.stringify({ is_online: 1 })
           });

@@ -38,7 +38,7 @@ export class SimpleNotificationPoller {
     this.isPolling = true;
     this.pollInterval = window.setInterval(() => {
       this.checkNotifications();
-    }, 50000); // Poll every 500ms for faster response
+    }, 2000); // Poll every 2 seconds for faster response
   }
 
   stop() {
