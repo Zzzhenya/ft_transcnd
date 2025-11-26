@@ -32,9 +32,9 @@ jobs:
         run: |
           cd transcendence
           # Copy from .env.example and override with CI-specific values
-          cp .env.example .env
-          
-          # Override with CI-specific test values
+          # cp .env.example .env
+          touch .env
+          # # Override with CI-specific test values
           cat >> .env << EOF
           # CI/CD Override values - NOT FOR PRODUCTION
           NODE_ENV=test
