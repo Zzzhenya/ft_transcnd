@@ -32,15 +32,7 @@ function initOnlineStatus() {
     console.log('🔔 ✅ Simple polling notifications started');
 
     // 🔔 WebSocket disabled - using polling only for now
-    console.log('🔔 WebSocket notifications disabled, using polling only');
-    // notificationWS.connect().then((connected) => {
-    //   if (connected) {
-    //     console.log('🔔 ✅ Real-time notifications connected (experimental)');
-    //   } else {
-    //     console.log('🔔 ❌ Real-time notifications failed, using polling');
-    //   }
-    // });
-    
+    console.log('🔔 WebSocket notifications disabled, using polling only');    
     console.log('🚀 Initialized efficient online status system for user:', user.id);
     
     // Set cleanup function
