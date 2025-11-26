@@ -2,7 +2,7 @@ name: Gateway Timeout Fix Tests
 
 on:
   push:
-    branches: [ main, fix-gateway-timeout-queue, auth-from-cookies-prev ]
+    branches: [ main, fix-gateway-timeout-queue, shenya-bug-fixes ]
   pull_request:
     branches: [ main ]
     paths:

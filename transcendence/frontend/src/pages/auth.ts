@@ -99,6 +99,20 @@ export default function (root: HTMLElement, ctx: { url: URL }) {
     return error;
   }
 
+   function parseError(json: string) {
+    const data = JSON.parse(json);
+
+    const innerMatch = typeof data.message === "string"
+    ? data.message.match(/\{.*\}/)
+    : null;
+
+    return {
+    code: data.statusCode ?? null,
+    message: data.message ?? null,
+    innerMessage: innerMatch ? JSON.parse(innerMatch[0]).message : null
+  }}
+
+
   // Sign in form handler
   root.querySelector<HTMLFormElement>("#signin-form")?.addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -114,8 +128,9 @@ export default function (root: HTMLElement, ctx: { url: URL }) {
     if (result.success) {
       navigate(next);
     } else {
-      const cleanError = parseErrorMessage(result.error || "Sign in failed");
-      showError('signin-error', cleanError);
+      // const cleanError = parseErrorMessage(result.error || "Sign in failed");
+      const cleanError = parseError(result.error || "Sign in failed");
+      showError('signin-error', cleanError.innerMessage);
     }
   });
 
@@ -162,7 +177,7 @@ export default function (root: HTMLElement, ctx: { url: URL }) {
     if (result.success) {
       navigate(next);
     } else {
-      const cleanError = parseErrorMessage(result.error || "Registration failed");
+      const cleanError = parseError(result.error || "Registration failed");
       showError('register-error', cleanError);
     }
   });
@@ -173,4 +188,5 @@ export default function (root: HTMLElement, ctx: { url: URL }) {
     clearAlias();
     navigate(`/auth?next=${encodeURIComponent(next)}`);
   });
+
 }
