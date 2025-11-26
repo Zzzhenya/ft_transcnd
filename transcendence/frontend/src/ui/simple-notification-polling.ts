@@ -286,13 +286,15 @@ export class SimpleNotificationPoller {
       } else if (response.status === 410) {
         const modal = document.getElementById(`simple-invitation-${notificationId}`);
         if (modal) { document.body.removeChild(modal); }
-        alert('This invitation has expired.');
+        this.showErrorToast('This invitation has expired or the player has left the room.');
       } else if (response.status === 404) {
         const modal = document.getElementById(`simple-invitation-${notificationId}`);
         if (modal) { document.body.removeChild(modal); }
-        // Already handled in another tab or auto-cleaned
+        this.showErrorToast('This invitation is no longer available.');
       } else if (response.status === 409) {
-        alert('You are already in a game, cannot accept this invite.');
+        const modal = document.getElementById(`simple-invitation-${notificationId}`);
+        if (modal) { document.body.removeChild(modal); }
+        this.showErrorToast('You are already in a game. Please finish your current game first.');
       }
     } catch (error) {
       // Silent fail
@@ -542,6 +544,35 @@ export class SimpleNotificationPoller {
 
   testInvitationCountdown() {
     this.showInvitationCountdown('TestFriend', 'ABC123', 10000);
+  }
+
+  private showErrorToast(message: string) {
+    // Remove any existing error toasts
+    document.querySelectorAll('[id^="error-toast-"]').forEach(el => el.remove());
+    
+    const toast = document.createElement('div');
+    toast.id = `error-toast-${Date.now()}`;
+    toast.className = 'fixed top-4 right-4 bg-red-600 text-white p-6 rounded-lg shadow-lg z-50 border-2 border-red-400 min-w-80';
+    toast.innerHTML = `
+      <div class="flex items-center gap-3">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+        <div>
+          <div class="font-bold text-lg">Invitation Error</div>
+          <div class="text-sm opacity-90">${message}</div>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(toast);
+    
+    // Remove toast after 5 seconds
+    setTimeout(() => {
+      if (document.body.contains(toast)) {
+        document.body.removeChild(toast);
+      }
+    }, 5000);
   }
 }
 
