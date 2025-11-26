@@ -10,7 +10,6 @@
  * - Per-user tab tracking (supports multiple users in different tabs)
  */
 
-// import { getAuth, getToken } from '../app/auth';
 import { getAuth } from '../app/auth';
 import type { PublicUser } from '../../../shared/types';
 
@@ -203,8 +202,6 @@ class EfficientOnlineManager {
 
   private async sendHeartbeatToBackend() {
     const user = getAuth();
-    //const token = getToken();
-    
     if (!user) return;
     
     try {
@@ -213,8 +210,8 @@ class EfficientOnlineManager {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-
         },
+        credentials: 'include',
         body: JSON.stringify({ is_online: 1 })
       });
       
@@ -240,7 +237,6 @@ class EfficientOnlineManager {
       this.registerTab(); // Update tab timestamp in localStorage
       
       const user = getAuth();
-      //const token = getToken();
       
       if (user) {
         // Update localStorage heartbeat timestamp
@@ -255,6 +251,7 @@ class EfficientOnlineManager {
             headers: {
               'Content-Type': 'application/json',
             },
+            credentials: 'include',
             body: JSON.stringify({ is_online: 1 })
           });
           
@@ -283,9 +280,6 @@ class EfficientOnlineManager {
 
   private async setUserOnline(isOnline: boolean) {
     const user = getAuth();
-    // const token = getToken();
-    
-    // if (!user || !token) return;
     if (!user) return;
 
     try {
@@ -293,7 +287,6 @@ class EfficientOnlineManager {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          // 'Authorization': `Bearer ${token}`
         },
         credentials: 'include',
         body: JSON.stringify({ is_online: isOnline ? 1 : 0 })
@@ -311,9 +304,6 @@ class EfficientOnlineManager {
 
   private setUserOfflineSync() {
     const user = getAuth();
-    // const token = getToken();
-    
-    // if (!user || !token) return;
     if (!user) return;
 
     try {
@@ -334,7 +324,6 @@ class EfficientOnlineManager {
       const xhr = new XMLHttpRequest();
       xhr.open('POST', `/api/user-service/users/${user.id}/online-status`, false);
       xhr.setRequestHeader('Content-Type', 'application/json');
-      // xhr.setRequestHeader('Authorization', `Bearer ${token}`);
       xhr.withCredentials = true;
       xhr.send(JSON.stringify({ is_online: 0 }));
       
@@ -349,9 +338,6 @@ class EfficientOnlineManager {
   // SMART FRIENDS STATUS WITH CACHING
   async getFriendsStatus(forceRefresh = false): Promise<any[]> {
     const user = getAuth();
-    // const token = getToken();
-    
-    // if (!user || !token) return [];
     if (!user) return [];
 
     // Try cache first (unless force refresh)
@@ -367,7 +353,6 @@ class EfficientOnlineManager {
     console.log('🌐 Fetching fresh friend status');
     try {
       const response = await fetch(`/api/user-service/users/${user.id}/friends`, {
-        // headers: { 'Authorization': `Bearer ${token}` }, 
         credentials: 'include',
       });
 
@@ -465,15 +450,12 @@ export async function reportOnlineOnce(): Promise<void> {
   try {
     if (didReportOnline) return;
     const user = getAuth();
-    // const token = getToken();
-    // if (!user || !token) return;
     if (!user) return;
 
     await fetch(`${GATEWAY_BASE}/user-service/users/${user.id}/online-status`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        // 'Authorization': `Bearer ${token}`
       },
       credentials: 'include',
       body: JSON.stringify({ is_online: 1 })
@@ -488,15 +470,12 @@ export async function reportOnlineOnce(): Promise<void> {
 export async function reportOffline(): Promise<void> {
   try {
     const user = getAuth();
-    // const token = getToken();
-    // if (!user || !token) return;
     if (!user ) return;
 
     // Use synchronous XHR for logout to ensure it completes
     const xhr = new XMLHttpRequest();
     xhr.open('POST', `${GATEWAY_BASE}/user-service/users/${user.id}/online-status`, false);
     xhr.setRequestHeader('Content-Type', 'application/json');
-    // xhr.setRequestHeader('Authorization', `Bearer ${token}`);
     xhr.withCredentials = true;
     xhr.send(JSON.stringify({ is_online: 0 }));
     

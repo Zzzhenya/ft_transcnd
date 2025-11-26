@@ -1,7 +1,6 @@
 // frontend/src/pages/remote-new.ts
 
 import { navigate } from "@/app/router";
-// import { getAuth, getToken } from "@/app/auth";
 import { getAuth } from "@/app/auth";
 import { getState } from "@/app/store";
 import { onlineManager } from '../utils/efficient-online-status';
@@ -70,7 +69,6 @@ export default function (root: HTMLElement) {
 					method: 'POST',
 					headers: {
 						'Content-Type': 'application/json',
-						// 'Authorization': `Bearer ${token || ''}`
 					},
 					credentials: 'include',
 					body: JSON.stringify({ friendUsername: username })
@@ -441,8 +439,6 @@ export default function (root: HTMLElement) {
 		console.log('🎮 inviteFriend called with friendId:', friendId, 'username:', friendUsername);
 		// Send invitation to backend (creates a notification for the target)
 		const user = getAuth();
-		// const token = getToken();
-		// console.log('🎮 user:', user, 'token:', token);
 		console.log('🎮 user:', user);
 		if (!user) { showStatus('You must be signed in to invite', 'error'); return; }
 		try {
