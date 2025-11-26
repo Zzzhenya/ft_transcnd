@@ -48,30 +48,6 @@ export async function loadUserProfile(): Promise<boolean> {
   return true;
 }
 
-
-// Attempt to refresh token if backend uses cookie-based refresh; returns true if token present or refreshed
-// export async function refreshTokenIfNeeded(): Promise<boolean> {
-//   try {
-//     // If we already have a token, try to validate/keep it; if missing, try refresh endpoint
-//     const current = getToken();
-//     if (current) return true;
-
-//     const res = await fetch('/api/user-service/auth/refresh', { method: 'POST', credentials: 'include' });
-//     if (!res.ok) return false;
-//     const data = await res.json();
-//     if (!data?.token) return false;
-//     const s = read();
-//     if (!s.auth) s.auth = { user: null, token: null };
-//     // Optionally fetch profile to populate user if missing
-//     s.auth.token = data.token;
-//     write(s);
-//     dispatchEvent(new CustomEvent('auth:changed'));
-//     return true;
-//   } catch {
-//     return false;
-//   }
-// }
-
 // Register new user
 export async function register(
   username: string,
@@ -116,11 +92,8 @@ export async function signIn(
 	// Fetch fresh profile
   	const ok = await loadUserProfile();
   	if (!ok) return { success: false, error: "Failed to fetch user profile" };
-
-	// Mark user online once on successful login (no multi-tab interference)
-		await reportOnlineOnce();
-	
-		return { success: true };
+	await reportOnlineOnce();
+	return { success: true };
   } catch (error) {
   	// should we?
 		// console.error("Sign in error:", error);
@@ -153,30 +126,20 @@ export async function signOut() {
 export async function guestLogin(alias?: string): Promise<{ success: boolean; error?: string }> {
 	try {
 		console.log('🎮 Guest login with alias:', alias || 'auto-generated');
-		
-		// const data = await api<{ success: boolean; token: string; user: any; message?: string }>(
 		const data = await api(
 			"/auth/guest",
 			{ method: "POST", body: JSON.stringify({ alias: alias || undefined }) }
 		);
+    
+		const ok = await loadUserProfile();
+    	if (!ok) return { success: false, error: "Failed to fetch user profile" };
 
-		// if (!data.success) {
-		// 	return {
-		// 		success: false,
-		// 		error: data.message || 'Guest login failed'
-		// 	};
-		// }
+    	await reportOnlineOnce();
+    	return { success: true };
 
-		// Save guest user data to sessionStorage
-    const ok = await loadUserProfile();
-    if (!ok) return { success: false, error: "Failed to fetch user profile" };
-
-    await reportOnlineOnce();
-    return { success: true };
-
-		} 
-		catch (error) {
-		//console.error('❌ Guest login error:', error);
+	} 
+	catch (error) {
+		console.error('❌ Guest login error:', error);
 		return {
 			success: false,
 			error: error instanceof Error ? error.message : 'Network error'
