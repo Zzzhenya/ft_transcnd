@@ -1,6 +1,6 @@
 // Simple polling-based notification system as fallback
 // import { getAuth, getToken, refreshTokenIfNeeded } from '../app/auth';
-import { getAuth, loadUserProfile } from '../app/auth';
+import { getAuth, loadProfile } from '../app/auth';
 import { GATEWAY_BASE } from '../app/config';
 
 interface SimpleNotification {
@@ -54,7 +54,8 @@ export class SimpleNotificationPoller {
       const user = getAuth();
       if (!user) {
         try {
-          const refreshed = await (loadUserProfile && loadUserProfile());
+          // const refreshed = await (loadUserProfile && loadUserProfile());
+          const refreshed = await (loadProfile && loadProfile());
           if (!refreshed) {
             // Silent fail - no console error
             return;
@@ -283,7 +284,8 @@ export class SimpleNotificationPoller {
       const user = getAuth();
       if (!user) {
         try {
-          const refreshed = await (loadUserProfile && loadUserProfile());
+          // const refreshed = await (loadUserProfile && loadUserProfile());
+          const refreshed = await (loadProfile && loadProfile());
           if (!refreshed) {
             // Silent fail - no console error
             return;
