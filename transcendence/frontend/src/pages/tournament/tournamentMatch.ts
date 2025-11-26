@@ -133,13 +133,12 @@ export default function (root: HTMLElement, ctx: any) {
       <!-- Status texts -->
       <div id="gameStatus"
         class="fixed bottom-16 left-1/2 -translate-x-1/2 text-zinc-200 text-sm md:text-base font-semibold text-center z-10">
-        ${
-          matchCompleted
-            ? "✅ Match already completed"
-            : matchInterrupted
-            ? "❌ Tournament interrupted for this match"
-            : "🏓 Click \"Start Match\" to play your tournament game"
-        }
+        ${matchCompleted
+      ? "✅ Match already completed"
+      : matchInterrupted
+        ? "❌ Tournament interrupted for this match"
+        : "🏓 Click \"Start Match\" to play your tournament game"
+    }
       </div>
       <div id="connectionStatus"
         class="fixed bottom-24 left-1/2 -translate-x-1/2 text-zinc-400 text-xs md:text-sm text-center z-10">
@@ -521,258 +520,6 @@ export default function (root: HTMLElement, ctx: any) {
     }
   }
 
-/*
-  let hasSentStartGame = false;
-
-// async function reportWinner(winnerName: string) {
-//   if (!tournamentId || !matchId) {
-//     console.log("No tournament context - skipping winner report");
-//     return;
-//   }
-  
-//   try {
-//     console.log(`Reporting winner: ${winnerName} for match ${matchId} in tournament ${tournamentId}`);
-//     const response = await fetch(`${API_BASE}/tournaments/${tournamentId}/advance`, {
-//       method: 'POST',
-//       headers: { 'Content-Type': 'application/json' },
-//       body: JSON.stringify({ matchId: matchId, winner: winnerName })
-//     });
-    
-//     if (response.ok) {
-//       const result = await response.json();
-//       console.log(`Winner ${winnerName} reported to tournament ${tournamentId}`, result);
-//     } else {
-//       const errorText = await response.text();
-//       console.error('Failed to report winner:', response.status, errorText);
-//     }
-//   } catch (error) {
-//     console.error('Error reporting winner:', error);
-//   }
-// }
-
-async function reportWinner(winnerName: string) {
-  if (!tournamentId || !matchId) {
-    console.log("No tournament context - skipping winner report");
-    return;
-  }
-
-  // Decide what you want to store:
-  // - totalScore: all points across all rounds
-  // - score: last round only
-  const p1Score =
-    gameState.totalScore?.player1 ??
-    gameState.score?.player1 ??
-    0;
-
-  const p2Score =
-    gameState.totalScore?.player2 ??
-    gameState.score?.player2 ??
-    0;
-
-  try {
-    console.log(
-      `Reporting winner: ${winnerName} for match ${matchId} in tournament ${tournamentId}`,
-      { p1Score, p2Score }
-    );
-
-    const response = await fetch(
-      `${API_BASE}/tournaments/${tournamentId}/advance`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          matchId: matchId,
-          winner: winnerName,
-          player1Score: p1Score,
-          player2Score: p2Score,
-        }),
-      }
-    );
-
-    if (response.ok) {
-      const result = await response.json();
-      console.log(
-        `Winner ${winnerName} reported to tournament ${tournamentId}`,
-        result
-      );
-    } else {
-      const errorText = await response.text();
-      console.error('Failed to report winner:', response.status, errorText);
-    }
-  } catch (error) {
-    console.error('Error reporting winner:', error);
-  }
-}
-
-
-async function markMatchAsInterrupted() {
-  if (!tournamentId || !matchId) {
-    console.log("No tournament context - skipping interruption report");
-    return;
-  }
-  
-  try {
-    console.log(`Marking match ${matchId} as interrupted in tournament ${tournamentId}`);
-    const response = await fetch(`${API_BASE}/tournaments/${tournamentId}/interrupt`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({ matchId: matchId, reason: 'connection_timeout' })
-    });
-    
-    if (response.ok) {
-      const result = await response.json();
-      console.log(`Match ${matchId} marked as interrupted`, result);
-      
-      // Show interruption dialog
-      if (winnerDialog) {
-        winnerDialog.innerHTML = `
-          <div class="text-3xl font-bold mb-4 text-red-600">❌ Match Interrupted</div>
-          <div class="text-xl mb-4">Connection lost for more than 30 seconds</div>
-          <div class="text-gray-600 mb-6">The tournament has been marked as interrupted.</div>
-          <button id="interruptOkBtn" class="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg font-semibold">Back to Tournament</button>
-        `;
-        winnerDialog.showModal();
-        winnerDialog.querySelector('#interruptOkBtn')?.addEventListener('click', () => {
-          winnerDialog.close();
-          if (tournamentId) {
-            navigate(`/tournaments/waitingroom/${tournamentId}`);
-          }
-        });
-      }
-    } else {
-      console.error('Failed to mark match as interrupted:', response.status);
-    }
-  } catch (error) {
-    console.error('Error marking match as interrupted:', error);
-  }
-}
-*/
-/**
- * Send interruption request to backend
- * 
- * PURPOSE:
- * - Notifies backend that a player left during an active match
- * - Marks both the match and tournament as 'interrupted'
- * - Prevents any further matches in the tournament from being played
- * 
- * WHEN CALLED:
- * - User navigates away during active gameplay (via handlePageUnload)
- * - User closes browser tab/window (via beforeunload handler with sendBeacon)
- * 
- * TECHNICAL DETAILS:
- * - Uses fetch with keepalive:true to ensure completion during page unload
- * - Updates sessionStorage to persist interrupted state locally
- * - Sends POST to /tournaments/:id/interrupt endpoint
- * - Backend updates both match.status and tournament.status to 'interrupted'
- * 
- * FLOW:
- * 1. Update local sessionStorage state
- * 2. Send POST request with keepalive flag
- * 3. Backend marks tournament as interrupted
- * 4. All clients see updated status via polling/broadcast
- */
-/*
-async function forfeitMatch() {
-  if (!tournamentId || !matchId) {
-    console.log("No tournament context - skipping forfeit");
-    return;
-  }
-  
-  console.log(`🔴 forfeitMatch() START - Tournament: ${tournamentId}, Match: ${matchId}`);
-  
-  try {
-    console.log(`Match ${matchId} interrupted - player left during game`);
-    
-    // Mark match as interrupted in sessionStorage
-    sessionStorage.setItem(`match_${tournamentId}_${matchId}`, JSON.stringify({
-      status: 'interrupted',
-      reason: 'player_left',
-      interruptedAt: Date.now()
-    }));
-    console.log('📝 SessionStorage updated with interrupted status');
-    
-    // Always use fetch (not beacon) to ensure it completes
-    const data = JSON.stringify({ 
-      matchId: matchId, 
-      reason: 'player_left'
-    });
-    
-    const url = `${API_BASE}/tournaments/${tournamentId}/interrupt`;
-    console.log(`📡 Sending POST request to: ${url}`);
-    console.log(`📦 Request body:`, data);
-    
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: data,
-      credentials: 'include',
-      keepalive: true // Ensures request completes even during page unload
-    });
-    
-    console.log(`📬 Response received:`, response.status, response.statusText);
-    
-    if (response.ok) {
-      const result = await response.json();
-      console.log(`✅ Tournament ${tournamentId} marked as interrupted`, result);
-      matchInterrupted = true; // Update local state
-    } else {
-      const errorText = await response.text();
-      console.error('❌ Failed to mark tournament as interrupted:', response.status, errorText);
-    }
-  } catch (error) {
-    console.error('❌ Error marking tournament as interrupted:', error);
-  }
-  
-  console.log(`🔴 forfeitMatch() END`);
-}
-
-function showWinnerDialog(winner: string) {
-  if (!winnerDialog) return;
-  let winnerDisplay = winner;
-  let actualWinner = "";
-  if (winner === "player1") {
-    winnerDisplay = player1Name;
-    actualWinner = player1Name;
-  } else if (winner === "player2") {
-    winnerDisplay = player2Name;
-    actualWinner = player2Name;
-  } else if (!winner) {
-    winnerDisplay = "Nobody";
-  }
-
-  // Report winner to tournament service
-  if (actualWinner) {
-    reportWinner(actualWinner);
-    
-    // Mark match as completed
-    matchCompleted = true;
-    sessionStorage.setItem(`match_${tournamentId}_${matchId}`, JSON.stringify({
-      status: 'completed',
-      winner: actualWinner,
-      completedAt: Date.now()
-    }));
-  }
-
-  winnerDialog.innerHTML = `
-    <div class="text-3xl font-bold mb-4">🏆 Winner!</div>
-    <div class="text-2xl mb-6">${winnerDisplay}</div>
-    <button id="winnerOkBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold">go back to tournament</button>
-  `;
-  winnerDialog.showModal();
-  winnerDialog.querySelector('#winnerOkBtn')?.addEventListener('click', () => {
-    winnerDialog.close();
-    // Navigate back to waiting room with tournament ID
-    if (tournamentId) {
-      navigate(`/tournaments/waitingroom/${tournamentId}`);
-    } else {
-      navigate('/tournaments');
-    }
-  });
-}
-*/
-
   function handleBackendMessage(data: any) {
     if (data.type === "STATE_UPDATE" && data.gameState) {
       const incoming = data.gameState;
@@ -823,8 +570,8 @@ function showWinnerDialog(winner: string) {
           winner === player1Name
             ? "player1"
             : winner === player2Name
-            ? "player2"
-            : winner
+              ? "player2"
+              : winner
         );
       }
     }
@@ -889,53 +636,62 @@ function showWinnerDialog(winner: string) {
     gameLoop = requestAnimationFrame(updateNetworkGame);
   }
 
+  // Named keyboard handlers for proper cleanup
+  const handleKeyDown = (e: KeyboardEvent) => {
+    let changed = false;
+
+    // Player 1 (A / D)
+    if (e.code === "KeyA") {
+      if (!player1Keys.down) changed = true;
+      player1Keys.down = true;
+      e.preventDefault();
+    } else if (e.code === "KeyD") {
+      if (!player1Keys.up) changed = true;
+      player1Keys.up = true;
+      e.preventDefault();
+    }
+    // Player 2 (ArrowLeft / ArrowRight)
+    else if (e.code === "ArrowLeft") {
+      if (!player2Keys.up) changed = true;
+      player2Keys.up = true;
+      e.preventDefault();
+    } else if (e.code === "ArrowRight") {
+      if (!player2Keys.down) changed = true;
+      player2Keys.down = true;
+      e.preventDefault();
+    }
+
+    if (changed) sendPaddleMovement();
+  };
+
+  const handleKeyUp = (e: KeyboardEvent) => {
+    let changed = false;
+
+    if (e.code === "KeyA") {
+      if (player1Keys.down) changed = true;
+      player1Keys.down = false;
+    } else if (e.code === "KeyD") {
+      if (player1Keys.up) changed = true;
+      player1Keys.up = false;
+    } else if (e.code === "ArrowLeft") {
+      if (player2Keys.up) changed = true;
+      player2Keys.up = false;
+    } else if (e.code === "ArrowRight") {
+      if (player2Keys.down) changed = true;
+      player2Keys.down = false;
+    }
+
+    if (changed) sendPaddleMovement();
+  };
+
   function setupKeyboardControls() {
-    document.addEventListener("keydown", (e) => {
-      let changed = false;
+    document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("keyup", handleKeyUp);
+  }
 
-      // Player 1 (A / D)
-      if (e.code === "KeyA") {
-        if (!player1Keys.up) changed = true;
-        player1Keys.down = true;
-        e.preventDefault();
-      } else if (e.code === "KeyD") {
-        if (!player1Keys.down) changed = true;
-        player1Keys.up = true;
-        e.preventDefault();
-      }
-      // Player 2 (ArrowLeft / ArrowRight)
-      else if (e.code === "ArrowLeft") {
-        if (!player2Keys.up) changed = true;
-        player2Keys.up = true;
-        e.preventDefault();
-      } else if (e.code === "ArrowRight") {
-        if (!player2Keys.down) changed = true;
-        player2Keys.down = true;
-        e.preventDefault();
-      }
-
-      if (changed) sendPaddleMovement();
-    });
-
-    document.addEventListener("keyup", (e) => {
-      let changed = false;
-
-      if (e.code === "KeyA") {
-        if (player1Keys.up) changed = true;
-        player1Keys.down = false;
-      } else if (e.code === "KeyD") {
-        if (player1Keys.down) changed = true;
-        player1Keys.up = false;
-      } else if (e.code === "ArrowLeft") {
-        if (player2Keys.up) changed = true;
-        player2Keys.up = false;
-      } else if (e.code === "ArrowRight") {
-        if (player2Keys.down) changed = true;
-        player2Keys.down = false;
-      }
-
-      if (changed) sendPaddleMovement();
-    });
+  function cleanupKeyboard() {
+    document.removeEventListener("keydown", handleKeyDown);
+    document.removeEventListener("keyup", handleKeyUp);
   }
 
   async function handleStartMatch() {
@@ -998,6 +754,7 @@ function showWinnerDialog(winner: string) {
       cancelAnimationFrame(gameLoop);
       gameLoop = null;
     }
+    cleanupKeyboard();
     scene3d.dispose();
     if (tournamentId) {
       navigate(`/tournaments/waitingroom/${tournamentId}`);
@@ -1073,6 +830,7 @@ function showWinnerDialog(winner: string) {
     console.log("🧹 Cleanup function called - page being unmounted");
     await handlePageUnload();
     window.removeEventListener("beforeunload", handleBeforeUnload);
+    cleanupKeyboard();
     if (ws) {
       console.log("Closing WebSocket connection");
       ws.close();

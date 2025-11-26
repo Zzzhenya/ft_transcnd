@@ -1,6 +1,7 @@
 -- ============================================
 -- FT_TRANSCENDENCE - Complete Database Schema
 -- SQLite Version
+-- UPDATED: Friends table with ordered pairs
 -- ============================================
 
 -- Drop existing tables (if any)
@@ -48,8 +49,6 @@ CREATE TABLE Users (
   
   -- Timestamps
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-  -- last_login TIMESTAMP
-
 );
 
 CREATE INDEX idx_users_username ON Users(username);
@@ -58,23 +57,28 @@ CREATE INDEX idx_users_intra_id ON Users(intra_id);
 CREATE INDEX idx_users_online ON Users(is_online);
 CREATE INDEX idx_users_last_seen ON Users(last_seen);
 
--- -------------------- FRIENDS --------------------
+-- -------------------- FRIENDS (UPDATED WITH ORDERED PAIRS) --------------------
 CREATE TABLE Friends (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  user_id INTEGER NOT NULL,
-  friend_id INTEGER NOT NULL,
+  user_a_id INTEGER NOT NULL,  -- Always min(user1, user2)
+  user_b_id INTEGER NOT NULL,  -- Always max(user1, user2)
+  requester_id INTEGER NOT NULL,  -- Who initiated the request
   friends_status VARCHAR(20) DEFAULT 'pending',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   accepted_at TIMESTAMP,
   
-  FOREIGN KEY (user_id) REFERENCES Users(id) ON DELETE CASCADE,
-  FOREIGN KEY (friend_id) REFERENCES Users(id) ON DELETE CASCADE,
-  UNIQUE(user_id, friend_id)
+  FOREIGN KEY (user_a_id) REFERENCES Users(id) ON DELETE CASCADE,
+  FOREIGN KEY (user_b_id) REFERENCES Users(id) ON DELETE CASCADE,
+  FOREIGN KEY (requester_id) REFERENCES Users(id) ON DELETE CASCADE,
+  
+  -- CRITICAL: This unique constraint prevents duplicate friend relationships
+  UNIQUE(user_a_id, user_b_id)
 );
 
-CREATE INDEX idx_friends_user_id ON Friends(user_id);
-CREATE INDEX idx_friends_friend_id ON Friends(friend_id);
-CREATE INDEX idx_friends_friends_status ON Friends(friends_status);
+CREATE INDEX idx_friends_user_a ON Friends(user_a_id);
+CREATE INDEX idx_friends_user_b ON Friends(user_b_id);
+CREATE INDEX idx_friends_status ON Friends(friends_status);
+CREATE INDEX idx_friends_requester ON Friends(requester_id);
 
 -- -------------------- BLOCKED USERS --------------------
 CREATE TABLE Blocked_Users (

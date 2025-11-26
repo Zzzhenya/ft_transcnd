@@ -212,8 +212,7 @@ export default function (root: HTMLElement, ctx: { params?: { roomId?: string };
 		sceneController = null;
 		if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
 		lastRenderState = null;
-		window.removeEventListener('keydown', handleKeyDown);
-		window.removeEventListener('keyup', handleKeyUp);
+		cleanupKeyboard();
 		if (pingTimer) { clearInterval(pingTimer); pingTimer = null; }
 		window.removeEventListener('invite:declined', onInviteDeclined as EventListener);
 		window.removeEventListener('player:left', onPlayerLeft as EventListener);
@@ -221,6 +220,73 @@ export default function (root: HTMLElement, ctx: { params?: { roomId?: string };
 		didMountRemoteRoom = false;
 		isConnectingRemoteRoom = false;
 	};
+}
+
+// Named keyboard handlers for proper cleanup
+function handleKeyDown(e: KeyboardEvent) {
+	if (!gameState?.ws || gameState.ws.readyState !== WebSocket.OPEN) return;
+	if (gameState.playerNumber !== 1 && gameState.playerNumber !== 2) return;
+
+	const isLeft = e.key === 'a' || e.key === 'A';
+	const isRight = e.key === 'd' || e.key === 'D';
+	const now = Date.now();
+
+	// Player 2's camera is rotated 180°, so we need to invert their controls
+	const isPlayer2 = gameState.playerNumber === 2;
+
+	// Allow key repeat for continuous movement
+	if (isLeft) {
+		if (!keysPressed.has('left')) {
+			keysPressed.add('left');
+		}
+		if (now >= inputGateUntil) {
+			// A key: left for P1 (down), inverted to left for P2 (up)
+			const direction = isPlayer2 ? 'up' : 'down';
+			gameState.ws.send(JSON.stringify({ type: 'paddleMove', direction }));
+		}
+		e.preventDefault();
+		e.stopPropagation();
+	} else if (isRight) {
+		if (!keysPressed.has('right')) {
+			keysPressed.add('right');
+		}
+		if (now >= inputGateUntil) {
+			// D key: right for P1 (up), inverted to right for P2 (down)
+			const direction = isPlayer2 ? 'down' : 'up';
+			gameState.ws.send(JSON.stringify({ type: 'paddleMove', direction }));
+		}
+		e.preventDefault();
+		e.stopPropagation();
+	}
+}
+
+function handleKeyUp(e: KeyboardEvent) {
+	if (!gameState?.ws || gameState.ws.readyState !== WebSocket.OPEN) return;
+	if (gameState.playerNumber !== 1 && gameState.playerNumber !== 2) return;
+
+	const isHandled = e.key === 'a' || e.key === 'A' || e.key === 'd' || e.key === 'D';
+	if (isHandled) {
+		const wasLeft = keysPressed.has('left');
+		const wasRight = keysPressed.has('right');
+		if (wasLeft) keysPressed.delete('left');
+		if (wasRight) keysPressed.delete('right');
+		if (!keysPressed.has('left') && !keysPressed.has('right')) {
+			try {
+				if (gameState.ws.readyState === WebSocket.OPEN) {
+					gameState.ws.send(JSON.stringify({ type: 'paddleMove', direction: 'stop' }));
+				}
+			} catch { }
+		}
+		e.preventDefault();
+		e.stopPropagation();
+	}
+}
+
+function cleanupKeyboard() {
+	window.removeEventListener('keydown', handleKeyDown);
+	window.removeEventListener('keyup', handleKeyUp);
+	document.removeEventListener('keydown', handleKeyDown as any);
+	document.removeEventListener('keyup', handleKeyUp as any);
 }
 
 function setupRoomEventListeners(root: HTMLElement) {
@@ -268,6 +334,10 @@ function setupRoomEventListeners(root: HTMLElement) {
 	window.addEventListener('keydown', handleKeyDown);
 	window.addEventListener('keyup', handleKeyUp);
 
+	// Also capture on document for better coverage
+	document.addEventListener('keydown', handleKeyDown as any, true);
+	document.addEventListener('keyup', handleKeyUp as any, true);
+
 	// Focus management
 	window.addEventListener('click', () => {
 		try {
@@ -276,24 +346,6 @@ function setupRoomEventListeners(root: HTMLElement) {
 			if (ae && ae !== c) ae.blur();
 			c?.focus?.();
 		} catch { }
-	}, true);
-
-	document.addEventListener('keydown', (e: KeyboardEvent) => {
-		const k = e.key;
-		if (k === 'a' || k === 'A' || k === 'd' || k === 'D') {
-			e.preventDefault();
-			e.stopPropagation();
-			handleKeyDown(e);
-		}
-	}, true);
-
-	document.addEventListener('keyup', (e: KeyboardEvent) => {
-		const k = e.key;
-		if (k === 'a' || k === 'A' || k === 'd' || k === 'D') {
-			e.preventDefault();
-			e.stopPropagation();
-			handleKeyUp(e);
-		}
 	}, true);
 
 	window.addEventListener('visibilitychange', () => {
@@ -671,65 +723,6 @@ function updateGameState(root: HTMLElement, state: any) {
 	}
 }
 
-function handleKeyDown(e: KeyboardEvent) {
-	if (!gameState?.ws || gameState.ws.readyState !== WebSocket.OPEN) return;
-	if (gameState.playerNumber !== 1 && gameState.playerNumber !== 2) return;
-
-	const isLeft = e.key === 'a' || e.key === 'A';
-	const isRight = e.key === 'd' || e.key === 'D';
-	const now = Date.now();
-	
-	// Player 2's camera is rotated 180°, so we need to invert their controls
-	const isPlayer2 = gameState.playerNumber === 2;
-	
-	// Allow key repeat for continuous movement
-	if (isLeft) {
-		if (!keysPressed.has('left')) {
-			keysPressed.add('left');
-		}
-		if (now >= inputGateUntil) {
-			// A key: left for P1 (down), inverted to left for P2 (up)
-			const direction = isPlayer2 ? 'up' : 'down';
-			gameState.ws.send(JSON.stringify({ type: 'paddleMove', direction }));
-		}
-		e.preventDefault();
-		e.stopPropagation();
-	} else if (isRight) {
-		if (!keysPressed.has('right')) {
-			keysPressed.add('right');
-		}
-		if (now >= inputGateUntil) {
-			// D key: right for P1 (up), inverted to right for P2 (down)
-			const direction = isPlayer2 ? 'down' : 'up';
-			gameState.ws.send(JSON.stringify({ type: 'paddleMove', direction }));
-		}
-		e.preventDefault();
-		e.stopPropagation();
-	}
-}
-
-function handleKeyUp(e: KeyboardEvent) {
-	if (!gameState?.ws || gameState.ws.readyState !== WebSocket.OPEN) return;
-	if (gameState.playerNumber !== 1 && gameState.playerNumber !== 2) return;
-
-	const isHandled = e.key === 'a' || e.key === 'A' || e.key === 'd' || e.key === 'D';
-	if (isHandled) {
-		const wasLeft = keysPressed.has('left');
-		const wasRight = keysPressed.has('right');
-		if (wasLeft) keysPressed.delete('left');
-		if (wasRight) keysPressed.delete('right');
-		if (!keysPressed.has('left') && !keysPressed.has('right')) {
-			try {
-				if (gameState.ws.readyState === WebSocket.OPEN) {
-					gameState.ws.send(JSON.stringify({ type: 'paddleMove', direction: 'stop' }));
-				}
-			} catch { }
-		}
-		e.preventDefault();
-		e.stopPropagation();
-	}
-}
-
 function updateScoreDisplay(root: HTMLElement) {
 	if (!gameState) return;
 	root.querySelector('#scoreP1')!.textContent = gameState.score.player1.toString();
@@ -763,7 +756,7 @@ function endGame(root: HTMLElement, data: any) {
 	if (display) {
 		const winnerText = isYouWinner ? 'YOU WON!' : `Player ${winner} Won!`;
 		const iconColor = isYouWinner ? '#a78bfa' : '#facc15';
-		
+
 		display.innerHTML = `
 			<div style="text-align: center;">
 				<img src="/icons/peace_sign.png" alt="Victory" style="width: 120px; height: 120px; filter: drop-shadow(0 0 20px ${iconColor}); margin-bottom: 1rem;" />
@@ -786,8 +779,8 @@ function endGame(root: HTMLElement, data: any) {
 
 	// Update status bar
 	updateStatus(root,
-		isYouWinner 
-			? `🎉 YOU WON THE MATCH! Total Score: ${totalPointsP1}-${totalPointsP2} | Rounds: ${roundsWon.player1}-${roundsWon.player2}` 
+		isYouWinner
+			? `🎉 YOU WON THE MATCH! Total Score: ${totalPointsP1}-${totalPointsP2} | Rounds: ${roundsWon.player1}-${roundsWon.player2}`
 			: `Player ${winner} won! Total Score: ${totalPointsP1}-${totalPointsP2} | Rounds: ${roundsWon.player1}-${roundsWon.player2}`,
 		isYouWinner ? 'success' : 'info'
 	);
@@ -801,6 +794,9 @@ function endGame(root: HTMLElement, data: any) {
 		totalPoints: { player1: totalPointsP1, player2: totalPointsP2 },
 		matchDuration: data.matchDuration
 	});
+
+	// Cleanup keyboard before navigation
+	cleanupKeyboard();
 
 	// Return to lobby after 4 seconds
 	setTimeout(() => {

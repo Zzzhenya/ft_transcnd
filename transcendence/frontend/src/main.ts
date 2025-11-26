@@ -32,13 +32,13 @@ function initOnlineStatus() {
     console.log('🔔 ✅ Simple polling notifications started');
 
     // 🔔 WebSocket disabled - using polling only for now
-    console.log('🔔 WebSocket notifications disabled, using polling only');    
+    //console.log('🔔 WebSocket notifications disabled, using polling only');
+    
     console.log('🚀 Initialized efficient online status system for user:', user.id);
     
     // Set cleanup function
     onlineStatusCleanup = () => {
       onlineManager.destroy();
-      // notificationWS.disconnect();
       simpleNotificationPoller.stop();
       console.log('🧹 Cleaned up efficient online status system');
     };

@@ -29,7 +29,7 @@ export class SimpleNotificationPoller {
 
   start() {
     if (this.isPolling) return;
-    
+
     const user = getAuth();
     if (!user) {
       return;
@@ -53,49 +53,32 @@ export class SimpleNotificationPoller {
     try {
       const user = getAuth();
       if (!user) {
-        const refreshed = await (loadUserProfile && loadUserProfile())
-        if (!refreshed)
-          throw new Error({success: false, error: "Failed to fetch profile"});
-        // this.stop(); 
-        // return; 
+        try {
+          const refreshed = await (loadUserProfile && loadUserProfile());
+          if (!refreshed) {
+            // Silent fail - no console error
+            return;
+          }
+        } catch {
+          // Silent fail - no console error
+          return;
+        }
       }
 
-      // Ask what this section does
-      // let token = getToken();
-      // if (!token) {
-      //   const refreshed = await (refreshTokenIfNeeded && refreshTokenIfNeeded());
-      //   token = getToken();
-      //   if (!refreshed || !token) { this.stop(); return; }
-      // }
-
       let response = await fetch(`${GATEWAY_BASE}/user-service/notifications/unread`, {
-        // headers: { 'Authorization': `Bearer ${token}` }, 
         credentials: 'include'
       });
 
       if (response.status === 401 || response.status === 403) {
-        // const refreshed = await (loadUserProfile && loadUserProfile())
-        // // const refreshed = await (refreshTokenIfNeeded && refreshTokenIfNeeded());
-        // if (refreshed) {
-        //   const user = getAuth()
-        //   // token = getToken();
-        //   // if (token) {
-        //   if (user) {
-        //     response = await fetch(`${GATEWAY_BASE}/user-service/notifications/unread`, {
-        //       // headers: { 'Authorization': `Bearer ${token}` },
-        //       credentials: 'include',
-        //     });
-        //   }
-
-        // Maybe ask to login?
-        this.stop(); 
-        return; 
-        }
+        // Authentication error - stop polling silently
+        this.stop();
+        return;
+      }
 
       if (response.ok) {
         const data = await response.json();
         const notifications: SimpleNotification[] = data.notifications || [];
-        
+
         // Show notifications with proper time filtering
         const notificationsToShow = notifications.filter(n => {
           const notifTime = new Date(n.timestamp).getTime();
@@ -122,26 +105,27 @@ export class SimpleNotificationPoller {
               byType.set(n.type, n);
             }
           });
-          
+
           // Show only the most recent of each type
           byType.forEach((notification) => {
             this.showNotification(notification);
           });
         }
-        
+
         // Update and save last check time
         const now = Date.now();
         this.lastCheck = now;
         localStorage.setItem('notificationLastCheck', now.toString());
       } else if (response.status === 429) {
+        // Rate limited - wait a bit, no console error
         await new Promise(r => setTimeout(r, 1500));
       } else if (response.status === 409 || response.status === 410) {
-        // ignore
+        // Conflict or gone - ignore silently
       } else {
-        // Silent fail
+        // Other errors - silent fail, no console error
       }
     } catch (error) {
-      // Silent fail
+      // Network or other errors - silent fail, no console error
     }
   }
 
@@ -153,7 +137,8 @@ export class SimpleNotificationPoller {
     } else if (notification.type === 'invitation_declined') {
       this.showInvitationDeclined(notification);
     } else if (notification.type === 'player_left_room') {
-      this.showPlayerLeftRoom(notification);    }
+      this.showPlayerLeftRoom(notification);
+    }
   }
 
   private showGameInvitation(notification: SimpleNotification) {
@@ -162,7 +147,7 @@ export class SimpleNotificationPoller {
     if (existingModal) {
       document.body.removeChild(existingModal);
     }
-    
+
     // Create invitation modal
     const modal = document.createElement('div');
     modal.id = `simple-invitation-${notification.id}`;
@@ -196,7 +181,7 @@ export class SimpleNotificationPoller {
         </div>
       </div>
     `;
-    
+
     document.body.appendChild(modal);
 
     // Auto-decline after 30 seconds
@@ -214,13 +199,13 @@ export class SimpleNotificationPoller {
       return; // Already shown, don't show again
     }
     sessionStorage.setItem(shownKey, 'true');
-    
+
     // Remove any existing accept toasts first
     document.querySelectorAll('[id^="accept-toast-"]').forEach(el => el.remove());
-    
+
     // Clear the countdown if it exists
     this.clearInvitationCountdown();
-    
+
     const toast = document.createElement('div');
     toast.id = `accept-toast-${notification.id}`;
     toast.className = 'retro-wait fixed top-4 right-4 p-6 rounded-lg z-50 border bezel';
@@ -236,9 +221,9 @@ export class SimpleNotificationPoller {
         </div>
       </div>
     `;
-    
+
     document.body.appendChild(toast);
-    
+
     // Remove toast after 10 seconds (NO AUTO-REDIRECT)
     setTimeout(() => {
       if (document.body.contains(toast)) {
@@ -248,54 +233,48 @@ export class SimpleNotificationPoller {
   }
 
   async acceptInvitation(notificationId: number, roomCode: string) {
-    try {
-      // let token = getToken();
-      // if (!token) {
-      //   const refreshed = await (refreshTokenIfNeeded && refreshTokenIfNeeded());
-      //   token = getToken();
-      //   if (!refreshed || !token) return;
-      // }
+    // Remove modal immediately to prevent double-clicks
+    const modal = document.getElementById(`simple-invitation-${notificationId}`);
+    if (modal) {
+      document.body.removeChild(modal);
+    }
 
-      let response = await fetch(`${GATEWAY_BASE}/user-service/notifications/${notificationId}/accept`, {
+    try {
+      const response = await fetch(`${GATEWAY_BASE}/user-service/notifications/${notificationId}/accept`, {
         method: 'POST',
         headers: {
-          // 'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
         credentials: 'include',
         body: JSON.stringify({})
       });
-      if (response.status === 401 || response.status === 403) {
-        // const refreshed = await (refreshTokenIfNeeded && refreshTokenIfNeeded());
-        // if (refreshed) {
-        //   token = getToken();
-        //   if (!token) return;
-        //   response = await fetch(`${GATEWAY_BASE}/user-service/notifications/${notificationId}/accept`, {
-        //     method: 'POST',
-        //     headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-        //     credentials: 'include',
-        //     body: JSON.stringify({})
-        //   });
-        // }
-      }
 
       if (response.ok) {
-        const modal = document.getElementById(`simple-invitation-${notificationId}`);
-        if (modal) { document.body.removeChild(modal); }
-        if (roomCode) { window.location.href = `/remote/room/${roomCode}`; }
+        // Success - navigate to room
+        if (roomCode) {
+          window.location.href = `/remote/room/${roomCode}`;
+        }
       } else if (response.status === 410) {
-        const modal = document.getElementById(`simple-invitation-${notificationId}`);
-        if (modal) { document.body.removeChild(modal); }
-        alert('This invitation has expired.');
+        // Gone - invitation expired or player left
+        this.showErrorToast('This invitation has expired or the player has left the room.');
       } else if (response.status === 404) {
-        const modal = document.getElementById(`simple-invitation-${notificationId}`);
-        if (modal) { document.body.removeChild(modal); }
-        // Already handled in another tab or auto-cleaned
+        // Not found - invitation no longer exists
+        this.showErrorToast('This invitation is no longer available.');
       } else if (response.status === 409) {
-        alert('You are already in a game, cannot accept this invite.');
+        // Conflict - already in a game
+        this.showErrorToast('You are already in a game. Please finish your current game first.');
+      } else if (response.status === 401 || response.status === 403) {
+        // Authentication error
+        this.showErrorToast('Authentication error. Please refresh the page and try again.');
+      } else {
+        // Other errors - silent fail with generic message
+        this.showErrorToast('Unable to accept invitation. Please try again.');
       }
+      // No console.error for any status code
     } catch (error) {
-      // Silent fail
+      // Network errors - silent fail, modal already removed
+      // No console.error, no rethrow
+      this.showErrorToast('Network error. Please check your connection and try again.');
     }
   }
 
@@ -303,141 +282,88 @@ export class SimpleNotificationPoller {
     try {
       const user = getAuth();
       if (!user) {
-        const refreshed = await (loadUserProfile && loadUserProfile())
-        if (!refreshed)
-          throw new Error({success: false, error: "Failed to fetch profile"});
+        try {
+          const refreshed = await (loadUserProfile && loadUserProfile());
+          if (!refreshed) {
+            // Silent fail - no console error
+            return;
+          }
+        } catch {
+          // Silent fail - no console error
+          return;
+        }
       }
-      // let token = getToken();
-      // if (!token) {
-      //   const refreshed = await (refreshTokenIfNeeded && refreshTokenIfNeeded());
-      //   token = getToken();
-      //   if (!refreshed || !token) throw new Error('not authenticated');
-      // }
-      let response = await fetch(`${GATEWAY_BASE}/user-service/notifications/${notificationId}/decline`, {
+
+      const response = await fetch(`${GATEWAY_BASE}/user-service/notifications/${notificationId}/decline`, {
         method: 'POST',
         headers: {
-          // 'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
         credentials: 'include',
         body: JSON.stringify({})
       });
+
+      // Handle all responses silently - no console errors
       if (response.status === 401 || response.status === 403) {
-        // const refreshed = await (refreshTokenIfNeeded && refreshTokenIfNeeded());
-        // if (refreshed) {
-        //   token = getToken();
-        //   response = await fetch(`${GATEWAY_BASE}/user-service/notifications/${notificationId}/decline`, {
-        //     method: 'POST',
-        //     headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },credentials: 'include',
-        //     body: JSON.stringify({})
-        //   });
-        // }
+        // Authentication error - silent fail
+      } else if (response.status === 404) {
+        // Not found - already processed
+      } else if (response.status === 410) {
+        // Gone - already expired
+      } else if (!response.ok) {
+        // Other errors - silent fail
       }
+      // Success case - no action needed
     } catch (error) {
-      // Silent fail
+      // Network or other errors - silent fail, no console error
     } finally {
-      // Remove modal regardless
+      // Remove modal regardless of result
       const modal = document.getElementById(`simple-invitation-${notificationId}`);
-      if (modal) { document.body.removeChild(modal); }
+      if (modal) {
+        document.body.removeChild(modal);
+      }
     }
   }
 
   private showInvitationDeclined(notification: SimpleNotification) {
-    //console.log('🔔 DECLINE: Attempting to show notification', notification.id);
     // Check if we already showed this notification
     const shownKey = `decline_shown_${notification.id}`;
     if (sessionStorage.getItem(shownKey)) {
-      //console.log('🔔 DECLINE: Already shown, skipping', notification.id);
       return; // Already shown, don't show again
     }
-    //console.log('🔔 DECLINE: Showing toast for', notification.id);
     sessionStorage.setItem(shownKey, 'true');
-    
+
     // Remove any existing decline toasts first
     document.querySelectorAll('[id^="decline-toast-"]').forEach(el => el.remove());
-    
+
     // Dispatch the invite:declined event for pages to listen to
     window.dispatchEvent(new CustomEvent('invite:declined', { detail: notification }));
-    
-    // const toast = document.createElement('div');
-    // toast.id = `decline-toast-${notification.id}`;
-    // toast.className = 'retro-wait fixed top-4 right-4 p-6 rounded-lg z-50 border bezel';
-    // toast.innerHTML = `
-    //   <div class="flex items-center gap-3">
-    //     <img class="icon-px" src="/icons/speaker.png" alt="Notification" />
-    //     <div>
-    //       <div class="font-normal text-lg neon">INVITATION DECLINED</div>
-    //       <div class="text-sm opacity-90">
-    //         <strong>${notification.from || 'Player'}</strong> declined your challenge.
-    //       </div>
-    //     </div>
-    //   </div>
-    // `;
-    //  ${notification.roomCode ? `<div class="text-xs mt-1 opacity-75">Room Code: <strong>${notification.roomCode}</strong></div>` : ''}
-    
-    // document.body.appendChild(toast);
-    
-    // // Remove toast after 10 seconds
-    // setTimeout(() => {
-    //   if (document.body.contains(toast)) {
-    //     document.body.removeChild(toast);
-    //   }
-    // }, 10000);
   }
 
   private showPlayerLeftRoom(notification: SimpleNotification) {
-    //console.log('🔔 LEFT: Attempting to show notification', notification.id);
     // Check if we already showed this notification
     const shownKey = `left_shown_${notification.id}`;
     if (sessionStorage.getItem(shownKey)) {
-      //console.log('🔔 LEFT: Already shown, skipping', notification.id);
       return; // Already shown, don't show again
     }
-    //console.log('🔔 LEFT: Showing toast for', notification.id);
     sessionStorage.setItem(shownKey, 'true');
-    
+
     // Remove any existing left toasts first
     document.querySelectorAll('[id^="left-toast-"]').forEach(el => el.remove());
-    
+
     // Dispatch the player:left event for pages to listen to
     window.dispatchEvent(new CustomEvent('player:left', { detail: notification }));
-    
-    // const toast = document.createElement('div');
-    // toast.id = `left-toast-${notification.id}`;
-    // toast.className = 'retro-wait fixed top-4 right-4 p-6 rounded-lg z-50 border bezel';
-    // toast.innerHTML = `
-    //   <div class="flex items-center gap-3">
-    //     <img class="icon-px" src="/icons/speaker.png" alt="Notification" />
-    //     <div>
-    //       <div class="font-normal text-lg neon">PLAYER LEFT</div>
-    //       <div class="text-sm opacity-90">
-    //         <strong>${notification.from || 'Player'}</strong> left the waiting room.
-    //       </div>
-    //     </div>
-    //   </div>
-    //`;
-    //            ${notification.roomCode ? `<div class="text-xs mt-1 opacity-75">Room Code: <strong>${notification.roomCode}</strong></div>` : ''}
-
-    
-    // document.body.appendChild(toast);
-    
-    // // Remove toast after 10 seconds
-    // setTimeout(() => {
-    //   if (document.body.contains(toast)) {
-    //     document.body.removeChild(toast);
-    //   }
-    // }, 10000);
   }
 
   showInvitationCountdown(friendName: string, roomCode: string, timeoutMs: number = 10000) {
     // Remove any existing countdown
     const existing = document.getElementById('invitation-countdown');
     if (existing) existing.remove();
-    
+
     const countdown = document.createElement('div');
     countdown.id = 'invitation-countdown';
     countdown.className = 'retro-wait fixed top-4 right-4 p-6 rounded-lg z-50 border bezel min-w-80';
-    
+
     let timeLeft = Math.floor(timeoutMs / 1000);
     countdown.innerHTML = `
       <div class="flex items-center gap-3 mb-3">
@@ -456,17 +382,17 @@ export class SimpleNotificationPoller {
         <div class="text-xs mt-2 opacity-75">Room: ${roomCode}</div>
       </div>
     `;
-    
+
     document.body.appendChild(countdown);
-    
+
     const timer = setInterval(() => {
       timeLeft--;
       const timerEl = document.getElementById('countdown-timer');
       if (timerEl) timerEl.textContent = timeLeft.toString();
-      
+
       if (timeLeft <= 0) {
         clearInterval(timer);
-        
+
         // Show "no answer" message
         countdown.innerHTML = `
           <div class="flex items-center gap-3">
@@ -480,7 +406,7 @@ export class SimpleNotificationPoller {
           </div>
         `;
         countdown.className = 'fixed top-4 right-4 bg-yellow-600 text-white p-6 rounded-lg shadow-lg z-50 border-2 border-yellow-400 min-w-80';
-        
+
         // Remove after 3 seconds
         setTimeout(() => {
           if (document.body.contains(countdown)) {
@@ -489,10 +415,10 @@ export class SimpleNotificationPoller {
         }, 3000);
       }
     }, 1000);
-    
+
     // Store timer to clear it if invitation is accepted
     (countdown as any).countdownTimer = timer;
-    
+
     return countdown;
   }
 
@@ -514,17 +440,25 @@ export class SimpleNotificationPoller {
     this.checkNotifications().then(() => {
       // Override the filtering temporarily
       fetch(`${GATEWAY_BASE}/user-service/notifications/unread`, {
-        headers: {
-          // 'Authorization': `Bearer ${getToken()}`
-        }, credentials: 'include'
-      }).then(res => res.json()).then(data => {
-        const notifications = data.notifications || [];
-        notifications.forEach((notification: SimpleNotification) => {
-          this.showNotification(notification);
-        });
+        credentials: 'include'
+      }).then(res => {
+        if (res.ok) {
+          return res.json();
+        }
+        return null;
+      }).then(data => {
+        if (data) {
+          const notifications = data.notifications || [];
+          notifications.forEach((notification: SimpleNotification) => {
+            this.showNotification(notification);
+          });
+        }
+      }).catch(() => {
+        // Silent fail - no console error
       });
     });
   }
+
   testNotification() {
     const testNotification: SimpleNotification = {
       id: 999,
@@ -536,12 +470,41 @@ export class SimpleNotificationPoller {
       timestamp: new Date().toISOString(),
       read: false
     };
-    
+
     this.showNotification(testNotification);
   }
 
   testInvitationCountdown() {
     this.showInvitationCountdown('TestFriend', 'ABC123', 10000);
+  }
+
+  private showErrorToast(message: string) {
+    // Remove any existing error toasts
+    document.querySelectorAll('[id^="error-toast-"]').forEach(el => el.remove());
+
+    const toast = document.createElement('div');
+    toast.id = `error-toast-${Date.now()}`;
+    toast.className = 'fixed top-4 right-4 bg-red-600 text-white p-6 rounded-lg shadow-lg z-50 border-2 border-red-400 min-w-80';
+    toast.innerHTML = `
+      <div class="flex items-center gap-3">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+        <div>
+          <div class="font-bold text-lg">Invitation Error</div>
+          <div class="text-sm opacity-90">${message}</div>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(toast);
+
+    // Remove toast after 5 seconds
+    setTimeout(() => {
+      if (document.body.contains(toast)) {
+        document.body.removeChild(toast);
+      }
+    }, 5000);
   }
 }
 
