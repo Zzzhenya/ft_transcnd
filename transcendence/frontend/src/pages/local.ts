@@ -28,7 +28,6 @@ export default function (root: HTMLElement) {
   let hasSentStartGame = false;
   let matchFinished = false;
 
-// <div class="text-center text-indigo-200 text-base space-y-2 mb-2">
   root.innerHTML = `
     <section class="fixed inset-0 overflow-hidden bg-black">
 	  <canvas id="gameCanvas"
@@ -146,7 +145,7 @@ export default function (root: HTMLElement) {
       updateStatus(`🏆 Match over! ${winnerName} wins the series.`);
     }
 
-	matchFinished = true;
+    matchFinished = true;
 
     // Block not to push startBtn anymore.
     if (startBtn) {
@@ -163,6 +162,9 @@ export default function (root: HTMLElement) {
       cancelAnimationFrame(gameLoop);
       gameLoop = null;
     }
+
+    // Cleanup keyboard listeners before leaving
+    cleanupKeyboard();
 
     // Go back to lobby.
     setTimeout(() => {
@@ -188,12 +190,12 @@ export default function (root: HTMLElement) {
 
   // resize() in local-scene.ts
   function resizeCanvas() {
-	const width = window.innerWidth;
-	const height = window.innerHeight;
-	gameCanvas.style.width = width + 'px';
-	gameCanvas.style.height = height + 'px';
-	gameCanvas.width = width;
-	gameCanvas.height = height;
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+    gameCanvas.style.width = width + 'px';
+    gameCanvas.style.height = height + 'px';
+    gameCanvas.width = width;
+    gameCanvas.height = height;
   }
   window.addEventListener('resize', resizeCanvas);
   resizeCanvas();
@@ -201,7 +203,7 @@ export default function (root: HTMLElement) {
   function updateHud() {
     if (!roundTextEl || !scoreTextEl || !hudWonP1El || !hudWonP2El) return;
 
-	const rawRound = gameState.match?.currentRound || 1;
+    const rawRound = gameState.match?.currentRound || 1;
     const currentRound = Math.min(rawRound, 3);
 
     const p1Score = gameState.score?.player1 ?? 0;
@@ -210,7 +212,7 @@ export default function (root: HTMLElement) {
     const wonP1Raw = gameState.match?.roundsWon?.player1 ?? 0;
     const wonP2Raw = gameState.match?.roundsWon?.player2 ?? 0;
 
-	const wonP1 = Math.min(2, wonP1Raw);
+    const wonP1 = Math.min(2, wonP1Raw);
     const wonP2 = Math.min(2, wonP2Raw);
 
     roundTextEl.textContent = `Round ${currentRound}`;
@@ -292,12 +294,12 @@ export default function (root: HTMLElement) {
 
       ws.onclose = (event) => {
         if (gameLoop) {
-			cancelAnimationFrame(gameLoop);
-			gameLoop = null;
-		}
-		if (matchFinished) {
-			return ;
-		}
+          cancelAnimationFrame(gameLoop);
+          gameLoop = null;
+        }
+        if (matchFinished) {
+          return;
+        }
 
         startBtn.disabled = false;
 
@@ -327,30 +329,30 @@ export default function (root: HTMLElement) {
     if (data.type === 'STATE_UPDATE' && data.gameState) {
       const incoming = data.gameState;
 
-	  const match =
-		incoming.match ??
-		incoming.tournament ??
-		gameState.match;
+      const match =
+        incoming.match ??
+        incoming.tournament ??
+        gameState.match;
 
-	  gameState = {
-		ball: incoming.ball ?? gameState.ball,
-		paddles: incoming.paddles ?? gameState.paddles,
-		score: incoming.score ?? gameState.score,
-		match,
-		gameStatus: incoming.gameStatus || gameState.gameStatus || 'playing',
-	  };
+      gameState = {
+        ball: incoming.ball ?? gameState.ball,
+        paddles: incoming.paddles ?? gameState.paddles,
+        score: incoming.score ?? gameState.score,
+        match,
+        gameStatus: incoming.gameStatus || gameState.gameStatus || 'playing',
+      };
 
       player1Name = incoming.player1_name || player1Name;
       player2Name = incoming.player2_name || player2Name;
 
       // Update 3D scene
       scene3d.update(gameState);
-	  updateHud();
+      updateHud();
 
-	  if (isMatchOver()) {
-		handleMatchEndIfNeeded();
-		return ;
-	  }
+      if (isMatchOver()) {
+        handleMatchEndIfNeeded();
+        return;
+      }
 
       if (gameState.gameStatus === 'playing') {
         updateStatus('🎮 Game active - Player 1: W/S, Player 2: ↑/↓');
@@ -365,10 +367,10 @@ export default function (root: HTMLElement) {
         updateStatus('🔄 Starting game...');
         hasSentStartGame = true;
       } else if (gameState.gameStatus === 'gameEnd') {
-		const winner =
-			gameState.match?.winner ||
-			incoming.winner ||
-			'Nobody';
+        const winner =
+          gameState.match?.winner ||
+          incoming.winner ||
+          'Nobody';
         updateStatus(`🏆 Game ended! Winner: ${winner}`);
       }
     }
@@ -395,55 +397,88 @@ export default function (root: HTMLElement) {
     if (gameLoop) return;
 
     const updateNetworkGame = () => {
-	  if (ws && ws.readyState === WebSocket.OPEN && gameState.gameStatus === 'playing') {
-		sendPaddleMovement();
-	  }
+      if (ws && ws.readyState === WebSocket.OPEN && gameState.gameStatus === 'playing') {
+        sendPaddleMovement();
+      }
       gameLoop = requestAnimationFrame(updateNetworkGame);
     };
 
     gameLoop = requestAnimationFrame(updateNetworkGame);
   }
 
+  // Named keyboard handlers for proper cleanup
+  const handleKeyDown = (e: KeyboardEvent) => {
+    let changed = false;
+
+    // Player 1 (A / D)
+    if (e.code === 'KeyA') {
+      if (!player1Keys.down) changed = true;
+      player1Keys.down = true;
+      e.preventDefault();
+    } else if (e.code === 'KeyD') {
+      if (!player1Keys.up) changed = true;
+      player1Keys.up = true;
+      e.preventDefault();
+    }
+    // Player 2 (ArrowLeft / ArrowRight)
+    else if (e.code === 'ArrowLeft') {
+      if (!player2Keys.up) changed = true;
+      player2Keys.up = true;
+      e.preventDefault();
+    } else if (e.code === 'ArrowRight') {
+      if (!player2Keys.down) changed = true;
+      player2Keys.down = true;
+      e.preventDefault();
+    }
+
+    if (changed) sendPaddleMovement();
+  };
+
+  const handleKeyUp = (e: KeyboardEvent) => {
+    let changed = false;
+    if (e.code === 'KeyA') {
+      if (player1Keys.down) changed = true;
+      player1Keys.down = false;
+    } else if (e.code === 'KeyD') {
+      if (player1Keys.up) changed = true;
+      player1Keys.up = false;
+    } else if (e.code === 'ArrowLeft') {
+      if (player2Keys.up) changed = true;
+      player2Keys.up = false;
+    } else if (e.code === 'ArrowRight') {
+      if (player2Keys.down) changed = true;
+      player2Keys.down = false;
+    }
+    if (changed) sendPaddleMovement();
+  };
+
   function setupKeyboardControls() {
-    document.addEventListener('keydown', (e) => {
-      let changed = false;
+    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('keyup', handleKeyUp);
+  }
 
-	  // Player 1 (A / D)
-      if (e.code === 'KeyA') { if (!player1Keys.up) changed = true; player1Keys.down = true; e.preventDefault(); }
-      else if (e.code === 'KeyD') { if (!player1Keys.down) changed = true; player1Keys.up = true; e.preventDefault(); }
-      else if (e.code === 'ArrowLeft') { if (!player2Keys.up) changed = true; player2Keys.up = true; e.preventDefault(); }
-      else if (e.code === 'ArrowRight') { if (!player2Keys.down) changed = true; player2Keys.down = true; e.preventDefault(); }
-      if (changed) sendPaddleMovement();
-    });
-
-	// Player 2 (ArrowLeft / ArrowRight)
-    document.addEventListener('keyup', (e) => {
-      let changed = false;
-      if (e.code === 'KeyA') { if (player1Keys.up) changed = true; player1Keys.down = false; }
-      else if (e.code === 'KeyD') { if (player1Keys.down) changed = true; player1Keys.up = false; }
-      else if (e.code === 'ArrowLeft') { if (player2Keys.up) changed = true; player2Keys.up = false; }
-      else if (e.code === 'ArrowRight') { if (player2Keys.down) changed = true; player2Keys.down = false; }
-      if (changed) sendPaddleMovement();
-    });
+  function cleanupKeyboard() {
+    document.removeEventListener('keydown', handleKeyDown);
+    document.removeEventListener('keyup', handleKeyUp);
   }
 
   async function handleStartGame() {
     if (isMatchOver()) {
-		handleMatchEndIfNeeded();
-		return ;
-	}
+      handleMatchEndIfNeeded();
+      return;
+    }
 
-	// When 'startbtn' is on, -> true.
-	scene3d.setSplitView(true);
+    // When 'startbtn' is on, -> true.
+    scene3d.setSplitView(true);
 
-	connectionAttempts = 0;
-	startBtn.disabled = true;
+    connectionAttempts = 0;
+    startBtn.disabled = true;
 
     if (ws && ws.readyState === WebSocket.OPEN) {
       hasSentStartGame = false;
       ws.send(JSON.stringify({ type: 'START_GAME' }));
       updateStatus('▶️ Start signal sent to backend');
-	  startBtn.disabled = false;
+      startBtn.disabled = false;
       return;
     }
 
@@ -474,6 +509,7 @@ export default function (root: HTMLElement) {
       cancelAnimationFrame(gameLoop);
       gameLoop = null;
     }
+    cleanupKeyboard();
     scene3d.dispose();
     window.location.href = '/lobby';
   }
