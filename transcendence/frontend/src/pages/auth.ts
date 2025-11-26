@@ -1,5 +1,5 @@
 // frontend/src/pages/auth.ts
-import { signIn, signOut, getAuth, register } from "@/app/auth";
+import { signIn, signOut, getAuth, register, clearOut } from "@/app/auth";
 import { navigate } from "@/app/router";
 import { clearAlias} from "@/app/store";
 
@@ -172,6 +172,8 @@ export default function (root: HTMLElement, ctx: { url: URL }) {
     }
 
     // No password validation - backend accepts any length
+
+    const logoutRes = await clearOut();
     
     const result = await register(username, email, password);
     if (result.success) {

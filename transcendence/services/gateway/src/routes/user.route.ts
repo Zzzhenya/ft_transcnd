@@ -2,6 +2,7 @@
 import gatewayError from '../utils/gatewayError.js';
 import logger from '../utils/logger.js'; // log-service
 import { proxyRequest } from '../utils/proxyHandler.js';
+import { queueAwareProxyRequest } from '../utils/queueAwareProxyHandler.js';
 
 // {
 //   preHandler: fastify.mustAuth
@@ -18,6 +19,13 @@ const userRoutes: FastifyPluginAsync = async (fastify) => {
 	// Health check for user-service (through gateway)
 	fastify.get('/health', async (request, reply) => {
 		return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/health`, 'GET');
+	});
+
+	fastify.post('/auth/clear', async (request, reply) => {
+		reply.clearCookie('token', { path: '/' });
+		reply.clearCookie('sessionId', { path: '/' });
+		reply.clearCookie('session', { path: '/' });
+		return reply.status(200).send({ success: true, message: 'Session cleared' });
 	});
 
 	fastify.post('/auth/logout', { preHandler: fastify.mustAuth }, async (request, reply) => {

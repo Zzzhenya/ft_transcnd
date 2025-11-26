@@ -125,6 +125,24 @@ export async function signOut() {
   dispatchEvent(new CustomEvent("auth:changed"));
 }
 
+// clearOut
+export async function clearOut() {
+
+	try	{
+		console.log('🎮 Session clear: set user offline');
+		await reportOffline();
+		console.log('🎮 Session clean');
+		const data = await api("/auth/clear", { method: "POST", credentials: 'include', body: JSON.stringify({}) });
+  	// Report offline first (centralized here so all callers inherit it)
+  } catch {
+  	// ignore errors
+  }
+  const s = read();
+  s.auth = {user: null}
+  write(s);
+  dispatchEvent(new CustomEvent("auth:changed"));
+}
+
 // Guest Login
 export async function guestLogin(alias?: string): Promise<{ success: boolean; error?: string }> {
 	try {
