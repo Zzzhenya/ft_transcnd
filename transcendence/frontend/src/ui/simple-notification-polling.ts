@@ -248,56 +248,34 @@ export class SimpleNotificationPoller {
   }
 
   async acceptInvitation(notificationId: number, roomCode: string) {
+    // Remove modal immediately to prevent double-clicks
+    const modal = document.getElementById(`simple-invitation-${notificationId}`);
+    if (modal) { document.body.removeChild(modal); }
+    
     try {
-      // let token = getToken();
-      // if (!token) {
-      //   const refreshed = await (refreshTokenIfNeeded && refreshTokenIfNeeded());
-      //   token = getToken();
-      //   if (!refreshed || !token) return;
-      // }
-
-      let response = await fetch(`${GATEWAY_BASE}/user-service/notifications/${notificationId}/accept`, {
+      const response = await fetch(`${GATEWAY_BASE}/user-service/notifications/${notificationId}/accept`, {
         method: 'POST',
         headers: {
-          // 'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
         credentials: 'include',
         body: JSON.stringify({})
       });
-      if (response.status === 401 || response.status === 403) {
-        // const refreshed = await (refreshTokenIfNeeded && refreshTokenIfNeeded());
-        // if (refreshed) {
-        //   token = getToken();
-        //   if (!token) return;
-        //   response = await fetch(`${GATEWAY_BASE}/user-service/notifications/${notificationId}/accept`, {
-        //     method: 'POST',
-        //     headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-        //     credentials: 'include',
-        //     body: JSON.stringify({})
-        //   });
-        // }
-      }
 
       if (response.ok) {
-        const modal = document.getElementById(`simple-invitation-${notificationId}`);
-        if (modal) { document.body.removeChild(modal); }
         if (roomCode) { window.location.href = `/remote/room/${roomCode}`; }
       } else if (response.status === 410) {
-        const modal = document.getElementById(`simple-invitation-${notificationId}`);
-        if (modal) { document.body.removeChild(modal); }
         this.showErrorToast('This invitation has expired or the player has left the room.');
       } else if (response.status === 404) {
-        const modal = document.getElementById(`simple-invitation-${notificationId}`);
-        if (modal) { document.body.removeChild(modal); }
         this.showErrorToast('This invitation is no longer available.');
       } else if (response.status === 409) {
-        const modal = document.getElementById(`simple-invitation-${notificationId}`);
-        if (modal) { document.body.removeChild(modal); }
         this.showErrorToast('You are already in a game. Please finish your current game first.');
+      } else if (response.status === 401 || response.status === 403) {
+        this.showErrorToast('Authentication error. Please refresh the page and try again.');
       }
+      // Silently ignore other errors
     } catch (error) {
-      // Silent fail
+      // Network errors - silent fail, modal already removed
     }
   }
 
