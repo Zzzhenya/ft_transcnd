@@ -2052,6 +2052,10 @@ fastify.put('/users/:userId/display-name', {
       return reply.code(400).send({ error: 'Display name must be 50 characters or less' });
     }
 
+    if (!/^[a-zA-Z0-9_ -]+$/.test(displayName)) {
+      return reply.code(400).send({ error: 'Display name contains invalid characters' });
+    }
+
     const lowerName = displayName.trim().toLowerCase();
 
     const response = await fetch('http://database-service:3006/internal/write', {
