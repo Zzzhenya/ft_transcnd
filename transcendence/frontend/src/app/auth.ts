@@ -93,7 +93,7 @@ export async function register(
 		return { success: true };
 
 	} catch (error) {
-		console.error("Register error:", error);
+		// console.error("Register error:", error);
 		return {
 			success: false,
 			error: error instanceof Error ? error.message : "Network error",
@@ -176,7 +176,7 @@ export async function guestLogin(alias?: string): Promise<{ success: boolean; er
 
 		} 
 		catch (error) {
-		console.error('❌ Guest login error:', error);
+		//console.error('❌ Guest login error:', error);
 		return {
 			success: false,
 			error: error instanceof Error ? error.message : 'Network error'

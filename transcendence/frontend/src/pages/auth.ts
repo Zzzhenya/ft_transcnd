@@ -177,7 +177,7 @@ export default function (root: HTMLElement, ctx: { url: URL }) {
     if (result.success) {
       navigate(next);
     } else {
-      const cleanError = parseErrorMessage(result.error || "Registration failed");
+      const cleanError = parseError(result.error || "Registration failed");
       showError('register-error', cleanError);
     }
   });
