@@ -67,7 +67,7 @@ export default function (root: HTMLElement) {
         const user = getAuth();
         const state = getState();
         const signedIn = !!user;
-        const isGuest = !user && !!state.session.alias;
+        const isGuest = !user && !!state.session?.alias;
 
         root.innerHTML = `
         <section class="min-h-screen bg-gradient-to-br from-blue-950 via-blue-900 to-slate-950 py-6 px-4">
