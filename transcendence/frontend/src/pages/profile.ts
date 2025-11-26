@@ -1108,8 +1108,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
             <img src="/icons/message.png" class="icon-px icon-px--violet" alt="Friend Requests">
             Friend Requests
           </h2>
-          <span class="text-sm text-gray-300">${friendRequests.length} pending</span>
-          <button id="refresh-requests-btn" class="text-sm link-violet">
+            <button id="refresh-requests-btn" class="text-sm link-violet">
             Refresh
           </button>
         </div>
