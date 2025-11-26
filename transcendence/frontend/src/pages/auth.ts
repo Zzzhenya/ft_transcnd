@@ -116,7 +116,7 @@ export default function (root: HTMLElement, ctx: { url: URL }) {
   // Sign in form handler
   root.querySelector<HTMLFormElement>("#signin-form")?.addEventListener("submit", async (e) => {
     e.preventDefault();
-    const email = (root.querySelector<HTMLInputElement>("#signin-email")?.value || "").trim().toLowerCase();;
+    const email = (root.querySelector<HTMLInputElement>("#signin-email")?.value || "").trim().toLowerCase();
     const password = (root.querySelector<HTMLInputElement>("#signin-password")?.value || "").trim();
     
     if (!email || !password) {

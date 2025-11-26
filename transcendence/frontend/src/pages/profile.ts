@@ -475,7 +475,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
     emailError?.classList.add('hidden');
     passwordError?.classList.add('hidden');
 
-    const newEmail = emailInput?.value?.trim();
+    const newEmail = emailInput?.value?.trim().toLowerCase();
     const password = passwordInput?.value;
 
     if (!newEmail) {
@@ -628,7 +628,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
 
     displayNameError?.classList.add('hidden');
 
-    const newDisplayName = displayNameInput?.value?.trim();
+    const newDisplayName = displayNameInput?.value?.trim().toLowerCase();
 
     if (!newDisplayName) {
       if (displayNameError) {
@@ -1206,7 +1206,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
 
   root.querySelector<HTMLButtonElement>("#add-friend-btn")?.addEventListener("click", async () => {
     const usernameInput = root.querySelector<HTMLInputElement>("#friend-username-input");
-    const username = usernameInput?.value?.trim();
+    const username = usernameInput?.value?.trim().toLowerCase();
     if (username) {
       await addFriend(username);
       if (usernameInput) usernameInput.value = '';
