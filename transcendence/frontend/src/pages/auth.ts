@@ -137,8 +137,8 @@ export default function (root: HTMLElement, ctx: { url: URL }) {
   // Register form handler
   root.querySelector<HTMLFormElement>("#register-form")?.addEventListener("submit", async (e) => {
     e.preventDefault();
-    const username = (root.querySelector<HTMLInputElement>("#register-username")?.value || "").trim();
-    const email = (root.querySelector<HTMLInputElement>("#register-email")?.value || "").trim();
+    const username = (root.querySelector<HTMLInputElement>("#register-username")?.value || "").trim().toLowerCase();
+    const email = (root.querySelector<HTMLInputElement>("#register-email")?.value || "").trim().toLowerCase();
     const password = (root.querySelector<HTMLInputElement>("#register-password")?.value || "").trim();
     
     if (!username || !email || !password) {
