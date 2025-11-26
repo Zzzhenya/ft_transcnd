@@ -2,6 +2,7 @@
 import { api } from "./api";
 import { reportOnlineOnce, reportOffline } from "@/utils/efficient-online-status";
 const STORAGE_KEY = "ft_transcendence_version1";
+const debugger_bit = 1;
 
 export type AuthUser = {
 	id: string;
@@ -123,7 +124,9 @@ export async function register(
 		return { success: true };
 
 	} catch (error) {
-		console.error("Register error:", error);
+		if (debugger_bit) {
+			console.error("Register error:", error);
+		}
 		return {
 			success: false,
 			error: error instanceof Error ? error.message : "Network error",
