@@ -37,7 +37,7 @@ export function getAuth(): AuthUser | null {
 }
 
 // Helper to populate user state from profile
-export async function loadUserProfile(): Promise<boolean> {
+export async function loadProfile(): Promise<boolean> {
   const profile = await getProfile();
   if (!profile.success || !profile.user) return false;
 
@@ -61,7 +61,9 @@ export async function register(
 		);
 		
 		// fetch profile
-		const ok = await loadUserProfile();
+		// const ok = await getProfile();
+		// const ok = await loadUserProfile();
+		const ok = await loadProfile();
 		if (!ok){
 			return { success: false, error: "Failed to fetch user profile after registration" };
 		}
@@ -90,7 +92,8 @@ export async function signIn(
 	  );
 
 	// Fetch fresh profile
-  	const ok = await loadUserProfile();
+  	// const ok = await loadUserProfile();
+  	const ok = await loadProfile();
   	if (!ok) return { success: false, error: "Failed to fetch user profile" };
 	await reportOnlineOnce();
 	return { success: true };
@@ -131,7 +134,8 @@ export async function guestLogin(alias?: string): Promise<{ success: boolean; er
 			{ method: "POST", body: JSON.stringify({ alias: alias || undefined }) }
 		);
     
-		const ok = await loadUserProfile();
+		// const ok = await loadUserProfile();
+		const ok = await loadProfile();
     	if (!ok) return { success: false, error: "Failed to fetch user profile" };
 
     	await reportOnlineOnce();
