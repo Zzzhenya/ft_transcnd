@@ -124,7 +124,7 @@ async function loadRemoteMatches(userId: number) {
     setState('matches', 'loading');
     const data = await fetchWithAuth(`/api/user-service/users/${userId}/remote-matches`);
     
-    if (!data || !data.matches?.length) {
+    if (!data || !data.matches || data.matches.length === 0) {
       setState('matches', 'empty');
       return;
     }
@@ -267,7 +267,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
           <p class="mt-4 text-gray-300">Loading matches...</p>
         </div>
 
-        <div id="matches-error" class="hidden chip chip-red" aria-live="polite"></div>
+        <div id="matches-error" class="hidden" aria-live="polite"></div>
 
         <div id="matches-empty" class="hidden text-center py-8 text-gray-400">
           <p class="text-lg">No matches played yet</p>
@@ -336,9 +336,11 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
               <p class="mt-4 text-gray-300">Loading matches...</p>
             </div>
 
+            <!--
             <div id="modal-error" class="hidden chip chip-red">
               <p>Failed to load matches</p>
             </div>
+            -->
 
             <div id="modal-content" class="hidden space-y-4"></div>
           </div>
