@@ -17,7 +17,7 @@ type Options = {
 const COLOR_YELLOW = BABYLON.Color3.FromHexString("#B58514");
 const COLOR_PURPLE = BABYLON.Color3.FromHexString("#5E2DD4");
 
-// 2. Geometry: Ground, Wall, Net, Scripes, Center_line, Ball
+// 2. Geometry
 const GROUND_W = 8000;
 const GROUND_H = 4000;
 const WALL_W = 8000;
@@ -36,39 +36,57 @@ const BALL_ARC_STEPS = 80;
 const BASE_FONT_SIZE = 25;
 
 /* Helpers */
-// 1. Aiming guide line update.
-function qBezier(p0: BABYLON.Vector3, p1: BABYLON.Vector3, p2: BABYLON.Vector3, t: number) {
+// 1. Aiming guide line update. (포물선)
+function qBezier(
+	p0: BABYLON.Vector3,
+	p1: BABYLON.Vector3,
+	p2: BABYLON.Vector3,
+	t: number
+) {
 	const u = 1 - t;
 	return new BABYLON.Vector3(
-		u*u*p0.x + 2*u*t*p1.x + t*t*p2.x,
-		u*u*p0.y + 2*u*t*p1.y + t*t*p2.y,
-		u*u*p0.z + 2*u*t*p1.z + t*t*p2.z
+		u * u * p0.x + 2 * u * t * p1.x + t * t * p2.x,
+		u * u * p0.y + 2 * u * t * p1.y + t * t * p2.y,
+		u * u * p0.z + 2 * u * t * p1.z + t * t * p2.z
 	);
 }
 
-// 2. Create Arc path in scene.
-function makeArcPath(from: BABYLON.Vector3, to: BABYLON.Vector3, lift = 380, steps = 48) {
+// 2. Create Arc path for ball flight
+function makeArcPath(
+	from: BABYLON.Vector3,
+	to: BABYLON.Vector3,
+	lift = 380,
+	steps = 48
+) {
 	const mid = from.add(to).scale(0.5);
 	const ctrl = new BABYLON.Vector3(mid.x, Math.max(from.y, to.y) + lift, mid.z);
 	const path: BABYLON.Vector3[] = [];
-	for (let i = 0; i <= steps; i++) path.push(qBezier(from, ctrl, to, i / steps));
+	for (let i = 0; i <= steps; i++)
+		path.push(qBezier(from, ctrl, to, i / steps));
 	return path;
 }
 
 /* Mount */
 export function mountLobbyScene({
-	host, onLocal, onRemote, onTournaments
-  }: Options) {
-	// Check, whether this function starts in console.
-	console.log(">>> mountLobbyScene LOADED, FONT =", BASE_FONT_SIZE);
-
+	host,
+	onLocal,
+	onRemote,
+	onTournaments
+}: Options) {
 	// Canvas
 	const canvas = document.createElement("canvas");
-	Object.assign(canvas.style, { width: "100%", height: "100%", display: "block" });
+	Object.assign(canvas.style, {
+		width: "100%",
+		height: "100%",
+		display: "block"
+	});
 	host.appendChild(canvas);
 
 	// Eigine
-	const engine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true });
+	const engine = new BABYLON.Engine(canvas, true, {
+		preserveDrawingBuffer: true,
+		stencil: true
+	});
 
 	// Scene
 	const scene = new BABYLON.Scene(engine);
@@ -95,7 +113,6 @@ export function mountLobbyScene({
         rect.color = "White";
         rect.thickness = 1;
         rect.background = "rgba(220, 50, 50, 0.9)";
-
 		rect.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_CENTER; 
 		rect.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_CENTER;
         rect.alpha = 1;
@@ -114,14 +131,16 @@ export function mountLobbyScene({
     }
 
 	// Camera
-	const cam = new BABYLON.FreeCamera("cam", new BABYLON.Vector3(0, 220, -900), scene);
+	const cam = new BABYLON.FreeCamera(
+		"cam",
+		new BABYLON.Vector3(0, 220, -900),
+		scene
+	);
 	cam.setTarget(new BABYLON.Vector3(0, 0, 0));
 	cam.fov = 1.5;
 	cam.minZ = 0.1;
 	cam.maxZ = 10000;
 	cam.inputs.clear();
-
-	// Bug handling
 	scene.activeCamera = cam;
 	cam.attachControl(canvas, true);
 
@@ -142,13 +161,12 @@ export function mountLobbyScene({
 	sun.position = new BABYLON.Vector3(-800, 600, -400);
 	sun.intensity = 1;
 
-	// Wall: Material
+	// Wall
 	const mWall = new BABYLON.StandardMaterial("mWall", scene);
 	mWall.diffuseColor = COLOR_YELLOW;
 	mWall.emissiveColor = COLOR_YELLOW;
 	mWall.specularColor = BABYLON.Color3.Black();
 
-	// Wall: Create wall
 	const wall = BABYLON.MeshBuilder.CreatePlane(
 		"wall",
 		{
@@ -163,14 +181,17 @@ export function mountLobbyScene({
 	wall.rotation.y = Math.PI;
 	wall.isPickable = false;
 
-	// Floor: Material
+	// Floor (Ground)
 	const mFloor = new BABYLON.StandardMaterial("mFloor", scene);
 	mFloor.diffuseColor = COLOR_PURPLE;
 	mFloor.emissiveColor = BABYLON.Color3.Black();
 	mFloor.specularColor = BABYLON.Color3.Black();
 
-	// Floor: Create floor
-	const ground = BABYLON.MeshBuilder.CreateGround("ground", { width: GROUND_W, height: GROUND_H }, scene);
+	const ground = BABYLON.MeshBuilder.CreateGround(
+		"ground",
+		{ width: GROUND_W, height: GROUND_H },
+		scene
+	);
 	ground.material = mFloor;
 	ground.position.set(0, 0, -GROUND_H / 2);
 	ground.isPickable = false; // Floor should not be for clicking list.
@@ -206,7 +227,7 @@ export function mountLobbyScene({
 	bottomStripe.position.z = -0.05;
 	bottomStripe.isPickable = false;
 
-	// Net: Grid (between two stripes)
+	// Grid (between two stripes)
 	const gridH = NET_H - STRIPE_H * 2;	// Height between two stripes
 	const netBody = BABYLON.MeshBuilder.CreatePlane(
 		"netBody",
@@ -224,8 +245,14 @@ export function mountLobbyScene({
 	mNetBody.specularColor = BABYLON.Color3.Black();
 	mNetBody.backFaceCulling = false;
 
-	const texW = 2048, texH = 512;
-	const netTex = new BABYLON.DynamicTexture("netTex", { width: texW, height: texH }, scene, true);
+	const texW = 2048;
+	const texH = 512;
+	const netTex = new BABYLON.DynamicTexture(
+		"netTex",
+		{ width: texW, height: texH },
+		scene,
+		true
+	);
 	netTex.hasAlpha = true;
 
 	const ctx = netTex.getContext();
@@ -272,9 +299,14 @@ export function mountLobbyScene({
 		const root = new BABYLON.TransformNode(name, scene);
 
 		// Rubber
-		const rubber = BABYLON.MeshBuilder.CreateDisc(`${name}_rubber`, {
-			radius: 150, tessellation: 96,
-		}, scene);
+		const rubber = BABYLON.MeshBuilder.CreateDisc(
+			`${name}_rubber`,
+			{
+				radius: 150,
+				tessellation: 96,
+			},
+			scene
+		);
 		const mRubber = new BABYLON.StandardMaterial(`${name}_mRubber`, scene);
 		mRubber.diffuseColor = color;
 		mRubber.emissiveColor = color.scale(0.8);
@@ -283,9 +315,15 @@ export function mountLobbyScene({
 		rubber.parent = root;
 
 		// Handgrip
-		const handle = BABYLON.MeshBuilder.CreateBox(`${name}_handle`, {
-			width: 50, height: 500, depth: 24
-		}, scene);
+		const handle = BABYLON.MeshBuilder.CreateBox(
+			`${name}_handle`,
+			{
+				width: 50,
+				height: 500,
+				depth: 24
+			},
+			scene
+		);
 		const mHandle = new BABYLON.StandardMaterial(`${name}_mHandle`, scene);
 		mHandle.diffuseColor = BABYLON.Color3.FromHexString("#8B5E3C");
 		mHandle.specularColor = BABYLON.Color3.Black();
@@ -301,7 +339,11 @@ export function mountLobbyScene({
 		rubber.isPickable = true;
 		handle.isPickable = false;
 
-		const hit = BABYLON.MeshBuilder.CreateDisc(`${name}_hit`, { radius: 150, tessellation: 32 }, scene);
+		const hit = BABYLON.MeshBuilder.CreateDisc(
+			`${name}_hit`,
+			{ radius: 150, tessellation: 32 },
+			scene
+		);
 		hit.isPickable = true; // To check for hover.
 		hit.isVisible = false;
 		hit.alwaysSelectAsActiveMesh = true;
@@ -335,6 +377,7 @@ export function mountLobbyScene({
 		const dy = floorY - bottomWorldY;		// Floor level
 		handle.position.y += dy;				// Move grips only, not ground.
 	}
+
 	left.root.position = new BABYLON.Vector3(-ICON_X, ICON_Y, ICON_Z);
 	center.root.position = new BABYLON.Vector3(0, ICON_Y, ICON_Z);
 	right.root.position = new BABYLON.Vector3( ICON_X, ICON_Y, ICON_Z);
@@ -374,7 +417,11 @@ export function mountLobbyScene({
 	mBall.specularColor = BABYLON.Color3.Black();
 
 	// Ball: Create
-	const ball = BABYLON.MeshBuilder.CreateSphere("ball", { diameter: BALL_DIAMETER, segments: 32 }, scene);
+	const ball = BABYLON.MeshBuilder.CreateSphere(
+		"ball",
+		{ diameter: BALL_DIAMETER, segments: 32 },
+		scene
+	);
 	ball.position = new BABYLON.Vector3(0, BALL_DIAMETER / 2, -630);
 	ball.material = mBall;
 	ball.isPickable = true;
@@ -389,52 +436,8 @@ export function mountLobbyScene({
 	sg.normalBias = 0.35;
 	(sg as any).darkness = 0.25; // Intensity of shadow
 
-	// Aim line: Properties
-	const aimMat = new BABYLON.StandardMaterial("mAim", scene);
-	aimMat.disableLighting = true;
-	aimMat.alpha = 0.45;
-	aimMat.emissiveColor = BABYLON.Color3.Red();
-
-	// Aim line: Create
-	const aimTube = BABYLON.MeshBuilder.CreateTube("aimTube", {
-		path: [ball.position.clone(), ball.position.clone().add(new BABYLON.Vector3(0,1,0))],
-		radius: 6, updatable: true
-	}, scene);
-	aimTube.material = aimMat;
-	aimTube.isPickable = false;
-	aimTube.visibility = 0;
-
-	// Interaction: Hover, Click, Launch
-	let isAiming = false;
 	let isFlying = false;
  
-	function updateAimPreview() {
-    	if (isFlying)
-			return;
-
-		const x = scene.pointerX;
-		const w = canvas.clientWidth;
-		let targetRoot = left.root;
-		if (x < w / 3)
-			targetRoot = left.root;
-		else if (x < (2 * w) / 3)
-			targetRoot = center.root;
-		else
-			targetRoot = right.root;
-
-		const to = targetRoot.getAbsolutePosition().add(new BABYLON.Vector3(0, 150, 0));
-		const from = ball.position.clone();
-    	const path = makeArcPath(from, to, BALL_ARC_LIFT);
-    	BABYLON.MeshBuilder.CreateTube("aimTube", { path, instance: aimTube });
-
-		if (targetRoot === left.root)
-			aimMat.emissiveColor = BABYLON.Color3.FromHexString("#e74c3c");
-		else if (targetRoot === center.root)
-			aimMat.emissiveColor = BABYLON.Color3.FromHexString("#3498db");
-		else
-			aimMat.emissiveColor = BABYLON.Color3.FromHexString("#2ecc71");
-	}
-
 	function intersectsBall(hit: BABYLON.AbstractMesh) {
 		hit.computeWorldMatrix(true);
 		ball.computeWorldMatrix(true);
@@ -454,19 +457,22 @@ export function mountLobbyScene({
 	) {
 		isFlying = true;
 		hasHit = false;
-		aimTube.visibility = 0;
 
 		if (flightObserver) {
 			scene.onBeforeRenderObservable.remove(flightObserver);
 			flightObserver = null;
 		}
 
-		const to = target.root.getAbsolutePosition().add(new BABYLON.Vector3(0, 150, 0));
+		const to = target.root
+			.getAbsolutePosition()
+			.add(new BABYLON.Vector3(0, 150, 0));
 		const from = ball.position.clone();
 		const path = makeArcPath(from, to, BALL_ARC_LIFT, BALL_ARC_STEPS);
 
 		const anim = new BABYLON.Animation(
-			"shoot", "position", 60,
+			"shoot",
+			"position",
+			60,
 			BABYLON.Animation.ANIMATIONTYPE_VECTOR3,
 			BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT
 		);
@@ -474,11 +480,16 @@ export function mountLobbyScene({
 		anim.setKeys(keys);
 
 		const spin = new BABYLON.Animation(
-			"spin", "rotation.y", 60,
+			"spin",
+			"rotation.y",
+			60,
 			BABYLON.Animation.ANIMATIONTYPE_FLOAT,
 			BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT
 		);
-		spin.setKeys([{ frame: 0, value: 0 }, { frame: keys.length - 1, value: Math.PI }]);
+		spin.setKeys([
+			{ frame: 0, value: 0 },
+			{ frame: keys.length - 1, value: Math.PI }
+		]);
 		ball.animations = [anim, spin];
 
 		// Conflict check during flying.
@@ -518,7 +529,7 @@ export function mountLobbyScene({
 	let centerTarget = BASE.clone();
 	let rightTarget = BASE.clone();
 
-	// Event: Tracking pointer.
+	// Event: Tracking pointer
 	scene.onPointerObservable.add((pi) => {
 		if (isFlying)
 			return ;
@@ -528,10 +539,6 @@ export function mountLobbyScene({
 			const m = pickInfo?.pickedMesh || null;
 
 			const onBall = !!m && m.name === "ball";
-			if (onBall && !isAiming) { isAiming = true; aimTube.visibility = 1; }
-			if (!onBall && isAiming) { isAiming = false; aimTube.visibility = 0; }
-			if (isAiming)
-				updateAimPreview();
 
 			const isLeftHover = m?.name === "paddleLocal_rubber" || m?.name === "paddleLocal_hit";
 			const isCenterHover = m?.name === "paddleRemote_rubber" || m?.name === "paddleRemote_hit";
@@ -570,7 +577,11 @@ export function mountLobbyScene({
 	});
 
 	// Helper: GUI label
-	function addGuiLabel(text: string, mesh: BABYLON.AbstractMesh, opts?: { offsetX?: number; offsetY?: number }) {
+	function addGuiLabel(
+		text: string,
+		mesh: BABYLON.AbstractMesh,
+		opts?: { offsetX?: number; offsetY?: number }
+	) {
 		const rect = new GUI.Rectangle();
 		rect.thickness = 0;					// No outline
 		rect.background = "transparent";	// No background
@@ -599,8 +610,7 @@ export function mountLobbyScene({
 	// Rendering: Loop & Resize
 	const onResize = () => engine.resize();
 	window.addEventListener("resize", onResize);
-	// When needs to modify size of font matching with screen size, on.
-	// engine.setHardwareScalingLevel(1 / (window.devicePixelRatio || 1));
+
 	const render = () => {
 		if (scene.isDisposed)
 			return;
@@ -615,7 +625,10 @@ export function mountLobbyScene({
 	// Cleanup before return.
 	return () => {
 		window.removeEventListener("resize", onResize);
-		scene.onBeforeRenderObservable.clear();
+		scene.onPointerObservable.clear();
+		scene.detachControl();
+
+		// scene.onBeforeRenderObservable.clear();
 		engine.stopRenderLoop(render);
 		scene.dispose();
 		engine.dispose();
