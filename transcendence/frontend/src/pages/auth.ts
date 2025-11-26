@@ -116,13 +116,15 @@ export default function (root: HTMLElement, ctx: { url: URL }) {
   // Sign in form handler
   root.querySelector<HTMLFormElement>("#signin-form")?.addEventListener("submit", async (e) => {
     e.preventDefault();
-    const email = (root.querySelector<HTMLInputElement>("#signin-email")?.value || "").trim();
+    const email = (root.querySelector<HTMLInputElement>("#signin-email")?.value || "").trim().toLowerCase();;
     const password = (root.querySelector<HTMLInputElement>("#signin-password")?.value || "").trim();
     
     if (!email || !password) {
       showError('signin-error', 'Please enter both email and password');
       return;
     }
+
+    await clearOut();
     
     const result = await signIn(email, password);
     if (result.success) {
@@ -173,7 +175,7 @@ export default function (root: HTMLElement, ctx: { url: URL }) {
 
     // No password validation - backend accepts any length
 
-    const logoutRes = await clearOut();
+    await clearOut();
     
     const result = await register(username, email, password);
     if (result.success) {
