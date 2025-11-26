@@ -1113,8 +1113,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
             <img src="/icons/message.png" class="icon-px icon-px--violet" alt="Friend Requests">
             Friend Requests
           </h2>
-          <span class="text-sm text-gray-300">${friendRequests.length} pending</span>
-          <button id="refresh-requests-btn" class="text-sm link-violet">
+            <button id="refresh-requests-btn" class="text-sm link-violet">
             Refresh
           </button>
         </div>
@@ -1156,7 +1155,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
         
         <!-- Friends List -->
         <div>
-          <h3 class="mb-3 text-gray-200">Your Friends (${friends.length})</h3>
+          <h3 class="mb-3 text-gray-200">Your Friends</h3>
           <div id="friends-container" class="min-h-[100px]">
             <div class="text-center py-4 text-gray-400">
               Loading friends...
