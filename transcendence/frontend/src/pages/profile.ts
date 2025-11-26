@@ -67,6 +67,8 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
         });
         renderUserInfo();
         updateAvatarDisplay();
+      } else {
+        throw new Error('profile-fetch-failed')
       }
     } catch (error) {
       console.log('Could not load user profile:', error);
