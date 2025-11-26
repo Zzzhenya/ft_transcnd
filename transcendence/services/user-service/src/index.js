@@ -689,15 +689,26 @@ fastify.get('/users/:userId', {
   }
 });
 
-// Get user's friends  
+// =============== UPDATED FRIENDS ENDPOINTS WITH ORDERED PAIRS ===============
+
+// Helper function to compute ordered pair
+function getOrderedPair(userId1, userId2) {
+  const a = Math.min(parseInt(userId1), parseInt(userId2));
+  const b = Math.max(parseInt(userId1), parseInt(userId2));
+  return { user_a_id: a, user_b_id: b };
+}
+
+// Get user's friends (UPDATED for ordered pairs)
 fastify.get('/users/:userId/friends', {
   preHandler: fastify.authenticate
 }, async (request, reply) => {
   try {
     const { userId } = request.params;
+    const userIdInt = parseInt(userId);
     console.log(`👥 GETTING FRIENDS FOR USER ${userId} - START`);
     logger.info(`Getting friends for user ${userId}`);
 
+    // Query for all friend relationships where user is either user_a or user_b
     const response = await fetch('http://database-service:3006/internal/query', {
       method: 'POST',
       headers: {
@@ -706,8 +717,7 @@ fastify.get('/users/:userId/friends', {
       },
       body: JSON.stringify({
         table: 'Friends',
-        columns: ['friend_id', 'friends_status', 'created_at'],
-        filters: { user_id: parseInt(userId) },
+        columns: ['user_a_id', 'user_b_id', 'friends_status', 'created_at', 'requester_id'],
         limit: 100
       })
     });
@@ -718,13 +728,20 @@ fastify.get('/users/:userId/friends', {
     }
 
     const result = await response.json();
-    const friends = result.data || [];
+    const allFriends = result.data || [];
 
-    console.log('CHECKPOINT -1: About to process friend requests with Promise.all, requests:', friends.length);
+    // Filter to only include relationships where this user is involved
+    const userFriends = allFriends.filter(f =>
+      f.user_a_id === userIdInt || f.user_b_id === userIdInt
+    );
+
+    console.log(`Found ${userFriends.length} friend relationships for user ${userId}`);
 
     const friendsWithUsernames = await Promise.all(
-      friends.map(async (friend) => {
-        const user = await User.findById(friend.friend_id);
+      userFriends.map(async (friend) => {
+        // Determine who the other user is
+        const friendId = friend.user_a_id === userIdInt ? friend.user_b_id : friend.user_a_id;
+        const user = await User.findById(friendId);
 
         // Get online status from database
         const statusResponse = await fetch('http://database-service:3006/internal/query', {
@@ -736,7 +753,7 @@ fastify.get('/users/:userId/friends', {
           body: JSON.stringify({
             table: 'Users',
             columns: ['is_online', 'last_seen'],
-            filters: { id: friend.friend_id },
+            filters: { id: friendId },
             limit: 1
           })
         });
@@ -748,21 +765,15 @@ fastify.get('/users/:userId/friends', {
           const userData = statusResult.data?.[0];
           online = userData?.is_online === 1;
           lastSeen = userData?.last_seen;
-
-          // Debug logging
-          console.log(`🔍 Friend ${friend.friend_id} (${user?.username}) online status: is_online=${userData?.is_online}, calculated=${online}`);
-          logger.info(`Friend ${friend.friend_id} (${user?.username}) online status: is_online=${userData?.is_online}, calculated=${online}`);
-        } else {
-          console.log(`❌ Failed to get online status for friend ${friend.friend_id}: ${statusResponse.status}`);
-          logger.warn(`Failed to get online status for friend ${friend.friend_id}: ${statusResponse.status}`);
         }
 
         return {
-          ...friend,
+          friend_id: friendId,
           username: user?.username || 'Unknown User',
           online: online,
           lastSeen: lastSeen,
-          friends_status: friend.friends_status
+          friends_status: friend.friends_status,
+          created_at: friend.created_at
         };
       })
     );
@@ -771,6 +782,431 @@ fastify.get('/users/:userId/friends', {
 
   } catch (error) {
     logger.error('Error getting friends:', error);
+    return reply.code(500).send({ error: 'Internal server error' });
+  }
+});
+
+// Get incoming friend requests (UPDATED for ordered pairs)
+fastify.get('/users/:userId/friend-requests', {
+  preHandler: fastify.authenticate
+}, async (request, reply) => {
+  try {
+    const { userId } = request.params;
+    const userIdInt = parseInt(userId);
+    logger.info(`Getting friend requests for user ${userId}`);
+
+    // Query all pending friend relationships
+    const response = await fetch('http://database-service:3006/internal/query', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-service-auth': DB_SERVICE_TOKEN
+      },
+      body: JSON.stringify({
+        table: 'Friends',
+        columns: ['user_a_id', 'user_b_id', 'requester_id', 'friends_status', 'created_at'],
+        filters: { friends_status: 'pending' },
+        limit: 100
+      })
+    });
+
+    if (!response.ok) {
+      logger.error('Database query failed:', response.status);
+      return reply.code(500).send({ error: 'Database query failed' });
+    }
+
+    const result = await response.json();
+    const allRequests = result.data || [];
+
+    // Filter to only include requests TO this user (where someone else is the requester)
+    const userRequests = allRequests.filter(req =>
+      (req.user_a_id === userIdInt || req.user_b_id === userIdInt) &&
+      req.requester_id !== userIdInt
+    );
+
+    console.log(`Found ${userRequests.length} friend requests for user ${userId}`);
+
+    const requestsWithUsernames = await Promise.all(
+      userRequests.map(async (req) => {
+        const user = await User.findById(req.requester_id);
+        return {
+          id: req.requester_id,
+          username: user?.username || 'Unknown',
+          friends_status: req.friends_status,
+          created_at: req.created_at
+        };
+      })
+    );
+
+    return { success: true, requests: requestsWithUsernames };
+
+  } catch (error) {
+    logger.error('Error getting friend requests:', error);
+    return reply.code(500).send({ error: 'Internal server error' });
+  }
+});
+
+// Send friend request (UPDATED with upsert logic and ordered pairs)
+fastify.post('/users/:userId/friends', {
+  preHandler: fastify.authenticate
+}, async (request, reply) => {
+  console.log('🚀 FRIENDS ENDPOINT HIT! Params:', request.params, 'Body:', request.body);
+  try {
+    const { userId } = request.params;
+    const { friend_id, friendUsername } = request.body;
+    const requesterId = parseInt(userId);
+
+    console.log('🚀 Processing friend request:', { userId, friend_id, friendUsername });
+
+    let targetId = friend_id;
+
+    // Resolve username to ID if needed
+    if (friendUsername && !friend_id) {
+      console.log('🚀 Looking up user by username:', friendUsername);
+      const friend = await User.findByUsername(friendUsername);
+      if (!friend) {
+        console.log('🚀 User not found:', friendUsername);
+        return reply.code(404).send({ error: `User with username '${friendUsername}' not found` });
+      }
+      targetId = friend.id;
+      logger.info(`Found user ${friendUsername} with ID ${targetId}`);
+    } else if (!friend_id && !friendUsername) {
+      console.log('🚀 Missing required parameters');
+      return reply.code(400).send({ error: 'Either friend_id or friendUsername is required' });
+    }
+
+    targetId = parseInt(targetId);
+
+    // Prevent self-friend requests
+    if (requesterId === targetId) {
+      console.log('🚀 Attempted self-friend request blocked');
+      return reply.code(400).send({ error: 'You cannot send a friend request to yourself' });
+    }
+
+    // Compute ordered pair
+    const { user_a_id, user_b_id } = getOrderedPair(requesterId, targetId);
+
+    console.log(`🚀 Ordered pair: user_a=${user_a_id}, user_b=${user_b_id}, requester=${requesterId}`);
+    logger.info(`Creating friend request: user_a=${user_a_id}, user_b=${user_b_id}, requester=${requesterId}`);
+
+    // Step 1: Check if relationship already exists
+    const checkResponse = await fetch('http://database-service:3006/internal/query', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-service-auth': DB_SERVICE_TOKEN
+      },
+      body: JSON.stringify({
+        table: 'Friends',
+        columns: ['id', 'requester_id', 'friends_status'],
+        filters: {
+          user_a_id: user_a_id,
+          user_b_id: user_b_id
+        },
+        limit: 1
+      })
+    });
+
+    if (!checkResponse.ok) {
+      const errorText = await checkResponse.text();
+      logger.error('Database query failed:', checkResponse.status, errorText);
+      return reply.code(500).send({ error: 'Database query failed' });
+    }
+
+    const checkResult = await checkResponse.json();
+    const existing = checkResult.data && checkResult.data.length > 0 ? checkResult.data[0] : null;
+
+    // Step 2: Handle based on existing state
+    if (existing) {
+      console.log('🚀 Found existing relationship:', existing);
+
+      if (existing.friends_status === 'accepted') {
+        // Already friends
+        return reply.code(200).send({
+          success: true,
+          message: 'Already friends',
+          status: 'accepted'
+        });
+      }
+
+      if (existing.friends_status === 'pending') {
+        // There's a pending request
+        if (existing.requester_id === requesterId) {
+          // Same person requesting again - idempotent success
+          return reply.code(200).send({
+            success: true,
+            message: 'Friend request already sent',
+            status: 'pending'
+          });
+        } else {
+          // OTHER person already requested - auto-accept (mutual interest)
+          console.log('🚀 Mutual friend request detected - auto-accepting');
+
+          const updateResponse = await fetch('http://database-service:3006/internal/write', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-service-auth': DB_SERVICE_TOKEN
+            },
+            body: JSON.stringify({
+              table: 'Friends',
+              id: existing.id,
+              column: 'friends_status',
+              value: 'accepted'
+            })
+          });
+
+          if (!updateResponse.ok) {
+            logger.error('Failed to auto-accept mutual request');
+            return reply.code(500).send({ error: 'Failed to process mutual request' });
+          }
+
+          // Also update accepted_at timestamp
+          await fetch('http://database-service:3006/internal/write', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-service-auth': DB_SERVICE_TOKEN
+            },
+            body: JSON.stringify({
+              table: 'Friends',
+              id: existing.id,
+              column: 'accepted_at',
+              value: new Date().toISOString()
+            })
+          });
+
+          return reply.code(200).send({
+            success: true,
+            message: 'Friend request automatically accepted (mutual interest)',
+            status: 'accepted'
+          });
+        }
+      }
+
+      if (existing.friends_status === 'rejected') {
+        // Previously rejected - allow retry by updating to pending
+        console.log('🚀 Updating rejected request to pending');
+
+        const updateResponse = await fetch('http://database-service:3006/internal/write', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-service-auth': DB_SERVICE_TOKEN
+          },
+          body: JSON.stringify({
+            table: 'Friends',
+            id: existing.id,
+            column: 'friends_status',
+            value: 'pending'
+          })
+        });
+
+        if (!updateResponse.ok) {
+          return reply.code(500).send({ error: 'Failed to update request' });
+        }
+
+        // Update requester_id
+        await fetch('http://database-service:3006/internal/write', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-service-auth': DB_SERVICE_TOKEN
+          },
+          body: JSON.stringify({
+            table: 'Friends',
+            id: existing.id,
+            column: 'requester_id',
+            value: requesterId
+          })
+        });
+
+        return reply.code(200).send({
+          success: true,
+          message: 'Friend request sent',
+          status: 'pending'
+        });
+      }
+    }
+
+    // Step 3: No existing relationship - create new one
+    console.log('🚀 Creating new friend request');
+
+    const insertResponse = await fetch('http://database-service:3006/internal/users', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-service-auth': DB_SERVICE_TOKEN
+      },
+      body: JSON.stringify({
+        table: 'Friends',
+        action: 'insert',
+        values: {
+          user_a_id: user_a_id,
+          user_b_id: user_b_id,
+          requester_id: requesterId,
+          friends_status: 'pending'
+        }
+      })
+    });
+
+    console.log('🚀 Database response status:', insertResponse.status);
+
+    if (!insertResponse.ok) {
+      const errorText = await insertResponse.text();
+      console.log('🚀 Database error response:', errorText);
+
+      // Check if it's a unique constraint violation (race condition)
+      if (errorText.includes('UNIQUE constraint')) {
+        // Race condition occurred - return success anyway (idempotent)
+        console.log('🚀 Race condition detected, returning success');
+        return reply.code(200).send({
+          success: true,
+          message: 'Friend request processed',
+          status: 'pending'
+        });
+      }
+
+      logger.error('Database insert failed:', insertResponse.status);
+      return reply.code(500).send({ error: 'Failed to create friend request' });
+    }
+
+    const result = await insertResponse.json();
+    console.log('🚀 Database success result:', result);
+
+    return reply.code(201).send({
+      success: true,
+      message: 'Friend request sent',
+      id: result.id,
+      status: 'pending'
+    });
+
+  } catch (error) {
+    logger.error('Error creating friend request:', error);
+    return reply.code(500).send({ error: 'Internal server error' });
+  }
+});
+
+// Accept or reject friend request (UPDATED for ordered pairs)
+fastify.put('/users/:userId/friend-requests/:requesterId', {
+  preHandler: fastify.authenticate
+}, async (request, reply) => {
+  console.log('PUT endpoint hit - starting function');
+  try {
+    const { userId, requesterId } = request.params;
+    const userIdInt = parseInt(userId);
+    const requesterIdInt = parseInt(requesterId);
+
+    console.log('PUT /users/:userId/friend-requests/:requesterId - Request params:', { userId, requesterId });
+    console.log('PUT /users/:userId/friend-requests/:requesterId - Request body:', request.body);
+
+    const { action } = request.body;
+
+    console.log('PUT /users/:userId/friend-requests/:requesterId - Action extracted:', action);
+
+    if (!action || !['accept', 'reject'].includes(action)) {
+      console.log('PUT /users/:userId/friend-requests/:requesterId - Invalid action, sending 400');
+      return reply.code(400).send({ error: 'Action must be "accept" or "reject"' });
+    }
+
+    logger.info(`User ${userId} ${action}ing friend request from ${requesterId}`);
+
+    // Compute ordered pair
+    const { user_a_id, user_b_id } = getOrderedPair(requesterIdInt, userIdInt);
+
+    // Find the friend request
+    const findResponse = await fetch('http://database-service:3006/internal/query', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-service-auth': DB_SERVICE_TOKEN
+      },
+      body: JSON.stringify({
+        table: 'Friends',
+        columns: ['id', 'requester_id', 'friends_status'],
+        filters: {
+          user_a_id: user_a_id,
+          user_b_id: user_b_id
+        },
+        limit: 1
+      })
+    });
+
+    if (!findResponse.ok) {
+      return reply.code(500).send({ error: 'Could not find friend request' });
+    }
+
+    const findData = await findResponse.json();
+    if (!findData.success || !findData.data || findData.data.length === 0) {
+      return reply.code(404).send({ error: 'Friend request not found' });
+    }
+
+    const friendRequest = findData.data[0];
+
+    // Verify this user is the recipient (not the requester)
+    if (friendRequest.requester_id === userIdInt) {
+      return reply.code(403).send({ error: 'You cannot accept your own friend request' });
+    }
+
+    // Verify it's still pending
+    if (friendRequest.friends_status !== 'pending') {
+      return reply.code(409).send({ error: 'Friend request already processed' });
+    }
+
+    const newStatus = action === 'accept' ? 'accepted' : 'rejected';
+
+    // Update status
+    const response = await fetch('http://database-service:3006/internal/write', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-service-auth': DB_SERVICE_TOKEN
+      },
+      body: JSON.stringify({
+        table: 'Friends',
+        id: friendRequest.id,
+        column: 'friends_status',
+        value: newStatus
+      })
+    });
+
+    if (!response.ok) {
+      logger.error('Database update failed:', response.status);
+      return reply.code(500).send({ error: 'Failed to update friend request' });
+    }
+
+    // If accepted, update accepted_at timestamp
+    if (action === 'accept') {
+      await fetch('http://database-service:3006/internal/write', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-service-auth': DB_SERVICE_TOKEN
+        },
+        body: JSON.stringify({
+          table: 'Friends',
+          id: friendRequest.id,
+          column: 'accepted_at',
+          value: new Date().toISOString()
+        })
+      });
+    }
+
+    const result = await response.json();
+
+    if (result.changes === 0) {
+      return reply.code(404).send({ error: 'Friend request not found or already processed' });
+    }
+
+    return {
+      success: true,
+      message: `Friend request ${action}ed successfully`,
+      status: newStatus
+    };
+
+  } catch (error) {
+    console.log('PUT /users/:userId/friend-requests/:requesterId - Error caught:', error);
+    logger.error('Error updating friend request:', error);
     return reply.code(500).send({ error: 'Internal server error' });
   }
 });
@@ -1387,259 +1823,6 @@ fastify.post('/debug/test-notification/:userId', async (request, reply) => {
   };
 });
 
-// Get incoming friend requests (where I am the friend_id)
-fastify.get('/users/:userId/friend-requests', {
-  preHandler: fastify.authenticate
-}, async (request, reply) => {
-  try {
-    const { userId } = request.params;
-    logger.info(`Getting friend requests for user ${userId}`);
-
-    const response = await fetch('http://database-service:3006/internal/query', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-service-auth': DB_SERVICE_TOKEN
-      },
-      body: JSON.stringify({
-        table: 'Friends',
-        columns: ['user_id', 'friends_status', 'created_at'],
-        filters: {
-          friend_id: parseInt(userId),
-          friends_status: 'pending'
-        },
-        limit: 100
-      })
-    });
-
-    if (!response.ok) {
-      logger.error('Database query failed:', response.status);
-      return reply.code(500).send({ error: 'Database query failed' });
-    }
-
-    const result = await response.json();
-    const requests = result.data || [];
-
-    console.log('CHECKPOINT -1: About to process friend requests with Promise.all, requests:', requests.length);
-
-    const requestsWithUsernames = await Promise.all(
-      requests.map(async (req) => {
-        const user = await User.findById(req.user_id);
-        return {
-          id: req.user_id,
-          username: user?.username || 'Unknown',
-          friends_status: req.friends_status,
-          created_at: req.created_at
-        };
-      })
-    );
-
-    return { success: true, requests: requestsWithUsernames };
-
-  } catch (error) {
-    logger.error('Error getting friend requests:', error);
-    return reply.code(500).send({ error: 'Internal server error' });
-  }
-});
-
-console.log('CHECKPOINT 0: About to register POST /users/:userId/friends endpoint');
-
-// Send friend request
-fastify.post('/users/:userId/friends', {
-  preHandler: fastify.authenticate
-}, async (request, reply) => {
-  console.log('🚀 FRIENDS ENDPOINT HIT! Params:', request.params, 'Body:', request.body);
-  try {
-    const { userId } = request.params;
-    const { friend_id, friendUsername } = request.body;
-    console.log('🚀 Processing friend request:', { userId, friend_id, friendUsername });
-
-    let finalFriendId = friend_id;
-
-    if (friendUsername && !friend_id) {
-      console.log('🚀 Looking up user by username:', friendUsername);
-      const friend = await User.findByUsername(friendUsername);
-      if (!friend) {
-        console.log('🚀 User not found:', friendUsername);
-        return reply.code(404).send({ error: `User with username '${friendUsername}' not found` });
-      }
-      finalFriendId = friend.id;
-      logger.info(`Found user ${friendUsername} with ID ${finalFriendId}`);
-    } else if (!friend_id && !friendUsername) {
-      console.log('🚀 Missing required parameters');
-      return reply.code(400).send({ error: 'Either friend_id or friendUsername is required' });
-    }
-    // Prevent self-friend requests
-    if (parseInt(userId) === parseInt(finalFriendId)) {
-      console.log('🚀 Attempted self-friend request blocked');
-      return reply.code(400).send({ error: 'You cannot send a friend request to yourself' });
-    }
-
-    console.log('🚀 About to create friend request:', { from: userId, to: finalFriendId });
-    logger.info(`Creating friend request from ${userId} to ${finalFriendId}`);
-
-    console.log('🚀 Sending request to database-service...');
-    const response = await fetch('http://database-service:3006/internal/users', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-service-auth': DB_SERVICE_TOKEN
-      },
-      body: JSON.stringify({
-        table: 'Friends',
-        action: 'insert',
-        values: {
-          user_id: parseInt(userId),
-          friend_id: parseInt(finalFriendId),
-          friends_status: 'pending'
-        }
-      })
-    });
-
-    console.log('🚀 Database response status:', response.status);
-    console.log('🚀 Database response ok:', response.ok);
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.log('🚀 Database error response:', errorText);
-      logger.error('Database insert failed:', response.status);
-      return reply.code(500).send({ error: 'Failed to create friend request' });
-    }
-
-    const result = await response.json();
-    console.log('🚀 Database success result:', result);
-    return { success: true, message: 'Friend request sent', id: result.id };
-
-  } catch (error) {
-    logger.error('Error creating friend request:', error);
-    return reply.code(500).send({ error: 'Internal server error' });
-  }
-});
-
-console.log('CHECKPOINT 1: Friend request POST endpoint completed');
-console.log('ABOUT TO REGISTER PUT ENDPOINT');
-
-// Accept or reject friend request
-console.log('REGISTERING PUT ENDPOINT: /users/:userId/friend-requests/:requesterId');
-
-fastify.put('/users/:userId/friend-requests/:requesterId', {
-  preHandler: fastify.authenticate
-}, async (request, reply) => {
-  console.log('PUT endpoint hit - starting function');
-  try {
-    const { userId, requesterId } = request.params;
-
-    console.log('PUT /users/:userId/friend-requests/:requesterId - Request params:', { userId, requesterId });
-    console.log('PUT /users/:userId/friend-requests/:requesterId - Request body:', request.body);
-
-    const { action } = request.body;
-
-    console.log('PUT /users/:userId/friend-requests/:requesterId - Action extracted:', action);
-
-    if (!action || !['accept', 'reject'].includes(action)) {
-      console.log('PUT /users/:userId/friend-requests/:requesterId - Invalid action, sending 400');
-      return reply.code(400).send({ error: 'Action must be "accept" or "reject"' });
-    }
-
-    logger.info(`User ${userId} ${action}ing friend request from ${requesterId}`);
-
-    const newStatus = action === 'accept' ? 'accepted' : 'rejected';
-
-    const findResponse = await fetch('http://database-service:3006/internal/query', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-service-auth': DB_SERVICE_TOKEN
-      },
-      body: JSON.stringify({
-        table: 'Friends',
-        columns: ['id'],
-        filters: {
-          user_id: parseInt(requesterId),
-          friend_id: parseInt(userId),
-          friends_status: 'pending'
-        },
-        limit: 1
-      })
-    });
-
-    if (!findResponse.ok) {
-      return reply.code(500).send({ error: 'Could not find friend request' });
-    }
-
-    const findData = await findResponse.json();
-    if (!findData.success || !findData.data || findData.data.length === 0) {
-      return reply.code(404).send({ error: 'Friend request not found' });
-    }
-
-    const friendRequestId = findData.data[0].id;
-
-    const response = await fetch('http://database-service:3006/internal/write', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-service-auth': DB_SERVICE_TOKEN
-      },
-      body: JSON.stringify({
-        table: 'Friends',
-        id: friendRequestId,
-        column: 'friends_status',
-        value: newStatus
-      })
-    });
-
-    if (!response.ok) {
-      logger.error('Database update failed:', response.status);
-      return reply.code(500).send({ error: 'Failed to update friend request' });
-    }
-
-    const result = await response.json();
-
-    if (result.changes === 0) {
-      return reply.code(404).send({ error: 'Friend request not found or already processed' });
-    }
-
-    if (action === 'accept') {
-      console.log('Creating bidirectional friendship relationship');
-
-      const bidirectionalResponse = await fetch('http://database-service:3006/internal/users', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-service-auth': DB_SERVICE_TOKEN
-        },
-        body: JSON.stringify({
-          table: 'Friends',
-          action: 'insert',
-          values: {
-            user_id: parseInt(userId),
-            friend_id: parseInt(requesterId),
-            friends_status: 'accepted'
-          }
-        })
-      });
-
-      if (!bidirectionalResponse.ok) {
-        console.log('Warning: Failed to create bidirectional relationship, but main acceptance succeeded');
-      } else {
-        console.log('Bidirectional friendship relationship created successfully');
-      }
-    }
-
-    return {
-      success: true,
-      message: `Friend request ${action}ed successfully`,
-      status: newStatus
-    };
-
-  } catch (error) {
-    console.log('PUT /users/:userId/friend-requests/:requesterId - Error caught:', error);
-    logger.error('Error updating friend request:', error);
-    return reply.code(500).send({ error: 'Internal server error' });
-  }
-});
-
-console.log('PUT ENDPOINT REGISTERED SUCCESSFULLY');
 
 // TEST PUT ENDPOINT
 fastify.put('/test-put', async (request, reply) => {
