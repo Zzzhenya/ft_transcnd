@@ -122,7 +122,8 @@ export async function signIn(
 	
 		return { success: true };
   } catch (error) {
-	console.error("Sign in error:", error);
+  	// should we?
+		// console.error("Sign in error:", error);
 	return {
 	  success: false,
 	  error: error instanceof Error ? error.message : "Network error",
