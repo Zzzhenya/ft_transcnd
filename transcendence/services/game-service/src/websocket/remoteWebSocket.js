@@ -1,4 +1,5 @@
 // transcendence/services/game-service/src/websocket/remoteWebSocket.js
+// FIXED: Added heartbeat handling and better reconnection
 
 import { roomManager } from '../room/RoomManager.js';
 import logger from '../utils/logger.js';
@@ -48,23 +49,30 @@ export function setupRemoteWebSocket(fastify) {
 			// UNIR JUGADOR A LA ROOM
 			// ========================================
 
-			// Pass userId in playerInfo for database persistence
-			// playerId format is "userId_timestamp_random", extract the userId part
-			const userIdMatch = playerId.match(/^(\d+)_/);
-			const userId = userIdMatch ? parseInt(userIdMatch[1]) : null;
-			
-			logger.info(`[RemoteWS] Extracted userId: ${userId} from playerId: ${playerId}`);
-			
-			const room = roomManager.joinRoom(roomId, playerId, socket, { 
+			// Pass userId in playerInfo for database persistence and reconnection
+			// Check if userId is passed as a query parameter first
+			let userId = url.searchParams.get('userId');
+			if (userId) {
+				userId = parseInt(userId);
+			} else {
+				// Fallback: try to extract from playerId format "userId_timestamp_random"
+				const userIdMatch = playerId.match(/^(\d+)_/);
+				userId = userIdMatch ? parseInt(userIdMatch[1]) : null;
+			}
+
+			logger.info(`[RemoteWS] Using userId: ${userId} for playerId: ${playerId}`);
+
+			const room = roomManager.joinRoom(roomId, playerId, socket, {
 				username,
 				userId: userId
 			});
 
 			if (!room) {
 				logger.error(`[RemoteWS] Failed to join room ${roomId} - room full or invalid`);
+				// Send roomFull message for proper handling on frontend
 				socket.send(JSON.stringify({
-					type: 'error',
-					message: 'Unable to join room. Room may be full or invalid.'
+					type: 'roomFull',
+					message: 'This room is full. Please try another room.'
 				}));
 				socket.close();
 				return;
@@ -98,18 +106,8 @@ export function setupRemoteWebSocket(fastify) {
 				return;
 			}
 
-			// Optional: explicitly inform others about this join to speed up UI, if GameRoom didn't already
-			try {
-				room.broadcast({
-					type: 'playerJoined',
-					playerId,
-					playerNumber,
-					playerInfo: { username },
-					totalPlayers: room.players?.size ?? 0
-				}, playerId);
-			} catch (e) {
-				logger.error(`[RemoteWS] Error broadcasting playerJoined:`, e);
-			}
+			// Broadcast join (only if not a reconnection - room handles this)
+			// Room will suppress this for reconnections
 
 			// Keep connection alive
 			logger.info(`[RemoteWS] WebSocket connection established and ready for ${playerId}`);
@@ -159,14 +157,18 @@ export function setupRemoteWebSocket(fastify) {
  */
 function handleClientMessage(room, playerId, message) {
 	const { type } = message;
-	logger.debug(`[RemoteWS] msg ${type} from ${playerId}`);
+
+	// Don't log noisy messages
+	if (!['pong', 'paddleMove'].includes(type)) {
+		logger.debug(`[RemoteWS] msg ${type} from ${playerId}`);
+	}
 
 	switch (type) {
 		case 'paddleMove': {
 			const { direction } = message;
 			// Reduce noise; validate direction and forward
 			if (['up', 'down', 'stop'].includes(direction)) {
-				try { room.updatePaddle(playerId, direction); } catch {}
+				try { room.updatePaddle(playerId, direction); } catch { }
 			} else {
 				logger.warn(`[RemoteWS] Invalid paddle direction: ${direction}`);
 			}
@@ -175,7 +177,7 @@ function handleClientMessage(room, playerId, message) {
 
 		case 'ready':
 			logger.info(`[RemoteWS] Player ${playerId} ready`);
-			try { room.setPlayerReady(playerId); } catch {}
+			try { room.setPlayerReady(playerId); } catch { }
 			break;
 
 		case 'ping':
@@ -185,12 +187,19 @@ function handleClientMessage(room, playerId, message) {
 					type: 'pong',
 					ts: message.ts ?? message.timestamp ?? Date.now()
 				});
-			} catch {}
+			} catch { }
+			break;
+
+		case 'pong':
+			// Update heartbeat timestamp
+			try {
+				room.updateHeartbeat(playerId);
+			} catch { }
 			break;
 
 		case 'leave':
 			logger.info(`[RemoteWS] Player ${playerId} leave request`);
-			try { roomManager.leaveRoom(room.roomId, playerId); } catch {}
+			try { roomManager.leaveRoom(room.roomId, playerId); } catch { }
 			break;
 
 		default:
