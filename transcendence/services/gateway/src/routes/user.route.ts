@@ -39,14 +39,14 @@ const userRoutes: FastifyPluginAsync = async (fastify) => {
 		reply.clearCookie('token', { path: '/' });
 		reply.clearCookie('sessionId', { path: '/' });
 		reply.clearCookie('session', { path: '/' });
-		return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/auth/register`, 'POST');
+		return queueAwareProxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/auth/register`, 'POST');
 	});
 
 	fastify.post('/auth/login', async (request, reply) => {
 		reply.clearCookie('token', { path: '/' });
 		reply.clearCookie('sessionId', { path: '/' });
 		reply.clearCookie('session', { path: '/' });
-		return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/auth/login`, 'POST');
+		return queueAwareProxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/auth/login`, 'POST');
 	});
 
 	// Guest login route
