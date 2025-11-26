@@ -1,6 +1,5 @@
 // frontend/src/app/router.ts
 // SPA 라우터: URL ↔ 페이지 모듈 매칭, a[href] 인터셉트, popstate 처리, 포커스 이동, 404 처리
-import { canEnterGame } from "./guards";
 import { getAuth } from "@/app/auth";
 
 type Cleanup = (() => void) | (() => Promise<void>);
@@ -14,14 +13,12 @@ const __DEV__ = import.meta.env.DEV ?? false;
 const routes: [RegExp, Importer][] = [
 	[/^\/$/,                    () => import("../pages/lobby") as Promise<PageModule>],
 	[/^\/lobby$/,               () => import("../pages/lobby") as Promise<PageModule>],
-	[/^\/init$/,                () => import("../pages/init") as Promise<PageModule>],
 	[/^\/local$/,               () => import("../pages/local") as Promise<PageModule>],
 	[/^\/remote$/,              () => import("../pages/remote") as Promise<PageModule>],
 	[/^\/remote\/room\/([^/]+)$/, () => import("../pages/remote-room") as Promise<PageModule>],
 	[/^\/tournaments$/,         () => import("../pages/tournament/tournaments") as Promise<PageModule>],
 	[/^\/tournaments\/match$/,  () => import("../pages/tournament/tournamentMatch") as Promise<PageModule>],
 	[/^\/tournaments\/waitingroom\/([^/]+)$/, () => import("../pages/tournament/tournamentWaitingRoom") as Promise<PageModule>],
-	[/^\/game\/([^/]+)$/,       () => import("../pages/game") as Promise<PageModule>],
 	[/^\/auth$/,                () => import("../pages/auth") as Promise<PageModule>],
 	[/^\/profile$/,             () => import("../pages/profile") as Promise<PageModule>],
 	[/^\/dashboard$/,           () => import("../pages/dashboard") as Promise<PageModule>],
@@ -99,38 +96,22 @@ export function initRouter(root: HTMLElement) {
 			}
 		}
 
-		// --- Guards: /game/:id ---
-		if (re.source === "^\\/game\\/([^/]+)$") {
-			const matchId = m[1]!;
-			const g = canEnterGame(matchId);
-		
-			if (!g.ok) {
-				if (__DEV__) console.warn("[guard:/game] blocked:", g.reason, "→", g.redirect);
-				history.replaceState({ scrollX: 0, scrollY: 0 }, "", g.redirect);
-				await render(g.redirect);
-				return;
-			}
-    	}
-
     	const mod = await importer(m);
 
 		// route-specific param mapping
 		let params: Record<string, string> | undefined;
 		if (m[1]) {
 			const v = m[1];
-			params = { id: v };                 // for pages expecting "id"
-			if (re.source === "^\\/game\\/([^/]+)$") {
-				params.matchId = v;               // for pages/game.ts
-			}
+			params = { id: v };				// for pages expecting "id"
 			if (re.source === "^\\/tournaments\\/waitingroom\\/([^/]+)$") {
-				params.tournamentId = v;          // for waiting room
+				params.tournamentId = v;	// for waiting room
 			}
 			if (re.source === "^\\/remote\\/room\\/([^/]+)$") {
-				params.roomId = v;                // for remote room
+				params.roomId = v;			// for remote room
 			}
 		}
 
-    	// 페이지 렌더 (clean-up 반환 가능)
+    	// Render page (can return 'clean-up')
     	cleanup = mod.default(root, { params, url }) || undefined;
 
     	postRenderFocus();

@@ -123,10 +123,6 @@ h1, h2, h3, h4, h5, h6 { color: inherit; text-shadow: none; font-weight: 400 !im
   50% { opacity: 0; }
 }
 
-/* Optional: lightweight pixel font via system stack fallback - now global in html/body */
-/* Keep class for compatibility, but redundant after global font application */
-.retro-wait, .retro-wait * { }
-
 /* Clean headings and chips: no outline, no heavy shadows */
 .retro-wait h1, .retro-wait h2, .retro-wait h3, .retro-wait .chip, .retro-wait .code-chip, .retro-wait .player-badge, .retro-wait .btn-retro {
   -webkit-text-stroke: 0;
@@ -196,9 +192,6 @@ h1, h2, h3, h4, h5, h6 { color: inherit; text-shadow: none; font-weight: 400 !im
   font-weight: 400; /* not bold */
   text-transform: uppercase;
 }
-
-/* Import Google Font only if available by the bundler/network; harmless if blocked */
-@import url('https://fonts.googleapis.com/css2?family=VT323&family=Silkscreen:wght@400;700&display=swap');
 
 /* Local Arcade Classic font (served from public/fonts/arcadeclassic) */
 @font-face {
