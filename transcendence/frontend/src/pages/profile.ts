@@ -1151,7 +1151,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
         
         <!-- Friends List -->
         <div>
-          <h3 class="mb-3 text-gray-200">Your Friends (${friends.length})</h3>
+          <h3 class="mb-3 text-gray-200">Your Friends</h3>
           <div id="friends-container" class="min-h-[100px]">
             <div class="text-center py-4 text-gray-400">
               Loading friends...
