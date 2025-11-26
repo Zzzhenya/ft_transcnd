@@ -2228,11 +2228,15 @@ fastify.put('/users/:userId/display-name', {
     }
 
     if (!displayName || displayName.trim().length === 0) {
-      return reply.code(400).send({ error: 'Display name cannot be empty' });
+      return reply.code(400).send({ error: 'Alisa name cannot be empty' });
     }
 
     if (displayName.length > 50) {
-      return reply.code(400).send({ error: 'Display name must be 50 characters or less' });
+      return reply.code(400).send({ error: 'Alisa name must be 50 characters or less' });
+    }
+
+    if (!/^[a-zA-Z0-9_]+$/.test(displayName)) {
+      return reply.code(400).send({ error: 'Alisa can only contain letters, numbers, and underscores' });
     }
 
     const lowerName = displayName.trim().toLowerCase();

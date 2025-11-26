@@ -453,6 +453,10 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
     if (!document.getElementById('email-modal')) {
       createEmailModal();
     }
+    const emailInput = document.getElementById('new-email') as HTMLInputElement;
+    const passwordInput = document.getElementById('confirm-password-email') as HTMLInputElement;
+    if (emailInput) emailInput.value = '';
+    if (passwordInput) passwordInput.value = '';
     document.getElementById('email-modal')?.classList.remove('hidden');
   }
 
