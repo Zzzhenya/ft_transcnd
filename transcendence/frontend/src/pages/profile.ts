@@ -916,7 +916,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
       const res = await fetch(`/api/user-service/users/online`, { credentials: 'include' });
       if (res.ok) {
         const data = await res.json();
-        onlineUsers = data.users || [];
+        // onlineUsers = data.users || [];
       }
     } catch (error) {
       console.log('Could not load online users:', error);
