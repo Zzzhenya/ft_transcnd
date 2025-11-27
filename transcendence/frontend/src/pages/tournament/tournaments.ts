@@ -26,7 +26,6 @@
  */
 
 import { getAuth } from "@/app/auth";
-import { getState } from "@/app/store";
 import { navigate } from "@/app/router";
 import { API_BASE } from "@/app/config";
 
@@ -56,37 +55,6 @@ export default function (root: HTMLElement) {
         }
     };
 
-// async function fetchTournaments() {
-//   const res = await fetch(`${API_BASE}/tournaments`, { credentials: 'include' });
-//   const data = await res.json();
-
-//   const allTournaments = data.tournaments || [];
-//   const user = getAuth();
-
-//   console.log("🔍 /tournaments response:", allTournaments); // temporary debug
-
-//   if (user) {
-//     const myUsername = user.username;
-//     const myId = Number(user.id);
-
-//     tournaments = allTournaments.filter((t: any) => {
-//       // from backend: creatorId / creatorName / createdBy
-//       const creatorId = t.creatorId ?? t.createdBy?.id ?? null;
-//       const creatorName = t.creatorName ?? t.createdBy?.name ?? null;
-
-//       return (
-//         (creatorId != null && Number(creatorId) === myId) ||
-//         (creatorName && creatorName === myUsername)
-//       );
-//     });
-//   } else {
-//     // Not logged in → show none
-//     tournaments = [];
-//   }
-
-//   maybeClearTournamentSession();
-// }
-
 async function fetchTournaments() {
   const res = await fetch(`${API_BASE}/tournaments`, { credentials: 'include' });
   const data = await res.json();
@@ -113,11 +81,8 @@ async function fetchTournaments() {
   maybeClearTournamentSession();
 }
 
-
-
     async function render() {
         const user = getAuth();
-        const state = getState();
         const signedIn = !!user;
 
         root.innerHTML = `
@@ -203,7 +168,7 @@ async function fetchTournaments() {
                                             </div>
                                         ` : ''}
                                     </div>
-                                    <a href="/tournaments/waitingroom/${t.id}" data-tournament-size="${t.size}" data-tournament-id="${t.id}" class="join-btn block w-full py-3 rounded-xl font-normal text-center transition-all ${isInterrupted ? 'bg-gray-600/50 text-gray-300 hover:bg-gray-600/70 cursor-pointer' : isFinished ? 'bg-green-600/50 text-green-200 hover:bg-green-600/70 cursor-pointer' : 'btn-retro text-white'} ${(!signedIn && !isGuest) ? "opacity-30 pointer-events-none" : ""}">
+                                    <a href="/tournaments/waitingroom/${t.id}" data-tournament-size="${t.size}" data-tournament-id="${t.id}" class="join-btn block w-full py-3 rounded-xl font-normal text-center transition-all ${isInterrupted ? 'bg-gray-600/50 text-gray-300 hover:bg-gray-600/70 cursor-pointer' : isFinished ? 'bg-green-600/50 text-green-200 hover:bg-green-600/70 cursor-pointer' : 'btn-retro text-white'} ${(!signedIn) ? "opacity-30 pointer-events-none" : ""}">
                                         ${isInterrupted ? '👁️ VIEW DETAILS' : isFinished ? '🏆 VIEW RESULTS' : 'JOIN NOW →'}
                                     </a>
                                 </div>
@@ -217,13 +182,13 @@ async function fetchTournaments() {
 
                 <!-- Create Buttons -->
                 <div class="flex flex-col sm:flex-row justify-center gap-3 mb-6">
-                    <button id="create4Btn" class="group px-8 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-black transition-all transform hover:scale-105 shadow-xl hover:shadow-cyan-500/50 disabled:opacity-30 disabled:cursor-not-allowed disabled:transform-none" ${(!signedIn && !isGuest) ? "disabled" : ""}>
+                    <button id="create4Btn" class="group px-8 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-black transition-all transform hover:scale-105 shadow-xl hover:shadow-cyan-500/50 disabled:opacity-30 disabled:cursor-not-allowed disabled:transform-none" ${(!signedIn) ? "disabled" : ""}>
                         <div class="flex items-center justify-center gap-2">
                             <span class="text-2xl">🎮</span>
                             <span>CREATE 4P</span>
                         </div>
                     </button>
-                    <button id="create8Btn" class="group px-8 py-3 rounded-xl bg-gradient-to-r from-orange-500 to-pink-600 hover:from-orange-400 hover:to-pink-500 text-white font-black transition-all transform hover:scale-105 shadow-xl hover:shadow-pink-500/50 disabled:opacity-30 disabled:cursor-not-allowed disabled:transform-none" ${(!signedIn && !isGuest) ? "disabled" : ""}>
+                    <button id="create8Btn" class="group px-8 py-3 rounded-xl bg-gradient-to-r from-orange-500 to-pink-600 hover:from-orange-400 hover:to-pink-500 text-white font-black transition-all transform hover:scale-105 shadow-xl hover:shadow-pink-500/50 disabled:opacity-30 disabled:cursor-not-allowed disabled:transform-none" ${(!signedIn) ? "disabled" : ""}>
                         <div class="flex items-center justify-center gap-2">
                             <span class="text-2xl">🔥</span>
                             <span>CREATE 8P</span>
