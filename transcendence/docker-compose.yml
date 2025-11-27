@@ -157,9 +157,11 @@ services:
     environment:
       - discovery.type=single-node
       - xpack.security.enabled=false
-      - "ES_JAVA_OPTS=${ES_JAVA_OPTS:--Xms512m -Xmx512m}"
-      - bootstrap.memory_lock=true
       - cluster.routing.allocation.disk.threshold_enabled=false
+      - "ES_JAVA_OPTS=-Xms1g -Xmx1g"
+      - bootstrap.memory_lock=false  # Fixes memory warning
+      - xpack.ml.enabled=false       # Disable ML features
+      - xpack.watcher.enabled=false  # Disable watcher
     volumes:
       - elasticsearch-data:/usr/share/elasticsearch/data
     # Port NOT exposed - internal use only
@@ -238,6 +240,10 @@ services:
       - XPACK_GRAPH_ENABLED=false
       - XPACK_REPORTING_ENABLED=false
       - XPACK_ML_ENABLED=false
+      - XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY=${KIBANA_ENCRYPTION_KEY}
+      - XPACK_REPORTING_ENCRYPTIONKEY=${KIBANA_REPORTING_KEY}
+      - XPACK_SECURITY_ENCRYPTIONKEY=${KIBANA_SECURITY_KEY}
+     
     ports:
       - "5601:5601"  # EXPOSED - Web UI
     depends_on:
