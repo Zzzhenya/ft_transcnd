@@ -115,30 +115,31 @@ export default function (root: HTMLElement) {
         const signedIn = !!user;
 
         root.innerHTML = `
-        <section class="min-h-screen bg-gradient-to-br from-blue-950 via-blue-900 to-slate-950 py-6 px-4">
+        <section class="retro-wait min-h-screen py-6 px-4">
             <div class="max-w-6xl mx-auto">
                 
                 <!-- Header -->
-                <div class="text-center mb-6">
-                    <div class="flex justify-between items-center mb-4 px-4">
-                        <button id="backBtn" class="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white font-semibold transition-all">
-                            ← Back
+                <div class="bezel rounded-2xl p-5 md:p-6 border mb-6">
+                    <div class="flex justify-between items-center mb-4 px-2">
+                        <button id="backBtn" class="btn-retro px-4 py-2 rounded-lg text-white">
+                            <img src="/icons/arrow.png" class="icon-px icon-px--violet mr-2 align-middle inline" alt="Back"> BACK
                         </button>
                         ${signedIn ? `
-                            <button id="logoutBtn" class="px-4 py-2 rounded-lg bg-red-500/80 hover:bg-red-600 text-white font-semibold transition-all">
-                                Logout
+                            <button id="logoutBtn" class="btn-retro px-4 py-2 rounded-lg text-white bg-red-600 hover:bg-red-700">
+                                LOGOUT
                             </button>
                         ` : `
-                            <button id="loginBtn" class="px-4 py-2 rounded-lg bg-green-500/80 hover:bg-green-600 text-white font-semibold transition-all">
-                                Sign In
+                            <button id="loginBtn" class="btn-retro px-4 py-2 rounded-lg text-white">
+                                SIGN IN
                             </button>
                         `}
                     </div>
-                    <div class="text-5xl mb-2 filter drop-shadow-2xl">🏆</div>
-                    <h1 class="text-4xl font-black text-white mb-3 tracking-tight">
-                        TOURNAMENT
-                    </h1>
-                    <div id="userInfo" class="flex justify-center"></div>
+                    <div class="text-center">
+                        <div class="mb-2 flex justify-center"><img class="icon-px-lg icon-px--violet" src="/icons/trophy.png" alt="Tournament" /></div>
+                        <h1 class="text-4xl neon mb-3 tracking-tight font-normal">TOURNAMENT</h1>
+                        <div id="userInfo" class="flex justify-center mb-4"></div>
+                        <p class="text-sm text-gray-300 uppercase">Challenge friends in bracket-style competitions</p>
+                    </div>
                 </div>
 
                 <!-- Filter Tabs -->
@@ -146,10 +147,10 @@ export default function (root: HTMLElement) {
                     <button class="filter-btn px-6 py-2 rounded-full text-sm font-normal transition-all ${filter === "all" ? "btn-retro text-white" : "bg-black/30 text-white hover:bg-purple-900/20 border border-purple-600/40"}" data-filter="all">
                         ALL
                     </button>
-                    <button class="filter-btn px-6 py-2 rounded-full text-sm font-bold transition-all ${filter === 4 ? "bg-gradient-to-r from-cyan-500 to-blue-600 text-white" : "bg-white/10 text-white hover:bg-white/20"}" data-filter="4">
+                    <button class="filter-btn px-6 py-2 rounded-full text-sm font-normal transition-all ${filter === 4 ? "btn-retro text-white" : "bg-black/30 text-white hover:bg-purple-900/20 border border-purple-600/40"}" data-filter="4">
                         4P
                     </button>
-                    <button class="filter-btn px-6 py-2 rounded-full text-sm font-bold transition-all ${filter === 8 ? "bg-gradient-to-r from-orange-500 to-pink-600 text-white" : "bg-white/10 text-white hover:bg-white/20"}" data-filter="8">
+                    <button class="filter-btn px-6 py-2 rounded-full text-sm font-normal transition-all ${filter === 8 ? "btn-retro text-white" : "bg-black/30 text-white hover:bg-purple-900/20 border border-purple-600/40"}" data-filter="8">
                         8P
                     </button>
                 </div>
@@ -167,24 +168,28 @@ export default function (root: HTMLElement) {
                                 <div class="group relative card-violet rounded-2xl p-4 border ${isInterrupted ? 'border-red-500/50' : isFinished ? 'border-green-500/50' : 'border-purple-600/40'} ${isSpecialStatus ? '' : 'hover:bg-purple-900/20'} transition-all duration-300 ${isSpecialStatus ? 'opacity-70' : ''}">
                                     ${isInterrupted ? `
                                         <div class="absolute top-3 left-3 px-3 py-1 rounded-full bg-red-500/30 border border-red-500 backdrop-blur-sm">
-                                            <span class="text-xs font-black text-red-200">⚠️ INTERRUPTED</span>
+                                            <span class="text-xs font-bold text-red-200">
+                                                <img src="/icons/hourglass.png" class="icon-px icon-px--violet mr-1 align-middle inline" alt="Interrupted"> INTERRUPTED
+                                            </span>
                                         </div>
                                     ` : isFinished ? `
                                         <div class="absolute top-3 left-3 px-3 py-1 rounded-full bg-green-500/30 border border-green-500 backdrop-blur-sm">
-                                            <span class="text-xs font-black text-green-200">🏆 FINISHED</span>
+                                            <span class="text-xs font-bold text-green-200">
+                                                <img src="/icons/trophy.png" class="icon-px icon-px--violet mr-1 align-middle inline" alt="Finished"> FINISHED
+                                            </span>
                                         </div>
                                     ` : ''}
                                     <div class="absolute top-3 right-3">
-                                        <div class="w-10 h-10 rounded-full bg-gradient-to-br ${t.size === 4 ? 'from-cyan-500 to-blue-600' : 'from-orange-500 to-pink-600'} flex items-center justify-center text-white font-black shadow-lg ${isSpecialStatus ? 'opacity-50' : ''}">
+                                        <div class="w-10 h-10 rounded-full bg-gradient-to-br ${t.size === 4 ? 'from-cyan-500 to-blue-600' : 'from-orange-500 to-pink-600'} flex items-center justify-center text-white font-bold shadow-lg ${isSpecialStatus ? 'opacity-50' : ''}">
                                             ${t.size}
                                         </div>
                                     </div>
                                     <div class="mb-3 ${isSpecialStatus ? 'mt-8' : ''}">
                                         <div class="text-purple-300 font-mono text-xs mb-1">TOURNAMENT #${t.id}</div>
-                                        <div class="text-2xl font-black text-white mb-1">${t.size} PLAYERS</div>
+                                        <div class="text-2xl font-bold text-white mb-1">${t.size} PLAYERS</div>
                                         <div class="flex items-center gap-2 text-sm text-gray-300">
-                                            <span>👥</span>
-                                            <span class="font-bold">${t.playerSet ? Array.from(t.playerSet).length : (t.players || 0)} / ${t.size}</span>
+                                            <img src="/icons/people.png" class="icon-px icon-px--violet" alt="Players">
+                                            <span class="font-bold">${user?.displayName} / ${t.size}</span>
                                             <span class="text-gray-500 text-xs">joined</span>
                                         </div>
                                         ${isInterrupted ? `
@@ -198,12 +203,12 @@ export default function (root: HTMLElement) {
                                         ` : ''}
                                     </div>
                                     <a href="/tournaments/waitingroom/${t.id}" data-tournament-size="${t.size}" data-tournament-id="${t.id}" class="join-btn block w-full py-3 rounded-xl font-normal text-center transition-all ${isInterrupted ? 'bg-gray-600/50 text-gray-300 hover:bg-gray-600/70 cursor-pointer' : isFinished ? 'bg-green-600/50 text-green-200 hover:bg-green-600/70 cursor-pointer' : 'btn-retro text-white'} ${(!signedIn) ? "opacity-30 pointer-events-none" : ""}">
-                                        ${isInterrupted ? '👁️ VIEW DETAILS' : isFinished ? '🏆 VIEW RESULTS' : 'JOIN NOW →'}
+                                        ${isInterrupted ? 'VIEW DETAILS' : isFinished ? 'VIEW RESULTS' : 'JOIN NOW'}
                                     </a>
                                 </div>
                             `}).join('')
                 : `<div class="col-span-2 text-center py-12">
-                                <div class="text-6xl mb-3 opacity-20">🎯</div>
+                                <div class="mb-3 opacity-20 flex justify-center"><img src="/icons/trophy.png" class="icon-px-lg icon-px--violet" alt="No tournaments"></div>
                                 <div class="text-xl text-white/40 font-bold">NO ACTIVE TOURNAMENTS</div>
                             </div>`
             }
@@ -211,15 +216,15 @@ export default function (root: HTMLElement) {
 
                 <!-- Create Buttons -->
                 <div class="flex flex-col sm:flex-row justify-center gap-3 mb-6">
-                    <button id="create4Btn" class="group px-8 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-black transition-all transform hover:scale-105 shadow-xl hover:shadow-cyan-500/50 disabled:opacity-30 disabled:cursor-not-allowed disabled:transform-none" ${(!signedIn) ? "disabled" : ""}>
+                    <button id="create4Btn" class="group px-8 py-3 rounded-xl btn-retro text-white font-bold transition-all transform hover:scale-105 shadow-xl disabled:opacity-30 disabled:cursor-not-allowed disabled:transform-none" ${(!signedIn) ? "disabled" : ""}>
                         <div class="flex items-center justify-center gap-2">
-                            <span class="text-2xl">🎮</span>
+                            <img src="/icons/rocket.png" class="icon-px icon-px--violet" alt="Create">
                             <span>CREATE 4P</span>
                         </div>
                     </button>
-                    <button id="create8Btn" class="group px-8 py-3 rounded-xl bg-gradient-to-r from-orange-500 to-pink-600 hover:from-orange-400 hover:to-pink-500 text-white font-black transition-all transform hover:scale-105 shadow-xl hover:shadow-pink-500/50 disabled:opacity-30 disabled:cursor-not-allowed disabled:transform-none" ${(!signedIn) ? "disabled" : ""}>
+                    <button id="create8Btn" class="group px-8 py-3 rounded-xl btn-retro text-white font-bold transition-all transform hover:scale-105 shadow-xl disabled:opacity-30 disabled:cursor-not-allowed disabled:transform-none" ${(!signedIn) ? "disabled" : ""}>
                         <div class="flex items-center justify-center gap-2">
-                            <span class="text-2xl">🔥</span>
+                            <img src="/icons/meteor.png" class="icon-px icon-px--violet" alt="Create">
                             <span>CREATE 8P</span>
                         </div>
                     </button>
@@ -227,8 +232,8 @@ export default function (root: HTMLElement) {
 
                 <!-- Back Button -->
                 <div class="flex justify-center">
-                    <button id="backBtnBottom" class="px-6 py-2 rounded-full bg-black/30 border border-purple-600/40 text-white text-sm font-normal hover:bg-purple-900/20 transition-all">
-                        ← BACK
+                    <button id="backBtnBottom" class="btn-retro px-6 py-2 rounded-full text-white text-sm font-normal transition-all">
+                        <img src="/icons/arrow.png" class="icon-px icon-px--violet mr-2 align-middle inline" alt="Back"> BACK
                     </button>
                 </div>
             </div>

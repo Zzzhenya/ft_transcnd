@@ -95,7 +95,10 @@ export default function (root: HTMLElement, ctx: any) {
         <div id="scoreText" class="text-3xl font-bold">
           0 - 0
         </div>
-        <p>🏆 First to 3 points wins a round. Win 2 rounds to win the match.</p>
+        <p class="flex items-center justify-center gap-2">
+          <img src="/icons/trophy.png" class="icon-px icon-px--violet" alt="Trophy">
+          First to 3 points wins a round. Win 2 rounds to win the match.
+        </p>
       </div>
 
       <!-- Won counters -->
@@ -121,12 +124,14 @@ export default function (root: HTMLElement, ctx: any) {
       <!-- Buttons -->
       <div class="pointer-events-auto fixed bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-3 z-10">
         <button id="startBtn"
-          class="bg-[#5E2DD4] hover:bg-[#4e25b3] text-white px-4 py-2 rounded-xl font-semibold shadow">
-          <span class="mr-2">🚀</span>Start Match
+          class="btn-retro text-white px-4 py-2 rounded-xl font-semibold shadow flex items-center gap-2">
+          <img src="/icons/rocket.png" class="icon-px icon-px--violet" alt="Start">
+          <span>Start Match</span>
         </button>
         <button id="backBtn"
-          class="bg-[#F6C343] hover:bg-[#e0b43b] text-black px-4 py-2 rounded-xl font-semibold shadow">
-          <span class="mr-2">🏠</span>Tournament Lobby
+          class="bg-[#F6C343] hover:bg-[#e0b43b] text-black px-4 py-2 rounded-xl font-semibold shadow flex items-center gap-2">
+          <img src="/icons/lobby.png" class="icon-px icon-px--yellow" alt="Lobby">
+          <span>Tournament Lobby</span>
         </button>
       </div>
 
@@ -137,7 +142,7 @@ export default function (root: HTMLElement, ctx: any) {
       ? "✅ Match already completed"
       : matchInterrupted
         ? "❌ Tournament interrupted for this match"
-        : "🏓 Click \"Start Match\" to play your tournament game"
+        : "Click \"Start Match\" to play your tournament game"
     }
       </div>
       <div id="connectionStatus"
@@ -377,9 +382,12 @@ export default function (root: HTMLElement, ctx: any) {
     }
 
     winnerDialog.innerHTML = `
-      <div class="text-3xl font-bold mb-4">🏆 Winner!</div>
+      <div class="flex items-center justify-center gap-3 mb-4">
+        <img src="/icons/trophy.png" class="icon-px-lg icon-px--violet" alt="Winner">
+        <div class="text-3xl font-bold">Winner!</div>
+      </div>
       <div class="text-2xl mb-6">${winnerDisplay}</div>
-      <button id="winnerOkBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold">
+      <button id="winnerOkBtn" class="btn-retro text-white px-6 py-3 rounded-lg font-semibold">
         Go back to tournament
       </button>
     `;
