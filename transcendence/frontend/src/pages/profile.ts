@@ -66,6 +66,8 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
         });
         renderUserInfo();
         updateAvatarDisplay();
+      } else {
+        throw new Error('profile-fetch-failed')
       }
     } catch (error) {
       console.log('Could not load user profile:', error);
@@ -473,7 +475,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
     emailError?.classList.add('hidden');
     passwordError?.classList.add('hidden');
 
-    const newEmail = emailInput?.value?.trim();
+    const newEmail = emailInput?.value?.trim().toLowerCase();
     const password = passwordInput?.value;
 
     if (!newEmail) {
@@ -626,7 +628,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
 
     displayNameError?.classList.add('hidden');
 
-    const newDisplayName = displayNameInput?.value?.trim();
+    const newDisplayName = displayNameInput?.value?.trim().toLowerCase();
 
     if (!newDisplayName) {
       if (displayNameError) {
@@ -914,7 +916,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
       const res = await fetch(`/api/user-service/users/online`, { credentials: 'include' });
       if (res.ok) {
         const data = await res.json();
-        onlineUsers = data.users || [];
+        // onlineUsers = data.users || [];
       }
     } catch (error) {
       console.log('Could not load online users:', error);
@@ -1204,7 +1206,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
 
   root.querySelector<HTMLButtonElement>("#add-friend-btn")?.addEventListener("click", async () => {
     const usernameInput = root.querySelector<HTMLInputElement>("#friend-username-input");
-    const username = usernameInput?.value?.trim();
+    const username = usernameInput?.value?.trim().toLowerCase();
     if (username) {
       await addFriend(username);
       if (usernameInput) usernameInput.value = '';

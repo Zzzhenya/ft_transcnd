@@ -1,8 +1,10 @@
 // Queue-aware proxy handler with dynamic timeout adjustment
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import logger from './logger.js';
+import type { User } from '../types/user.d.js';
 
 const DATABASE_SERVICE_URL = process.env.DATABASE_SERVICE_URL || 'http://database-service:3006';
+const USER_SERVICE_URL = process.env.USER_SERVICE_URL || 'http://user-service:3001';
 const BASE_TIMEOUT = parseInt(process.env.PROXY_REQUEST_TIMEOUT || '5000');
 const MAX_TIMEOUT = parseInt(process.env.PROXY_MAX_TIMEOUT || '15000');
 const QUEUE_CHECK_ENABLED = process.env.GATEWAY_QUEUE_CHECK_ENABLED === 'true';
@@ -106,6 +108,19 @@ export async function queueAwareProxyRequest(
     logger.info(`Gateway received ${method} request for ${upstreamUrl} (timeout: ${dynamicTimeout}ms)`);
     fastify.log.info(`Gateway received ${method} request for ${upstreamUrl} (timeout: ${dynamicTimeout}ms)`);
 
+    var extractedToken = null;
+    if (upstreamUrl.startsWith(`${USER_SERVICE_URL}/auth`) 
+      || upstreamUrl.startsWith(`${USER_SERVICE_URL}/users`) 
+      || upstreamUrl.startsWith(`${USER_SERVICE_URL}/notifications`)
+      || upstreamUrl.startsWith(`${USER_SERVICE_URL}/tournaments`)){
+      const user = request.user as User | undefined;
+      if (user){
+        if (user.jwt){
+          extractedToken = user.jwt;
+        }
+      }
+    }
+
     const response = await request.customFetch(
       upstreamUrl,
       {
@@ -113,6 +128,7 @@ export async function queueAwareProxyRequest(
         headers: {
           'Authorization': request.headers['authorization'] || '',
           'Content-Type': 'application/json',
+          ...(extractedToken ? { 'x-token': extractedToken } : {}),
         },
         body: ['POST', 'PUT', 'PATCH'].includes(method)
           ? JSON.stringify(request.body)
@@ -143,7 +159,21 @@ export async function queueAwareProxyRequest(
     }
 
     const data = await response.json();
-    return reply.status(response.status).send(data);
+    reply.status(response.status);
+
+    const token = data.token;
+    // if the body has token issued, set is as a cookie
+    if (token){
+      reply.setCookie('token', token, {
+        httpOnly: true,
+        secure: true,  // Only HTTPS in production
+        sameSite: 'lax',
+        path: '/',
+      });
+      // remove token from the body
+      delete data.token;
+    }
+    return reply.send(data);
 
   } catch (error: any) {
     fastify.log.error(error);

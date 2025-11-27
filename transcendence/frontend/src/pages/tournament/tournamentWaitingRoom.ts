@@ -472,10 +472,14 @@ export default function (root: HTMLElement, ctx: any) {
           e.preventDefault();
           const alias = (root.querySelector<HTMLInputElement>("#guestDialogAlias")?.value || "").trim();
 
+
           const aliasExists = players.some(p => p.name.toLowerCase() === alias.toLowerCase());
           if (!alias) {
             alert("Alias cannot be empty.");
-          } else if (aliasExists) {
+          } else if (!/^[a-zA-Z0-9_-]+$/.test(alias)) {
+            alert("'Alias can only contain letters, numbers, underscores, and hyphens'");
+          }
+            else if (aliasExists) {
             alert("Alias already exists. Please choose another.");
           } else if (players.length < maxPlayers) {
             guestList.push(alias);

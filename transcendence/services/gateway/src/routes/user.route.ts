@@ -2,6 +2,7 @@
 import gatewayError from '../utils/gatewayError.js';
 import logger from '../utils/logger.js'; // log-service
 import { proxyRequest } from '../utils/proxyHandler.js';
+import { queueAwareProxyRequest } from '../utils/queueAwareProxyHandler.js';
 
 // {
 //   preHandler: fastify.mustAuth
@@ -20,18 +21,32 @@ const userRoutes: FastifyPluginAsync = async (fastify) => {
 		return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/health`, 'GET');
 	});
 
+	fastify.post('/auth/clear', async (request, reply) => {
+		reply.clearCookie('token', { path: '/' });
+		reply.clearCookie('sessionId', { path: '/' });
+		reply.clearCookie('session', { path: '/' });
+		return reply.status(200).send({ success: true, message: 'Session cleared' });
+	});
+
 	fastify.post('/auth/logout', { preHandler: fastify.mustAuth }, async (request, reply) => {
 		reply.clearCookie('token', { path: '/' });
 		reply.clearCookie('sessionId', { path: '/' });
+		reply.clearCookie('session', { path: '/' });
 		return reply.status(200).send({ success: true, message: 'Logged out' });
 	});
 
 	fastify.post('/auth/register', async (request, reply) => {
-		return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/auth/register`, 'POST');
+		reply.clearCookie('token', { path: '/' });
+		reply.clearCookie('sessionId', { path: '/' });
+		reply.clearCookie('session', { path: '/' });
+		return queueAwareProxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/auth/register`, 'POST');
 	});
 
 	fastify.post('/auth/login', async (request, reply) => {
-		return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/auth/login`, 'POST');
+		reply.clearCookie('token', { path: '/' });
+		reply.clearCookie('sessionId', { path: '/' });
+		reply.clearCookie('session', { path: '/' });
+		return queueAwareProxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/auth/login`, 'POST');
 	});
 
 	// Guest login route

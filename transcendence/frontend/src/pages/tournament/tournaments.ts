@@ -35,6 +35,11 @@ export default function (root: HTMLElement) {
     let tournaments: any[] = [];
     let filter: number | "all" = "all";
 
+// new lines
+    let authListenerRegistered = false;
+    let onAuthChanged: (() => void) | null = null;
+//
+
     const clearTournamentSession = () => {
         sessionStorage.removeItem("currentTournamentSize");
         sessionStorage.removeItem("currentTournamentId");
@@ -67,7 +72,7 @@ export default function (root: HTMLElement) {
         const user = getAuth();
         const state = getState();
         const signedIn = !!user;
-        const isGuest = !user && !!state.session.alias;
+        const isGuest = !user && !!state.session?.alias;
 
         root.innerHTML = `
         <section class="min-h-screen bg-gradient-to-br from-blue-950 via-blue-900 to-slate-950 py-6 px-4">
@@ -230,12 +235,14 @@ export default function (root: HTMLElement) {
             `;
         }
 
-        // Listen for auth changes
-        const onAuthChanged = async () => {
-            await fetchTournaments();
-            render();
-        };
-        window.addEventListener("auth:changed", onAuthChanged);
+        // removed
+        // // Listen for auth changes
+        // const onAuthChanged = async () => {
+        //     await fetchTournaments();
+        //     render();
+        // };
+        // window.addEventListener("auth:changed", onAuthChanged);
+        //
 
         // Filter buttons (always enabled)
         root.querySelectorAll<HTMLButtonElement>('.filter-btn').forEach(btn => {
@@ -362,14 +369,34 @@ export default function (root: HTMLElement) {
             });
         }
 
+        // removed
         // Clean up auth event listener on page leave
+        // return () => {
+        //     window.removeEventListener("auth:changed", onAuthChanged);
+        // };
+        //
+
+        // added
         return () => {
-            window.removeEventListener("auth:changed", onAuthChanged);
+            if (onAuthChanged) {
+                window.removeEventListener("auth:changed", onAuthChanged);
+                authListenerRegistered = false;
+            }
         };
+        //
+    }
+
+    // --- FIX: register listener once ---
+    if (!authListenerRegistered) {
+        onAuthChanged = async () => {
+            await fetchTournaments();
+            render();
+        };
+        window.addEventListener("auth:changed", onAuthChanged);
+        authListenerRegistered = true;
     }
 
     
-
     // Initial load
     fetchTournaments().then(render);
 }

@@ -1,5 +1,5 @@
 // frontend/src/pages/auth.ts
-import { signIn, signOut, getAuth, register } from "@/app/auth";
+import { signIn, signOut, getAuth, register, clearOut } from "@/app/auth";
 import { navigate } from "@/app/router";
 import { clearAlias} from "@/app/store";
 
@@ -116,13 +116,15 @@ export default function (root: HTMLElement, ctx: { url: URL }) {
   // Sign in form handler
   root.querySelector<HTMLFormElement>("#signin-form")?.addEventListener("submit", async (e) => {
     e.preventDefault();
-    const email = (root.querySelector<HTMLInputElement>("#signin-email")?.value || "").trim();
+    const email = (root.querySelector<HTMLInputElement>("#signin-email")?.value || "").trim().toLowerCase();
     const password = (root.querySelector<HTMLInputElement>("#signin-password")?.value || "").trim();
     
     if (!email || !password) {
       showError('signin-error', 'Please enter both email and password');
       return;
     }
+
+    await clearOut();
     
     const result = await signIn(email, password);
     if (result.success) {
@@ -137,8 +139,8 @@ export default function (root: HTMLElement, ctx: { url: URL }) {
   // Register form handler
   root.querySelector<HTMLFormElement>("#register-form")?.addEventListener("submit", async (e) => {
     e.preventDefault();
-    const username = (root.querySelector<HTMLInputElement>("#register-username")?.value || "").trim();
-    const email = (root.querySelector<HTMLInputElement>("#register-email")?.value || "").trim();
+    const username = (root.querySelector<HTMLInputElement>("#register-username")?.value || "").trim().toLowerCase();
+    const email = (root.querySelector<HTMLInputElement>("#register-email")?.value || "").trim().toLowerCase();
     const password = (root.querySelector<HTMLInputElement>("#register-password")?.value || "").trim();
     
     if (!username || !email || !password) {
@@ -172,6 +174,8 @@ export default function (root: HTMLElement, ctx: { url: URL }) {
     }
 
     // No password validation - backend accepts any length
+
+    await clearOut();
     
     const result = await register(username, email, password);
     if (result.success) {
