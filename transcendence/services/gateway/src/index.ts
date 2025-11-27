@@ -12,7 +12,7 @@ Tasks:
 import fastify, { type FastifyReply, type FastifyRequest } from 'fastify'
 import cors from '@fastify/cors'
 import websocket from '@fastify/websocket'
-import firstRoute from './routes.js'
+// import firstRoute from './routes.js'
 import healthRoute from './routes/health.route.js'
 import wsRoute from './routes/ws-proxy.route.js'
 import wsNotificationRoute from './routes/ws-notification.route.js'
@@ -23,8 +23,6 @@ import userRoute from './routes/user.route.js'
 import tournamentRoute from './routes/tournament.route.js'
 import gameRoute from './routes/game.route.js'
 import readyRoute from './routes/ready.route.js'
-// import cookiePlugin from './plugins/cookie.plugin.js';
-// import onRequestHook from './hooks/on-request.hook.js';
 import cookie from '@fastify/cookie';
 import { v4 as uuidv4 } from 'uuid';
 import logger from './utils/logger.js'; // log-service
@@ -39,12 +37,12 @@ const Fastify = fastify({logger:true});
 const PORT = parseInt(process.env.GATEWAY_PORT || '3000')
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
+// cors
 const setupcors = async () => {
 
     await Fastify.register(cors, {
-    // origin: ['null'], // to test fetch with a file/ demo
-    origin: FRONT_END_URL, // <-- your frontend origin  
-    credentials: true,                   // <-- allow sending cookies cross-origin
+    origin: FRONT_END_URL, // frontend url
+    credentials: true, // cross origin
       });
     logger.info('Cors settings registered');
 }
@@ -56,10 +54,9 @@ catch (error: any){
   logger.error('Error occured while registering cors settings: ', error);
 }
 
+// cookies
 logger.info('Registering cookie plugin');
 await Fastify.register(cookie, {
-  // secret: 'my-secret-key', // Optional (for signed cookies)
-
 });
 logger.info('Cookie registered');
 
@@ -158,14 +155,6 @@ await registerPlugins(Fastify);
 
 await Fastify.addHook('preHandler', Fastify.verifyAuth);
 
-// // global prehandler hook
-// Fastify.addHook('preHandler', async (request, reply) => {
-//   await Fastify.verifyAuth(request, reply);
-// });
-
-// Fastify.log.info('🎯'+ process.env);
-// console.log(process.env)
-
 const setupWebSocket = async () => {
   await Fastify.register(websocket);
   logger.info('WebSocket plugin registered');
@@ -188,8 +177,8 @@ const start = async () => {
 await setupWebSocket();
 logger.info("port: " + PORT);
 try {
-  logger.info('Register root route');
-  Fastify.register(firstRoute);
+  // logger.info('Register root route');
+  // Fastify.register(firstRoute);
   logger.info('Register health routes');
   Fastify.register(healthRoute);
   logger.info('Register stats route');
@@ -202,10 +191,8 @@ try {
   // Register WebSocket for frontend calls (nginx removes /api prefix, so we register without it)
   Fastify.register(wsNotificationRoute, { prefix: '/user-service/ws' });
   logger.info('✅ Registered ws route with prefix /user-service/ws');
-  // logger.info('Register /pong/demo routes ');
-  //Fastify.register(pongDemoRoute, { prefix: '/pong/demo' });
-  //logger.info('Register /pong/game routes ');
   Fastify.register(pongGameRoute, { prefix: '/pong/game' });
+  logger.info('Register /pong/game routes ');
   // Register Ready proxy so it matches /game/rooms/:roomId/players/:playerId/ready
   logger.info('Register ready fallback route ');
   Fastify.register(readyRoute, { prefix: '/game' })

@@ -6,33 +6,6 @@ import type { User } from '../types/user.d.js';
 const PROXY_REQUEST_TIMEOUT = parseInt(process.env.PROXY_REQUEST_TIMEOUT || '5000');
 const USER_SERVICE_URL = process.env.USER_SERVICE_URL || 'http://user-service:3001';
 
-// function normalizeHeaders(
-//   headers: Record<string, string | string[] | undefined>
-// ): Record<string, string> {
-//   const result: Record<string, string> = {};
-//   var check = 0;
-//   for (const [key, value] of Object.entries(headers)) {
-//   if (!value) continue;           // skip undefined
-//   if (Array.isArray(value)) {
-//     if (key !== 'Content-Type'){
-//       result[key] = value.join(','); // join arrays with commas
-//     }
-//   } else {
-//       if (key === 'Content-Type' && value === 'application/json'){
-//         continue;
-//         // check = 1;
-//       } else {
-//         result[key] = value;
-//       }
-//     }
-//   }
-//   // if (check === 0){
-//   //   result['Content-Type'] = 'application/json';
-//   // }
-//   return result;
-// }
-
-
 
 export async function proxyRequest(
   fastify: FastifyInstance,
@@ -60,9 +33,6 @@ export async function proxyRequest(
         if (user.jwt){
           extractedToken = user.jwt;
         }
-        // if (user.id){
-        //   extractedId = user.id;
-        // }
       }
     }
 
@@ -74,14 +44,10 @@ export async function proxyRequest(
           'Authorization': request.headers['authorization'] || '',
           'Content-Type': 'application/json',
           ...(extractedToken ? { 'x-token': extractedToken } : {}),
-          // ...(extractedId ? { 'x-user-id': extractedId } : {}),
-          // ...extraHeaders,
         },
         body: ['POST', 'PUT', 'PATCH'].includes(method)
           ? JSON.stringify(request.body)
           : null,
-          // ? JSON.stringify(request.body)
-          // : null,
       },
       PROXY_REQUEST_TIMEOUT
     );

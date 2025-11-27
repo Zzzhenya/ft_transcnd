@@ -62,6 +62,10 @@ transcendence/.env.development.local
 # Ignore node_modules
 node_modules/
 
+#ignore node_modules at all levels - gateway
+**/node_modules/*
+transcendence/services/gateway/dist/*
+
 # Keep example files
 !.env.example
 !.env.template
