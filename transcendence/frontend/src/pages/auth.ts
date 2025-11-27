@@ -83,21 +83,21 @@ export default function (root: HTMLElement, ctx: { url: URL }) {
 
   // Helper function to parse error messages
   function parseErrorMessage(error: string): string {
-    // Extract clean message from backend error format
-    if (error.includes('Upstream')) {
-      const match = error.match(/"message":"([^"]+)"/);
-      if (match) return match[1];
-    }
-    // Handle JSON error format
     try {
-      const jsonMatch = error.match(/\{[^}]+\}/);
-      if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0]);
-        if (parsed.message) return parsed.message;
+      const topLevel = JSON.parse(error);
+      if (topLevel.message) {
+        // Try to parse nested JSON inside the message
+        const nestedJsonMatch = topLevel.message.match(/\{.*\}$/);
+        if (nestedJsonMatch) {
+          const nested = JSON.parse(nestedJsonMatch[0]);
+          if (nested.message) return nested.message;
+        }
+        return topLevel.message;
       }
     } catch {}
     return error;
   }
+
 
    function parseError(json: string) {
     const data = JSON.parse(json);
@@ -181,7 +181,8 @@ export default function (root: HTMLElement, ctx: { url: URL }) {
     if (result.success) {
       navigate(next);
     } else {
-      const cleanError = parseError(result.error || "Registration failed");
+      const cleanError = parseErrorMessage(result.error || "Registration failed");
+      // const cleanError = parseError(result.error || "Registration failed");
       showError('register-error', cleanError);
     }
   });
