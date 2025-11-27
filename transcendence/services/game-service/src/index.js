@@ -12,6 +12,8 @@ import logger from './utils/logger.js';
 //import remote players
 import { setupRemoteWebSocket } from './websocket/remoteWebSocket.js';
 import { roomManager } from './room/RoomManager.js';
+import { GameRoom } from './room/GameRoom.js';
+
 
 const fastify = Fastify({ logger: true });
 await fastify.register(websocket);
