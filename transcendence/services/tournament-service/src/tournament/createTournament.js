@@ -68,6 +68,7 @@ async function persistTournamentRecord({
     table: 'Tournament',
     action: 'insert',
     values: {
+      creatorId: creatorId ?? null,
       T_name: name,
       T_description: JSON.stringify(metadata),
       player_count: size,

@@ -82,12 +82,11 @@ export function registerTournamentRoutes(fastify, tournaments, broadcastTourname
         .map(t => ({
           id: t.id,
           dbId: t.dbId ?? null,
+          creatorId: t.createdBy?.id ?? null,
           name: t.name,
           size: t.size,
           status: t.status,
           players: Array.from(t.playerSet || []),
-          createdBy: t.createdBy ?? null,
-          createdAt: t.createdAt ?? null,
           interruptedAt: t.interruptedAt, // Include timestamp for countdown
           finishedAt: t.finishedAt // Include timestamp for countdown
         }));
@@ -320,21 +319,6 @@ if (currentRoundIndex < t.bracket.rounds.length - 1) {
   }
 }
 
-
-  // // Advance winner to next round
-  // if (currentRoundIndex < t.bracket.rounds.length - 1) {
-  //   const nextRound = t.bracket.rounds[currentRoundIndex + 1];
-  //   for (const nextMatch of nextRound) {
-  //     if (nextMatch.prevMatch1 === matchId) {
-  //       nextMatch.player1 = winner;
-  //       fastify.log.info(`Advanced ${winner} to match ${nextMatch.matchId} as player1`);
-  //     } else if (nextMatch.prevMatch2 === matchId) {
-  //       nextMatch.player2 = winner;
-  //       fastify.log.info(`Advanced ${winner} to match ${nextMatch.matchId} as player2`);
-  //     }
-  //   }
-  // }
-
   // Check if tournament is finished (final match has a winner)
   const finalMatch = t.bracket.rounds.at(-1)[0];
   if (finalMatch.winner) {
@@ -548,23 +532,7 @@ fastify.post('/tournaments/:id/forfeit', async (req, reply) => {
     );
   }
 
-  // 5️⃣ Advance winner to next round (same as /advance)
-  // if (currentRoundIndex < t.bracket.rounds.length - 1) {
-  //   const nextRound = t.bracket.rounds[currentRoundIndex + 1];
-  //   for (const nextMatch of nextRound) {
-  //     if (nextMatch.prevMatch1 === matchId) {
-  //       nextMatch.player1 = winner;
-  //       fastify.log.info(
-  //         `Advanced ${winner} to match ${nextMatch.matchId} as player1 (forfeit)`
-  //       );
-  //     } else if (nextMatch.prevMatch2 === matchId) {
-  //       nextMatch.player2 = winner;
-  //       fastify.log.info(
-  //         `Advanced ${winner} to match ${nextMatch.matchId} as player2 (forfeit)`
-  //       );
-  //     }
-  //   }
-  // }
+
 
   // 5️⃣ Advance winner to next round (same as /advance)
 if (currentRoundIndex < t.bracket.rounds.length - 1) {
