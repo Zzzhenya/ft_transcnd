@@ -141,22 +141,32 @@ fastify.get('/api/rooms/:roomId', async (request, reply) => {
 
 // POST /api/matchmaking/join - Quick Match
 fastify.post('/api/matchmaking/join', async (request, reply) => {
-  let roomId = roomManager.findAvailableRoom();
+  try {
+    // Check if there's an available room with space
+    let roomId = roomManager.findAvailableRoom();
 
-  if (!roomId) {
-    roomId = roomManager.createRoom();
-    logger.info(`[Matchmaking] Created new room: ${roomId}`);
-  } else {
-    logger.info(`[Matchmaking] Found available room: ${roomId}`);
+    if (!roomId) {
+      // No available room, create a new one
+      roomId = roomManager.createRoom();
+      logger.info(`[Matchmaking] Created new room: ${roomId}`);
+    } else {
+      logger.info(`[Matchmaking] Found available room: ${roomId}`);
+    }
+
+    return {
+      success: true,
+      roomId,
+      joinUrl: `/game/remote?room=${roomId}`
+    };
+
+  } catch (error) {
+    logger.error('[Matchmaking] Error in quick match:', error);
+    return reply.code(500).send({
+      success: false,
+      error: 'Failed to create or join room'
+    });
   }
-
-  return {
-    success: true,
-    roomId,
-    joinUrl: `/game/remote?room=${roomId}`
-  };
 });
-
 // GET /api/stats - Estadísticas del servidor (combinadas)
 fastify.get('/api/stats', async (request, reply) => {
   const roomStats = roomManager.getStats();
@@ -277,6 +287,36 @@ fastify.post('/rooms/:roomId/players/:playerId/ready', async (request, reply) =>
     fastify.log.error('[HTTP Ready] Error:', err);
     return reply.code(500).send({ success: false, error: 'Failed to mark player ready' });
   }
+});
+// Create room endpoint (called by user-service when invitation is sent)
+fastify.post('/api/rooms/create', async (request, reply) => {
+  const { roomId } = request.body;
+
+  if (!roomId) {
+    return reply.code(400).send({ error: 'roomId required' });
+  }
+
+  // Validate format
+  if (!/^[A-Z0-9]{6}$/.test(roomId)) {
+    return reply.code(400).send({ error: 'Invalid roomId format' });
+  }
+
+  // Check if already exists
+  if (roomManager.rooms.has(roomId)) {
+    return reply.code(409).send({ error: 'Room already exists' });
+  }
+
+  // Create the room
+  const room = new GameRoom(roomId);
+  roomManager.rooms.set(roomId, room);
+
+  logger.info(`[API] Room ${roomId} created via API`);
+
+  return reply.send({
+    success: true,
+    roomId,
+    message: 'Room created successfully'
+  });
 });
 
 // WebSocket for Remote Players

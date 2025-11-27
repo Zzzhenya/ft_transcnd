@@ -488,6 +488,22 @@ function handleServerMessage(root: HTMLElement, message: any) {
 	}
 
 	switch (message.type) {
+		case 'invalidRoom':
+			console.log('❌ Invalid room code received');
+			// Show blocking notice for invalid room
+			showBlockingNotice(root, (message.message || 'Invalid room code. Please check and try again.'), 2000);
+			updateStatus(root, '❌ ' + (message.message || 'Invalid room code'), 'error');
+			// Close WebSocket
+			if (gameState?.ws) {
+				try {
+					gameState.ws.close();
+				} catch (e) {
+					console.warn('Failed to close WebSocket:', e);
+				}
+				gameState.ws = null;
+			}
+			break;
+
 		case 'roomFull':
 				// Show a prominent, user-visible blocking notice instead of only logging
 			showBlockingNotice(root, (message.message || 'This room is full'), 2000);
@@ -914,6 +930,41 @@ function endGame(root: HTMLElement, data: any) {
 	});
 
 	cleanupKeyboard();
+	// Close WebSocket after game ends
+	if (gameState?.ws && gameState.ws.readyState === WebSocket.OPEN) {
+		console.log('🔌 Closing WebSocket after game end');
+		try {
+			// Send leave signal
+			gameState.ws.send(JSON.stringify({ type: 'leave' }));
+			// Wait a bit to ensure message is sent, then close
+			setTimeout(() => {
+				if (gameState?.ws) {
+					try {
+						gameState.ws.close();
+						console.log('✅ WebSocket closed successfully');
+					} catch (e) {
+						console.warn('Failed to close WebSocket:', e);
+					}
+					gameState.ws = null;
+				}
+			}, 500); // 500ms delay to ensure message is sent
+		} catch (e) {
+			console.warn('Failed to send leave message or close WebSocket:', e);
+			// Try to close anyway
+			try {
+				if (gameState?.ws) {
+					gameState.ws.close();
+					gameState.ws = null;
+				}
+			} catch { }
+		}
+	}
+	// Stop ping timer
+	if (pingTimer) {
+		clearInterval(pingTimer);
+		pingTimer = null;
+		console.log('🛑 Ping timer stopped');
+	}
 
 	setTimeout(() => {
 		if (!isMounted) return;

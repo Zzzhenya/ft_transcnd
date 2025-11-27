@@ -1212,7 +1212,6 @@ fastify.put('/users/:userId/friend-requests/:requesterId', {
 });
 
 // Create notification / invite for a user (simple, stored in DB)
-console.log('🎯 REGISTERING INVITE ENDPOINT: /users/:userId/invite');
 fastify.post('/users/:userId/invite', {
   preHandler: fastify.authenticate
 }, async (request, reply) => {
@@ -1276,8 +1275,35 @@ fastify.post('/users/:userId/invite', {
       }
     }
 
-    // Generate a unique room code for this invitation
+    // ✅ NEW: Generate room code and create room in game-service
     const roomCode = Math.random().toString(36).substr(2, 6).toUpperCase();
+    
+    console.log(`🎮 Creating room ${roomCode} in game-service for invite`);
+    logger.info(`Creating room ${roomCode} in game-service for invite from ${actorId} to ${userId}`);
+    
+    try {
+      const createRoomRes = await fetch('http://game-service:3002/api/rooms/create', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ roomId: roomCode })
+      });
+      
+      if (!createRoomRes.ok) {
+        const errorText = await createRoomRes.text();
+        logger.error('Failed to create room in game-service:', createRoomRes.status, errorText);
+        return reply.code(500).send({ error: 'Failed to create game room' });
+      }
+      
+      const roomResult = await createRoomRes.json();
+      console.log(`🎮 ✅ Room created in game-service:`, roomResult);
+      logger.info(`Room ${roomCode} created successfully in game-service`);
+      
+    } catch (e) {
+      logger.error('Error creating room in game-service:', e);
+      return reply.code(500).send({ error: 'Failed to create game room' });
+    }
 
     const invitationPayload = {
       roomCode,
