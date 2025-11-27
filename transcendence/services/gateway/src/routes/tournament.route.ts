@@ -11,7 +11,7 @@ const TOURNAMENT_SERVICE_URL = process.env.TOURNAMENT_SERVICE_INTERNAL_URL || 'h
 const tournamentRoute: FastifyPluginAsync = async (fastify) => {
 	logger.info(`tournamentRoute: `)
 
-	fastify.post('/', async (request, reply) => {
+	fastify.post('/', { preHandler: fastify.mustAuth }, async (request, reply) => {
 		return queueAwareProxyRequest(fastify, request, reply, `${TOURNAMENT_SERVICE_URL}/tournaments`, 'POST');
 	});
 
