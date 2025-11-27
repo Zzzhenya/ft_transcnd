@@ -1,6 +1,8 @@
 // Remote Match endpoints for database-service
 // These endpoints handle CRUD operations for the Remote_Match table
 
+import logger from './utils/logger.js';
+
 export function registerRemoteMatchRoutes(fastify, { db, dbRun, dbGet, addToQueue, writeQueue, allowedTables }) {
   
   // Create a new remote match (waiting status)
@@ -27,8 +29,8 @@ export function registerRemoteMatchRoutes(fastify, { db, dbRun, dbGet, addToQueu
 
       const match = dbGet('SELECT * FROM Remote_Match WHERE id = ?', [result.lastInsertRowid]);
 
-      fastify.log.info(`Remote match created: ${result.lastInsertRowid} (${player1_id} vs ${player2_id})`);
-
+  fastify.log.info(`Remote match created: ${result.lastInsertRowid} (${player1_id} vs ${player2_id})`);
+  logger.info('Remote match created', { id: result.lastInsertRowid, player1_id, player2_id });
       return {
         success: true,
         message: 'Remote match created',
@@ -36,7 +38,8 @@ export function registerRemoteMatchRoutes(fastify, { db, dbRun, dbGet, addToQueu
         match: match
       };
     } catch (err) {
-      fastify.log.error('Failed to create remote match:', err);
+  fastify.log.error('Failed to create remote match:', err);
+  logger.error('Failed to create remote match', { err: err && err.message ? err.message : String(err) });
 
       if (err.name === 'TimeoutError') {
         return reply.code(504).send({
@@ -82,15 +85,16 @@ export function registerRemoteMatchRoutes(fastify, { db, dbRun, dbGet, addToQueu
         });
       }
 
-      fastify.log.info(`Remote match started: ${id}`);
-
+  fastify.log.info(`Remote match started: ${id}`);
+  logger.info('Remote match started', { id });
       return {
         success: true,
         message: 'Remote match started',
         changes: result.changes
       };
     } catch (err) {
-      fastify.log.error('Failed to start remote match:', err);
+  fastify.log.error('Failed to start remote match:', err);
+  logger.error('Failed to start remote match', { id, err: err && err.message ? err.message : String(err) });
 
       if (err.name === 'TimeoutError') {
         return reply.code(504).send({
@@ -140,15 +144,16 @@ export function registerRemoteMatchRoutes(fastify, { db, dbRun, dbGet, addToQueu
         });
       }
 
-      fastify.log.info(`Remote match finished: ${id} (winner: ${winner_id}, score: ${player1_score}-${player2_score})`);
-
+  fastify.log.info(`Remote match finished: ${id} (winner: ${winner_id}, score: ${player1_score}-${player2_score})`);
+  logger.info('Remote match finished', { id, winner_id, player1_score, player2_score });
       return {
         success: true,
         message: 'Remote match finished',
         changes: result.changes
       };
     } catch (err) {
-      fastify.log.error('Failed to finish remote match:', err);
+  fastify.log.error('Failed to finish remote match:', err);
+  logger.error('Failed to finish remote match', { id, err: err && err.message ? err.message : String(err) });
 
       if (err.name === 'TimeoutError') {
         return reply.code(504).send({
@@ -186,15 +191,16 @@ export function registerRemoteMatchRoutes(fastify, { db, dbRun, dbGet, addToQueu
         });
       }
 
-      fastify.log.info(`Remote match canceled: ${id}`);
-
+  fastify.log.info(`Remote match canceled: ${id}`);
+  logger.info('Remote match canceled', { id });
       return {
         success: true,
         message: 'Remote match canceled',
         changes: result.changes
       };
     } catch (err) {
-      fastify.log.error('Failed to cancel remote match:', err);
+  fastify.log.error('Failed to cancel remote match:', err);
+  logger.error('Failed to cancel remote match', { id, err: err && err.message ? err.message : String(err) });
 
       if (err.name === 'TimeoutError') {
         return reply.code(504).send({
@@ -222,13 +228,15 @@ export function registerRemoteMatchRoutes(fastify, { db, dbRun, dbGet, addToQueu
         return reply.code(404).send({ error: 'Match not found' });
       }
 
+      logger.info('Remote match fetched', { id });
       return {
         success: true,
         match: match
       };
     } catch (err) {
-      fastify.log.error('Failed to get remote match:', err);
-      return reply.code(500).send({ error: 'Failed to get remote match', details: err.message });
+  fastify.log.error('Failed to get remote match:', err);
+  logger.error('Failed to get remote match', { id, err: err && err.message ? err.message : String(err) });
+  return reply.code(500).send({ error: 'Failed to get remote match', details: err.message });
     }
   });
 
@@ -256,10 +264,12 @@ export function registerRemoteMatchRoutes(fastify, { db, dbRun, dbGet, addToQueu
         match: match || null
       };
     } catch (err) {
-      fastify.log.error('Failed to get active remote match:', err);
-      return reply.code(500).send({ error: 'Failed to get active remote match', details: err.message });
+  fastify.log.error('Failed to get active remote match:', err);
+  logger.error('Failed to get active remote match', { player1_id, player2_id, err: err && err.message ? err.message : String(err) });
+  return reply.code(500).send({ error: 'Failed to get active remote match', details: err.message });
     }
   });
 
   fastify.log.info('✅ Remote Match routes registered');
+  logger.info('Remote Match routes registered');
 }

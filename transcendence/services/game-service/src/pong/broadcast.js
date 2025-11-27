@@ -1,4 +1,5 @@
 import { GAME_CONFIG } from './gameLogic.js';
+import logger from '../utils/logger.js';
 
 export function broadcastState(gameId, games) {
   const game = games.get(gameId);
@@ -27,10 +28,10 @@ export function broadcastState(gameId, games) {
   };
 
   // Ensure timestamps reflect game state transitions
-  if (game.state?.tournament?.gameStatus === 'playing' && !game.startedAt) {
+  if (game.state && game.state.tournament && game.state.tournament.gameStatus === 'playing' && !game.startedAt) {
     game.startedAt = new Date();
   }
-  if (game.state?.tournament?.gameStatus === 'gameEnd' && !game.completedAt) {
+  if (game.state && game.state.tournament && game.state.tournament.gameStatus === 'gameEnd' && !game.completedAt) {
     game.completedAt = new Date();
   }
 
@@ -57,9 +58,7 @@ export function broadcastState(gameId, games) {
   });
 
   const gameTypeLabel = game.gameType === 'tournament' ? 'TOURNAMENT' : 'NORMAL';
-  console.log(
-    `[Broadcast] Sending state to ${game.clients.size} clients in ${gameTypeLabel} game ${gameId}`
-  );
+  logger.debug(`[Broadcast] Sending state to ${game.clients.size} clients in ${gameTypeLabel} game ${gameId}`);
 
   for (const ws of game.clients) {
     if (ws.readyState === 1) ws.send(payload);

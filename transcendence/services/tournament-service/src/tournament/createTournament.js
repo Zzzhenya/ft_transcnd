@@ -22,6 +22,7 @@
  */
 
 import { generateBracket } from './createBracket.js';
+import logger from '../utils/logger.js';
 
 const DATABASE_SERVICE_URL =
   process.env.DATABASE_SERVICE_URL || 'http://database-service:3006';
@@ -47,12 +48,12 @@ async function persistTournamentRecord({
     serviceTournamentId,
     creator: {
       name: creatorName,
-      id: creatorId ?? null,
+      id: creatorId == null ? null : creatorId,
     },
     players: [
       {
         name: creatorName,
-        userId: creatorId ?? null,
+        userId: creatorId == null ? null : creatorId,
         role: 'creator',
       },
     ],
@@ -68,7 +69,7 @@ async function persistTournamentRecord({
     table: 'Tournament',
     action: 'insert',
     values: {
-      creatorId: creatorId ?? null,
+      creatorId: creatorId == null ? null : creatorId,
       T_name: name,
       T_description: JSON.stringify(metadata),
       player_count: size,
@@ -94,10 +95,10 @@ async function persistTournamentRecord({
   }
 
   const result = await response.json().catch(() => null);
-  const dbId = result?.id ?? result?.lastInsertRowid ?? result?.lastID ?? null;
+  const dbId = result && (result.id != null ? result.id : (result.lastInsertRowid != null ? result.lastInsertRowid : (result.lastID != null ? result.lastID : null)));
 
   if (!dbId) {
-    console.error('[TournamentService] DB response missing id field:', result);
+    logger.error('[TournamentService] DB response missing id field', { result });
     throw new Error('Database response missing tournament id');
   }
 
@@ -138,7 +139,7 @@ export async function insertTournamentPlayers(tournamentId, players) {
   const inserts = players.map((p) =>
     insertTournamentPlayerRow({
       tournamentId,
-      userId: p.userId ?? null,
+      userId: p.userId == null ? null : p.userId,
       alias: p.alias,
     }),
   );
@@ -165,8 +166,8 @@ async function insertMatchRow({
       match_number: matchNumber,
       player1_id: player1Id,
       player2_id: player2Id,
-      player1_alias: player1Alias ?? null,
-      player2_alias: player2Alias ?? null,
+      player1_alias: player1Alias == null ? null : player1Alias,
+      player2_alias: player2Alias == null ? null : player2Alias,
       matches_status: 'waiting',
     },
   };
@@ -188,7 +189,7 @@ async function insertMatchRow({
   }
 
   const result = await response.json().catch(() => null);
-  const dbId = result?.id ?? result?.lastInsertRowid ?? result?.lastID ?? null;
+  const dbId = result && (result.id != null ? result.id : (result.lastInsertRowid != null ? result.lastInsertRowid : (result.lastID != null ? result.lastID : null)));
 
   if (!dbId) {
     console.error(
@@ -205,20 +206,18 @@ export async function insertTournamentMatches(tournamentId, bracket, players) {
 
   const aliasToUserId = new Map();
   players.forEach((p) => {
-    aliasToUserId.set(p.alias, p.userId ?? null);
+    aliasToUserId.set(p.alias, p.userId == null ? null : p.userId);
   });
 
   const inserts = [];
 
   bracket.rounds.forEach((roundMatches, roundIndex) => {
     roundMatches.forEach((match, matchIndex) => {
-      const player1Alias = match.player1 ?? null;
-      const player2Alias = match.player2 ?? null;
+      const player1Alias = match.player1 == null ? null : match.player1;
+      const player2Alias = match.player2 == null ? null : match.player2;
 
-      const player1Id =
-        player1Alias != null ? aliasToUserId.get(player1Alias) ?? null : null;
-      const player2Id =
-        player2Alias != null ? aliasToUserId.get(player2Alias) ?? null : null;
+      const player1Id = player1Alias != null ? (aliasToUserId.get(player1Alias) == null ? null : aliasToUserId.get(player1Alias)) : null;
+      const player2Id = player2Alias != null ? (aliasToUserId.get(player2Alias) == null ? null : aliasToUserId.get(player2Alias)) : null;
 
       const p = insertMatchRow({
         tournamentId,
@@ -310,10 +309,10 @@ function buildMatchesSnapshot(bracket) {
       matchId: match.matchId,
       round: roundIndex + 1,
       matchNumber: matchIndex + 1,
-      player1: match.player1 ?? null,
-      player2: match.player2 ?? null,
-      matches_status: match.matches_status ?? 'waiting',
-      winner: match.winner ?? null,
+      player1: match.player1 == null ? null : match.player1,
+      player2: match.player2 == null ? null : match.player2,
+      matches_status: match.matches_status == null ? 'waiting' : match.matches_status,
+      winner: match.winner == null ? null : match.winner,
     })),
   );
 }
@@ -322,9 +321,8 @@ function buildPlayersSnapshot(tournament) {
   const players = Array.from(tournament.playerSet || []);
   return players.map((name) => ({
     name,
-    userId:
-      tournament.createdBy?.name === name ? tournament.createdBy?.id ?? null : null,
-    role: tournament.createdBy?.name === name ? 'creator' : 'participant',
+    userId: tournament.createdBy && tournament.createdBy.name === name ? (tournament.createdBy.id == null ? null : tournament.createdBy.id) : null,
+    role: tournament.createdBy && tournament.createdBy.name === name ? 'creator' : 'participant',
   }));
 }
 
@@ -345,19 +343,17 @@ export function toDbTimestamp(value) {
 }
 
 async function syncTournamentSnapshot(fastify, tournament) {
-  if (!tournament?.dbId) return;
+  if (!tournament || !tournament.dbId) return;
 
   const metadata = {
     serviceTournamentId: tournament.id,
-    creator: tournament.createdBy ?? null,
+    creator: tournament.createdBy == null ? null : tournament.createdBy,
     players: buildPlayersSnapshot(tournament),
     matches: buildMatchesSnapshot(tournament.bracket),
-    status: tournament.status,
-    createdAt: tournament.createdAt ?? null,
-    finishedAt: tournament.finishedAt
-      ? new Date(tournament.finishedAt).toISOString()
-      : null,
-    winner: tournament.winnerUsername ?? null,
+    status: tournament.status == null ? 'ready' : tournament.status,
+    createdAt: tournament.createdAt == null ? null : tournament.createdAt,
+    finishedAt: tournament.finishedAt ? new Date(tournament.finishedAt).toISOString() : null,
+    winner: tournament.winnerUsername == null ? null : tournament.winnerUsername,
   };
 
   tournament.metadata = metadata;
@@ -372,38 +368,20 @@ async function syncTournamentSnapshot(fastify, tournament) {
     tournament.startedAt = startedAtIso;
   }
 
-  const finishedAtIso = tournament.finishedAt
-    ? new Date(tournament.finishedAt).toISOString()
-    : null;
+  const finishedAtIso = tournament.finishedAt ? new Date(tournament.finishedAt).toISOString() : null;
 
   const startedAtDb = startedAtIso ? toDbTimestamp(startedAtIso) : null;
   const finishedAtDb = finishedAtIso ? toDbTimestamp(finishedAtIso) : null;
 
   const updates = [
     // These use logical column names; updateTournamentColumn maps them
-    updateTournamentColumn(
-      tournament.dbId,
-      'description',
-      JSON.stringify(metadata),
-    ),
-    updateTournamentColumn(
-      tournament.dbId,
-      'current_players',
-      tournament.playerSet?.size ?? 0,
-    ),
-    updateTournamentColumn(
-      tournament.dbId,
-      'status',
-      tournament.status ?? 'ready',
-    ),
+    updateTournamentColumn(tournament.dbId, 'description', JSON.stringify(metadata)),
+    updateTournamentColumn(tournament.dbId, 'current_players', tournament.playerSet && tournament.playerSet.size ? tournament.playerSet.size : 0),
+    updateTournamentColumn(tournament.dbId, 'status', tournament.status == null ? 'ready' : tournament.status),
     updateTournamentColumn(tournament.dbId, 'started_at', startedAtDb),
     updateTournamentColumn(tournament.dbId, 'finished_at', finishedAtDb),
-    updateTournamentColumn(tournament.dbId, 'winner_id', tournament.winnerId ?? null),
-    updateTournamentColumn(
-      tournament.dbId,
-      'winner_username',
-      tournament.winnerUsername ?? null,
-    ),
+    updateTournamentColumn(tournament.dbId, 'winner_id', tournament.winnerId == null ? null : tournament.winnerId),
+    updateTournamentColumn(tournament.dbId, 'winner_username', tournament.winnerUsername == null ? null : tournament.winnerUsername),
   ];
 
   const results = await Promise.allSettled(updates);
@@ -418,10 +396,8 @@ async function syncTournamentSnapshot(fastify, tournament) {
         'winner_id',
         'winner_username',
       ][idx];
-      fastify.log.error(
-        { err: result.reason, tournamentId: tournament.id, column },
-        '[TournamentService] Failed to update tournament column',
-      );
+      fastify.log.error({ err: result.reason, tournamentId: tournament.id, column }, '[TournamentService] Failed to update tournament column');
+      logger.error('[TournamentService] Failed to update tournament column', { err: result.reason && result.reason.message ? result.reason.message : String(result.reason), tournamentId: tournament.id, column });
     }
   });
 }
@@ -435,7 +411,8 @@ export function registercreateTournamentService(
 ) {
   // Create tournament
   fastify.post('/tournaments', async (request, reply) => {
-    const { creator, creatorId = null, size, name } = request.body ?? {};
+    const reqBody = request.body ? request.body : {};
+    const { creator, creatorId = null, size, name } = reqBody;
 
     const creatorName = typeof creator === 'string' ? creator.trim() : '';
     if (!creatorName) {
@@ -496,7 +473,8 @@ export function registercreateTournamentService(
   // Join tournament
   fastify.post('/tournaments/:id/join', async (request, reply) => {
     const t = tournaments.get(Number(request.params.id));
-    const { player } = request.body ?? {};
+  const reqBody2 = request.body ? request.body : {};
+  const { player } = reqBody2;
 
     if (!t) {
       return reply.code(404).send({ error: 'Tournament not found' });

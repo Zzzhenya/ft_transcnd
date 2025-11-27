@@ -6,6 +6,7 @@ import cors from '@fastify/cors';
 import Database from 'better-sqlite3';
 import PQueue from 'p-queue';
 import { registerRemoteMatchRoutes } from './remoteMatchRoutes.js';
+import logger from './utils/logger.js';
 
 // =============== Fastify Setup ===============
 const fastify = Fastify({ logger: true });
@@ -17,16 +18,16 @@ const DB_PATH = process.env.DATABASE_URL
   ? process.env.DATABASE_URL.replace('sqlite:', '')
   : '/app/shared/database/transcendence.db';
 
-console.log(`Waiting for ${DB_PATH} ...`);
+logger.info('Waiting for database file', { path: DB_PATH });
 
 const interval = setInterval(() => {
   if (fs.existsSync(DB_PATH)) {
-    console.log(`✅ File detected: ${DB_PATH}`);
+    logger.info('Database file detected', { path: DB_PATH });
     clearInterval(interval);
 
     // Wait 5 more seconds
     setTimeout(() => {
-      console.log('⏱️ 5 extra seconds passed. Proceeding...');
+      logger.info('Extra wait completed, proceeding with startup');
       // continue your logic here
     }, 5000);
   }
@@ -45,7 +46,7 @@ function findFile(startPath, fileName) {
         searchDir(filePath); // recurse
       } else if (file === fileName) {
         result = filePath;
-        console.log('✅ Found file at:', result);
+        logger.info('Found file', { path: result });
         return;
       }
     }
@@ -54,10 +55,10 @@ function findFile(startPath, fileName) {
   if (fs.existsSync(startPath)) {
     searchDir(startPath);
   } else {
-    console.error('❌ Start path not found:', startPath);
+    logger.error('Start path not found', { startPath });
   }
 
-  if (!result) console.log('⚠️  File not found');
+  if (!result) logger.warn('File not found', { fileName });
   return result;
 }
 
@@ -77,9 +78,9 @@ const PORT = 3006;
 const DB_QUEUE_TIMEOUT = parseInt(process.env.DB_QUEUE_TIMEOUT || '8000'); // 8 seconds
 const DB_QUEUE_MAX_SIZE = parseInt(process.env.DB_QUEUE_MAX_SIZE || '100');
 
-console.log('📍 Connecting to SQLite database at:', DB_PATH);
-console.log('⏰ Database queue timeout:', DB_QUEUE_TIMEOUT + 'ms');
-console.log('📊 Database queue max size:', DB_QUEUE_MAX_SIZE);
+logger.info('Connecting to SQLite database', { path: DB_PATH });
+logger.info('Database queue timeout', { timeoutMs: DB_QUEUE_TIMEOUT });
+logger.info('Database queue max size', { maxSize: DB_QUEUE_MAX_SIZE });
 
 // =============== Database Init ===============
 const db = new Database(DB_PATH);
@@ -87,7 +88,7 @@ db.pragma('journal_mode = WAL');
 db.pragma('synchronous = NORMAL');
 db.pragma('foreign_keys = ON');
 
-console.log('✅ SQLite ready (WAL mode ON)');
+logger.info('SQLite ready (WAL mode ON)');
 
 // =============== Queue Setup with Timeout ===============
 const writeQueue = new PQueue({ 
@@ -98,15 +99,15 @@ const writeQueue = new PQueue({
 
 // Queue monitoring
 writeQueue.on('add', () => {
-  console.log(`📥 Queue size: ${writeQueue.size}, pending: ${writeQueue.pending}`);
+  logger.debug('Queue add', { size: writeQueue.size, pending: writeQueue.pending });
 });
 
 writeQueue.on('next', () => {
-  console.log(`📤 Queue processing, remaining: ${writeQueue.size}`);
+  logger.debug('Queue next', { remaining: writeQueue.size });
 });
 
 writeQueue.on('error', (error) => {
-  console.error('❌ Queue error:', error);
+  logger.error('Queue error', { error: error && error.message ? error.message : String(error) });
 });
 
 // Function to add with timeout and queue size check
@@ -158,7 +159,7 @@ function getTablesAndColumns() {
 const allowedTables = getTablesAndColumns();
 
 if (process.env.NODE_ENV !== 'production') {
-  console.log('📋 Tables discovered:', allowedTables);
+  logger.debug('Tables discovered', { tables: allowedTables });
 }
 
 function validateTableColumn(table, column) {
@@ -222,7 +223,7 @@ fastify.post('/internal/query', async (request, reply) => {
   // 1️⃣ Validate table
   if (!allowedTables[table]) {
     fastify.log.error("3")
-    console.log('Invalid table', table)
+    logger.warn('Invalid table requested', { table });
     return reply.code(400).send({ error: 'Invalid table' });
   }
   fastify.log.error("4")
@@ -233,7 +234,7 @@ fastify.post('/internal/query', async (request, reply) => {
     const invalidCols = columns.filter(c => !validateTableColumn(table, c));
     if (invalidCols.length > 0){
       fastify.log.error("6")
-      console.log('Invalid columns', invalidCols)
+      logger.warn('Invalid columns requested', { invalidCols });
       return reply.code(400).send({ error: 'Invalid columns', invalidCols });}
     sqlColumns = columns.map(safeIdentifier).join(', ');
   }
@@ -245,7 +246,7 @@ fastify.post('/internal/query', async (request, reply) => {
     fastify.log.error("8")
     if (!validateTableColumn(table, col)) {
       fastify.log.error("9")
-      console.log('Invalid filer column', col)
+      logger.warn('Invalid filter column', { column: col });
       return reply.code(400).send({ error: 'Invalid filter column', column: col });
     }
     whereClauses.push(`${safeIdentifier(col)} = ?`);
@@ -260,19 +261,20 @@ fastify.post('/internal/query', async (request, reply) => {
   fastify.log.error("11")
   // 5️⃣ Execute
   try {
-    fastify.log.error("12")
-    fastify.log.error(values, sql)
+  fastify.log.error("12")
+  logger.debug('Query execute', { values, sql });
     const rows = dbAll(sql, values);
-    fastify.log.error("13")
-    fastify.log.error(rows)
+  fastify.log.error("13")
+  logger.debug('Query result rows', { count: rows ? rows.length : 0 });
     // console.log(rows);
     // return reply.code(200).send({ success: true, count: rows.length, data: rows });
     // return { success: true, count: rows.length, data: rows };
-    fastify.log.error("result: ", rows ? rows : null)
-    return reply.code(200).send({ success: true, data: rows ? rows : null });
+  logger.info('Query result', { count: rows ? rows.length : 0 });
+  return reply.code(200).send({ success: true, data: rows ? rows : null });
     // return rows ? rows : null;
   } catch (err) {
     fastify.log.error(err);
+    logger.error('Insert failed', { err: err && err.message ? err.message : String(err) });
     return reply.code(500).send({ error: 'Database query failed', details: err.message });
   }
 });
@@ -330,7 +332,8 @@ fastify.post('/internal/users', async (request, reply) => {
     // ✅ Return the lastInsertRowid from SQLite
     return { success: true, id: result.lastInsertRowid, changes: result.changes };
   } catch (err) {
-    fastify.log.error(err);
+  fastify.log.error(err);
+  logger.error('Write failed', { err: err && err.message ? err.message : String(err) });
     
     // Handle timeout errors specifically
     if (err.name === 'TimeoutError') {
@@ -382,7 +385,8 @@ fastify.post('/internal/write', async (request, reply) => {
 
     return { success: true, message: 'Value written successfully', changes: result.changes };
   } catch (err) {
-    fastify.log.error(err);
+  fastify.log.error(err);
+  logger.error('Delete failed', { err: err && err.message ? err.message : String(err) });
     
     // Handle timeout errors specifically
     if (err.name === 'TimeoutError') {
@@ -516,21 +520,22 @@ registerRemoteMatchRoutes(fastify, {
 
 // ================= Start Server =================
 fastify.listen({ port: PORT, host: '0.0.0.0' })
-  .then(() => console.log(`🔒 Database service running internally on port ${PORT}`))
+  .then(() => logger.info('Database service running internally', { port: PORT }))
   .catch(err => {
     fastify.log.error(err);
+    logger.error('Failed to start database service', { err: err && err.message ? err.message : String(err) });
     process.exit(1);
   });
 
 // ================= Graceful Shutdown =================
 function shutdown(signal) {
-  console.log(`🛑 ${signal} received, shutting down...`);
+  logger.info('Shutdown signal received', { signal });
   try {
     db.pragma('wal_checkpoint(TRUNCATE)');
     db.close();
-    console.log('✅ Database closed cleanly');
+    logger.info('Database closed cleanly');
   } catch (err) {
-    console.error('❌ Error during shutdown:', err);
+    logger.error('Error during shutdown', { err: err && err.message ? err.message : String(err) });
   } finally {
     process.exit(0);
   }
