@@ -25,7 +25,6 @@ const gameRoute: FastifyPluginAsync = async (fastify) => {
   fastify.get('/rooms/:roomId',{ preHandler: fastify.mustAuth }, async (request, reply) => {
     const { roomId } = request.params as { roomId: string };
     if (!roomId){
-      // throw 400 Bad Request
       logger.info(`400 :Bad Request at '/rooms/:roomId' :Required request parameter is missing`)
       throw fastify.httpErrors.badRequest('Missing required parameter: id');
     }
