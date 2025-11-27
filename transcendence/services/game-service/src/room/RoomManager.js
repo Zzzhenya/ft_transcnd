@@ -6,8 +6,8 @@ import logger from '../utils/logger.js';
 
 export class RoomManager {
 	constructor() {
-		this.rooms = new Map(); 
-		this.playerToRoom = new Map(); 
+		this.rooms = new Map();
+		this.playerToRoom = new Map();
 
 		this.startCleanupInterval();
 
@@ -29,14 +29,55 @@ export class RoomManager {
 	joinRoom(roomId, playerId, socket, playerInfo = {}) {
 		let room = this.rooms.get(roomId);
 
+		// Room doesn't exist at all
 		if (!room) {
-			room = new GameRoom(roomId);
-			this.rooms.set(roomId, room);
-			logger.info(`[RoomManager] Auto-created room ${roomId}`);
+			logger.warn(`[RoomManager] Room ${roomId} does not exist`);
+			try {
+				socket.send(JSON.stringify({
+					type: 'invalidRoom',
+					message: 'Invalid room code. Please check and try again.'
+				}));
+				setTimeout(() => {
+					socket.close(1008, 'Invalid room code');
+				}, 100);
+			} catch (e) {
+				logger.warn(`[RoomManager] Error sending invalid room message:`, e);
+			}
+			return null;
+		}
+
+		//Check if room is abandoned (empty and old)
+		const roomAge = Date.now() - room.createdAt;
+		if (room.isEmpty() && roomAge > 60000) { // 1 minute old and empty
+			logger.warn(`[RoomManager] Room ${roomId} is abandoned, deleting it`);
+			this.deleteRoom(roomId);
+			try {
+				socket.send(JSON.stringify({
+					type: 'invalidRoom',
+					message: 'Invalid room code. Please check and try again.'
+				}));
+				setTimeout(() => {
+					socket.close(1008, 'Invalid room code');
+				}, 100);
+			} catch (e) {
+				logger.warn(`[RoomManager] Error sending invalid room message:`, e);
+			}
+			return null;
 		}
 
 		if (room.isFull()) {
 			logger.warn(`[RoomManager] Room ${roomId} is full`);
+			try {
+				socket.send(JSON.stringify({
+					type: 'roomFull',
+					message: 'This room is full. Please try another room.'
+				}));
+				setTimeout(() => {
+					socket.close(1008, 'Room is full');
+				}, 100);
+			} catch (e) {
+				logger.warn(`[RoomManager] Error sending room full message:`, e);
+			}
 			return null;
 		}
 
@@ -48,6 +89,8 @@ export class RoomManager {
 		const success = room.addPlayer(playerId, socket, playerInfo);
 
 		if (!success) {
+			// ✅ FIXED: If addPlayer fails, it already sent its own message
+			// Just return null here
 			return null;
 		}
 
@@ -79,7 +122,7 @@ export class RoomManager {
 		// Notify other players that someone left (only if game hasn't started)
 		if (otherPlayers.length > 0 && !room.isPlaying) {
 			logger.info(`[RoomManager] Notifying ${otherPlayers.length} players that ${leavingPlayerName} left room ${roomId}`);
-			
+
 			for (const otherPlayer of otherPlayers) {
 				try {
 					// Extract numeric user ID from playerId (format: "userId_timestamp_random")
