@@ -97,6 +97,7 @@ CREATE INDEX idx_blocked_users ON Blocked_Users(user_id, blocked_user_id);
 -- -------------------- TOURNAMENTS --------------------
 CREATE TABLE Tournament (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
+  creatorId INTEGER not NULL,
   T_name VARCHAR(100) NOT NULL,
   T_description TEXT,
   -- is_tournament BOOLEAN DEFAULT 1,

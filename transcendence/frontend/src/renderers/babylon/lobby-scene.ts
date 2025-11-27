@@ -424,7 +424,7 @@ export function mountLobbyScene({
 	);
 	ball.position = new BABYLON.Vector3(0, BALL_DIAMETER / 2, -630);
 	ball.material = mBall;
-	ball.isPickable = true;
+	ball.isPickable = false;
 
 	// Ball: Shadow
 	const sg = new BABYLON.ShadowGenerator(2048, sun);

@@ -55,31 +55,60 @@ export default function (root: HTMLElement) {
         }
     };
 
-async function fetchTournaments() {
-  const res = await fetch(`${API_BASE}/tournaments`, { credentials: 'include' });
-  const data = await res.json();
+    async function fetchTournaments() {
+        const user = getAuth();
+        // ✅ Check if user is logged in BEFORE making API call
+        if (!user) {
+            console.log("🔒 No user logged in, redirecting to login...");
+            navigate('/auth?redirect=/tournaments');
+            return;
+        }
 
-  const allTournaments = data.tournaments || [];
-  const user = getAuth();
+        try {
+            const res = await fetch(`${API_BASE}/tournaments`, { credentials: 'include' });
 
-  console.log("🔍 /tournaments response:", allTournaments); // debug
-  console.log("🔍 current user:", user);
+            // ✅ Handle 401 response (token expired or invalid)
+            if (res.status === 401 || res.status === 403) {
+                console.log("🔒 Authentication failed, redirecting to login...");
+                // Clear invalid auth data
+                sessionStorage.clear();
+                localStorage.clear();
+                // Redirect to login with return path
+                navigate('/auth?redirect=/tournaments');
+                return;
+            }
 
-  if (user) {
-    const myUsername = user.username.toLowerCase();
+            if (!res.ok) {
+                throw new Error(`Failed to fetch tournaments: ${res.status}`);
+            }
 
-    tournaments = allTournaments.filter((t: any) => {
-      const name = (t.name || "").toLowerCase();
+            const data = await res.json();
+            const allTournaments = data.tournaments || [];
 
-      // KEEP ONLY tournaments whose name contains my username
-      return name.includes(myUsername);
-    });
-  } else {
-    tournaments = []; // user not logged in
-  }
+            console.log("🔍 /tournaments response:", allTournaments);
+            console.log("🔍 current user:", user);
 
-  maybeClearTournamentSession();
-}
+            if (user) {
+            const myId = Number(user.id);
+
+            tournaments = allTournaments.filter((t: any) => {
+                // from backend: creatorId / creatorName / createdBy
+                const creatorId = t.creatorId ?? t.createdBy?.id ?? null;
+                return (
+                    (creatorId != null && Number(creatorId) === myId)
+                );
+            });
+        } else {
+            // Not logged in → show none
+            tournaments = [];
+        }
+            maybeClearTournamentSession();
+        } catch (error) {
+            console.error("❌ Error fetching tournaments:", error);
+            tournaments = [];
+        }
+    }
+
 
     async function render() {
         const user = getAuth();

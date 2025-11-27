@@ -265,12 +265,10 @@ export default function (root: HTMLElement) {
     try {
       const WS_BASE_CLEAN = WS_BASE.replace(/\/+$/, '');
       const wsUrl = `${WS_BASE_CLEAN}/pong/game-ws/${gameId}`;
-      console.log('[WS] Trying url:', wsUrl);
 
       ws = new WebSocket(wsUrl);
 
       ws.onopen = () => {
-        console.log('[WS] open');
         connectionAttempts = 0;
         updateStatus('🌐 Connected! Starting game...');
         updateConnectionStatus('✅ Connected to backend game service');
