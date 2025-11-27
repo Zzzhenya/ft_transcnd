@@ -150,7 +150,7 @@ jobs:
         # Function to generate random username (3-10 letters)
         generate_username() {
           length=$((RANDOM % 8 + 3))  # Random length between 3 and 10
-          tr -dc 'a-z' </dev/urandom | head -c $length
+          tr -dc 'a-z' </dev/urandom | fold -w $length | head -n 1
         }
 
         # Function to generate unique email
