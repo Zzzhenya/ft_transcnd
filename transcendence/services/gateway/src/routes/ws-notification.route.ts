@@ -9,6 +9,7 @@ import logger from '../utils/logger.js'; // log-service
 import type {  } from '@fastify/websocket'
 
 import WebSocket from 'ws'
+import {mustAuthCore} from '../utils/mustAuthCore.js';
 
 const GAME_SERVICE_URL = process.env.GAME_SERVICE_URL || 'http://game-service:3002';
 const GAME_SERVICE_WS_URL = GAME_SERVICE_URL.replace('http://', 'ws://');
@@ -127,6 +128,14 @@ const wsNotificationRoute: FastifyPluginAsync = async (fastify) => {
   fastify.get('/notifications', { websocket: true }, async (connection, req) => {
     console.log('🔔 WebSocket notification request received:', req.url);
     fastify.log.info('🔔 WebSocket notification request received for: ' + req.url);
+
+    const auth = await mustAuthCore(req);
+
+    if (!auth.ok) {
+      // unauthorized
+      connection.close(4001, auth.reason);
+      return;
+    }
     
     const clientSocket = connection;
     
