@@ -12,7 +12,7 @@ Tasks:
 import fastify, { type FastifyReply, type FastifyRequest } from 'fastify'
 import cors from '@fastify/cors'
 import websocket from '@fastify/websocket'
-import firstRoute from './routes.js'
+// import firstRoute from './routes.js'
 import healthRoute from './routes/health.route.js'
 import wsRoute from './routes/ws-proxy.route.js'
 import wsNotificationRoute from './routes/ws-notification.route.js'
@@ -177,8 +177,8 @@ const start = async () => {
 await setupWebSocket();
 logger.info("port: " + PORT);
 try {
-  logger.info('Register root route');
-  Fastify.register(firstRoute);
+  // logger.info('Register root route');
+  // Fastify.register(firstRoute);
   logger.info('Register health routes');
   Fastify.register(healthRoute);
   logger.info('Register stats route');
