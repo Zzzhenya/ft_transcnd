@@ -224,6 +224,7 @@ jobs:
         echo "🟢 PHASE 1: Light Load (5 requests) - Baseline functionality"
         for i in {1..5}; do
           send_request $i 1 &
+          sleep 2
         done
         wait
         analyze_batch 1 5
@@ -232,6 +233,7 @@ jobs:
         echo "🔥 PHASE 2: Medium Load (15 requests) - Typical usage simulation"  
         for i in {1..15}; do
           send_request $i 2 &
+          sleep 2
         done
         wait
         analyze_batch 2 15
@@ -240,6 +242,7 @@ jobs:
         echo "🔥 PHASE 3: Heavy Load (25 requests) - Stress test"
         for i in {1..25}; do
           send_request $i 3 &
+          sleep 2
         done
         wait
         analyze_batch 3 25
