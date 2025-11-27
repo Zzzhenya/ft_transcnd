@@ -105,7 +105,7 @@ class User {
   // ============ CREATE ============
   static async create(userData) {
     try {
-      const res = await fetch(`${DATABASE_SERVICE_URL}/internal/users`, {
+        const res = await fetch(`${DATABASE_SERVICE_URL}/internal/users`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -131,7 +131,7 @@ class User {
       // we'll find the user by username instead
       return await User.findByUsername(userData.username);
   } catch (error) {
-    console.error('❌ Error creating user:', error);
+    logger.error('User.create error', error);
     throw error;
     /* // This block is about the password-passwordhash as well queries are moved to dbservice
     const { username, email, password, password_hash } = userData;
@@ -193,10 +193,10 @@ class User {
       }
       const data = await res.json();
       // data.data is assumed to be an array of rows
-      console.log( data.data && data.data.length > 0 ? data.data[0] : null)
-      return data.data && data.data.length > 0 ? new User(data.data[0]) : null;
+  logger.debug('User.findById response', { data: (data.data && data.data.length > 0) ? data.data[0] : null });
+  return data.data && data.data.length > 0 ? new User(data.data[0]) : null;
     } catch (error) {
-      console.error('❌ Error finding user by id:', error);
+      logger.error('User.findById error', error);
       throw error;
     }
   }
@@ -217,7 +217,7 @@ class User {
   // ============ FIND BY USERNAME ============
   static async findByUsername(username) {
     try {
-      console.log('🔍 Finding user by username:', username);
+      logger.debug('User.findByUsername request', { username });
       
       const requestBody = {
         table: 'Users',
@@ -225,8 +225,6 @@ class User {
         filters: { username },
         limit: 1
       };
-      
-      console.log('📦 Request:', JSON.stringify(requestBody, null, 2));
       
       const res = await fetch(`${DATABASE_SERVICE_URL}/internal/query`, {
         method: 'POST',
@@ -237,22 +235,20 @@ class User {
         body: JSON.stringify(requestBody)
       });
       
-      console.log('📡 Response status:', res.status);
-      
       if (!res.ok) {
         throw new Error(`Database service responded with status ${res.status}`);
       }
       
       const data = await res.json();
-      console.log('📄 Response data:', JSON.stringify(data, null, 2));
+      logger.debug('User.findByUsername response', { rows: data.data });
       
       const result = data.data && data.data.length > 0 ? new User(data.data[0]) : null;
-      console.log('👤 Final result:', result ? `User ID: ${result.id}, Username: ${result.username}` : 'null');
+      logger.info('User.findByUsername result', { found: !!result, username });
       
       return result;
     } catch (error) {
-      console.error('❌ Error finding user by username:', error);
-    throw error;
+      logger.error('User.findByUsername error', error);
+      throw error;
   }
 }
 
@@ -283,12 +279,11 @@ class User {
         throw new Error(`Database service responded with status ${res.status}`);
       }
       const data = await res.json();
-      // data.data is assumed to be an array of rows
-      console.log( data.data && data.data.length > 0 ? data.data[0] : null)
+      logger.debug('User.findByEmail response', { rows: data.data });
       // return data.data && data.data.length > 0 ? data.data : null;
       return data.data && data.data.length > 0 ? new User(data.data[0]) : null;
     } catch (error) {
-      console.error('❌ Error finding user by email:', error);
+      logger.error('User.findByEmail error', error);
       throw error;
     }
   }

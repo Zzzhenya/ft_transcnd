@@ -66,9 +66,8 @@ function sendLiveNotification(userId, notification) {
 // Global hook to capture all PUT requests
 fastify.addHook('preHandler', async (request, reply) => {
   if (request.method === 'PUT' && request.url.includes('friend-requests')) {
-    console.log('GLOBAL HOOK: PUT friend-requests request detected:', request.url);
-    console.log('GLOBAL HOOK: Method:', request.method);
-    console.log('GLOBAL HOOK: Headers:', request.headers);
+    logger.info('GLOBAL HOOK: PUT friend-requests request detected', { url: request.url, method: request.method });
+    logger.debug('GLOBAL HOOK: Headers', { headers: request.headers });
   }
 });
 
@@ -80,14 +79,13 @@ fastify.decorate('authenticate', async function (request, reply) {
   // } else {
   //   console.log(`⭐⭐⭐⭐⭐⭐⭐token: NONE`)
   // }
-  console.log('AUTHENTICATE MIDDLEWARE - Starting for URL:', request.url);
+  logger.debug('AUTHENTICATE MIDDLEWARE - Starting for URL', { url: request.url });
   try {
     // const authHeader = request.headers.authorization;
     const authHeader = request.headers['x-token'];
-    console.log('AUTHENTICATE MIDDLEWARE - Auth header:', authHeader ? 'Present' : 'Missing');
+  logger.debug('AUTHENTICATE MIDDLEWARE - Auth header present', { present: !!authHeader });
 
     if (!authHeader) {
-      console.log('AUTHENTICATE MIDDLEWARE - No auth header, sending 401');
       logger.warn('Authentication failed - No token');
       reply.code(401).send({ message: 'Kein Token bereitgestellt' });
       return;
@@ -97,17 +95,15 @@ fastify.decorate('authenticate', async function (request, reply) {
     // console.log('AUTHENTICATE MIDDLEWARE - Token extracted, length:', token ? token.length : 'null');
     // const payload = jwt.verify(token, JWT_SECRET);
     const payload = jwt.verify(authHeader, JWT_SECRET);
-    console.log('AUTHENTICATE MIDDLEWARE - JWT verified, userId:', payload.userId);
+  logger.debug('AUTHENTICATE MIDDLEWARE - JWT verified', { userId: payload.userId });
 
     const user = await User.findById(payload.userId);
-    console.log('AUTHENTICATE MIDDLEWARE - User found:', user ? user.username : 'null');
+    logger.debug('AUTHENTICATE MIDDLEWARE - User found', { username: user ? user.username : null });
     if (!user) {
-      console.log('AUTHENTICATE MIDDLEWARE - User not found, sending 404');
-      logger.warn('User not found:', payload.userId);
+      logger.warn('User not found during authentication', { userId: payload.userId });
       reply.code(404).send({ message: 'Benutzer nicht gefunden' });
       return;
     }
-    console.log(request.user);
     if (!user.isGuest)
     {
       request.user = {
@@ -117,10 +113,9 @@ fastify.decorate('authenticate', async function (request, reply) {
       request.userDetails = user;
     }
     // request.userDetails = user;
-    console.log('AUTHENTICATE MIDDLEWARE - Success, proceeding to endpoint');
+    logger.debug('AUTHENTICATE MIDDLEWARE - Success, proceeding to endpoint', { user: request.user });
   } catch (err) {
-    console.log('AUTHENTICATE MIDDLEWARE - Error:', err.message);
-    logger.error('Authentication error:', err.message);
+    logger.error('AUTHENTICATE MIDDLEWARE - Error', { message: err.message, stack: err.stack });
     reply.code(403).send({ message: 'Token invalid or expired: Please login' });
     // reply.code(403).send({ message: 'Token ungültig oder abgelaufen' });
     return;
@@ -344,7 +339,7 @@ fastify.get('/auth/profile', {
   preHandler: fastify.authenticate
 }, async (request, reply) => {
   try {
-    logger.info('Profile accessed:', request.user.userId);
+    logger.info('Profile accessed', { userId: request.user.userId });
     const userData = request.userDetails;
 
     // Filter out sensitive information
@@ -390,19 +385,19 @@ fastify.get('/debug/websocket-connections', async (request, reply) => {
 // =============== WEBSOCKET NOTIFICATIONS ===============
 
 // WebSocket endpoint for real-time notifications
-console.log('🔔 REGISTERING WEBSOCKET NOTIFICATIONS ENDPOINT: /ws/notifications');
+  logger.info('Registering WebSocket notifications endpoint: /ws/notifications');
 fastify.get('/ws/notifications', { websocket: true }, (connection, req) => {
-  console.log('🚀 WEBSOCKET NOTIFICATIONS CONNECTION ATTEMPT');
+  logger.info('WebSocket notifications connection attempt');
 
   // Following game-service pattern: use connection.socket directly
   const ws = connection.socket;
 
   if (!ws) {
-    console.log('🔔 ❌ No socket found in connection');
+    logger.warn('WebSocket connection attempt without socket');
     return;
   }
 
-  console.log('🔔 ✅ Socket found, readyState:', ws.readyState);
+  logger.debug('WebSocket socket ready', { readyState: ws.readyState });
 
   // Get token from query parameters
   let token = null;
@@ -411,14 +406,12 @@ fastify.get('/ws/notifications', { websocket: true }, (connection, req) => {
   let username = null;
 
   // Try to extract token from URL (various methods)
-  console.log('🔔 DEBUG: Starting token extraction...');
-  console.log('🔔 DEBUG: req.url:', req.url);
-  console.log('🔔 DEBUG: req.query:', req.query);
+  logger.debug('WebSocket token extraction start', { url: req.url, query: req.query });
 
   // Method 1: Direct query parameter (preferred)
   if (req.query && req.query.token) {
     token = req.query.token;
-    console.log('🔔 ✅ Token found via req.query.token');
+    logger.info('WebSocket token found via query');
   }
 
   // Method 2: Parse URL manually
@@ -427,14 +420,14 @@ fastify.get('/ws/notifications', { websocket: true }, (connection, req) => {
       const urlParts = req.url.split('token=');
       if (urlParts.length > 1) {
         token = decodeURIComponent(urlParts[1].split('&')[0]);
-        console.log('🔔 ✅ Token found via manual URL parsing');
+      logger.info('WebSocket token found via manual url parsing');
       }
     } catch (error) {
-      console.log('🔔 DEBUG: Error in manual URL parsing:', error.message);
+    logger.debug('Error in manual URL parsing for websocket', { error: error.message });
     }
   }
 
-  console.log('🔔 DEBUG: Final token result:', token ? `Found (${token.length} chars)` : 'NOT FOUND');
+  logger.debug('WebSocket token extraction result', { found: !!token, length: token ? token.length : 0 });
 
   // Try authentication if we have a token
   if (token) {
@@ -444,15 +437,14 @@ fastify.get('/ws/notifications', { websocket: true }, (connection, req) => {
       username = payload.username;
       isAuthenticated = true;
 
-      console.log(`🔔 ✅ WebSocket authenticated: userId=${userId}, username=${username}`);
-      logger.info(`WebSocket notification connection authenticated for user ${userId} (${username})`);
+  logger.info('WebSocket authenticated', { userId, username });
 
       // Store the socket in userConnections (multi-tab)
       const set = userConnections.get(userId) || new Set();
       set.add(ws);
       userConnections.set(userId, set);
-      console.log(`🔔 ✅ Stored socket for user ${userId}. Total connections: ${userConnections.size}, tabs: ${set.size}`);
-      console.log(`🔔 📊 Current connections map:`, Array.from(userConnections.keys()));
+  logger.debug('Stored websocket socket for user', { userId, totalConnections: userConnections.size, tabs: set.size });
+  logger.debug('Current connections map', { keys: Array.from(userConnections.keys()) });
 
       // Send welcome message
       ws.send(JSON.stringify({
@@ -461,27 +453,26 @@ fastify.get('/ws/notifications', { websocket: true }, (connection, req) => {
         userId: userId,
         username: username
       }));
-      console.log(`🔔 ✅ Welcome message sent to user ${userId}`);
+  logger.debug('WebSocket welcome message sent', { userId });
 
     } catch (error) {
-      console.log('🔔 ❌ Invalid token:', error.message);
-      logger.warn('WebSocket notification connection with invalid token:', error.message);
+  logger.warn('WebSocket connection - invalid token', { message: error.message });
       try {
         if (ws && typeof ws.close === 'function' && ws.readyState === 1) {
           ws.close(1008, 'Invalid token');
         }
       } catch (closeError) {
-        console.log('🔔 ⚠️ Error closing WebSocket:', closeError.message);
+    logger.warn('Error closing websocket', { message: closeError.message });
       }
       return;
     }
   } else {
-    console.log('🔔 ⚠️ No token found in URL, waiting for auth message...');
+  logger.info('No WebSocket token found in URL, waiting for auth message');
 
     // Set up a timeout for authentication
     const authTimeout = setTimeout(() => {
       if (!isAuthenticated) {
-        console.log('🔔 ❌ Authentication timeout - no auth message received');
+    logger.warn('WebSocket authentication timeout - closing connection');
         try {
           if (ws && typeof ws.close === 'function' && ws.readyState === 1) {
             ws.close(1008, 'Authentication timeout');
@@ -494,13 +485,13 @@ fastify.get('/ws/notifications', { websocket: true }, (connection, req) => {
 
     // Listen for auth message
     const authHandler = (data) => {
-      console.log('🔔 📨 Received WebSocket message during auth phase:', data.toString().substring(0, 100));
+        logger.debug('WebSocket auth-phase message received', { snippet: data.toString().substring(0, 100) });
       try {
         const message = JSON.parse(data.toString());
-        console.log('🔔 📨 Parsed auth phase message:', message.type);
+        logger.debug('Parsed auth-phase websocket message', { type: message.type });
 
         if (message.type === 'auth' && message.token) {
-          console.log('🔔 🔑 Processing auth message with token length:', message.token.length);
+          logger.debug('Processing auth message token', { length: message.token.length });
           clearTimeout(authTimeout);
 
           try {
@@ -509,15 +500,14 @@ fastify.get('/ws/notifications', { websocket: true }, (connection, req) => {
             username = payload.username;
             isAuthenticated = true;
 
-            console.log(`🔔 ✅ WebSocket authenticated via message: userId=${userId}, username=${username}`);
-            logger.info(`WebSocket notification connection authenticated via message for user ${userId} (${username})`);
+            logger.info('WebSocket authenticated via message', { userId, username });
 
             // Store the socket in userConnections (multi-tab)
             const set = userConnections.get(userId) || new Set();
             set.add(ws);
             userConnections.set(userId, set);
-            console.log(`🔔 ✅ Stored socket for user ${userId}. Total connections: ${userConnections.size}, tabs: ${set.size}`);
-            console.log(`🔔 📊 Current connections map:`, Array.from(userConnections.keys()));
+            logger.debug('Stored websocket socket for user via message', { userId, totalConnections: userConnections.size, tabs: set.size });
+            logger.debug('Current connections map', { keys: Array.from(userConnections.keys()) });
 
             // Send welcome message
             ws.send(JSON.stringify({
@@ -532,7 +522,7 @@ fastify.get('/ws/notifications', { websocket: true }, (connection, req) => {
             setupMessageHandler();
 
           } catch (authError) {
-            console.log('🔔 ❌ Invalid token in auth message:', authError.message);
+            logger.warn('WebSocket auth message invalid token', { message: authError.message });
             try {
               if (ws && typeof ws.close === 'function' && ws.readyState === 1) {
                 ws.close(1008, 'Invalid token');
@@ -543,7 +533,7 @@ fastify.get('/ws/notifications', { websocket: true }, (connection, req) => {
           }
         }
       } catch (parseError) {
-        console.log('🔔 DEBUG: Ignoring non-JSON or non-auth message during auth phase');
+        logger.debug('Ignoring non-JSON or non-auth websock message during auth phase');
       }
     };
 
@@ -555,7 +545,7 @@ fastify.get('/ws/notifications', { websocket: true }, (connection, req) => {
     ws.on('message', (data) => {
       try {
         const message = JSON.parse(data.toString());
-        console.log(`🔔 Message from user ${userId}:`, message.type);
+        logger.debug('WebSocket message from user', { userId, type: message.type });
 
         if (message.type === 'ping') {
           ws.send(JSON.stringify({
@@ -564,7 +554,7 @@ fastify.get('/ws/notifications', { websocket: true }, (connection, req) => {
           }));
         }
       } catch (error) {
-        console.error(`🔔 Error parsing message from user ${userId}:`, error);
+        logger.error('Error parsing websocket message', { userId, error });
       }
     });
   }
@@ -576,24 +566,22 @@ fastify.get('/ws/notifications', { websocket: true }, (connection, req) => {
 
   // Handle connection close
   ws.on('close', () => {
-    if (userId) {
+      if (userId) {
       const set = userConnections.get(userId);
       if (set) {
         set.delete(ws);
         if (set.size === 0) userConnections.delete(userId);
       }
-      console.log(`🔔 ❌ User ${userId} tab disconnected. Total connections: ${userConnections.size}`);
-      logger.info(`WebSocket notification disconnection for user ${userId}`);
+      logger.info('WebSocket tab disconnected for user', { userId, totalConnections: userConnections.size });
     } else {
-      console.log(`🔔 ❌ Unauthenticated connection closed`);
+      logger.info('Unauthenticated websocket connection closed');
     }
   });
 
   // Handle connection errors
-  ws.on('error', (error) => {
+    ws.on('error', (error) => {
     if (userId) {
-      console.error(`🔔 WebSocket error for user ${userId}:`, error);
-      logger.error(`WebSocket notification error for user ${userId}:`, error);
+      logger.error('WebSocket error for user', { userId, error });
       const set = userConnections.get(userId);
       if (set) {
         set.delete(ws);
@@ -762,14 +750,14 @@ fastify.get('/users/:userId/friends', {
         let lastSeen = null;
         if (statusResponse.ok) {
           const statusResult = await statusResponse.json();
-          const userData = statusResult.data?.[0];
-          online = userData?.is_online === 1;
-          lastSeen = userData?.last_seen;
+          const userData = (statusResult.data && statusResult.data.length > 0) ? statusResult.data[0] : null;
+          online = userData && userData.is_online === 1;
+          lastSeen = userData && userData.last_seen;
         }
 
         return {
           friend_id: friendId,
-          username: user?.username || 'Unknown User',
+          username: (user && user.username) || 'Unknown User',
           online: online,
           lastSeen: lastSeen,
           friends_status: friend.friends_status,
@@ -831,7 +819,7 @@ fastify.get('/users/:userId/friend-requests', {
         const user = await User.findById(req.requester_id);
         return {
           id: req.requester_id,
-          username: user?.username || 'Unknown',
+          username: (user && user.username) || 'Unknown',
           friends_status: req.friends_status,
           created_at: req.created_at
         };
@@ -1451,7 +1439,7 @@ fastify.get('/notifications/unread', {
 
     const result = await response.json();
     console.log('📨 Database response:', JSON.stringify(result, null, 2));
-    console.log('📨 Database returned unread notifications:', result.data?.length || 0);
+  logger.debug('Database returned unread notifications', { length: (result.data && result.data.length) ? result.data.length : 0 });
     console.log('📨 Raw notification data:', JSON.stringify(result.data, null, 2));
 
     // Format notifications with proper data
@@ -1494,8 +1482,8 @@ fastify.get('/notifications/unread', {
       notifications: formattedNotifications
     };
 
-    console.log('📨 Returning formatted unread notifications:', formattedNotifications.length);
-    console.log('📨 First notification sample:', JSON.stringify(formattedNotifications[0], null, 2));
+  logger.debug('Returning formatted unread notifications', { count: formattedNotifications.length });
+  logger.debug('First notification sample', { sample: formattedNotifications[0] });
     return responsePayload;
   } catch (error) {
     console.error('📨 UNREAD NOTIFICATIONS ERROR:', error);
@@ -1547,7 +1535,7 @@ fastify.post('/notifications/:notificationId/accept', {
     } catch {}
 
     // Expire invites older than 2 minutes or with past expiresAt
-    const ageOk = notification.created_at && (Date.now() - new Date(notification.created_at).getTime() <= 2*60*1000);
+  const ageOk = notification.created_at && (Date.now() - new Date(notification.created_at).getTime() <= 2*60*1000);
     const notExpired = expiresAt ? (Date.now() <= new Date(expiresAt).getTime()) : ageOk;
     if (!notExpired) {
       // delete stale invite
@@ -1573,10 +1561,10 @@ fastify.post('/notifications/:notificationId/accept', {
         return reply.code(410).send({ error: 'Invitation expired (room closed)' });
       }
       const room = await roomRes.json();
-      const players = Array.isArray(room?.room?.players) ? room.room.players : [];
-      const inviterPresent = players.some(p => (
-        p?.userId === originalInviterId ||
-        (inviterUsername && String(p?.username || '').toLowerCase() === inviterUsername)
+    const players = Array.isArray(room && room.room && room.room.players) ? room.room.players : [];
+        const inviterPresent = players.some(p => (
+        (p && p.userId) === originalInviterId ||
+        (inviterUsername && String((p && p.username) || '').toLowerCase() === inviterUsername)
       ));
       if (!inviterPresent) {
         await fetch('http://database-service:3006/internal/delete', {
@@ -1981,10 +1969,10 @@ fastify.get('/users/:userId/remote-matches', {
         const userScore = isPlayer1 ? match.player1_score : match.player2_score;
         const opponentScore = isPlayer1 ? match.player2_score : match.player1_score;
 
-        // Get opponent username
-        const opponent = await User.findById(opponentId);
-        const opponentName = opponent?.display_name || opponent?.username || 'Unknown';
-        const opponentUserName = opponent?.username || 'Unknown';
+  // Get opponent username
+  const opponent = await User.findById(opponentId);
+  const opponentName = (opponent && opponent.display_name) || (opponent && opponent.username) || 'Unknown';
+  const opponentUserName = (opponent && opponent.username) || 'Unknown';
 
         // Determine result
         let result = 'draw';

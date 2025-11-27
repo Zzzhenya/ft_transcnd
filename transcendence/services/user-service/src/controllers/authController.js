@@ -1,14 +1,17 @@
 // src/controllers/authController.js
 const AuthService = require('../services/authService');
 const User = require('../models/User');
+const logger = require('../utils/logger');
 
 // Benutzer Login
 const login = async (req, res) => {
   try {
     const { username, password } = req.body;
+    logger.info('authController.login called', { username });
     
     // Überprüfe, ob alle erforderlichen Felder vorhanden sind
     if (!username || !password) {
+      logger.warn('authController.login missing credentials', { username });
       return res.status(400).json({ message: 'Benutzername und Passwort sind erforderlich' });
     }
     
@@ -21,7 +24,7 @@ const login = async (req, res) => {
     
     // Token generieren
     const token = AuthService.generateToken(user);
-    
+    logger.info('authController.login successful', { userId: user.id });
     res.status(200).json({
       access_token: token,
       user: {
@@ -32,6 +35,7 @@ const login = async (req, res) => {
       }
     });
   } catch (error) {
+    logger.error('authController.login error', error);
     res.status(500).json({ message: 'Serverfehler', error: error.message });
   }
 };
@@ -40,6 +44,7 @@ const login = async (req, res) => {
 const register = async (req, res) => {
   try {
     const { username, email, password } = req.body;
+    logger.info('authController.register called', { username, email });
     
     // Überprüfe, ob alle erforderlichen Felder vorhanden sind
     if (!username || !email || !password) {
@@ -49,6 +54,7 @@ const register = async (req, res) => {
     // FIXED: Verwende AuthService.register und speichere result
     const user = await AuthService.register(username, email, password);
 
+    logger.info('authController.register successful', { userId: user.id });
     res.status(201).json({
       message: 'Benutzer erfolgreich registriert',
       user: {
@@ -59,7 +65,7 @@ const register = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Registration error:', error);
+    logger.error('authController.register error', error);
     if (error.message && (
         error.message.includes('Username must be') ||
         error.message.includes('Username can only contain') ||
@@ -84,8 +90,10 @@ const register = async (req, res) => {
 const getProfile = async (req, res) => {
   try {
     const { password: _, ...userWithoutPassword } = req.userDetails;
+  logger.info('authController.getProfile called', { userId: (req.user && req.user.userId) || null });
     res.status(200).json(userWithoutPassword);
   } catch (error) {
+    logger.error('authController.getProfile error', error);
     res.status(500).json({ message: 'Serverfehler', error: error.message });
   }
 };

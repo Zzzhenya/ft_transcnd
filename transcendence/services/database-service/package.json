@@ -15,7 +15,9 @@
     "@fastify/cors": "^11.1.0",
     "better-sqlite3": "^12.4.1",
     "fastify": "^5.6.1",
-    "p-queue": "^9.0.0"
+    "p-queue": "^9.0.0",
+    "axios": "^1.12.2"
+
   },
   "devDependencies": {
     "nodemon": "^3.1.10"

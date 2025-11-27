@@ -11,6 +11,8 @@
  *   status) and sends it to all open clients.
  * - Cleans up dead/closed clients from the tournament's client Set.
  */
+import logger from '../utils/logger.js';
+
 export function createBroadcast(tournaments) {
   return function broadcastTournamentUpdate(tournamentId) {
     const t = tournaments.get(tournamentId);
@@ -40,6 +42,7 @@ export function createBroadcast(tournaments) {
         }
       } catch (err) {
         // If send fails, log and schedule client cleanup
+        logger.warn('Failed to send tournament update to client, scheduling removal', { tournamentId, err: err && err.message ? err.message : String(err) });
         try {
           // fast fail: if client has terminate or close prefer terminating
           if (typeof client.terminate === 'function') client.terminate();
@@ -56,7 +59,7 @@ export function createBroadcast(tournaments) {
       try {
         t.clients.delete(c);
       } catch (e) {
-        // ignore
+        logger.warn('Failed to remove client from tournament client set', { tournamentId, err: e && e.message ? e.message : String(e) });
       }
     }
   };
