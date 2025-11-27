@@ -1,5 +1,5 @@
 // transcendence/services/game-service/src/room/GameRoom.js
-// FIXED: Player disconnect handling + proper match end
+// FIXED: Player disconnect handling + proper reconnection + heartbeat
 
 import {
 	initialRemoteGameState,
@@ -13,10 +13,14 @@ import {
 import logger from '../utils/logger.js';
 import { createRemoteMatch, startRemoteMatch, finishRemoteMatch } from '../utils/remoteMatchDB.js';
 
+const HEARTBEAT_INTERVAL = 15000; // 15 seconds
+const DISCONNECT_GRACE_PERIOD = 15000; // 15 seconds to reconnect
+
 export class GameRoom {
 	constructor(roomId, options = {}) {
 		this.roomId = roomId;
-		this.players = new Map();
+		this.players = new Map(); // playerId -> playerData
+		this.playerSlots = new Map(); // userId -> slotData (for reconnection)
 		this.maxPlayers = 2;
 		this.gameState = null;
 		this.gameLoopInterval = null;
@@ -29,6 +33,8 @@ export class GameRoom {
 		this.matchStarted = false;
 		this.gameType = options.gameType || 'remote';
 		this.tournamentId = options.tournamentId || null;
+		this.heartbeatIntervals = new Map(); // playerId -> intervalId
+		this.disconnectTimeouts = new Map(); // playerId -> timeoutId
 
 		logger.info(`[GameRoom] Room ${roomId} created (type: ${this.gameType})`);
 	}
@@ -40,14 +46,37 @@ export class GameRoom {
 	}
 
 	addPlayer(playerId, socket, playerInfo = {}) {
-		if (this.players.size >= this.maxPlayers) {
-			logger.warn(`[GameRoom] ${this.roomId} is full`);
+		const userId = playerInfo.userId;
+
+		// Check if this is a reconnection
+		if (userId && this.playerSlots.has(userId)) {
+			return this.reconnectPlayer(playerId, socket, playerInfo);
+		}
+
+		// Check room capacity - if full and not a reconnection, reject immediately
+		if (this.players.size >= this.maxPlayers && !this.players.has(playerId)) {
+			logger.warn(`[GameRoom] ${this.roomId} is full - rejecting player ${playerId}`);
+			
+			// Send room full message and close connection
+			try {
+				socket.send(JSON.stringify({
+					type: 'roomFull',
+					message: 'This room is full. Please try another room.'
+				}));
+				setTimeout(() => {
+					socket.close(1008, 'Room is full');
+				}, 100);
+			} catch (e) {
+				logger.warn(`[GameRoom] Error sending room full message:`, e);
+			}
+			
 			return false;
 		}
 
+		// Remove existing player with same playerId (stale connection)
 		if (this.players.has(playerId)) {
 			const existing = this.players.get(playerId);
-			logger.warn(`[GameRoom] Player ${playerId} reconnecting`);
+			logger.warn(`[GameRoom] Player ${playerId} already exists, replacing connection`);
 
 			try {
 				if (existing.socket && (existing.socket.readyState === 0 || existing.socket.readyState === 1)) {
@@ -57,49 +86,177 @@ export class GameRoom {
 				logger.warn(`[GameRoom] Error closing previous socket:`, e);
 			}
 
-			existing.socket = socket;
-			existing.info = {
-				username: playerInfo.username || existing.info?.username || `Player ${existing.playerNumber}`,
-				avatar: playerInfo.avatar || existing.info?.avatar || null,
-				...playerInfo
-			};
-			this.players.set(playerId, existing);
-			this.lastActivity = Date.now();
-
-			this.sendToPlayer(playerId, {
-				type: 'playerReconnected',
-				playerId,
-				playerNumber: existing.playerNumber
-			});
-
-			logger.info(`[GameRoom] Player ${playerId} reconnected as P${existing.playerNumber}`);
-			return true;
+			// Cancel any pending disconnect timeout
+			if (this.disconnectTimeouts.has(playerId)) {
+				clearTimeout(this.disconnectTimeouts.get(playerId));
+				this.disconnectTimeouts.delete(playerId);
+			}
 		}
 
 		const playerNumber = this.players.size + 1;
-
-		this.players.set(playerId, {
+		const playerData = {
 			socket,
 			playerNumber,
 			ready: false,
+			status: 'connected',
+			userId: userId,
 			info: {
 				username: playerInfo.username || `Player ${playerNumber}`,
 				avatar: playerInfo.avatar || null,
+				userId: userId,
 				...playerInfo
-			}
-		});
+			},
+			lastHeartbeat: Date.now()
+		};
+
+		this.players.set(playerId, playerData);
+
+		// Track by userId for reconnection
+		if (userId) {
+			this.playerSlots.set(userId, {
+				playerId,
+				playerNumber,
+				ready: false,
+				status: 'connected'
+			});
+		}
 
 		this.lastActivity = Date.now();
 
-		logger.info(`[GameRoom] Player ${playerId} (P${playerNumber}) joined`);
+		logger.info(`[GameRoom] Player ${playerId} (userId: ${userId}, P${playerNumber}) joined`);
 
+		// Start heartbeat monitoring
+		this.startHeartbeat(playerId);
+
+		// Broadcast to others
 		this.broadcast({
 			type: 'playerJoined',
 			playerId,
 			playerNumber,
-			playerInfo: this.players.get(playerId).info,
+			playerInfo: playerData.info,
 			totalPlayers: this.players.size
 		}, playerId);
+
+		return true;
+	}
+
+	reconnectPlayer(playerId, socket, playerInfo) {
+		const userId = playerInfo.userId;
+		const slot = this.playerSlots.get(userId);
+
+		if (!slot) {
+			logger.warn(`[GameRoom] No slot found for userId ${userId}`);
+			
+			// If game is in progress and user not in slots, reject
+			if (this.isPlaying) {
+				try {
+					socket.send(JSON.stringify({
+						type: 'error',
+						message: 'Cannot join game in progress'
+					}));
+					setTimeout(() => {
+						socket.close(1008, 'Not a participant');
+					}, 100);
+				} catch (e) {
+					logger.warn(`[GameRoom] Error sending rejection:`, e);
+				}
+			}
+			
+			return false;
+		}
+
+		logger.info(`[GameRoom] Player reconnecting: userId=${userId}, old playerId=${slot.playerId}, new playerId=${playerId}`);
+
+		// Cancel any pending disconnect timeout for old playerId
+		if (this.disconnectTimeouts.has(slot.playerId)) {
+			clearTimeout(this.disconnectTimeouts.get(slot.playerId));
+			this.disconnectTimeouts.delete(slot.playerId);
+			logger.info(`[GameRoom] Cancelled disconnect timeout for ${slot.playerId}`);
+		}
+
+		// Stop heartbeat for old playerId
+		this.stopHeartbeat(slot.playerId);
+
+		// Remove old player entry if exists (but don't close socket yet)
+		if (this.players.has(slot.playerId) && slot.playerId !== playerId) {
+			const oldPlayer = this.players.get(slot.playerId);
+			// Only close old socket if it's different from the new one
+			if (oldPlayer.socket !== socket) {
+				try {
+					if (oldPlayer.socket && oldPlayer.socket.readyState <= 1) {
+						oldPlayer.socket.close(1000, 'Reconnected with new connection');
+					}
+				} catch (e) {
+					logger.warn(`[GameRoom] Error closing old socket:`, e);
+				}
+			}
+			this.players.delete(slot.playerId);
+		}
+
+		// Create new player entry with same slot
+		const playerData = {
+			socket,
+			playerNumber: slot.playerNumber,
+			ready: slot.ready,
+			status: 'connected',
+			userId: userId,
+			info: {
+				username: playerInfo.username || slot.username || `Player ${slot.playerNumber}`,
+				avatar: playerInfo.avatar || null,
+				userId: userId,
+				...playerInfo
+			},
+			lastHeartbeat: Date.now()
+		};
+
+		this.players.set(playerId, playerData);
+
+		// Update slot with new playerId
+		slot.playerId = playerId;
+		slot.status = 'connected';
+		this.playerSlots.set(userId, slot);
+
+		this.lastActivity = Date.now();
+
+		logger.info(`[GameRoom] Player ${playerId} reconnected as P${slot.playerNumber}`);
+
+		// Start heartbeat for new connection
+		this.startHeartbeat(playerId);
+
+		// Send reconnection confirmation with game state if in progress
+		if (this.isPlaying && this.gameState) {
+			// Send game reconnection with current state
+			this.sendToPlayer(playerId, {
+				type: 'gameReconnection',
+				playerId,
+				playerNumber: slot.playerNumber,
+				gameState: {
+					score: this.gameState.score,
+					ball: this.gameState.ball,
+					paddles: this.gameState.paddles,
+					tournament: this.gameState.tournament
+				},
+				message: 'Reconnected to game in progress'
+			});
+		} else {
+			// Send normal reconnection for waiting room
+			this.sendToPlayer(playerId, {
+				type: 'playerReconnected',
+				playerId,
+				playerNumber: slot.playerNumber,
+				message: 'Reconnected successfully'
+			});
+			
+			// Send current room state to reconnected player
+			this.sendToPlayer(playerId, {
+				type: 'roomSnapshot',
+				roomInfo: this.getInfo(),
+				isPlaying: this.isPlaying
+			});
+		}
+
+		// Don't broadcast playerJoined for reconnections - it's a silent reconnect
+		logger.info(`[GameRoom] Player ${playerId} reconnected silently without broadcast`);
 
 		return true;
 	}
@@ -111,11 +268,73 @@ export class GameRoom {
 			return;
 		}
 
-		logger.info(`[GameRoom] Player ${playerId} left room ${this.roomId}`);
+		logger.info(`[GameRoom] Player ${playerId} disconnecting from room ${this.roomId}`);
 
+		// Stop heartbeat
+		this.stopHeartbeat(playerId);
+
+		const userId = player.userId;
+
+		// If game is playing, schedule graceful removal with timeout
+		if (this.isPlaying && !this.isPaused) {
+			logger.info(`[GameRoom] Game is active, setting ${DISCONNECT_GRACE_PERIOD}ms grace period for ${playerId}`);
+
+			// Mark as disconnected but don't remove yet
+			player.status = 'disconnected';
+
+			if (userId) {
+				const slot = this.playerSlots.get(userId);
+				if (slot) {
+					slot.status = 'disconnected';
+					slot.disconnectedAt = Date.now();
+				}
+			}
+
+			// Schedule removal after grace period
+			const timeoutId = setTimeout(() => {
+				logger.info(`[GameRoom] Grace period expired for ${playerId}, forcing disconnect`);
+				this.forceRemovePlayer(playerId);
+			}, DISCONNECT_GRACE_PERIOD);
+
+			this.disconnectTimeouts.set(playerId, timeoutId);
+
+		} else {
+			// Not playing, remove immediately
+			this.forceRemovePlayer(playerId);
+		}
+
+		this.lastActivity = Date.now();
+	}
+
+	forceRemovePlayer(playerId) {
+		const player = this.players.get(playerId);
+
+		if (!player) {
+			return;
+		}
+
+		logger.info(`[GameRoom] Force removing player ${playerId}`);
+
+		const userId = player.userId;
+
+		// Remove from players
 		this.players.delete(playerId);
 
-		// FIXED: If game is playing, end it and notify
+		// Remove from slots
+		if (userId) {
+			this.playerSlots.delete(userId);
+		}
+
+		// Clear any timeouts
+		if (this.disconnectTimeouts.has(playerId)) {
+			clearTimeout(this.disconnectTimeouts.get(playerId));
+			this.disconnectTimeouts.delete(playerId);
+		}
+
+		// Stop heartbeat
+		this.stopHeartbeat(playerId);
+
+		// If game is playing, end it
 		if (this.isPlaying && !this.isPaused) {
 			this.stopGame();
 
@@ -134,9 +353,64 @@ export class GameRoom {
 					reason: 'opponent_left'
 				});
 			}, 2000);
+		} else {
+			// Just broadcast player left
+			this.broadcast({
+				type: 'playerLeft',
+				playerId,
+				totalPlayers: this.players.size
+			});
 		}
+	}
 
-		this.lastActivity = Date.now();
+	startHeartbeat(playerId) {
+		// Clear existing interval if any
+		this.stopHeartbeat(playerId);
+
+		const intervalId = setInterval(() => {
+			const player = this.players.get(playerId);
+			if (!player) {
+				this.stopHeartbeat(playerId);
+				return;
+			}
+
+			const now = Date.now();
+			const timeSinceLastHeartbeat = now - player.lastHeartbeat;
+
+			// If no heartbeat for 2x interval, consider disconnected
+			if (timeSinceLastHeartbeat > HEARTBEAT_INTERVAL * 2) {
+				logger.warn(`[GameRoom] Player ${playerId} heartbeat timeout (${timeSinceLastHeartbeat}ms)`);
+				this.removePlayer(playerId);
+			} else {
+				// Send ping
+				try {
+					if (player.socket && player.socket.readyState === 1) {
+						player.socket.send(JSON.stringify({
+							type: 'ping',
+							timestamp: now
+						}));
+					}
+				} catch (e) {
+					logger.warn(`[GameRoom] Error sending heartbeat to ${playerId}:`, e);
+				}
+			}
+		}, HEARTBEAT_INTERVAL);
+
+		this.heartbeatIntervals.set(playerId, intervalId);
+	}
+
+	stopHeartbeat(playerId) {
+		if (this.heartbeatIntervals.has(playerId)) {
+			clearInterval(this.heartbeatIntervals.get(playerId));
+			this.heartbeatIntervals.delete(playerId);
+		}
+	}
+
+	updateHeartbeat(playerId) {
+		const player = this.players.get(playerId);
+		if (player) {
+			player.lastHeartbeat = Date.now();
+		}
 	}
 
 	setPlayerReady(playerId) {
@@ -148,6 +422,15 @@ export class GameRoom {
 		}
 
 		player.ready = true;
+
+		// Update slot
+		if (player.userId) {
+			const slot = this.playerSlots.get(player.userId);
+			if (slot) {
+				slot.ready = true;
+			}
+		}
+
 		this.lastActivity = Date.now();
 
 		logger.info(`[GameRoom] Player ${playerId} is ready`);
@@ -218,7 +501,7 @@ export class GameRoom {
 					setTimeout(() => this.startGame(), 300);
 				}
 			}, 1000);
-		}, 500); // Give 500ms for scene to start loading
+		}, 500);
 	}
 
 	async createDatabaseMatch() {
@@ -266,7 +549,6 @@ export class GameRoom {
 		this.isPlaying = true;
 		this.isPaused = false;
 
-		// gameStart was already sent in startCountdown, so just start the game loop
 		// Start at 60 FPS
 		this.gameLoopInterval = setInterval(() => {
 			this.tick();
@@ -324,6 +606,18 @@ export class GameRoom {
 			this.countdownInterval = null;
 		}
 
+		// Stop all heartbeats
+		this.heartbeatIntervals.forEach((intervalId, playerId) => {
+			clearInterval(intervalId);
+		});
+		this.heartbeatIntervals.clear();
+
+		// Clear all disconnect timeouts
+		this.disconnectTimeouts.forEach((timeoutId, playerId) => {
+			clearTimeout(timeoutId);
+		});
+		this.disconnectTimeouts.clear();
+
 		this.isPlaying = false;
 		this.isPaused = false;
 
@@ -350,20 +644,15 @@ export class GameRoom {
 		if (this.gameState.tournament.gameStatus === 'playing') {
 			moveRemoteBall(this.gameState);
 
-			// Check if match ended (gameEnd status set by game logic)
 			if (this.gameState.tournament.gameStatus === 'gameEnd') {
-				logger.info(`[GameRoom] GAME END detected! Winner: ${this.gameState.tournament.winner}, Rounds: P1=${this.gameState.tournament.roundsWon.player1}, P2=${this.gameState.tournament.roundsWon.player2}`);
+				logger.info(`[GameRoom] GAME END detected! Winner: ${this.gameState.tournament.winner}`);
 				const winnerNum = this.gameState.tournament.winner === 'player1' ? 1 : 2;
-				logger.info(`[GameRoom] Calling endGame with winner: ${winnerNum}`);
 				this.endGame(winnerNum);
 				return;
 			}
 
-			// Check if round ended after ball movement
 			if (this.gameState.tournament.gameStatus === 'roundEnd') {
-				logger.info(`[GameRoom] Round ended. Rounds: P1=${this.gameState.tournament.roundsWon.player1}, P2=${this.gameState.tournament.roundsWon.player2}`);
-				// Round ended but match continues - start next round
-				logger.info(`[GameRoom] Match continues, starting next round`);
+				logger.info(`[GameRoom] Round ended. Starting next round`);
 				this.startInterRoundCountdown();
 				return;
 			}
@@ -440,7 +729,6 @@ export class GameRoom {
 
 	async endGame(winner) {
 		logger.info(`[GameRoom] 🏆 Match ended! Winner: P${winner}`);
-		logger.info(`[GameRoom] Final: P1=${this.gameState.tournament.roundsWon.player1}, P2=${this.gameState.tournament.roundsWon.player2}`);
 
 		this.stopGame();
 
@@ -449,16 +737,11 @@ export class GameRoom {
 			this.gameState.tournament.winner = `player${winner}`;
 		}
 
-		// Calculate total scores across all rounds
-		// Each won round = 5 points, plus any points from the final round
 		const roundsWon = this.gameState.tournament.roundsWon;
 		const finalRoundScore = this.gameState.score;
-		
-		// Total score = (rounds won × 5) + final round score
+
 		const totalScoreP1 = (roundsWon.player1 * 5) + (roundsWon.player2 > 0 ? finalRoundScore.player1 : 0);
 		const totalScoreP2 = (roundsWon.player2 * 5) + (roundsWon.player1 > 0 ? finalRoundScore.player2 : 0);
-
-		logger.info(`[GameRoom] Total scores: P1=${totalScoreP1}, P2=${totalScoreP2}`);
 
 		if (this.matchId && this.gameState) {
 			const playersArray = Array.from(this.players.values());
@@ -533,7 +816,11 @@ export class GameRoom {
 	}
 
 	isFull() {
-		return this.players.size >= this.maxPlayers;
+		// Count only connected players
+		const connectedPlayers = Array.from(this.players.values()).filter(
+			p => p.status === 'connected'
+		).length;
+		return connectedPlayers >= this.maxPlayers;
 	}
 
 	isEmpty() {
@@ -546,7 +833,7 @@ export class GameRoom {
 		}
 
 		for (const [playerId, player] of this.players.entries()) {
-			if (!player.ready) {
+			if (player.status !== 'connected' || !player.ready) {
 				return false;
 			}
 		}
@@ -567,12 +854,15 @@ export class GameRoom {
 		const playersInfo = [];
 
 		this.players.forEach((player, playerId) => {
-			playersInfo.push({
-				playerId,
-				playerNumber: player.playerNumber,
-				ready: player.ready,
-				username: player.info.username
-			});
+			if (player.status === 'connected') {
+				playersInfo.push({
+					playerId,
+					playerNumber: player.playerNumber,
+					ready: player.ready,
+					username: player.info.username,
+					status: player.status
+				});
+			}
 		});
 
 		return {

@@ -20,6 +20,11 @@ export default function (root: HTMLElement) {
 	const signedIn = !!user;
 	const isGuest = !user && !!state.session.alias;
 
+	if (!signedIn && !isGuest) {
+		navigate("/auth");
+		return () => { };
+	}
+
 	let friends: Friend[] = [];
 	let onlineUsers: any[] = [];
 
@@ -300,13 +305,39 @@ export default function (root: HTMLElement) {
 		// Quick Match
 		const quickMatchBtn = root.querySelector<HTMLButtonElement>("#quickMatchBtn");
 		if (quickMatchBtn && (signedIn || isGuest)) {
-			quickMatchBtn.onclick = () => {
+			quickMatchBtn.onclick = async () => {
 				showStatus("Searching for opponents...");
-				// TODO: Implement matchmaking
-				setTimeout(() => {
-					hideStatus();
-					navigate(`/remote/room/${generateRoomCode()}`);
-				}, 2000);
+				
+				try {
+					// Call the matchmaking endpoint
+					const response = await fetch('/api/matchmaking/join', {
+						method: 'POST',
+						headers: {
+							'Content-Type': 'application/json'
+						},
+						credentials: 'include',
+						body: JSON.stringify({ type: 'game_invite' })
+
+					});
+					
+					if (response.ok) {
+						const data = await response.json();
+						if (data.roomId) {
+							hideStatus();
+							navigate(`/remote/room/${data.roomId}`);
+						} else {
+							showStatus("Failed to find a match. Please try again.", "error");
+							setTimeout(hideStatus, 3000);
+						}
+					} else {
+						showStatus("Failed to connect to matchmaking. Please try again.", "error");
+						setTimeout(hideStatus, 3000);
+					}
+				} catch (error) {
+					console.error('Matchmaking error:', error);
+					showStatus("Connection error. Please try again.", "error");
+					setTimeout(hideStatus, 3000);
+				}
 			};
 		}
 

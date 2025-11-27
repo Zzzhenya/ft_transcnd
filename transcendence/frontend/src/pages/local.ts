@@ -7,6 +7,7 @@ export default function (root: HTMLElement) {
   let ws: WebSocket | null = null;
   let player1Keys = { up: false, down: false };
   let player2Keys = { up: false, down: false };
+  let keysPressed = new Set<string>(); 
 
   let gameState: GameRenderState = {
     ball: { x: 0, y: 0 },
@@ -458,8 +459,11 @@ export default function (root: HTMLElement) {
   }
 
   function cleanupKeyboard() {
+    window.removeEventListener('keydown', handleKeyDown);
+    window.removeEventListener('keyup', handleKeyUp);
     document.removeEventListener('keydown', handleKeyDown);
     document.removeEventListener('keyup', handleKeyUp);
+    keysPressed.clear(); // Clear pressed keys
   }
 
   async function handleStartGame() {
