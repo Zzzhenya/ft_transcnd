@@ -2,7 +2,7 @@
 
 import { navigate } from "@/app/router";
 import { getAuth } from "@/app/auth";
-import { getState } from "@/app/store";
+// import { getState } from "@/app/store";
 import { onlineManager } from '../utils/efficient-online-status';
 
 interface Friend {
@@ -16,12 +16,13 @@ interface Friend {
 
 export default function (root: HTMLElement) {
 	const user = getAuth();
-	const state = getState();
+	// const state = getState();
 	const signedIn = !!user;
-	const isGuest = !user && !!state.session.alias;
+	const isGuest = !user;
 
-	if (!signedIn && !isGuest) {
-		navigate("/auth");
+	if (!signedIn) {
+		navigate('/auth?redirect=/remote');
+
 		return () => { };
 	}
 
@@ -66,50 +67,50 @@ export default function (root: HTMLElement) {
 	}
 
 	// Add friend function
-	async function addFriend(username: string) {
-		try {
-			if (user) {
-				// const token = getToken();
-				const res = await fetch(`/api/user-service/users/${user.id}/friends`, {
-					method: 'POST',
-					headers: {
-						'Content-Type': 'application/json',
-					},
-					credentials: 'include',
-					body: JSON.stringify({ friendUsername: username })
-				});
+	// async function addFriend(username: string) {
+	// 	try {
+	// 		if (user) {
+	// 			// const token = getToken();
+	// 			const res = await fetch(`/api/user-service/users/${user.id}/friends`, {
+	// 				method: 'POST',
+	// 				headers: {
+	// 					'Content-Type': 'application/json',
+	// 				},
+	// 				credentials: 'include',
+	// 				body: JSON.stringify({ friendUsername: username })
+	// 			});
 				
-				if (res.ok) {
-					showMessage('Friend request sent successfully!', 'success');
-					await loadFriends(); // Reload friends list
-					await render(); // Re-render the page
-				} else {
-					const error = await res.json();
-					showMessage(error.message || 'Failed to add friend', 'error');
-				}
-			}
-		} catch (error) {
-			console.log('Could not add friend:', error);
-			showMessage('Failed to add friend', 'error');
-		}
-	}
+	// 			if (res.ok) {
+	// 				showMessage('Friend request sent successfully!', 'success');
+	// 				await loadFriends(); // Reload friends list
+	// 				await render(); // Re-render the page
+	// 			} else {
+	// 				const error = await res.json();
+	// 				showMessage(error.message || 'Failed to add friend', 'error');
+	// 			}
+	// 		}
+	// 	} catch (error) {
+	// 		console.log('Could not add friend:', error);
+	// 		showMessage('Failed to add friend', 'error');
+	// 	}
+	// }
 
 	// Show message function
-	function showMessage(message: string, type: 'success' | 'error' | 'info') {
-		const messageEl = document.createElement('div');
-		messageEl.className = `fixed top-4 right-4 px-6 py-3 rounded-lg font-semibold z-50 transition-all transform translate-x-0 ${
-			type === 'success' ? 'bg-green-500 text-white' :
-			type === 'error' ? 'bg-red-500 text-white' :
-			'bg-blue-500 text-white'
-		}`;
-		messageEl.textContent = message;
-		document.body.appendChild(messageEl);
+	// function showMessage(message: string, type: 'success' | 'error' | 'info') {
+	// 	const messageEl = document.createElement('div');
+	// 	messageEl.className = `fixed top-4 right-4 px-6 py-3 rounded-lg font-semibold z-50 transition-all transform translate-x-0 ${
+	// 		type === 'success' ? 'bg-green-500 text-white' :
+	// 		type === 'error' ? 'bg-red-500 text-white' :
+	// 		'bg-blue-500 text-white'
+	// 	}`;
+	// 	messageEl.textContent = message;
+	// 	document.body.appendChild(messageEl);
 		
-		setTimeout(() => {
-			messageEl.style.transform = 'translateX(100%)';
-			setTimeout(() => messageEl.remove(), 300);
-		}, 3000);
-	}
+	// 	setTimeout(() => {
+	// 		messageEl.style.transform = 'translateX(100%)';
+	// 		setTimeout(() => messageEl.remove(), 300);
+	// 	}, 3000);
+	// }
 
 	// Load online users for matchmaking
 	async function loadOnlineUsers() {
@@ -283,14 +284,6 @@ export default function (root: HTMLElement) {
 					<span class="text-white font-bold">${user.name}</span>
 				</div>
 			`;
-		} else if (isGuest) {
-			userInfo.innerHTML = `
-				<div class="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-white/10 backdrop-blur-sm border border-white/20">
-					<span class="w-2 h-2 rounded-full bg-blue-400 animate-pulse"></span>
-					<span class="text-white font-bold">${state.session.alias}</span>
-					<span class="text-xs text-gray-400">GUEST</span>
-				</div>
-			`;
 		} else {
 			userInfo.innerHTML = `
 				<div class="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-white/10 backdrop-blur-sm border border-white/20">
@@ -462,9 +455,9 @@ export default function (root: HTMLElement) {
 		statusArea?.classList.add("hidden");
 	}
 
-	function generateRoomCode(): string {
-		return Math.random().toString(36).substr(2, 6).toUpperCase();
-	}
+	// function generateRoomCode(): string {
+	// 	return Math.random().toString(36).substr(2, 6).toUpperCase();
+	// }
 
 	async function inviteFriend(friendId: string, friendUsername: string) {
 		console.log('🎮 inviteFriend called with friendId:', friendId, 'username:', friendUsername);
