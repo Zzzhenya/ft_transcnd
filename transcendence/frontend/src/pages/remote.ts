@@ -20,6 +20,11 @@ export default function (root: HTMLElement) {
 	const signedIn = !!user;
 	const isGuest = !user && !!state.session.alias;
 
+	if (!signedIn && !isGuest) {
+		navigate("/auth");
+		return () => { };
+	}
+
 	let friends: Friend[] = [];
 	let onlineUsers: any[] = [];
 
