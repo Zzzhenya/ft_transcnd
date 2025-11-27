@@ -4,9 +4,7 @@ import logger from '../utils/logger.js'; // log-service
 import { proxyRequest } from '../utils/proxyHandler.js';
 import { queueAwareProxyRequest } from '../utils/queueAwareProxyHandler.js';
 
-// {
-//   preHandler: fastify.mustAuth
-// }
+// How to include authentication for protected(registered user only) routes: { preHandler: fastify.mustAuth }
 
 import type { FastifyHttpOptions, FastifyInstance, FastifyServerOptions, FastifyPluginAsync, FastifyRequest } from "fastify"
 

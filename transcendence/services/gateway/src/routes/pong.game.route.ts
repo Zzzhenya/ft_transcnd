@@ -33,7 +33,6 @@ const pongGameRoute: FastifyPluginAsync = async (fastify) => {
     } else {
       logger.info(`pongGameRoute: 400 :Bad Request at /pong/game/:gameId :Required request parameter is missing`)
       fastify.log.info(`4pongGameRoute: 400 :Bad Request at /pong/game/:gameId :Required request parameter is missing`)
-      // throw 400 Bad Request
       throw fastify.httpErrors.badRequest('Missing required parameter: id');
     }
     return proxyRequest(fastify, request, reply, `${GAME_SERVICE_URL}/pong/game/${gameId}`, 'GET');
@@ -50,7 +49,6 @@ const pongGameRoute: FastifyPluginAsync = async (fastify) => {
     } else {
       logger.info(`pongGameRoute: 400 :Bad Request at /pong/game/:gameId/join :Required request parameter is missing`)
       fastify.log.info(`pongGameRoute: 400 :Bad Request at /pong/game/:gameId/join :Required request parameter is missing`)
-      // throw 400 Bad Request
       throw fastify.httpErrors.badRequest('Missing required parameter: id');
     }
     return proxyRequest(fastify, request, reply, `${GAME_SERVICE_URL}/pong/game/${gameId}/join`, 'POST');
@@ -68,7 +66,6 @@ const pongGameRoute: FastifyPluginAsync = async (fastify) => {
     } else {
       logger.info(`pongGameRoute: 400 :Bad Request at /pong/game/:gameId/move :Required request parameter is missing`)
       fastify.log.info(`pongGameRoute: 400 :Bad Request at /pong/game/:gameId/move :Required request parameter is missing`)
-      // throw 400 Bad Request
       throw fastify.httpErrors.badRequest('Missing required parameter: id');
     }
     return proxyRequest(fastify, request, reply, `${GAME_SERVICE_URL}/pong/game/${gameId}/move`, 'POST');
@@ -86,7 +83,6 @@ const pongGameRoute: FastifyPluginAsync = async (fastify) => {
     } else {
       logger.info(`pongGameRoute: 400 :Bad Request at /pong/game/:gameId/result :Required request parameter is missing`)
       fastify.log.info(`pongGameRoute: 400 :Bad Request at /pong/game/:gameId/result :Required request parameter is missing`)
-      // throw 400 Bad Request
       throw fastify.httpErrors.badRequest('Missing required parameter: id');
     }
     return proxyRequest(fastify, request, reply, `${GAME_SERVICE_URL}/pong/game/${gameId}/result`, 'PUT');

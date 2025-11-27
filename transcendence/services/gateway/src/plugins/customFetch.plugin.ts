@@ -21,7 +21,7 @@ const fetchPlugin: FastifyPluginAsync = async (fastify) => {
       const res = await fetch(url, { ...options, signal: controller.signal });
       return res;
     } catch (err) {
-        // Optional: additional logging for network errors
+        // Additional logging for network errors
         if (err instanceof Error && err.name !== 'AbortError') {
           fastify.log.error(
             `Fetch failed for ${method} ${url}: ${err.message}`

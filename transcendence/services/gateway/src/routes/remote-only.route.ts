@@ -2,6 +2,7 @@
 import type { FastifyInstance } from 'fastify'
 import logger from '../utils/logger.js';
 import WebSocket from 'ws'
+import {mustAuthCore} from '../utils/mustAuthCore.js';
 
 export default async function remoteOnlyRoute(fastify: FastifyInstance) {
   logger.info(`remoteOnlyRoute: `)
@@ -16,6 +17,15 @@ export default async function remoteOnlyRoute(fastify: FastifyInstance) {
     console.log('🎮 REMOTE-ONLY: URL:', req.url)
     console.log('🎮 REMOTE-ONLY: Headers:', req.headers)
     fastify.log.info('🎮 REMOTE-ONLY: WebSocket connection received for: ' + req.url)
+
+
+    const auth = await mustAuthCore(req);
+
+    if (!auth.ok) {
+      // unauthorised
+      connection.close(4001, auth.reason);
+      return;
+    }
     
     const clientSocket = connection
     
