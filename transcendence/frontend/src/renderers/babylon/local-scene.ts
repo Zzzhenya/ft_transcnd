@@ -107,7 +107,6 @@ export function createLocalScene(canvas: HTMLCanvasElement): LocalSceneControlle
   let WORLD_Z_SCALE = 0.04;  // -100~100 -> -8~8
 
   // (LOGIC_X_MAX - LOGIC_X_MIN) * WORLD_X_SCALE;
-  let tableWidthWorld = (LOGIC_X_MAX - LOGIC_X_MIN) * WORLD_X_SCALE;
   let tableDepthWorld = (LOGIC_Z_MAX - LOGIC_Z_MIN) * WORLD_Z_SCALE;
 
   let tableCenterX = 0;
@@ -273,13 +272,6 @@ export function createLocalScene(canvas: HTMLCanvasElement): LocalSceneControlle
     "game3d.glb",
     scene,
     (meshes) => {
-      // Test for executing
-	  console.log("[Babylon] ✅ test2.glb 로드 성공!");
-      console.log("[Babylon] 로드된 mesh 목록 ↓");
-      meshes.forEach((m, i) => {
-		console.log(`${i + 1}. name="${m.name}", position=${m.position.toString()}, scaling=${m.scaling.toString()}`);
-	  });
-
 	  // 모든 mesh + child mesh 수집
 	  const allMeshes: BABYLON.AbstractMesh[] = [];
 	  meshes.forEach((m) => {
@@ -294,8 +286,6 @@ export function createLocalScene(canvas: HTMLCanvasElement): LocalSceneControlle
       allMeshes.forEach((m) => {
 		if (m.name) byName[m.name] = m;
       }); 
-	  console.log("[Babylon] all mesh names:", Object.keys(byName));
-	  console.log("[Babylon] patch check: no paddleMat on paddles, pls");
 
       // 1) Table replace from GLB
       if (byName["table"]) {
@@ -334,7 +324,6 @@ export function createLocalScene(canvas: HTMLCanvasElement): LocalSceneControlle
 		WORLD_X_SCALE = (Math.abs(worldWidth) > SAFE_EPS ? worldWidth : SAFE_EPS) / logicWidth;
 		WORLD_Z_SCALE = (Math.abs(worldDepth) > SAFE_EPS ? worldDepth : SAFE_EPS) / logicDepth;
 	
-		tableWidthWorld  = worldWidth;
 		tableDepthWorld  = worldDepth;
 
 		const tableTopGuess = max.y;
@@ -342,9 +331,6 @@ export function createLocalScene(canvas: HTMLCanvasElement): LocalSceneControlle
 		arcStartHeight = floorY;
 		arcMaxHeightCurrent = tableDepthWorld * BASE_ARC_HEIGHT_RATIO;
 		BOUNCE_PEAK = tableDepthWorld * 0.025;
-
-		console.log("[Babylon] center =", tableCenterX, tableCenterZ);
-		console.log("[Babylon] 🔁 WORLD_X_SCALE =", WORLD_X_SCALE, "WORLD_Z_SCALE =", WORLD_Z_SCALE);
 
 		// 패들과 공의 기본 높이, 테이블 상면으로 정렬
 		leftPaddle.position.y = floorY + 0.02;
@@ -380,15 +366,11 @@ export function createLocalScene(canvas: HTMLCanvasElement): LocalSceneControlle
           tableCenterZ - sCenter.z
         );
         stadium.position.addInPlace(offset);
-
-		console.log("[Babylon] 🏟 stadium aligned to table center");
 	  }
 
 	  const scorePanel = allMeshes.find((m) =>
 		(m.name ?? "").toLowerCase().startsWith("scoreboard_")
 	  );
-
-	  console.log("[Babylon] scorePanel =", scorePanel?.name);
 
 	 if (scorePanel) {
 		// 풀스크린 UI 하나 생성
@@ -420,12 +402,6 @@ export function createLocalScene(canvas: HTMLCanvasElement): LocalSceneControlle
 	});
 
 	if (leftPaddleParts.length && rightPaddleParts.length) {
-		console.log("[Babylon] ✅ using l_paddle / r_paddle from GLB", {
-				leftCount: leftPaddleParts.length,
-				rightCount: rightPaddleParts.length,
-			}
-		);
-
 		// placeholder 삭제
 		leftPaddle.dispose();
 		rightPaddle.dispose();
@@ -511,9 +487,6 @@ export function createLocalScene(canvas: HTMLCanvasElement): LocalSceneControlle
 				h = floorY + BOUNCE_PEAK * base;
 			}		
 			ball.position.y = h;
-			if (Math.random() < 0.002) {
-				console.log("ball y / floorY:", ball.position.y.toFixed(3), floorY.toFixed(3));
-			}
 		}
 		scene.render();
 	});
