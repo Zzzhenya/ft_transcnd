@@ -37,7 +37,7 @@ export function getAuth(): AuthUser | null {
 }
 
 // Helper to populate user state from profile
-export async function loadUserProfile(): Promise<boolean> {
+export async function loadProfile(): Promise<boolean> {
   const profile = await getProfile();
   if (!profile.success || !profile.user) return false;
 
@@ -61,7 +61,9 @@ export async function register(
 		);
 		
 		// fetch profile
-		const ok = await loadUserProfile();
+		// const ok = await getProfile();
+		// const ok = await loadUserProfile();
+		const ok = await loadProfile();
 		if (!ok){
 			return { success: false, error: "Failed to fetch user profile after registration" };
 		}
@@ -90,7 +92,8 @@ export async function signIn(
 	  );
 
 	// Fetch fresh profile
-  	const ok = await loadUserProfile();
+  	// const ok = await loadUserProfile();
+  	const ok = await loadProfile();
   	if (!ok) return { success: false, error: "Failed to fetch user profile" };
 	await reportOnlineOnce();
 	return { success: true };
@@ -122,6 +125,24 @@ export async function signOut() {
   dispatchEvent(new CustomEvent("auth:changed"));
 }
 
+// clearOut
+export async function clearOut() {
+
+	try	{
+		console.log('🎮 Session clear: set user offline');
+		await reportOffline();
+		console.log('🎮 Session clean');
+		const data = await api("/auth/clear", { method: "POST", credentials: 'include', body: JSON.stringify({}) });
+  	// Report offline first (centralized here so all callers inherit it)
+  } catch {
+  	// ignore errors
+  }
+  const s = read();
+  s.auth = {user: null}
+  write(s);
+  dispatchEvent(new CustomEvent("auth:changed"));
+}
+
 // Guest Login
 export async function guestLogin(alias?: string): Promise<{ success: boolean; error?: string }> {
 	try {
@@ -131,7 +152,8 @@ export async function guestLogin(alias?: string): Promise<{ success: boolean; er
 			{ method: "POST", body: JSON.stringify({ alias: alias || undefined }) }
 		);
     
-		const ok = await loadUserProfile();
+		// const ok = await loadUserProfile();
+		const ok = await loadProfile();
     	if (!ok) return { success: false, error: "Failed to fetch user profile" };
 
     	await reportOnlineOnce();

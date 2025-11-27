@@ -308,16 +308,16 @@ class EfficientOnlineManager {
 
     try {
       // Method 1: Try sendBeacon with FormData (most reliable)
-      const formData = new FormData();
-      formData.append('is_online', '0');
+      // const formData = new FormData();
+      // formData.append('is_online', '0');
       
-      const beaconUrl = `/api/user-service/users/${user.id}/online-status`;
-      const sent = navigator.sendBeacon(beaconUrl, formData);
+      // const beaconUrl = `/api/user-service/users/${user.id}/online-status`;
+      // const sent = navigator.sendBeacon(beaconUrl, formData);
       
-      if (sent) {
-        console.log('📡 User', user.username, 'marked offline via beacon');
-        return;
-      }
+      // if (sent) {
+      //   console.log('📡 User', user.username, 'marked offline via beacon');
+      //   return;
+      // }
       
       // Method 2: Fallback to synchronous XHR
       console.warn('⚠️ Beacon failed, trying XHR');
