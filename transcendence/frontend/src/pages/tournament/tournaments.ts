@@ -50,7 +50,7 @@ export default function (root: HTMLElement) {
         }
 
         const activeTournament = tournaments.find(t => t.id === Number(activeId));
-        if (!activeTournament || activeTournament.status === 'completed' || activeTournament.status === 'interrupted') {
+        if (!activeTournament || activeTournament.status === 'completed' || activeTournament.status === 'finished' || activeTournament.status === 'interrupted') {
             clearTournamentSession();
         }
     };
