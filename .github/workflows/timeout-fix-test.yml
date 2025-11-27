@@ -134,18 +134,52 @@ jobs:
       run: |
         echo "🚀 Testing timeout fix with escalated load scenarios..."
         
-        # Function to send test request
+        # # Function to send test request
+        # send_request() {
+        #   local id=$1
+        #   local batch=$2
+        #   local response=$(curl -k -s -w "%{http_code}" -X POST \
+        #     "https://localhost:8443/api/tournaments" \
+        #     -H "Content-Type: application/json" \
+        #     -d "{\"name\":\"CI Test Tournament B$batch-$id\",\"size\":8,\"creator\":\"ci-user-b$batch-$id\"}" \
+        #     -o "/tmp/response_b${batch}_$id.json" 2>/dev/null)
+        #   echo "Batch $batch Request $id: HTTP $response"
+        #   return $response
+        # }
+
+        # Function to generate random username (3-10 letters)
+        generate_username() {
+          length=$((RANDOM % 8 + 3))  # Random length between 3 and 10
+          tr -dc 'a-z' </dev/urandom | head -c $length
+        }
+
+        # Function to generate unique email
+        generate_email() {
+          local username=$1
+          local domain=$(tr -dc 'a-z' </dev/urandom | head -c 5)  # random 5-letter domain
+          local tld=$(shuf -n1 -e com net org io xyz)
+          echo "${username}@${domain}.${tld}"
+        }
+
+        # Function to send test request to /api/auth/register
         send_request() {
           local id=$1
           local batch=$2
+
+          local username=$(generate_username)
+          local email=$(generate_email "$username")
+          local password="TestPass123!"
+
           local response=$(curl -k -s -w "%{http_code}" -X POST \
-            "https://localhost:8443/api/tournaments" \
+            "https://localhost:8443/api/auth/register" \
             -H "Content-Type: application/json" \
-            -d "{\"name\":\"CI Test Tournament B$batch-$id\",\"size\":8,\"creator\":\"ci-user-b$batch-$id\"}" \
+            -d "{\"username\":\"$username\",\"email\":\"$email\",\"password\":\"$password\"}" \
             -o "/tmp/response_b${batch}_$id.json" 2>/dev/null)
-          echo "Batch $batch Request $id: HTTP $response"
+            
+          echo "Batch $batch Request $id (username: $username, email: $email): HTTP $response"
           return $response
         }
+
         
         # Function to analyze batch results
         analyze_batch() {
@@ -160,7 +194,8 @@ jobs:
           for i in $(seq 1 $total_requests); do
             if [ -f "/tmp/response_b${batch}_$i.json" ]; then
               response_body=$(cat "/tmp/response_b${batch}_$i.json")
-              if echo "$response_body" | grep -q '"id":[0-9]'; then
+              # if echo "$response_body" | grep -q '"id":[0-9]'; then
+              if echo "$response_body" | grep -q '"success":true'; then
                 success_count=$((success_count + 1))
               elif echo "$response_body" | grep -q 'timeout\|504'; then
                 timeout_count=$((timeout_count + 1))
