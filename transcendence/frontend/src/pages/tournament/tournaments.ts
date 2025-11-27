@@ -2,7 +2,7 @@
  * Tournament Lobby Page
  * 
  * PURPOSE:
- * - Display all available tournaments
+ * - Display all available tournaments created by me
  * - Allow users to create new tournaments (4P or 8P)
  * - Join existing tournaments
  * - Show interrupted tournament status
@@ -23,7 +23,6 @@
  *   * Red warning text: "Match interrupted - Cannot join"
  *   * Button changes to "VIEW ONLY" (gray, disabled)
  * - Users can still click to view interrupted tournaments but cannot join
- * - This prevents new players from joining broken tournaments
  */
 
 import { getAuth } from "@/app/auth";
@@ -35,10 +34,6 @@ export default function (root: HTMLElement) {
     let tournaments: any[] = [];
     let filter: number | "all" = "all";
 
-// new lines
-    let authListenerRegistered = false;
-    let onAuthChanged: (() => void) | null = null;
-//
 
     const clearTournamentSession = () => {
         sessionStorage.removeItem("currentTournamentSize");
@@ -61,18 +56,69 @@ export default function (root: HTMLElement) {
         }
     };
 
-    async function fetchTournaments() {
-        const res = await fetch(`${API_BASE}/tournaments`, {credentials: 'include'});
-        const data = await res.json();
-        tournaments = data.tournaments || [];
-        maybeClearTournamentSession();
-    }
+// async function fetchTournaments() {
+//   const res = await fetch(`${API_BASE}/tournaments`, { credentials: 'include' });
+//   const data = await res.json();
+
+//   const allTournaments = data.tournaments || [];
+//   const user = getAuth();
+
+//   console.log("🔍 /tournaments response:", allTournaments); // temporary debug
+
+//   if (user) {
+//     const myUsername = user.username;
+//     const myId = Number(user.id);
+
+//     tournaments = allTournaments.filter((t: any) => {
+//       // from backend: creatorId / creatorName / createdBy
+//       const creatorId = t.creatorId ?? t.createdBy?.id ?? null;
+//       const creatorName = t.creatorName ?? t.createdBy?.name ?? null;
+
+//       return (
+//         (creatorId != null && Number(creatorId) === myId) ||
+//         (creatorName && creatorName === myUsername)
+//       );
+//     });
+//   } else {
+//     // Not logged in → show none
+//     tournaments = [];
+//   }
+
+//   maybeClearTournamentSession();
+// }
+
+async function fetchTournaments() {
+  const res = await fetch(`${API_BASE}/tournaments`, { credentials: 'include' });
+  const data = await res.json();
+
+  const allTournaments = data.tournaments || [];
+  const user = getAuth();
+
+  console.log("🔍 /tournaments response:", allTournaments); // debug
+  console.log("🔍 current user:", user);
+
+  if (user) {
+    const myUsername = user.username.toLowerCase();
+
+    tournaments = allTournaments.filter((t: any) => {
+      const name = (t.name || "").toLowerCase();
+
+      // KEEP ONLY tournaments whose name contains my username
+      return name.includes(myUsername);
+    });
+  } else {
+    tournaments = []; // user not logged in
+  }
+
+  maybeClearTournamentSession();
+}
+
+
 
     async function render() {
         const user = getAuth();
         const state = getState();
         const signedIn = !!user;
-        const isGuest = !user && !!state.session?.alias;
 
         root.innerHTML = `
         <section class="min-h-screen bg-gradient-to-br from-blue-950 via-blue-900 to-slate-950 py-6 px-4">
@@ -87,10 +133,6 @@ export default function (root: HTMLElement) {
                         ${signedIn ? `
                             <button id="logoutBtn" class="px-4 py-2 rounded-lg bg-red-500/80 hover:bg-red-600 text-white font-semibold transition-all">
                                 Logout
-                            </button>
-                        ` : isGuest ? `
-                            <button id="loginBtn" class="px-4 py-2 rounded-lg bg-green-500/80 hover:bg-green-600 text-white font-semibold transition-all">
-                                Sign In
                             </button>
                         ` : `
                             <button id="loginBtn" class="px-4 py-2 rounded-lg bg-green-500/80 hover:bg-green-600 text-white font-semibold transition-all">
@@ -120,15 +162,14 @@ export default function (root: HTMLElement) {
 
                 <!-- Tournaments Grid -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                    ${
-                        tournaments.filter(t => filter === "all" || t.size === filter).length > 0
-                        ? tournaments
-                            .filter(t => filter === "all" || t.size === filter)
-                            .map(t => {
-                                const isInterrupted = t.status === 'interrupted';
-                                const isFinished = t.status === 'finished';
-                                const isSpecialStatus = isInterrupted || isFinished;
-                                return `
+                    ${tournaments.filter(t => filter === "all" || t.size === filter).length > 0
+                ? tournaments
+                    .filter(t => filter === "all" || t.size === filter)
+                    .map(t => {
+                        const isInterrupted = t.status === 'interrupted';
+                        const isFinished = t.status === 'finished';
+                        const isSpecialStatus = isInterrupted || isFinished;
+                        return `
                                 <div class="group relative card-violet rounded-2xl p-4 border ${isInterrupted ? 'border-red-500/50' : isFinished ? 'border-green-500/50' : 'border-purple-600/40'} ${isSpecialStatus ? '' : 'hover:bg-purple-900/20'} transition-all duration-300 ${isSpecialStatus ? 'opacity-70' : ''}">
                                     ${isInterrupted ? `
                                         <div class="absolute top-3 left-3 px-3 py-1 rounded-full bg-red-500/30 border border-red-500 backdrop-blur-sm">
@@ -167,11 +208,11 @@ export default function (root: HTMLElement) {
                                     </a>
                                 </div>
                             `}).join('')
-                        : `<div class="col-span-2 text-center py-12">
+                : `<div class="col-span-2 text-center py-12">
                                 <div class="text-6xl mb-3 opacity-20">🎯</div>
                                 <div class="text-xl text-white/40 font-bold">NO ACTIVE TOURNAMENTS</div>
                             </div>`
-                    }
+            }
                 </div>
 
                 <!-- Create Buttons -->
@@ -219,14 +260,6 @@ export default function (root: HTMLElement) {
                     });
                 }
             }, 0);
-        } else if (isGuest) {
-            userInfo.innerHTML = `
-                <div class="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-white/10 backdrop-blur-sm border border-white/20">
-                    <span class="w-2 h-2 rounded-full bg-blue-400 animate-pulse"></span>
-                    <span class="text-white font-bold">${state.session.alias}</span>
-                    <span class="text-xs text-gray-400">GUEST</span>
-                </div>
-            `;
         } else {
             userInfo.innerHTML = `
                 <div class="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-white/10 backdrop-blur-sm border border-white/20">
@@ -235,14 +268,12 @@ export default function (root: HTMLElement) {
             `;
         }
 
-        // removed
-        // // Listen for auth changes
-        // const onAuthChanged = async () => {
-        //     await fetchTournaments();
-        //     render();
-        // };
-        // window.addEventListener("auth:changed", onAuthChanged);
-        //
+        // Listen for auth changes
+        const onAuthChanged = async () => {
+            await fetchTournaments();
+            render();
+        };
+        window.addEventListener("auth:changed", onAuthChanged);
 
         // Filter buttons (always enabled)
         root.querySelectorAll<HTMLButtonElement>('.filter-btn').forEach(btn => {
@@ -254,26 +285,31 @@ export default function (root: HTMLElement) {
             };
         });
 
-        // Create tournament buttons (only enabled if signed in or guest)
-        if (signedIn || isGuest) {
+        if (signedIn) {
             const create4Btn = root.querySelector<HTMLButtonElement>("#create4Btn");
             if (create4Btn) {
                 create4Btn.onclick = async () => {
-                    const creator = user ? user.name : state.session.alias;
-                    const creatorId = user ? user.id : null;
-                    // Backend will generate the tournament ID
+                    if (!user) {
+                        alert("You must be logged in to create a tournament.");
+                        return;
+                    }
+
                     const response = await fetch(`${API_BASE}/tournaments`, {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         credentials: 'include',
-                        body: JSON.stringify({ creator, size: 4 })
+                        body: JSON.stringify({
+                            creator: user.username,           // 👈 used as creatorName on backend
+                            creatorId: Number(user.id),       // 👈 satisfies creator_id NOT NULL
+                            size: 4,
+                            name: `${user.username}'s Tournament`, // optional T_name-style label
+                        }),
                     });
+
                     if (response.ok) {
                         const data = await response.json();
                         const tournamentId = data.id;
-                        // Save size to sessionStorage before navigating
                         sessionStorage.setItem("currentTournamentSize", "4");
-                        // Navigate to the waiting room
                         navigate(`/tournaments/waitingroom/${tournamentId}`);
                     } else {
                         await fetchTournaments();
@@ -281,24 +317,31 @@ export default function (root: HTMLElement) {
                     }
                 };
             }
+
             const create8Btn = root.querySelector<HTMLButtonElement>("#create8Btn");
             if (create8Btn) {
                 create8Btn.onclick = async () => {
-                    const creator = user ? user.name : state.session.alias;
-                    const creatorId = user ? user.id : null;
-                    // Backend will generate the tournament ID
+                    if (!user) {
+                        alert("You must be logged in to create a tournament.");
+                        return;
+                    }
+
                     const response = await fetch(`${API_BASE}/tournaments`, {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         credentials: 'include',
-                        body: JSON.stringify({ creator, size: 8 })
+                        body: JSON.stringify({
+                            creator: user.username,
+                            creatorId: Number(user.id),
+                            size: 8,
+                            name: `${user.username}'s Tournament`,
+                        }),
                     });
+
                     if (response.ok) {
                         const data = await response.json();
                         const tournamentId = data.id;
-                        // Save size to sessionStorage before navigating
                         sessionStorage.setItem("currentTournamentSize", "8");
-                        // Navigate to the waiting room
                         navigate(`/tournaments/waitingroom/${tournamentId}`);
                     } else {
                         await fetchTournaments();
@@ -307,6 +350,9 @@ export default function (root: HTMLElement) {
                 };
             }
         }
+
+        // Create tournament buttons (only enabled if signed in)
+
 
         // Join button navigation (SPA-style)
         root.querySelectorAll<HTMLAnchorElement>('a.join-btn').forEach(link => {
@@ -369,34 +415,12 @@ export default function (root: HTMLElement) {
             });
         }
 
-        // removed
         // Clean up auth event listener on page leave
-        // return () => {
-        //     window.removeEventListener("auth:changed", onAuthChanged);
-        // };
-        //
-
-        // added
         return () => {
-            if (onAuthChanged) {
-                window.removeEventListener("auth:changed", onAuthChanged);
-                authListenerRegistered = false;
-            }
+            window.removeEventListener("auth:changed", onAuthChanged);
         };
-        //
     }
 
-    // --- FIX: register listener once ---
-    if (!authListenerRegistered) {
-        onAuthChanged = async () => {
-            await fetchTournaments();
-            render();
-        };
-        window.addEventListener("auth:changed", onAuthChanged);
-        authListenerRegistered = true;
-    }
-
-    
     // Initial load
     fetchTournaments().then(render);
 }

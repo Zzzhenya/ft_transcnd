@@ -302,8 +302,6 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
           <p class="mt-4 text-gray-300">Loading tournaments...</p>
         </div>
 
-        <div id="tournaments-error" class="hidden chip chip-red" aria-live="polite"></div>
-
         <div id="tournaments-empty" class="hidden text-center py-8 text-gray-400">
           <p class="text-lg">No tournaments played yet</p>
           <p class="text-sm mt-2">Your tournament participation will appear here</p>
