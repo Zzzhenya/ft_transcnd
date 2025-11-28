@@ -2065,9 +2065,6 @@ fastify.get('/tournaments/:tournamentId/matches', {
   try {
     const { tournamentId } = request.params;
 
-    console.log(`🏆 Getting matches for tournament ${tournamentId}`);
-    logger.info(`Getting matches for tournament ${tournamentId}`);
-
     // Query Tournament_Matches table
     const response = await fetch('http://database-service:3006/internal/query', {
       method: 'POST',
@@ -2078,7 +2075,7 @@ fastify.get('/tournaments/:tournamentId/matches', {
       body: JSON.stringify({
         table: 'Tournament_Matches',
         columns: ["id","tournament_id","round","match_number","player1_id","player2_id",
-          "winner_id","player1_alias","player2_alias","player1_score","player2_score",
+          "winner_id","player1_alias","player2_alias", "winner_username", "player1_score","player2_score",
           "matches_status","created_at","finished_at"],
         filters: { tournament_id: parseInt(tournamentId) },
         orderBy: { column: 'round', direction: 'ASC' },
@@ -2097,8 +2094,8 @@ fastify.get('/tournaments/:tournamentId/matches', {
     console.log(`✅ Found ${matches.length} matches for tournament ${tournamentId}`);
 
     const enrichedMatches = matches.map((match) => {
-      let winnerAlias = null;
-      if (match.winner_id) {
+      let winnerAlias = match.winner_username;
+      if (!winnerAlias) {
         if (match.winner_id === match.player1_id) {
           winnerAlias = match.player1_alias;
         } else if (match.winner_id === match.player2_id) {
@@ -2118,7 +2115,12 @@ fastify.get('/tournaments/:tournamentId/matches', {
           id: match.player2_id,
           alias: match.player2_alias
         },
-        winner: match.winner_id ? {
+        // winner: match.winner_id ? {
+        //   id: match.winner_id,
+        //   alias: winnerAlias
+        // } : null,
+        
+        winner: winnerAlias ? {
           id: match.winner_id,
           alias: winnerAlias
         } : null,

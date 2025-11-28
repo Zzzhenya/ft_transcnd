@@ -89,30 +89,98 @@ function renderMatch(m: RemoteMatch) {
   `;
 }
 
-function renderTournamentMatch(m: TournamentMatch) {
-  const finished = m.status === 'finished';
-  const p1Win = m.winner?.id === m.player1.id;
-  const p2Win = m.winner?.id === m.player2.id;
+   
+// function renderTournamentMatch(m: TournamentMatch) {
+//   const finished = m.status === 'completed';
+//   const winnerAlias = m.winner?.alias || null;
+//   const p1Win = winnerAlias === m.player1.alias;
+//   const p2Win = winnerAlias === m.player2.alias;
   
+//  console.log('Match Data:', {
+//     matchNumber: m.matchNumber,
+//     status: m.status,
+//     player1: m.player1,
+//     player2: m.player2,
+//     winner: m.winner,
+//     winneralias: m.winner?.alias,
+//     score: m.score,
+//     finished: finished,
+//     p1Win: p1Win,
+//     p2Win: p2Win
+//   });
+
+
+//   return `
+//     <div class="card-violet rounded-lg p-4 border ${finished ? 'border-gray-700' : 'border-purple-700'}">
+//       <div class="flex items-center justify-between mb-2">
+//         <span class="text-xs font-medium text-gray-400">Match #${m.matchNumber}</span>
+//         <span class="text-xs px-2 py-1 rounded ${finished ? 'chip chip-green' : 'chip chip-yellow'}">${finished ? 'COMPLETED' : m.status}</span>
+//       </div>
+//       <div class="grid grid-cols-3 gap-4 items-center">
+//         <div class="text-right">
+//           <p class="font-semibold ${p1Win ? 'text-green-400' : 'text-white'}">${m.player1.alias}</p>
+//         </div>
+//         <div class="text-center">
+//           <p class="text-xl font-bold text-gray-400">vs</p>
+//         </div>
+//         <div class="text-left">
+//           <p class="font-semibold ${p2Win ? 'text-green-400' : 'text-white'}">${m.player2.alias}</p>
+//         </div>
+//       </div>
+//       ${finished && winnerAlias ? `<div class="mt-3 text-center">
+//         <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-green-900/30 border border-green-700">
+//           <span class="text-green-400">🏆</span>
+//           <span class="font-semibold text-green-400">${winnerAlias}</span>
+//         </span>
+//       </div>` : ''}
+//     </div>
+//   `;
+// }
+
+function renderTournamentMatch(m: TournamentMatch) {
+  const finished = m.status === 'completed';
+  const winnerAlias = m.winner?.alias || null;
+  const p1Win = winnerAlias === m.player1.alias;
+  const p2Win = winnerAlias === m.player2.alias;
+
+//  console.log('Match Data:', {
+//     matchNumber: m.matchNumber,
+//     status: m.status,
+//     player1: m.player1,
+//     player2: m.player2,
+//     winner: m.winner,
+//     winneralias: m.winner?.alias,
+//     score: m.score,
+//     finished: finished,
+//     p1Win: p1Win,
+//     p2Win: p2Win
+//   });
+
+
   return `
     <div class="card-violet rounded-lg p-4 border ${finished ? 'border-gray-700' : 'border-purple-700'}">
       <div class="flex items-center justify-between mb-2">
         <span class="text-xs font-medium text-gray-400">Match #${m.matchNumber}</span>
-        <span class="text-xs px-2 py-1 rounded ${finished ? 'chip chip-green' : 'chip chip-yellow'}">${m.status}</span>
+        <span class="text-xs px-2 py-1 rounded ${finished ? 'chip chip-green' : 'chip chip-yellow'}">${finished ? 'COMPLETED' : m.status}</span>
       </div>
       <div class="grid grid-cols-3 gap-4 items-center">
         <div class="text-right">
-          <p class="font-semibold ${p1Win ? 'text-green-600' : 'text-white'}">${m.player1.alias}</p>
+          <p class="font-semibold ${p1Win ? 'text-green-400' : 'text-white'}">${m.player1.alias}</p>
+          <p class="text-lg font-bold text-gray-300">${m.score.player1}</p>
         </div>
         <div class="text-center">
-          <p class="text-2xl font-bold text-white">${m.score.player1 || 0} : ${m.score.player2 || 0}</p>
+          <p class="text-xl font-bold text-gray-400">vs</p>
         </div>
         <div class="text-left">
-          <p class="font-semibold ${p2Win ? 'text-green-600' : 'text-white'}">${m.player2.alias}</p>
+          <p class="font-semibold ${p2Win ? 'text-green-400' : 'text-white'}">${m.player2.alias}</p>
+          <p class="text-lg font-bold text-gray-300">${m.score.player2}</p>
         </div>
       </div>
-      ${finished ? `<div class="mt-2 text-center">
-        <p class="text-xs text-gray-600">Winner: <span class="font-semibold text-green-600">${m.winner?.alias || '-'}</span></p>
+      ${finished && winnerAlias ? `<div class="mt-3 text-center">
+        <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-green-900/30 border border-green-700">
+          <span class="text-green-400">🏆</span>
+          <span class="font-semibold text-green-400">${winnerAlias}</span>
+        </span>
       </div>` : ''}
     </div>
   `;
