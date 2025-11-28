@@ -100,7 +100,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
     if (!userInfoContainer) return;
 
     const safeUsername = escapeHtml(userProfile.username || 'N/A');
-    const safeDisplayName = escapeHtml(userProfile.display_name || userProfile.username || userProfile.name || 'Unknown');
+    const safeDisplayName = escapeHtml(userProfile.display_name || userProfile.username || 'Unknown');
     const safeEmail = escapeHtml(userProfile.email || 'N/A');
 
     userInfoContainer.innerHTML = `
