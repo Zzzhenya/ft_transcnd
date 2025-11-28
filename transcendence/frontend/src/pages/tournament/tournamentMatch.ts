@@ -49,6 +49,12 @@ export default function (root: HTMLElement, ctx: any) {
     totalScore: { player1: 0, player2: 0 },
   };
 
+  // Track last round number to detect round transitions
+  let lastRoundNumber = gameState.match?.currentRound || 1;
+  // Prevent duplicate winner reports
+  let isReportingWinner = false;
+  let matchReported = false;
+
   let gameLoop: number | null = null;
   let connectionAttempts = 0;
   const maxConnectionAttempts = 3;
@@ -68,6 +74,7 @@ export default function (root: HTMLElement, ctx: any) {
       const state = JSON.parse(matchStateRaw);
       if (state.status === "completed") {
         matchCompleted = true;
+        matchReported = true;
       } else if (state.status === "interrupted") {
         matchInterrupted = true;
       } else if (state.status === "in-progress") {
@@ -216,8 +223,11 @@ export default function (root: HTMLElement, ctx: any) {
 
     roundTextEl.textContent = `Round ${currentRound}`;
     scoreTextEl.textContent = `${p1Score} - ${p2Score}`;
-    hudWonP1El.textContent = `Won: ${wonP1}`;
-    hudWonP2El.textContent = `Won: ${wonP2}`;
+    const totalP1 = gameState.totalScore?.player1 ?? 0;
+    const totalP2 = gameState.totalScore?.player2 ?? 0;
+
+    hudWonP1El.textContent = `Won: ${wonP1} | Total: ${totalP1}`;
+    hudWonP2El.textContent = `Won: ${wonP2} | Total: ${totalP2}`;
   }
 
   // Push current gameState into 3D
@@ -243,8 +253,18 @@ export default function (root: HTMLElement, ctx: any) {
   // --- Tournament-specific helpers ---
 
   async function reportWinner(winnerName: string) {
+    if (matchReported) {
+      console.log('Winner already reported, skipping duplicate report');
+      return;
+    }
+    if (isReportingWinner) {
+      console.log('Winner report already in progress, skipping');
+      return;
+    }
+    isReportingWinner = true;
     if (!tournamentId || !matchId) {
       console.log("No tournament context - skipping winner report");
+      isReportingWinner = false;
       return;
     }
 
@@ -252,38 +272,61 @@ export default function (root: HTMLElement, ctx: any) {
     const p2Score = gameState.score?.player2 ?? 0;
 
     try {
-      console.log(
-        `Reporting winner: ${winnerName} for match ${matchId} in tournament ${tournamentId}`,
-        { p1Score, p2Score }
-      );
+      console.log(`Reporting winner: ${winnerName} for match ${matchId} in tournament ${tournamentId}`, { p1Score, p2Score });
 
-      const response = await fetch(
-        `${API_BASE}/tournaments/${tournamentId}/advance`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            matchId,
-            winner: winnerName,
-            player1Score: p1Score,
-            player2Score: p2Score,
-          }),
+      // Retry logic
+      const maxAttempts = 3;
+      let attempt = 0;
+      let lastError = null;
+      while (attempt < maxAttempts) {
+        try {
+          attempt++;
+          const response = await fetch(`${API_BASE}/tournaments/${tournamentId}/advance`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+              matchId,
+              winner: winnerName,
+              player1Score: gameState.totalScore?.player1 ?? 0,
+              player2Score: gameState.totalScore?.player2 ?? 0,
+            }),
+          });
+
+          if (!response.ok) {
+            const errorText = await response.text().catch(() => '');
+            lastError = { status: response.status, text: errorText };
+            console.warn(`Attempt ${attempt} failed:`, lastError);
+            // For 4xx errors don't retry
+            if (response.status >= 400 && response.status < 500) {
+              break;
+            }
+            // else retry after backoff
+          } else {
+            const result = await response.json().catch(() => null);
+            console.log(`Winner ${winnerName} reported to tournament ${tournamentId}`, result);
+            // mark reported to prevent duplicates
+            matchReported = true;
+            isReportingWinner = false;
+            // navigate back to waiting room so bracket refreshes
+            if (tournamentId) navigate(`/tournaments/waitingroom/${tournamentId}`);
+            return;
+          }
+        } catch (err) {
+          lastError = err;
+          console.warn(`Attempt ${attempt} error:`, err);
         }
-      );
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("Failed to report winner:", response.status, errorText);
-        return;
+        // exponential backoff
+        const delay = 500 * Math.pow(2, attempt - 1);
+        await new Promise(r => setTimeout(r, delay));
       }
 
-      const result = await response.json();
-      console.log(
-        `Winner ${winnerName} reported to tournament ${tournamentId}`,
-        result
-      );
+      console.error('Failed to report winner after retries:', lastError);
+      isReportingWinner = false;
     } catch (error) {
       console.error("Error reporting winner:", error);
+      isReportingWinner = false;
     }
   }
 
@@ -353,6 +396,11 @@ export default function (root: HTMLElement, ctx: any) {
 
   function showWinnerDialog(winner: string) {
     if (!winnerDialog) return;
+    // Avoid showing/handling winner multiple times
+    if (matchReported) {
+      console.log('Match already reported, skipping winner dialog handling');
+      return;
+    }
 
     let winnerDisplay = winner;
     let actualWinner = "";
@@ -367,8 +415,8 @@ export default function (root: HTMLElement, ctx: any) {
       winnerDisplay = "Nobody";
     }
 
-    if (actualWinner) {
-      // Mark match as completed and report to tournament service
+    if (actualWinner && !matchReported) {
+      // Mark match as completed locally
       matchCompleted = true;
       sessionStorage.setItem(
         matchKey,
@@ -378,6 +426,7 @@ export default function (root: HTMLElement, ctx: any) {
           completedAt: Date.now(),
         })
       );
+      // Report to tournament service (reportWinner will set matchReported on success)
       reportWinner(actualWinner);
     }
 
@@ -536,6 +585,19 @@ export default function (root: HTMLElement, ctx: any) {
         incoming.match ??
         incoming.tournament ??
         gameState.match;
+      // Detect round advancement: when incoming.match.currentRound increases
+      const incomingRound = incoming.match?.currentRound ?? incoming.tournament?.currentRound ?? null;
+      const prevRound = gameState.match?.currentRound ?? lastRoundNumber;
+      if (incomingRound != null && incomingRound > prevRound) {
+        // Add previous round's score to totalScore
+        const prevP1 = gameState.score?.player1 ?? 0;
+        const prevP2 = gameState.score?.player2 ?? 0;
+        gameState.totalScore = {
+          player1: (gameState.totalScore?.player1 ?? 0) + prevP1,
+          player2: (gameState.totalScore?.player2 ?? 0) + prevP2,
+        };
+        lastRoundNumber = incomingRound;
+      }
 
       gameState = {
         ball: incoming.ball ?? gameState.ball,
@@ -547,7 +609,7 @@ export default function (root: HTMLElement, ctx: any) {
           incoming.tournament?.gameStatus ||
           gameState.gameStatus ||
           "playing",
-        totalScore: gameState.totalScore, // we don't rely on this for HUD
+        totalScore: gameState.totalScore,
       };
 
       player1Name = incoming.player1_name || player1Name;
@@ -573,6 +635,19 @@ export default function (root: HTMLElement, ctx: any) {
           gameState.match?.winner ||
           incoming.winner ||
           "Nobody";
+        // When match ends, ensure the final round's points are included in totalScore
+        const finalP1 = gameState.score?.player1 ?? 0;
+        const finalP2 = gameState.score?.player2 ?? 0;
+        // If final round wasn't already folded into totalScore (round number may not have advanced), add it
+        const alreadyCountedP1 = gameState.totalScore?.player1 ?? 0;
+        const alreadyCountedP2 = gameState.totalScore?.player2 ?? 0;
+        // Heuristic: if totalScore is zero or lastRoundNumber === gameState.match?.currentRound, add final scores
+        if ((lastRoundNumber === (gameState.match?.currentRound ?? lastRoundNumber)) || (alreadyCountedP1 === 0 && alreadyCountedP2 === 0)) {
+          gameState.totalScore = {
+            player1: (gameState.totalScore?.player1 ?? 0) + finalP1,
+            player2: (gameState.totalScore?.player2 ?? 0) + finalP2,
+          };
+        }
         updateStatus(`🏆 Match ended! Winner: ${winner}`);
         showWinnerDialog(
           winner === player1Name

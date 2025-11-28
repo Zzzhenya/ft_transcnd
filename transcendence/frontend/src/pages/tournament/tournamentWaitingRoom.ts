@@ -134,7 +134,7 @@ export default function (root: HTMLElement, ctx: any) {
         bracket = data.bracket; // Extract the bracket object from the response
         tournamentStatus = data.status || 'waiting'; // Get tournament status
 
-        if (tournamentStatus === 'completed' || tournamentStatus === 'interrupted') {
+        if (tournamentStatus === 'completed' || tournamentStatus === 'finished' || tournamentStatus === 'interrupted') {
           sessionStorage.removeItem('tournamentLocalPlayers');
           sessionStorage.removeItem('tournamentPlayerTypes');
         }
@@ -348,6 +348,7 @@ export default function (root: HTMLElement, ctx: any) {
                */
               const isMatchPlayable = !match.winner &&
                 match.status !== 'completed' &&
+                match.status !== 'finished' &&
                 match.status !== 'interrupted' &&
                 match.status !== 'forfeited';
               const canPlayMatch = tournamentStatus !== 'interrupted' &&
@@ -377,7 +378,7 @@ export default function (root: HTMLElement, ctx: any) {
                           <span class="px-4 py-2 rounded-xl bg-gradient-to-r from-orange-500 to-orange-600 text-white text-sm font-bold shadow-lg flex items-center gap-1">
                             <img src="/icons/hourglass.png" class="icon-px icon-px--violet" alt="Forfeit"> FORFEIT - ${match.winner}
                           </span>
-                        ` : match.status === 'completed' && match.winner ? `
+                        ` : (match.status === 'completed' || match.status === 'finished') && match.winner ? `
                           <span class="px-4 py-2 rounded-xl bg-gradient-to-r from-green-500 to-emerald-600 text-white text-sm font-bold shadow-lg flex items-center gap-1">
                             <img src="/icons/trophy.png" class="icon-px icon-px--violet" alt="Winner"> ${match.winner}
                           </span>

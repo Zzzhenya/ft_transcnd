@@ -52,6 +52,26 @@ import {
 } from '../tournament/createTournament.js';
 import logger from '../utils/logger.js';
 
+// Small helper to retry DB updates in case of transient queue timeouts
+async function retryUpdateMatchFields(dbId, fields, maxAttempts = 3) {
+  let attempt = 0;
+  let lastErr = null;
+  while (attempt < maxAttempts) {
+    try {
+      attempt++;
+      await updateMatchFields(dbId, fields);
+      return; // success
+    } catch (err) {
+      lastErr = err;
+      // quick backoff
+      const delay = 200 * Math.pow(2, attempt - 1);
+      await new Promise(r => setTimeout(r, delay));
+    }
+  }
+  // After retries, throw last error so caller can decide
+  throw lastErr;
+}
+
 
 export function registerTournamentRoutes(fastify, tournaments, broadcastTournamentUpdate) {
   // List all tournaments (exclude finished tournaments)
@@ -114,6 +134,26 @@ export function registerTournamentRoutes(fastify, tournaments, broadcastTourname
       bracket: t.bracket,
       size: t.size,
       status: t.status 
+    });
+  });
+
+  // Get tournament by id (details) - used by frontend
+  fastify.get('/tournaments/:id', async (req, reply) => {
+    const t = tournaments.get(Number(req.params.id));
+    if (!t) return reply.code(404).send({ error: 'Not found' });
+
+    return reply.send({
+      id: t.id,
+      dbId: t.dbId == null ? null : t.dbId,
+      name: t.name,
+      size: t.size,
+      status: t.status,
+      bracket: t.bracket,
+      players: Array.isArray(t.players) ? t.players : [],
+      winnerUsername: t.winnerUsername || null,
+      winnerId: t.winnerId || null,
+      startedAt: t.startedAt || null,
+      finishedAt: t.finishedAt || null,
     });
   });
 
@@ -213,11 +253,12 @@ fastify.post('/tournaments/:id/start', async (req, reply) => {
   // Find and update the match with the winner
   let currentMatch = null;
   let currentRoundIndex = -1;
-  for (let i = 0; i < t.bracket.rounds.length; i++) {
+    for (let i = 0; i < t.bracket.rounds.length; i++) {
     const match = t.bracket.rounds[i].find(m => m.matchId === matchId);
     if (match) {
       match.winner = winner;
-      match.status = 'completed';
+      // Use 'finished' as canonical completed state (frontend expects 'finished')
+      match.status = 'finished';
       currentMatch = match;
       currentRoundIndex = i;
       fastify.log.info(`Match ${matchId} found in round ${i}, setting winner to ${winner}`);
@@ -245,15 +286,16 @@ fastify.post('/tournaments/:id/start', async (req, reply) => {
     winnerUserId = winnerPlayer && winnerPlayer.userId ? winnerPlayer.userId : null;
   }
 
+  // Persist match result to DB and return error to client if persistence fails
   try {
     if (currentMatch.dbId) {
-      await updateMatchFields(currentMatch.dbId, {
+      // use retry helper for transient DB/write queue failures
+      await retryUpdateMatchFields(currentMatch.dbId, {
         winner_id: winnerUserId,
         winner_username: winner,
         matches_status: currentMatch.status,
-  player1_score: player1Score == null ? null : player1Score,   // or keep previous value
-  player2_score: player2Score == null ? null : player2Score,
-        started_at: toDbTimestamp(currentMatch.startedAt),
+        player1_score: player1Score == null ? null : player1Score,
+        player2_score: player2Score == null ? null : player2Score,
         finished_at: toDbTimestamp(currentMatch.finishedAt),
       });
     } else {
@@ -265,9 +307,11 @@ fastify.post('/tournaments/:id/start', async (req, reply) => {
   } catch (err) {
     fastify.log.error(
       { err, tournamentId: t.id, matchId },
-      '[TournamentService] Failed to update match result in DB'
+      '[TournamentService] Failed to update match result in DB after retries'
     );
-    logger.error('[TournamentService] Failed to update match result in DB', { err: err && err.message ? err.message : String(err), tournamentId: t.id, matchId });
+    logger.error('[TournamentService] Failed to update match result in DB after retries', { err: err && err.message ? err.message : String(err), tournamentId: t.id, matchId });
+    // Inform client so it can retry and avoid marking the match as finished locally
+    return reply.code(500).send({ ok: false, error: 'Failed to persist match result' });
   }
 
   // ⬆️⬆️ END OF NEW BLOCK ⬆️⬆️
@@ -306,16 +350,15 @@ if (currentRoundIndex < t.bracket.rounds.length - 1) {
       const prefix = updatedSide === 'player1' ? 'player1' : 'player2';
 
       try {
-        await updateMatchFields(nextMatch.dbId, {
+        // best-effort update, use retry but tolerate final failure
+        await retryUpdateMatchFields(nextMatch.dbId, {
           [`${prefix}_alias`]: alias,
           [`${prefix}_id`]: userId,
-          // optional: mark status when both sides known
-          // status: nextMatch.player1 && nextMatch.player2 ? 'waiting' : 'pending_opponent',
         });
       } catch (err) {
         fastify.log.error(
           { err, tournamentId: t.id, matchId: nextMatch.matchId },
-          '[TournamentService] Failed to update next-round match in DB'
+          '[TournamentService] Failed to update next-round match in DB after retries'
         );
       }
     } else if (updatedSide && !nextMatch.dbId) {
@@ -535,7 +578,6 @@ fastify.post('/tournaments/:id/forfeit', async (req, reply) => {
         // If you have scores at time of forfeit, put them here instead of null:
         player1_score: null,
         player2_score: null,
-        started_at: toDbTimestamp(currentMatch.startedAt),
         finished_at: toDbTimestamp(currentMatch.finishedAt),
       });
     } else {

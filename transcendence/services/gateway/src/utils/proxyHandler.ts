@@ -22,18 +22,37 @@ export async function proxyRequest(
     console.log('🔍 PROXY DEBUG - Authorization length:', request.headers['authorization']?.length || 0);
     console.log('🔍 PROXY DEBUG - All headers:', JSON.stringify(request.headers, null, 2));
 
-    var extractedToken = null;
-    // var extractedId = null;
-    if (upstreamUrl.startsWith(`${USER_SERVICE_URL}/auth`) 
-      || upstreamUrl.startsWith(`${USER_SERVICE_URL}/users`) 
-      || upstreamUrl.startsWith(`${USER_SERVICE_URL}/notifications`)
-      || upstreamUrl.startsWith(`${USER_SERVICE_URL}/tournaments`)){
-      const user = request.user as User | undefined;
-      if (user){
-        if (user.jwt){
-          extractedToken = user.jwt;
-        }
+    // Extract token - try multiple sources
+    let extractedToken: string | null = null;
+
+    // 1. Try to get from request.user.jwt (set by tokenVerification plugin)
+    const user = request.user as User | undefined;
+    if (user && typeof user === 'object' && 'jwt' in user && user.jwt) {
+      extractedToken = user.jwt;
+      console.log('✅ Token extracted from request.user.jwt');
+    }
+
+    // 2. If not found, try cookie
+    if (!extractedToken && request.cookies?.token) {
+      extractedToken = request.cookies.token;
+      console.log('✅ Token extracted from cookie');
+    }
+
+    // 3. If still not found, try Authorization header
+    if (!extractedToken && request.headers['authorization']) {
+      const authHeader = request.headers['authorization'];
+      if (typeof authHeader === 'string' && authHeader.startsWith('Bearer ')) {
+        extractedToken = authHeader.substring(7);
+        console.log('✅ Token extracted from Authorization header');
       }
+    }
+
+    // Debug logging
+    if (!extractedToken) {
+      console.log('❌ NO TOKEN FOUND!');
+      console.log('  - request.user:', request.user);
+      console.log('  - cookies:', request.cookies);
+      console.log('  - authorization header:', request.headers['authorization']);
     }
 
     const response = await request.customFetch(
@@ -41,7 +60,6 @@ export async function proxyRequest(
       {
         method,
         headers: {
-          'Authorization': request.headers['authorization'] || '',
           'Content-Type': 'application/json',
           ...(extractedToken ? { 'x-token': extractedToken } : {}),
         },
@@ -74,7 +92,7 @@ export async function proxyRequest(
     reply.status(response.status)
     const token = data.token;
     // if the body has token issued, set is as a cookie
-    if (token){
+    if (token) {
       reply.setCookie('token', token, {
         httpOnly: true,
         secure: true,  // Only HTTPS in production
@@ -93,14 +111,14 @@ export async function proxyRequest(
       // upstream service timed out -> 504
       fastify.log.error('Upstream request timed out');
       logger.error(`Upstream request to ${upstreamUrl || ''} timed out`);
-      throw fastify.httpErrors.gatewayTimeout(`${upstreamUrl  || 'Upstream'} 'The upstream service timed out. Please try again later.'`);
+      throw fastify.httpErrors.gatewayTimeout(`${upstreamUrl || 'Upstream'} 'The upstream service timed out. Please try again later.'`);
     }
-    if (error.cause?.code === 'ECONNREFUSED'){
+    if (error.cause?.code === 'ECONNREFUSED') {
       // fetch() failed : network error -> 503 Service unavailable
       logger.error(`Upstream request to ${upstreamUrl || ''} failed, ${error} : ${error.cause?.code}`);
       throw fastify.httpErrors.serviceUnavailable(`The upstream service ${upstreamUrl || ''} is currently unavailable.`)
     }
-    if (error.statusCode >= 400 && error.statusCode < 500){
+    if (error.statusCode >= 400 && error.statusCode < 500) {
       // 4xx
       logger.error(`${error}`);
       throw error;
@@ -110,7 +128,3 @@ export async function proxyRequest(
     throw fastify.httpErrors.badGateway('The server received an invalid response from an upstream service. Please try again later.')
   }
 }
-
-
-
-

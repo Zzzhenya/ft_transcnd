@@ -81,37 +81,31 @@ export default function (root: HTMLElement, ctx: { url: URL }) {
     }
   }
 
-  // Helper function to parse error messages
-  function parseErrorMessage(error: string): string {
+  function parseError(json: string): string {  // ← Returns string, not object
     try {
-      const topLevel = JSON.parse(error);
-      if (topLevel.message) {
-        // Try to parse nested JSON inside the message
-        const nestedJsonMatch = topLevel.message.match(/\{.*\}$/);
-        if (nestedJsonMatch) {
-          const nested = JSON.parse(nestedJsonMatch[0]);
-          if (nested.message) return nested.message;
-        }
-        return topLevel.message;
+      const data = JSON.parse(json);
+
+      // Try innerMessage first (nested error from gateway)
+      const innerMatch = typeof data.message === "string"
+        ? data.message.match(/\{.*\}/)
+        : null;
+
+      if (innerMatch) {
+        try {
+          const innerData = JSON.parse(innerMatch[0]);
+          if (innerData.message) return innerData.message;
+        } catch { }
       }
-    } catch {}
-    return error;
+
+      // Fall back to direct message or error field
+      if (data.message) return data.message;
+      if (data.error) return data.error;
+
+      return "An error occurred. Please try again.";
+    } catch {
+      return json || "An error occurred. Please try again.";
+    }
   }
-
-
-   function parseError(json: string) {
-    const data = JSON.parse(json);
-
-    const innerMatch = typeof data.message === "string"
-    ? data.message.match(/\{.*\}/)
-    : null;
-
-    return {
-    code: data.statusCode ?? null,
-    message: data.message ?? null,
-    innerMessage: innerMatch ? JSON.parse(innerMatch[0]).message : null
-  }}
-
 
   // Sign in form handler
   root.querySelector<HTMLFormElement>("#signin-form")?.addEventListener("submit", async (e) => {
@@ -132,7 +126,7 @@ export default function (root: HTMLElement, ctx: { url: URL }) {
     } else {
       // const cleanError = parseErrorMessage(result.error || "Sign in failed");
       const cleanError = parseError(result.error || "Sign in failed");
-      showError('signin-error', cleanError.innerMessage);
+      showError('signin-error', cleanError);
     }
   });
 
