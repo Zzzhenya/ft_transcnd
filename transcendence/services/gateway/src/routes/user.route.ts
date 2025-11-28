@@ -9,6 +9,7 @@ import { queueAwareProxyRequest } from '../utils/queueAwareProxyHandler.js';
 import type { FastifyHttpOptions, FastifyInstance, FastifyServerOptions, FastifyPluginAsync, FastifyRequest } from "fastify"
 
 const USER_SERVICE_URL = process.env.USER_SERVICE_URL || 'http://user-service:3001';
+const PROXY_TIMEOUT = 5000;
 
 
 const userRoutes: FastifyPluginAsync = async (fastify) => {
@@ -33,18 +34,92 @@ const userRoutes: FastifyPluginAsync = async (fastify) => {
 		return reply.status(200).send({ success: true, message: 'Logged out' });
 	});
 
+	// ✅ FIXED: Only clear cookies on successful registration
 	fastify.post('/auth/register', async (request, reply) => {
-		reply.clearCookie('token', { path: '/' });
-		reply.clearCookie('sessionId', { path: '/' });
-		reply.clearCookie('session', { path: '/' });
-		return queueAwareProxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/auth/register`, 'POST');
+		try {
+			const upstreamUrl = `${USER_SERVICE_URL}/auth/register`;
+			const response = await request.customFetch(
+				upstreamUrl,
+				{
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify(request.body)
+				},
+				PROXY_TIMEOUT
+			);
+
+			const data = await response.json();
+
+			// Only clear cookies if registration was successful
+			if (response.ok) {
+				reply.clearCookie('token', { path: '/' });
+				reply.clearCookie('sessionId', { path: '/' });
+				reply.clearCookie('session', { path: '/' });
+
+				// Set new token cookie
+				if (data.token) {
+					reply.setCookie('token', data.token, {
+						httpOnly: true,
+						secure: true,
+						sameSite: 'lax',
+						path: '/',
+					});
+					delete data.token;
+				}
+			}
+
+			return reply.status(response.status).send(data);
+		} catch (error: any) {
+			fastify.log.error('Registration error:', error);
+			return reply.status(500).send({
+				success: false,
+				message: 'Internal server error'
+			});
+		}
 	});
 
+	// ✅ FIXED: Only clear cookies on successful login
 	fastify.post('/auth/login', async (request, reply) => {
-		reply.clearCookie('token', { path: '/' });
-		reply.clearCookie('sessionId', { path: '/' });
-		reply.clearCookie('session', { path: '/' });
-		return queueAwareProxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/auth/login`, 'POST');
+		try {
+			const upstreamUrl = `${USER_SERVICE_URL}/auth/login`;
+			const response = await request.customFetch(
+				upstreamUrl,
+				{
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify(request.body)
+				},
+				PROXY_TIMEOUT
+			);
+
+			const data = await response.json();
+
+			// Only clear cookies if login was successful
+			if (response.ok) {
+				reply.clearCookie('token', { path: '/' });
+				reply.clearCookie('sessionId', { path: '/' });
+				reply.clearCookie('session', { path: '/' });
+
+				// Set new token cookie
+				if (data.token) {
+					reply.setCookie('token', data.token, {
+						httpOnly: true,
+						secure: true,
+						sameSite: 'lax',
+						path: '/',
+					});
+					delete data.token;
+				}
+			}
+
+			return reply.status(response.status).send(data);
+		} catch (error: any) {
+			fastify.log.error('Login error:', error);
+			return reply.status(500).send({
+				success: false,
+				message: 'Internal server error'
+			});
+		}
 	});
 
 	// Guest login route
@@ -101,8 +176,8 @@ const userRoutes: FastifyPluginAsync = async (fastify) => {
 
 	// Weiterleitung von Online status
 	fastify.post('/users/:userId/online-status', async (request, reply) => {
-    const { userId } = request.params as { userId: string };
-    return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/users/${userId}/online-status`, 'POST');
+		const { userId } = request.params as { userId: string };
+		return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/users/${userId}/online-status`, 'POST');
 	});
 
 	// Update email endpoint
@@ -177,7 +252,7 @@ const userRoutes: FastifyPluginAsync = async (fastify) => {
 	});
 
 	// Fileupload
-	fastify.get('/avatars/:filename',{ preHandler: fastify.mustAuth }, async (request, reply) => {
+	fastify.get('/avatars/:filename', { preHandler: fastify.mustAuth }, async (request, reply) => {
 		const { filename } = request.params as { filename: string };
 
 		try {
