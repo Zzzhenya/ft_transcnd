@@ -30,8 +30,8 @@ export default function (root: HTMLElement, ctx: { url: URL }) {
               </div>
               
               <form id="signin-form" class="space-y-2">
-                <input id="signin-email" type="email" class="input-violet rounded px-3 py-2 w-full" placeholder="Email" required />
-                <input id="signin-password" type="password" class="input-violet rounded px-3 py-2 w-full" placeholder="Password" required />
+                <input id="signin-email" type="email" class="input-violet rounded px-3 py-2 w-full" placeholder="Email" autocomplete="email" required />
+                <input id="signin-password" type="password" class="input-violet rounded px-3 py-2 w-full" placeholder="Password" autocomplete="current-password" required />
                 <button type="submit" class="px-3 py-2 rounded btn-retro w-full">Sign In</button>
               </form>
             </div>
@@ -47,9 +47,9 @@ export default function (root: HTMLElement, ctx: { url: URL }) {
               </div>
               
               <form id="register-form" class="space-y-2">
-                <input id="register-username" type="text" class="input-violet rounded px-3 py-2 w-full" placeholder="Alias/Display Name" required />
-                <input id="register-email" type="email" class="input-violet rounded px-3 py-2 w-full" placeholder="Email" required />
-                <input id="register-password" type="password" class="input-violet rounded px-3 py-2 w-full" placeholder="Password" required />
+                <input id="register-username" type="text" class="input-violet rounded px-3 py-2 w-full" placeholder="Alias/Display Name" autocomplete="username" required />
+                <input id="register-email" type="email" class="input-violet rounded px-3 py-2 w-full" placeholder="Email" autocomplete="email" required />
+                <input id="register-password" type="password" class="input-violet rounded px-3 py-2 w-full" placeholder="Password" autocomplete="new-password" required />
                 <button type="submit" class="px-3 py-2 rounded btn-retro w-full">Register</button>
               </form>
               
