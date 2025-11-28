@@ -525,7 +525,16 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
         })
       });
 
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
+
+      // If the server returned 401, show an inline wrong-password message (defensive check)
+      if (res.status === 401) {
+        if (passwordError) {
+          passwordError.textContent = (data && data.error) ? String(data.error) : 'Incorrect password. Please check your password and try again.';
+          passwordError.classList.remove('hidden');
+        }
+        return;
+      }
 
       if (res.ok && data.success) {
         showMessage('Email updated successfully!', 'success');
@@ -536,18 +545,27 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
       }
 
       if (data.error) {
-        if (data.error.includes('password')) {
+        const serverMsg = String(data.error || '').toLowerCase();
+
+        // Friendly mapping for common server error messages
+        if (/password|wrong password|incorrect/.test(serverMsg)) {
           if (passwordError) {
-            passwordError.textContent = data.error;
+            passwordError.textContent = 'Incorrect password. Please check your password and try again.';
             passwordError.classList.remove('hidden');
           }
-        } else if (data.error.includes('already')) {
+        } else if (/already/.test(serverMsg)) {
           if (emailError) {
-            emailError.textContent = data.error;
+            emailError.textContent = 'That email is already in use. Please use a different email address.';
+            emailError.classList.remove('hidden');
+          }
+        } else if (/invalid|format/.test(serverMsg)) {
+          if (emailError) {
+            emailError.textContent = 'Invalid email address. Please check and try again.';
             emailError.classList.remove('hidden');
           }
         } else {
-          showMessage(data.error, 'error');
+          // Fallback to server message if it's helpful, otherwise generic
+          showMessage(data.error || 'Failed to update email', 'error');
         }
       } else {
         showMessage('Failed to update email', 'error');
@@ -662,7 +680,6 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
 
       if (res.ok && data.success) {
         updateSessionAuthUser({
-          display_name: newDisplayName,
           displayName: newDisplayName,
           name: newDisplayName
         });
@@ -898,12 +915,37 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
         body: JSON.stringify({ friendUsername: username })
       });
 
+      const data = await res.json().catch(() => ({}));
+
       if (res.ok) {
-        showMessage('Friend request sent successfully!', 'success');
+        // Backend may return structured success with status: 'accepted'|'pending'
+        if (data && data.success) {
+          if (data.status === 'accepted') {
+            // Already friends
+            showMessage(data.message || 'This user is already your friend.', 'info');
+          } else if (data.status === 'pending') {
+            showMessage(data.message || 'Friend request sent successfully!', 'success');
+          } else {
+            showMessage(data.message || 'Friend request processed', 'success');
+          }
+        } else {
+          // fallback for unexpected but OK responses
+          showMessage(data.message || 'Friend request processed', 'success');
+        }
+
         await loadFriends();
       } else {
-        const error = await res.json();
-        showMessage(error.error || 'Failed to add friend', 'error');
+        const serverMsg = String((data.error || data.message || '')).toLowerCase();
+
+        if (/not found|no user|does not exist|could not find/.test(serverMsg)) {
+          showMessage('Could not find a user with that username. Please check the spelling and try again.', 'error');
+        } else if (/already|exists|pending|friend/.test(serverMsg)) {
+          showMessage('This user is already your friend or a request is pending.', 'error');
+        } else if (/self/.test(serverMsg)) {
+          showMessage('You cannot add yourself as a friend.', 'error');
+        } else {
+          showMessage(data.error || data.message || 'Failed to add friend', 'error');
+        }
       }
     } catch (error) {
       console.log('Could not add friend:', error);
@@ -916,6 +958,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
       const res = await fetch(`/api/user-service/users/online`, { credentials: 'include' });
       if (res.ok) {
         const data = await res.json();
+        void data; // placeholder to avoid unused variable error
         // onlineUsers = data.users || [];
       }
     } catch (error) {

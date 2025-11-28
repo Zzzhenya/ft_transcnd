@@ -1,3 +1,16 @@
+// ⭐ CONSOLE SUPPRESSION - MUST BE FIRST, BEFORE ANY IMPORTS!
+const urlParams = new URLSearchParams(window.location.search);
+const debugMode = urlParams.get('debug') === 'true';
+
+if (!debugMode) {
+  // Suppress all console output
+  console.error = () => {};
+  console.warn = () => {};
+  console.log = () => {};
+  console.info = () => {};
+  if (console.debug) console.debug = () => {};
+}
+
 // Load styles from TailwindCSS
 import "./styles.css";
 
