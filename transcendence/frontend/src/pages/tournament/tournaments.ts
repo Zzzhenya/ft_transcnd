@@ -189,7 +189,7 @@ export default function (root: HTMLElement) {
                                         <div class="text-2xl font-bold text-white mb-1">${t.size} PLAYERS</div>
                                         <div class="flex items-center gap-2 text-sm text-gray-300">
                                             <img src="/icons/people.png" class="icon-px icon-px--violet" alt="Players">
-                                            <span class="font-bold">${t.playerSet ? Array.from(t.playerSet).length : (t.players || 0)} / ${t.size}</span>
+                                            <span class="font-bold">${user?.displayName} / ${t.size}</span>
                                             <span class="text-gray-500 text-xs">joined</span>
                                         </div>
                                         ${isInterrupted ? `
