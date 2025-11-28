@@ -74,16 +74,23 @@ export async function proxyRequest(
       fastify.log.warn(`Upstream returned non-OK response`);
       logger.warn(`Upstream returned non-OK response`);
       // If the response was not successful, try to read the response body text
-      // If that fails for any reason, set body to an empty string instead of throwing an error
-      const body = await response.text().catch(() => '');
+      // If that fails for any reason, set bodyText to an empty string instead of throwing an error
+      const bodyText = await response.text().catch(() => '');
 
+      // If it's a client error (4xx), forward original response body and status to the frontend
       if (response.status >= 400 && response.status < 500) {
-        // all 4xx errors are forwarded to frontend with details - probably an issue with client call
-        logger.warn(`${upstreamUrl || ''} error : ${response.status} :  ${body}`);
-        throw fastify.httpErrors.createError(response.status, `Upstream ${upstreamUrl || ''} error: ${body}`);
+        logger.warn(`${upstreamUrl || ''} error : ${response.status} :  ${bodyText}`);
+        // Try to parse JSON; if not possible, wrap in an error field
+        let parsedBody: any = { error: bodyText };
+        try {
+          parsedBody = JSON.parse(bodyText || '{}');
+        } catch (e) {
+          // keep parsedBody as { error: bodyText }
+        }
+        return reply.status(response.status).send(parsedBody);
       } else if (response.status >= 500) {
-        // all 5xx errors from upstream -> redirect to 502 Bad gateway - frontend doesn't need to know what is wrong
-        logger.warn(`${upstreamUrl || ''} error : ${response.status} :  ${body}`);
+        // all 5xx errors from upstream -> redirect to 502 Bad gateway - frontend doesn't need to know specifics
+        logger.warn(`${upstreamUrl || ''} error : ${response.status} :  ${bodyText}`);
         throw fastify.httpErrors.createError(502, `Upstream ${upstreamUrl || ''} service error`);
       }
     }
