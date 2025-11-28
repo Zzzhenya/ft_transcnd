@@ -721,9 +721,11 @@ export default function (root: HTMLElement, ctx: any) {
 
   // Named keyboard handlers for proper cleanup
   const handleKeyDown = (e: KeyboardEvent) => {
+    // ⬇️ ignore OS key repeat so we only get one event per press
+    if (e.repeat) return;
+
     let changed = false;
 
-    // Player 1 (A / D)
     if (e.code === "KeyA") {
       if (!player1Keys.down) changed = true;
       player1Keys.down = true;
@@ -732,9 +734,7 @@ export default function (root: HTMLElement, ctx: any) {
       if (!player1Keys.up) changed = true;
       player1Keys.up = true;
       e.preventDefault();
-    }
-    // Player 2 (ArrowLeft / ArrowRight)
-    else if (e.code === "ArrowLeft") {
+    } else if (e.code === "ArrowLeft") {
       if (!player2Keys.up) changed = true;
       player2Keys.up = true;
       e.preventDefault();
@@ -745,6 +745,10 @@ export default function (root: HTMLElement, ctx: any) {
     }
 
     if (changed) sendPaddleMovement();
+
+    // immediately reset so it's just a single “step”
+    player1Keys.up = player1Keys.down = false;
+    player2Keys.up = player2Keys.down = false;
   };
 
   const handleKeyUp = (e: KeyboardEvent) => {
