@@ -123,11 +123,11 @@ const userRoutes: FastifyPluginAsync = async (fastify) => {
 	});
 
 	// Guest login route
-	fastify.post('/auth/guest', async (request, reply) => {
-		fastify.log.info("userRoutes: Gateway received POST request for /auth/guest");
-		fastify.log.info({ body: request.body }, "Guest login request body");
-		return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/auth/guest`, 'POST');
-	});
+	// fastify.post('/auth/guest', async (request, reply) => {
+	// 	fastify.log.info("userRoutes: Gateway received POST request for /auth/guest");
+	// 	fastify.log.info({ body: request.body }, "Guest login request body");
+	// 	return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/auth/guest`, 'POST');
+	// });
 
 	fastify.get('/auth/profile', { preHandler: fastify.mustAuth }, async (request, reply) => {
 		return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/auth/profile`, 'GET');
@@ -278,10 +278,10 @@ const userRoutes: FastifyPluginAsync = async (fastify) => {
 	});
 
 	// Delete account endpoint
-	fastify.delete('/auth/account', { preHandler: fastify.mustAuth }, async (request, reply) => {
-		fastify.log.info("userRoutes: Gateway received DELETE request for /auth/account");
-		return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/auth/account`, 'DELETE');
-	});
+	// fastify.delete('/auth/account', { preHandler: fastify.mustAuth }, async (request, reply) => {
+	// 	fastify.log.info("userRoutes: Gateway received DELETE request for /auth/account");
+	// 	return proxyRequest(fastify, request, reply, `${USER_SERVICE_URL}/auth/account`, 'DELETE');
+	// });
 
 }
 
