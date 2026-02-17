@@ -9,7 +9,7 @@ on:
       - log-service
       - db-service-api
       - tournament_new
-      - shenya-bug-fixes
+      - bugfix-workflowtest
       #- fix-gateway-timeout-queue
   pull_request:
     branches:
