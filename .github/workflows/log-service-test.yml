@@ -2,7 +2,7 @@ name: Log Service Tests
 
 on:
   push:
-    branches: [ main, log-service, microservices-refactor, db-service-api, tournament_new,  ] #bugfix-workflowtest
+    branches: [ main, log-service, microservices-refactor, db-service-api, tournament_new, bugfix-workflowtest ]
     paths:
       - 'transcendence/services/log-service/**'
       - 'transcendence/services/*/src/utils/logger.js'
