@@ -184,5 +184,3 @@ sessions/
 # Legacy folder (if you want to ignore it)
 # legacy/
 transcendence/.env.remote
-transcendence/services/gateway/package-lock.json
-
