@@ -108,6 +108,29 @@ Enabled with `make` (full stack). Disabled by default with `make start` (lightwe
 
 ---
 
+## SumUp Payment Integration
+
+After completing the 42 curriculum project, I integrated SumUp's Checkout API 
+directly into the platform as a practical exploration of their payment infrastructure.
+
+Each accepted friend in the friends list has a ☕ **Buy a coffee** button. Clicking 
+it creates a real checkout via SumUp's REST API and opens their hosted payment page.
+```
+Friends list → POST /api/payment/coffee/:username
+                       ↓
+              Gateway calls SumUp API
+                       ↓
+              SumUp returns hosted_checkout_url
+                       ↓
+              Browser opens SumUp payment page
+```
+
+Built to demonstrate how SumUp's developer platform works in practice.
+
+**Stack**: SumUp Checkout API · Fastify route · Vanilla TypeScript
+
+---
+
 ## Services in Detail
 
 ### Gateway — `services/gateway` (Fastify v5, TypeScript)
