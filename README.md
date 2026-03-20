@@ -42,30 +42,30 @@ Every service runs in its own container. Nothing is exposed to the outside world
 ```
                          ┌─────────────────────────────┐
                          │   NGINX  (ports 80 / 8443)  │
-                         │   SSL/TLS · HTTP/2           │
-                         │   Static SPA serving         │
-                         │   HTTP → HTTPS redirect      │
+                         │   SSL/TLS · HTTP/2          │
+                         │   Static SPA serving        │
+                         │   HTTP → HTTPS redirect     │
                          └──────────────┬──────────────┘
                                         │
                          ┌──────────────▼──────────────┐
-                         │   GATEWAY  :3000             │
-                         │   Fastify v5 (TypeScript)    │
-                         │   JWT verification           │
-                         │   Request routing            │
-                         │   WebSocket proxying         │
+                         │   GATEWAY  :3000            │
+                         │   Fastify v5 (TypeScript)   │
+                         │   JWT verification          │
+                         │   Request routing           │
+                         │   WebSocket proxying        │
                          └──┬──────┬──────┬──────┬─────┘
                             │      │      │      │
             ┌───────────────┘      │      │      └────────────────┐
-            │                      │      │                        │
- ┌──────────▼──────────┐  ┌───────▼────┐ ┌▼──────────────────┐  ┌▼──────────────────┐
- │  USER SERVICE :3001  │  │    GAME    │ │ TOURNAMENT SERVICE │  │   LOG SERVICE      │
- │  Fastify v5 · JS     │  │  SERVICE   │ │ :3005  Fastify v4  │  │   :3003 Fastify v4 │
- │  bcrypt · JWT        │  │   :3002    │ │ Bracket generation │  │   Winston · JS     │
- │  Profiles · Avatars  │  │ Fastify v4 │ │ WebSocket rooms    │  │   → Logstash       │
- │  Friends · 2FA       │  │     JS     │ └────────────────────┘  └────────────────────┘
- └──────────────────────┘  │ Pong logic │
-                            │ WS rooms   │ ┌────────────────────┐
-                            └────────────┘ │  DATABASE SERVICE  │
+            │                      │      │                       │
+ ┌──────────▼──────────┐  ┌────────▼───┐ ┌▼──────────────────┐  ┌─▼──────────────────┐
+ │  USER SERVICE :3001 │  │    GAME    │ │ TOURNAMENT SERVICE│  │   LOG SERVICE      │
+ │  Fastify v5 · JS    │  │  SERVICE   │ │ :3005  Fastify v4 │  │   :3003 Fastify v4 │
+ │  bcrypt · JWT       │  │   :3002    │ │ Bracket generation│  │   Winston · JS     │
+ │  Profiles · Avatars │  │ Fastify v4 │ │ WebSocket rooms   │  │   → Logstash       │
+ │  Friends · 2FA      │  │     JS     │ └───────────────────┘  └────────────────────┘
+ └─────────────────────┘  │ Pong logic │
+                          │ WS rooms   │   ┌────────────────────┐
+                          └────────────┘   │  DATABASE SERVICE  │
                                            │  :3006  Fastify v5 │
                                            │  better-sqlite3    │
                                            │  p-queue (writes)  │
