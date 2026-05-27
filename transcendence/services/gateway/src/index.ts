@@ -29,6 +29,8 @@ import logger from './utils/logger.js'; // log-service
 import { registerPlugins } from './utils/registerPlugins.js';
 import { proxyRequest } from './utils/proxyHandler.js';
 import fastifyJwt from '@fastify/jwt';
+import paymentRoute from './routes/payment.route.js'
+
 
 const FRONT_END_URL = String(process.env.FRONT_END_URL);
 const TESTDB_URL = process.env.TESTDB_URL || 'http://testdb:3010';
@@ -205,6 +207,8 @@ try {
   Fastify.register(userRoute, { prefix: '/api/user-service' });
   logger.info('Register tournament routes ');
   Fastify.register(tournamentRoute, { prefix: '/tournaments' });
+  Fastify.register(paymentRoute)
+
 }
 catch (error: any) {
   logger.error('An error occured while registering routes', error);

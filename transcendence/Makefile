@@ -100,7 +100,7 @@ compose: start-monitoring
 stop:
 	@echo "🛑 Stopping all services (keeping database data)..."
 	@docker ps | wc -l
-	docker compose down
+	docker compose --profile monitoring --profile full down
 	@echo "✅ All services stopped - database data preserved"
 	@echo "💾 Database volumes maintained:"
 	@docker volume ls | grep transcendence_ | grep -E "(shared-data|elasticsearch-data)" || echo "  No transcendence volumes found"
@@ -108,15 +108,14 @@ stop:
 
 clean: stop
 	@echo "🧹 Cleaning containers (keeping all volumes and data)..."
-	docker compose down --remove-orphans
+	docker compose --profile monitoring --profile full down --remove-orphans
 	@echo "✅ Containers cleaned - all data preserved"
 
-# New command for stopping but being extra explicit about data preservation
 stop-safe:
 	@echo "🛡️  Safe stop - explicitly preserving all data..."
 	@echo "📊 Current volumes before stop:"
 	@docker volume ls | grep transcendence_ || echo "  No transcendence volumes found"
-	docker compose down --remove-orphans
+	docker compose --profile monitoring --profile full down --remove-orphans
 	@echo "📊 Volumes after stop (should be same as before):"
 	@docker volume ls | grep transcendence_ || echo "  No transcendence volumes found"
 	@echo "✅ Safe stop completed - all data preserved"
@@ -126,7 +125,7 @@ fclean: stop
 	@read -p "Are you sure? [y/N] " ans && ans=$${ans:-N} ;\
 	if [ $${ans} = y ] || [ $${ans} = Y ]; then\
 		printf "🗑️  Performing full cleanup...\n" ;\
-		docker compose down -v ;\
+		docker compose --profile monitoring --profile full down -v ;\
 		docker volume prune -af ;\
 		docker volume rm transcendence_shared-data transcendence_elasticsearch-data 2>/dev/null || true ;\
 		docker system prune -a -f ;\

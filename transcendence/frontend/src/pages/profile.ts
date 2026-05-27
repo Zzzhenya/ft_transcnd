@@ -527,7 +527,6 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
 
       const data = await res.json().catch(() => ({}));
 
-      // If the server returned 401, show an inline wrong-password message (defensive check)
       if (res.status === 401) {
         if (passwordError) {
           passwordError.textContent = (data && data.error) ? String(data.error) : 'Incorrect password. Please check your password and try again.';
@@ -547,7 +546,6 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
       if (data.error) {
         const serverMsg = String(data.error || '').toLowerCase();
 
-        // Friendly mapping for common server error messages
         if (/password|wrong password|incorrect/.test(serverMsg)) {
           if (passwordError) {
             passwordError.textContent = 'Incorrect password. Please check your password and try again.';
@@ -564,7 +562,6 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
             emailError.classList.remove('hidden');
           }
         } else {
-          // Fallback to server message if it's helpful, otherwise generic
           showMessage(data.error || 'Failed to update email', 'error');
         }
       } else {
@@ -918,10 +915,8 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
       const data = await res.json().catch(() => ({}));
 
       if (res.ok) {
-        // Backend may return structured success with status: 'accepted'|'pending'
         if (data && data.success) {
           if (data.status === 'accepted') {
-            // Already friends
             showMessage(data.message || 'This user is already your friend.', 'info');
           } else if (data.status === 'pending') {
             showMessage(data.message || 'Friend request sent successfully!', 'success');
@@ -929,7 +924,6 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
             showMessage(data.message || 'Friend request processed', 'success');
           }
         } else {
-          // fallback for unexpected but OK responses
           showMessage(data.message || 'Friend request processed', 'success');
         }
 
@@ -958,8 +952,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
       const res = await fetch(`/api/user-service/users/online`, { credentials: 'include' });
       if (res.ok) {
         const data = await res.json();
-        void data; // placeholder to avoid unused variable error
-        // onlineUsers = data.users || [];
+        void data;
       }
     } catch (error) {
       console.log('Could not load online users:', error);
@@ -1005,8 +998,8 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
   function showMessage(message: string, type: 'success' | 'error' | 'info') {
     const messageEl = document.createElement('div');
     messageEl.className = `fixed top-4 right-4 px-6 py-3 rounded-lg font-semibold z-50 transition-all transform translate-x-0 ${type === 'success' ? 'bg-green-500 text-white' :
-        type === 'error' ? 'bg-red-500 text-white' :
-          'bg-blue-500 text-white'
+      type === 'error' ? 'bg-red-500 text-white' :
+        'bg-blue-500 text-white'
       }`;
     messageEl.textContent = message;
     document.body.appendChild(messageEl);
@@ -1070,6 +1063,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
     });
   }
 
+  // ==================== FRIENDS SECTION ====================
   function renderFriendsSection() {
     const friendsContainer = root.querySelector('#friends-container');
     if (!friendsContainer) return;
@@ -1095,22 +1089,31 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
         badge = `<span class="text-xs text-gray-400 px-2 py-1 rounded-full bg-gray-800/50 border border-gray-600/30">❌ ${friend.friends_status}</span>`;
       }
 
+      const showCoffeeBtn = friend.friends_status === 'accepted';
+
       return `
-            <div class="flex items-center justify-between p-4 card-violet rounded-lg border">
-              <div class="flex items-center gap-3">
-                <div class="w-3 h-3 rounded-full ${dotColor}"></div>
-                <div>
-                  <span class="font-semibold text-gray-200">${friend.username || 'Unknown User'}</span>
-                  <div class="text-xs text-gray-400">
-                    Status: ${friend.friends_status} • Added: ${new Date(friend.created_at).toLocaleDateString()}
-                  </div>
-                </div>
-              </div>
-              <div class="text-right">
-                ${badge}
+        <div class="flex items-center justify-between p-4 card-violet rounded-lg border">
+          <div class="flex items-center gap-3">
+            <div class="w-3 h-3 rounded-full ${dotColor}"></div>
+            <div>
+              <span class="font-semibold text-gray-200">${friend.username || 'Unknown User'}</span>
+              <div class="text-xs text-gray-400">
+                Status: ${friend.friends_status} • Added: ${new Date(friend.created_at).toLocaleDateString()}
               </div>
             </div>
-          `;
+          </div>
+          <div class="flex items-center gap-2">
+            ${badge}
+            ${showCoffeeBtn ? `
+              <button
+                class="coffee-btn px-3 py-1 rounded-lg text-sm font-semibold transition-all bg-emerald-700 hover:bg-emerald-600 text-white"
+                data-username="${friend.username}">
+                ☕ Coffee
+              </button>
+            ` : ''}
+          </div>
+        </div>
+      `;
     }).join('') : `
           <div class="text-center py-8 text-gray-400">
             <div class="mb-3 opacity-50 flex justify-center">
@@ -1122,6 +1125,32 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
         `}
       </div>
     `;
+
+    // ← Wire up coffee buttons HERE, after innerHTML is set
+    root.querySelectorAll<HTMLButtonElement>('.coffee-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const username = btn.getAttribute('data-username') || '';
+        btn.textContent = '⏳ Loading...';
+        btn.disabled = true;
+
+        try {
+          const res = await fetch(`/api/payment/coffee/${username}`, {
+            method: 'POST',
+            credentials: 'include'
+          });
+
+          if (!res.ok) throw new Error('Failed');
+          const { paymentUrl } = await res.json();
+          window.open(paymentUrl, '_blank');
+
+        } catch {
+          showMessage('Could not create payment. Try again.', 'error');
+        } finally {
+          btn.textContent = '☕ Coffee';
+          btn.disabled = false;
+        }
+      });
+    });
   }
 
   // ==================== MAIN RENDER ====================
@@ -1158,7 +1187,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
             <img src="/icons/message.png" class="icon-px icon-px--violet" alt="Friend Requests">
             Friend Requests
           </h2>
-            <button id="refresh-requests-btn" class="text-sm link-violet">
+          <button id="refresh-requests-btn" class="text-sm link-violet">
             Refresh
           </button>
         </div>
@@ -1178,7 +1207,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
             Friends Management
           </h2>
           <button id="refresh-friends-btn" class="text-sm link-violet">
-             Refresh
+            Refresh
           </button>
         </div>
         
@@ -1194,7 +1223,7 @@ export default function (root: HTMLElement, ctx?: { url?: URL }) {
             </button>
           </div>
           <p class="text-xs text-gray-300 mt-2">
-             Enter the exact username of the player you want to add as a friend.
+            Enter the exact username of the player you want to add as a friend.
           </p>
         </div>
         
